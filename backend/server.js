@@ -6,6 +6,8 @@ const rateLimit = require('express-rate-limit');
 
 const config = require('./config');
 const createDb = require('./db');
+const ai = require('./ai');
+const tg = require('./telegram');
 const { validateRegister, validateLogin } = require('./validators');
 
 const db = createDb(config.dbPath);
@@ -150,22 +152,10 @@ app.post('/api/discovery/scan', verifyToken, (req, res) => {
 // ==========================================
 // 3.3 GUIDED SETUP WIZARD ROUTER (/api/onboarding)
 // ==========================================
-app.post('/api/onboarding/slogans', verifyToken, (req, res) => {
-  const { category, tone, description } = req.body;
-  const templates = {
-    'Cozy & Warm': [`Your cozy corner for all things ${category || 'delicious'}.`, `Where local flavor meets heartfelt warmth.`, `Handcrafted comfort in every single detail.`],
-    'Modern & Minimalist': [`Simplicity, refined.`, `The future of ${category || 'quality'}, today.`, `Clean aesthetics. Superior standards.`],
-    'Energetic & Fast-paced': [`Fueling your day, the ${category || 'right'} way!`, `Fast. Fresh. Bold.`, `Zero compromises. Peak energy.`],
-    'Professional & Trustworthy': [`Excellence you can rely on.`, `Certified quality for our local community.`, `Your trusted partner in professional ${category || 'solutions'}.`],
-    'Playful & Fun': [`Adding a splash of happiness to your day!`, `Smile first, ask questions later.`, `Your daily dose of fun and ${category || 'treats'}.`],
-    'Luxury & Premium': [`The luxury you deserve.`, `Crafted for those who appreciate the finest things.`, `Indulge in premium ${category || 'sophistication'}.`],
-  };
-  const slogans = (templates[tone] || templates['Cozy & Warm']).map((slogan) =>
-    description && description.toLowerCase().includes('coffee')
-      ? slogan.replace('delicious', 'coffee').replace('quality', 'espresso')
-      : slogan
-  );
-  setTimeout(() => res.json({ slogans }), 800);
+app.post('/api/onboarding/slogans', verifyToken, async (req, res) => {
+  const { businessName, category, tone, description } = req.body;
+  const slogans = await ai.generateSlogans({ businessName, category, tone, description });
+  res.json({ slogans });
 });
 
 app.post('/api/onboarding/construct', verifyToken, (req, res) => {
@@ -246,24 +236,24 @@ app.get('/api/onboarding/active', verifyToken, (req, res) => {
 //   NOTE: copy is still templated. Real Claude generation is the "AI core"
 //   milestone.
 // ==========================================
-app.post('/api/content/copywrite', verifyToken, (req, res) => {
-  const { platform, topic } = req.body;
-  const name = req.body.businessName || 'Our Spot';
-  const mocks = {
-    instagram: {
-      post: `✨ **Something special is brewing at #${name}!** ✨\n\n🇺🇿 *O'zbekcha:* \nAjoyib yangilik! ${topic || 'Sizlar uchun maxsus taklif tayyorladik. Do‘stlaringiz bilan shinam muhitimizda dam oling va sifatli ta’mlardan bahra oling.'}\n\n🇷🇺 *Русский:* \nОтличные новости! ${topic || 'Мы приготовили для вас нечто особенное. Приходите с друзьями, расслабьтесь в нашей уютной атмосфере и насладитесь качественным вкусом.'}\n\n🇬🇧 *English:* \nGreat news! ${topic || 'We have handcrafted something special for you. Chill with your friends in our cozy space and enjoy pure local quality.'}\n\n📍 Toshkent, Amir Temur Ave.\n#SupportLocal #TashkentSpots #CozyVibes`,
-      mediaTip: '📸 Recommendation Frame: Close-up capture of double espresso pours or honey cakes with warm natural sunlight casting soft window reflections.',
-    },
-    telegram: {
-      post: `📢 **${name} Telegram Subscribers Alert!**\n\n🇺🇿 Yangi e'lon: ${topic || 'Biz dam olish kunlari chegirma va ajoyib desertlar bilan sizni kutamiz!'}\n\n🇷🇺 Объявление: ${topic || 'Ждем вас в выходные с отличными скидками и свежими десертами!'}\n\n📍 Manzilimiz: Amir Temur ko'chasi.\n📞 Aloqa: +998 90 123 45 67\n👉 Kanalga obuna bo'ling!`,
-      mediaTip: '📱 Square landscape frame featuring minimal typography overlay to ensure clear readability on Telegram chats.',
-    },
-    tiktok: {
-      post: `POV: You found the absolute best cozy workspace spot in Tashkent 🤫☕ Honey cake + high speed Wi-Fi hits different. \n\n#tashkentplaces #studygram #aestheticspots #uzb #chillspots #${name.toLowerCase().replace(/ /g, '')}`,
-      mediaTip: '🎬 3-5s looping phone clip showing a close-up texture scoop, shifting focus to a busy laptop monitor.',
-    },
-  };
-  res.json(mocks[(platform || 'instagram').toLowerCase()] || mocks.instagram);
+app.post('/api/content/copywrite', verifyToken, async (req, res) => {
+  const { platform, topic, languages } = req.body;
+  const profile = db.profiles.findByUserId(req.user.id);
+
+  const result = await ai.generateContent({
+    platform,
+    topic,
+    languages: Array.isArray(languages) ? languages : ['en'],
+    businessName: req.body.businessName || profile?.businessName,
+    category: profile?.category,
+    brandTone: profile?.brandTone,
+    audience: profile?.targetAudience,
+  });
+
+  // Surface hashtags in the post body so the existing UI shows them.
+  const tags = (result.hashtags || []).filter(Boolean);
+  const post = tags.length ? `${result.post}\n\n${tags.join(' ')}` : result.post;
+  res.json({ post, mediaTip: result.mediaTip, hashtags: tags });
 });
 
 app.get('/api/content/calendar', verifyToken, (req, res) => {
@@ -284,6 +274,132 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
     status: 'scheduled',
   });
   res.json(post);
+});
+
+// ==========================================
+// 3.45 TELEGRAM INTEGRATION (/api/telegram)
+//   Real Bot API integration. Telegram has no API to create bots, so the
+//   owner creates one via @BotFather (guided, ~60s) and pastes the token;
+//   everything after that — branding, channel detection, posting — is
+//   automated.
+// ==========================================
+const requireProfile = (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+  return profile;
+};
+
+app.post('/api/telegram/connect', verifyToken, async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const botToken = String(req.body.botToken || '').trim();
+  if (!tg.isValidTokenFormat(botToken)) {
+    return res.status(400).json({ error: 'That does not look like a bot token. It should look like 1234567890:ABC... — copy it from @BotFather.' });
+  }
+
+  try {
+    const me = await tg.getMe(botToken);
+    // Auto-brand the new bot with the business identity (best-effort).
+    const branding = await tg.configureBot(botToken, profile);
+    db.telegram.upsertBot({
+      profileId: profile.id,
+      botToken,
+      botUserId: me.id,
+      botUsername: me.username,
+      botName: `${profile.businessName} Assistant`,
+    });
+    db.platforms.setConnected(profile.id, 'telegram', `@${me.username}`);
+    res.json({ success: true, botUsername: me.username, branding });
+  } catch (err) {
+    const msg = err instanceof tg.TelegramError && err.code === 401
+      ? 'Telegram rejected this token. Double-check it in @BotFather (/mybots → API Token).'
+      : `Could not connect the bot: ${err.description || err.message}`;
+    res.status(400).json({ error: msg });
+  }
+});
+
+app.post('/api/telegram/detect-chat', verifyToken, async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const conn = db.telegram.findByProfile(profile.id);
+  if (!conn) return res.status(400).json({ error: 'Connect your bot first' });
+
+  try {
+    const found = await tg.detectChat(conn.botToken, conn.botUserId);
+    if (!found) {
+      return res.status(404).json({
+        error: `No channel or group found yet. Add @${conn.botUsername} to your channel as an administrator (with "Post messages" permission), then try again — or enter your @channel handle manually.`,
+      });
+    }
+    const verified = await tg.verifyPostAccess(conn.botToken, found.chatId, conn.botUserId);
+    db.telegram.setChat(profile.id, verified);
+    res.json({ success: true, chat: verified });
+  } catch (err) {
+    res.status(400).json({ error: err.description || err.message });
+  }
+});
+
+app.post('/api/telegram/channel', verifyToken, async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const conn = db.telegram.findByProfile(profile.id);
+  if (!conn) return res.status(400).json({ error: 'Connect your bot first' });
+
+  let chat = String(req.body.chat || '').trim();
+  if (!chat) return res.status(400).json({ error: 'Enter your channel handle (e.g. @mybusiness) or chat ID' });
+  if (!chat.startsWith('@') && !/^-?\d+$/.test(chat)) chat = `@${chat}`;
+
+  try {
+    const verified = await tg.verifyPostAccess(conn.botToken, chat, conn.botUserId);
+    db.telegram.setChat(profile.id, verified);
+    res.json({ success: true, chat: verified });
+  } catch (err) {
+    res.status(400).json({ error: err.description || err.message });
+  }
+});
+
+app.get('/api/telegram/status', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ connected: false });
+  const conn = db.telegram.findByProfile(profile.id);
+  if (!conn) return res.json({ connected: false });
+  res.json({
+    connected: true,
+    botUsername: conn.botUsername,
+    botName: conn.botName,
+    chat: conn.chatId ? { chatId: conn.chatId, chatTitle: conn.chatTitle, chatType: conn.chatType } : null,
+  });
+});
+
+// Shared executor — used by the direct post route AND the agent approval gate.
+async function executeTelegramPost(profile, text) {
+  const conn = db.telegram.findByProfile(profile.id);
+  if (!conn) throw new Error('Telegram is not connected');
+  if (!conn.chatId) throw new Error('No channel or group linked yet — finish the Telegram setup on your dashboard');
+  const sent = await tg.sendMessage(conn.botToken, conn.chatId, text);
+  db.calendar.add({
+    profileId: profile.id,
+    platform: 'telegram',
+    postText: text,
+    scheduledTime: new Date().toISOString(),
+    status: 'posted',
+  });
+  return { messageId: sent.message_id, chatTitle: conn.chatTitle || conn.chatId };
+}
+
+app.post('/api/telegram/post', verifyToken, async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const text = String(req.body.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'Post text is required' });
+
+  try {
+    const result = await executeTelegramPost(profile, text);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(400).json({ error: err.description || err.message });
+  }
 });
 
 // ==========================================
@@ -326,7 +442,7 @@ app.get('/api/dashboard/stats', verifyToken, (req, res) => {
 //   NOTE: keyword-matched replies for now. Real Claude routing is the
 //   "AI core" milestone; the approval-gate plumbing here is real.
 // ==========================================
-app.post('/api/agent/query', verifyToken, (req, res) => {
+app.post('/api/agent/query', verifyToken, async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'A query is required' });
 
@@ -334,7 +450,10 @@ app.post('/api/agent/query', verifyToken, (req, res) => {
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
   const lower = query.toLowerCase();
-  if (lower.includes('ad') || lower.includes('campaign') || lower.includes('meta') || lower.includes('budget')) {
+  // Deterministic safety gate — anything touching ad spend / money always
+  // requires explicit human approval, regardless of what the model would say.
+  // Word-boundary regex so words like "upload" or "add" don't false-trigger.
+  if (/\b(ads?|advert\w*|campaigns?|budgets?)\b/.test(lower)) {
     const approval = db.approvals.create({
       profileId: profile.id,
       actionType: 'ad_creation',
@@ -348,26 +467,79 @@ app.post('/api/agent/query', verifyToken, (req, res) => {
     return res.json({ triggerApproval: true, approvalId: approval.id, payload: approval.action_payload });
   }
 
-  let reply;
-  if (lower.includes('instagram') || lower.includes('post') || lower.includes('copy')) {
-    reply = `I have successfully constructed an Instagram post copy optimized for #${profile.businessName} under the Content Engine tab. It emphasizes your tone "${profile.brandTone}". Would you like me to schedule it?`;
-  } else if (lower.includes('competitor') || lower.includes('gap')) {
-    reply = `I reviewed local benchmarks. Competitors average 8-10 postings per week. You post 3 times per week. Closing this cadence gap will optimize your organic search positioning.`;
-  } else {
-    reply = `I am your active Markivo Marketing Agent. 🤖 I can draft captions, monitor local competitors, or structure paid search campaigns. Try asking 'create ad campaign' to test ad launch authorisations.`;
+  const conn = db.telegram.findByProfile(profile.id);
+  const action = await ai.agentAct({
+    query,
+    profile,
+    telegram: conn
+      ? { connected: true, chatTitle: conn.chatTitle, chatType: conn.chatType, hasChat: !!conn.chatId }
+      : { connected: false },
+  });
+
+  // Markiv proposed a Telegram publish → route through the human approval gate.
+  if (action.type === 'telegram_post') {
+    if (!conn || !conn.chatId) {
+      return res.json({
+        reply: conn
+          ? `Your bot @${conn.botUsername} is connected, but no channel is linked yet. Open the Telegram card on your dashboard, add the bot to your channel as admin, and click Detect — then I can post for you.`
+          : `Your Telegram isn't connected yet. Open the Telegram card on your dashboard — it takes about a minute — and then I can post for you.`,
+      });
+    }
+    const approval = db.approvals.create({
+      profileId: profile.id,
+      actionType: 'telegram_post',
+      actionPayload: {
+        action: 'Publish Telegram Post',
+        cost: 'Free — organic post',
+        target: `${conn.chatTitle || conn.chatId} (${conn.chatType || 'channel'})`,
+        creative: action.text,
+        text: action.text,
+      },
+    });
+    return res.json({
+      triggerApproval: true,
+      approvalId: approval.id,
+      payload: approval.action_payload,
+      reply: action.note || 'I drafted this post for your Telegram channel — review and approve to publish.',
+    });
   }
-  res.json({ reply });
+
+  res.json({ reply: action.reply });
 });
 
-app.post('/api/agent/approve', verifyToken, (req, res) => {
+app.post('/api/agent/approve', verifyToken, async (req, res) => {
   const { approvalId } = req.body;
   const approval = db.approvals.findById(approvalId);
   if (!approval) return res.status(404).json({ error: 'Pending authorization request not found' });
+  if (approval.status !== 'pending') {
+    return res.status(400).json({ error: 'This request was already processed' });
+  }
 
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile || profile.id !== approval.profileId) {
+    return res.status(403).json({ error: 'This approval belongs to a different business' });
+  }
+
+  // Approved Telegram posts are executed for real via the Bot API.
+  if (approval.action_type === 'telegram_post') {
+    try {
+      const result = await executeTelegramPost(profile, approval.action_payload.text);
+      db.approvals.updateStatus(approvalId, 'approved');
+      return res.json({
+        success: true,
+        message: `✅ Published to ${result.chatTitle}! Your subscribers can see it now.`,
+      });
+    } catch (err) {
+      db.approvals.updateStatus(approvalId, 'failed');
+      return res.status(400).json({ error: `Publishing failed: ${err.description || err.message}` });
+    }
+  }
+
+  // Ad campaigns remain simulated until the Ads APIs land.
   const updated = db.approvals.updateStatus(approvalId, 'approved');
   res.json({
     success: true,
-    message: `Campaign nodes authorized! Launched localized ad campaign costing ${updated.action_payload.cost}.`,
+    message: `Campaign authorized! Launched localized ad campaign costing ${updated.action_payload.cost}. (Simulation — Meta Ads integration coming soon.)`,
   });
 });
 

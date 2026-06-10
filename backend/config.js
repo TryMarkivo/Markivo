@@ -40,7 +40,17 @@ const config = {
   // Per-IP auth rate limit (requests per window).
   authRateLimit: parseInt(process.env.AUTH_RATE_LIMIT, 10) || 30,
   authRateWindowMs: (parseInt(process.env.AUTH_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
+
+  // --- AI (Anthropic) ---
+  // When ANTHROPIC_API_KEY is unset, the AI layer transparently falls back to
+  // smart templates, so the app keeps working without a key.
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+  // Cheap, fast model for high-volume content; capable model for the agent.
+  aiContentModel: process.env.AI_CONTENT_MODEL || 'claude-haiku-4-5',
+  aiAgentModel: process.env.AI_AGENT_MODEL || 'claude-opus-4-8',
 };
+
+config.aiEnabled = !!config.anthropicApiKey;
 
 // Convenience helpers used by the auth layer.
 config.newRefreshToken = () => crypto.randomBytes(32).toString('hex');

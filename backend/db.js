@@ -2,6 +2,7 @@ const Database = require('better-sqlite3');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const secrets = require('./secrets');
 
 /**
  * Markivo data-access layer (SQLite via better-sqlite3).
@@ -27,7 +28,7 @@ module.exports = function createDb(dbPath) {
       email         TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       full_name     TEXT NOT NULL,
-      preferred_lang TEXT DEFAULT 'uz',
+      preferred_lang TEXT DEFAULT 'en',
       tier          TEXT DEFAULT 'freemium',
       created_at    TEXT NOT NULL
     );
@@ -104,6 +105,20 @@ module.exports = function createDb(dbPath) {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS telegram_connections (
+      id           TEXT PRIMARY KEY,
+      profile_id   TEXT UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      bot_token    TEXT NOT NULL,
+      bot_user_id  INTEGER,
+      bot_username TEXT,
+      bot_name     TEXT,
+      chat_id      TEXT,
+      chat_title   TEXT,
+      chat_type    TEXT,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
     CREATE INDEX IF NOT EXISTS idx_platforms_profile ON platforms(profile_id);
     CREATE INDEX IF NOT EXISTS idx_competitors_profile ON competitors(profile_id);
@@ -158,7 +173,7 @@ module.exports = function createDb(dbPath) {
     close: () => sqlite.close(),
 
     users: {
-      create({ email, passwordHash, fullName, preferredLang = 'uz', tier = 'freemium' }) {
+      create({ email, passwordHash, fullName, preferredLang = 'en', tier = 'freemium' }) {
         const row = { id: id(), email, passwordHash, fullName, preferredLang, tier, created_at: now() };
         sqlite.prepare(
           `INSERT INTO users (id, email, password_hash, full_name, preferred_lang, tier, created_at)
@@ -217,6 +232,18 @@ module.exports = function createDb(dbPath) {
       },
       listByProfile(profileId) {
         return sqlite.prepare('SELECT * FROM platforms WHERE profile_id = ?').all(profileId).map(mapPlatform);
+      },
+      setConnected(profileId, platformName, accountHandle, isConnected = true) {
+        const existing = sqlite.prepare(
+          'SELECT id FROM platforms WHERE profile_id = ? AND platform_name = ?'
+        ).get(profileId, platformName);
+        if (existing) {
+          sqlite.prepare(
+            'UPDATE platforms SET is_connected = ?, account_handle = COALESCE(?, account_handle) WHERE id = ?'
+          ).run(isConnected ? 1 : 0, accountHandle || null, existing.id);
+        } else {
+          this.add({ profileId, platformName, isConnected, accountHandle, followersCount: 0 });
+        }
       },
     },
 
@@ -292,6 +319,52 @@ module.exports = function createDb(dbPath) {
         sqlite.prepare('UPDATE approvals SET status = ?, executed_at = ? WHERE id = ?')
           .run(status, now(), approvalId);
         return mapApproval(sqlite.prepare('SELECT * FROM approvals WHERE id = ?').get(approvalId));
+      },
+    },
+
+    telegram: {
+      // Bot token is encrypted at rest; mapTelegram decrypts on the way out.
+      upsertBot({ profileId, botToken, botUserId, botUsername, botName }) {
+        const existing = sqlite.prepare('SELECT id FROM telegram_connections WHERE profile_id = ?').get(profileId);
+        const enc = secrets.encrypt(botToken);
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE telegram_connections SET bot_token = ?, bot_user_id = ?, bot_username = ?, bot_name = ?,
+             chat_id = NULL, chat_title = NULL, chat_type = NULL, updated_at = ? WHERE id = ?`
+          ).run(enc, botUserId, botUsername, botName, now(), existing.id);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO telegram_connections (id, profile_id, bot_token, bot_user_id, bot_username, bot_name, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          ).run(id(), profileId, enc, botUserId, botUsername, botName, now());
+        }
+        return this.findByProfile(profileId);
+      },
+      setChat(profileId, { chatId, chatTitle, chatType }) {
+        sqlite.prepare(
+          'UPDATE telegram_connections SET chat_id = ?, chat_title = ?, chat_type = ?, updated_at = ? WHERE profile_id = ?'
+        ).run(chatId, chatTitle || null, chatType || null, now(), profileId);
+        return this.findByProfile(profileId);
+      },
+      findByProfile(profileId) {
+        const r = sqlite.prepare('SELECT * FROM telegram_connections WHERE profile_id = ?').get(profileId);
+        if (!r) return null;
+        let botToken = null;
+        try {
+          botToken = secrets.decrypt(r.bot_token);
+        } catch {
+          // Encryption key changed (JWT_SECRET rotated) — connection is unusable.
+          return null;
+        }
+        return {
+          id: r.id, profileId: r.profile_id, botToken, botUserId: r.bot_user_id,
+          botUsername: r.bot_username, botName: r.bot_name,
+          chatId: r.chat_id, chatTitle: r.chat_title, chatType: r.chat_type,
+          created_at: r.created_at, updated_at: r.updated_at,
+        };
+      },
+      remove(profileId) {
+        sqlite.prepare('DELETE FROM telegram_connections WHERE profile_id = ?').run(profileId);
       },
     },
 

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import api from '../lib/api';
 import './AIAgentSidebar.css';
 
-export default function AIAgentSidebar({ activeProfile }) {
+export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
   const [isOpen, setIsOpen] = useState(true);
   const [messages, setMessages] = useState([
     {
       sender: 'agent',
-      text: `Salom! I am your Markivo AI Marketing Agent. 🤖 I have successfully synchronized your channels (Google Business, Instagram, and Telegram) and compiled your Tashkent SEO baseline.\n\nWhat would you like me to execute today?`,
+      text: `Hi! I'm Markiv 🤖 — your marketing agent. I can draft content, analyse competitors, and post straight to your Telegram channel when you ask.\n\nWhat shall we work on today?`,
       time: 'Just now'
     }
   ]);
@@ -36,7 +36,7 @@ export default function AIAgentSidebar({ activeProfile }) {
         setShowApprovalGate(true);
         setMessages(prev => [...prev, {
           sender: 'agent',
-          text: 'This action affects ad spend, so it needs your authorization. Please review the request below.',
+          text: data.reply || 'This action needs your authorization. Please review the request below.',
           time: 'Just now'
         }]);
       } else {
@@ -80,24 +80,21 @@ export default function AIAgentSidebar({ activeProfile }) {
   const handleApproveAction = async () => {
     setApprovalSuccess(true);
 
+    let resultText;
     try {
-      if (approvalId) await api.post('/api/agent/approve', { approvalId });
-    } catch {
-      console.warn('Approval persistence offline, proceeding locally.');
+      if (approvalId) {
+        const data = await api.post('/api/agent/approve', { approvalId });
+        resultText = data.message || '✅ Action approved and executed!';
+      } else {
+        // Offline simulation path (no server-side approval record).
+        resultText = `✅ Action approved! (Simulated — server offline.)`;
+      }
+    } catch (err) {
+      resultText = `⚠️ ${err.message || 'The action could not be executed. Please try again.'}`;
     }
 
-    setTimeout(() => {
-      setShowApprovalGate(false);
-      // Add success message in chat
-      setMessages(prev => [
-        ...prev,
-        {
-          sender: 'agent',
-          text: `✅ **Action Approved & Executed!**\n\nI have successfully launched your localized Meta Ad Campaign with a budget of ${approvalDetails.cost} targeting remote workers in Tashkent. Performance statistics will stream into your analytics card shortly.`,
-          time: 'Just now'
-        }
-      ]);
-    }, 1500);
+    setShowApprovalGate(false);
+    setMessages(prev => [...prev, { sender: 'agent', text: resultText, time: 'Just now' }]);
   };
 
   return (
@@ -108,8 +105,8 @@ export default function AIAgentSidebar({ activeProfile }) {
           <div className="agent-title-wrap">
             <span className="agent-avatar-icon">🤖</span>
             <div>
-              <h4>AI Marketing Agent</h4>
-              <small>Ultimate Token Budget: 250/mo</small>
+              <h4>Markiv</h4>
+              <small>Your AI marketing agent</small>
             </div>
           </div>
           <button className="agent-toggle-btn" onClick={() => setIsOpen(!isOpen)} id="btn_toggle_agent">
@@ -133,6 +130,9 @@ export default function AIAgentSidebar({ activeProfile }) {
 
             {/* SUGGESTION BARS */}
             <div className="chat-suggestions">
+              <button className="suggestion-pill" onClick={() => handleSendMessage(telegramStatus?.connected ? 'Post a friendly update about our business to Telegram' : 'How do I connect my Telegram channel?')} id="btn_sug_telegram">
+                📣 Post to Telegram
+              </button>
               <button className="suggestion-pill" onClick={() => handleSendMessage('Generate Instagram post copy')} id="btn_sug_insta">
                 ✍️ Draft Instagram post
               </button>
@@ -140,7 +140,7 @@ export default function AIAgentSidebar({ activeProfile }) {
                 📊 Check competitor gaps
               </button>
               <button className="suggestion-pill" onClick={() => handleSendMessage('Create ad campaign')} id="btn_sug_ad">
-                🚀 Create Tashkent Ad campaign
+                🚀 Create ad campaign
               </button>
             </div>
 
@@ -170,7 +170,7 @@ export default function AIAgentSidebar({ activeProfile }) {
             <div className="approval-gate-header">
               <i className="fa-solid fa-shield-halved text-accent shield-icon"></i>
               <div>
-                <h3>AD CREATION AUTHORIZATION REQUIRED</h3>
+                <h3>{(approvalDetails.action || 'Action').toUpperCase()} — APPROVAL REQUIRED</h3>
                 <small className="text-muted">Requires direct human confirmation</small>
               </div>
             </div>
@@ -180,14 +180,18 @@ export default function AIAgentSidebar({ activeProfile }) {
                 <span>Action:</span>
                 <strong>{approvalDetails.action}</strong>
               </div>
-              <div className="gate-detail-row">
-                <span>Daily Budget:</span>
-                <strong className="text-accent">{approvalDetails.cost}</strong>
-              </div>
-              <div className="gate-detail-row">
-                <span>Targeted Radius:</span>
-                <strong>{approvalDetails.target}</strong>
-              </div>
+              {approvalDetails.cost && (
+                <div className="gate-detail-row">
+                  <span>Cost:</span>
+                  <strong className="text-accent">{approvalDetails.cost}</strong>
+                </div>
+              )}
+              {approvalDetails.target && (
+                <div className="gate-detail-row">
+                  <span>Destination:</span>
+                  <strong>{approvalDetails.target}</strong>
+                </div>
+              )}
               <div className="gate-creative-box mt-10">
                 <pre>{approvalDetails.creative}</pre>
               </div>
@@ -211,11 +215,11 @@ export default function AIAgentSidebar({ activeProfile }) {
               >
                 {approvalSuccess ? (
                   <>
-                    <i className="fa-solid fa-spinner fa-spin"></i> Authorizing campaign nodes...
+                    <i className="fa-solid fa-spinner fa-spin"></i> Executing...
                   </>
                 ) : (
                   <>
-                    <i className="fa-solid fa-circle-check text-success"></i> Authorize & Launch Ad
+                    <i className="fa-solid fa-circle-check text-success"></i> Approve & Execute
                   </>
                 )}
               </button>

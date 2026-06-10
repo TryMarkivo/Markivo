@@ -11,8 +11,10 @@ Asia, in Uzbek, Russian, and English.
 
 | Tier | Tech |
 |------|------|
-| Frontend | React 19 + Vite, `react-i18next` (uz/ru/en) |
+| Frontend | React 19 + Vite, `react-i18next` (English-first; uz/ru optional) |
 | Backend | Node.js + Express, JWT auth (access + refresh), SQLite (`better-sqlite3`) |
+| AI | Claude via `@anthropic-ai/sdk` — Haiku for content/slogans, Opus for the **Markiv** agent; smart-template fallback when no key is set |
+| Telegram | Real Bot API integration — guided BotFather setup, auto-branding, channel detection, publish-with-approval through Markiv |
 | Tests | Node's built-in `node:test` runner |
 | Deploy | Docker + docker-compose (backend container + nginx-served frontend) |
 
@@ -35,6 +37,28 @@ npm run dev
 
 Then open the Vite URL, click **Build From Scratch**, register, and walk the
 onboarding wizard into the dashboard.
+
+## Enabling real AI (Markiv)
+
+Set `ANTHROPIC_API_KEY` in `backend/.env` and restart. Content generation,
+slogans, and the Markiv agent switch from smart templates to live Claude
+generation — no code changes needed.
+
+## Connecting Telegram
+
+Telegram has no API for creating bots, so the flow is guided (~1 minute):
+
+1. On the dashboard, click the **Telegram** pill → follow the steps: create a
+   bot via [@BotFather](https://t.me/BotFather) (`/newbot`) and paste its token.
+   Markivo automatically brands the bot with your business name, description,
+   and slogan.
+2. Add the bot to your channel as an **administrator** (Post messages) → click
+   **Detect My Channel** (or enter `@yourchannel` manually).
+3. Ask **Markiv** in the chat panel: *"Post our weekend offer to Telegram"* —
+   review the draft in the approval dialog, approve, and it publishes for real.
+
+Bot tokens are stored AES-256-GCM-encrypted at rest. Every publish goes
+through the human approval gate; the model can never post or spend on its own.
 
 ## Testing
 

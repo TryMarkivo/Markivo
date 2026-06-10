@@ -1,13 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import './ContentEngine.css';
 
 export default function ContentEngine({ activeProfile }) {
   const [platform, setPlatform] = useState('Instagram');
   const [topic, setTopic] = useState('');
+  const [langMode, setLangMode] = useState('en'); // 'en' | 'multi'
   const [loadingCopy, setLoadingCopy] = useState(false);
   const [generatedCopy, setGeneratedCopy] = useState(null);
   const [scheduled, setScheduled] = useState(false);
+  const [tgStatus, setTgStatus] = useState(null);
+  const [tgPosting, setTgPosting] = useState(false);
+  const [tgPostResult, setTgPostResult] = useState(null); // null | 'ok' | error string
+
+  useEffect(() => {
+    api.get('/api/telegram/status').then(setTgStatus).catch(() => setTgStatus(null));
+  }, [activeProfile]);
+
+  const telegramReady = !!(tgStatus?.connected && tgStatus?.chat);
+
+  const handlePostToTelegram = async () => {
+    if (!generatedCopy || tgPosting) return;
+    setTgPosting(true);
+    setTgPostResult(null);
+    try {
+      await api.post('/api/telegram/post', { text: generatedCopy.post });
+      setTgPostResult('ok');
+    } catch (err) {
+      setTgPostResult(err.message || 'Posting failed');
+    }
+    setTgPosting(false);
+  };
 
   // Before-After slider state
   const [sliderPosition, setSliderPosition] = useState(50);
@@ -18,10 +41,12 @@ export default function ContentEngine({ activeProfile }) {
 
     setLoadingCopy(true);
     setScheduled(false);
+    setTgPostResult(null);
     try {
       const data = await api.post('/api/content/copywrite', {
         platform,
         topic,
+        languages: langMode === 'multi' ? ['en', 'uz', 'ru'] : ['en'],
         tone: activeProfile.brandTone || activeProfile.tone,
         businessName: activeProfile.businessName,
       });
@@ -95,6 +120,28 @@ export default function ContentEngine({ activeProfile }) {
             </div>
 
             <div className="form-group">
+              <label className="form-label">Post Language</label>
+              <div className="platform-radio-group">
+                <button
+                  type="button"
+                  className={`platform-select-btn ${langMode === 'en' ? 'active' : ''}`}
+                  onClick={() => setLangMode('en')}
+                  id="btn_lang_en"
+                >
+                  🇬🇧 English
+                </button>
+                <button
+                  type="button"
+                  className={`platform-select-btn ${langMode === 'multi' ? 'active' : ''}`}
+                  onClick={() => setLangMode('multi')}
+                  id="btn_lang_multi"
+                >
+                  🌐 EN + UZ + RU
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
               <label className="form-label" htmlFor="inp_topic">What is the focus of this post?</label>
               <textarea
                 id="inp_topic"
@@ -117,7 +164,7 @@ export default function ContentEngine({ activeProfile }) {
             <div className="generated-output-box glass-card mt-20 animate-fade-in">
               <div className="output-header flex-between">
                 <span className="badge badge-primary"><i className="fa-solid fa-code-merge"></i> Platform Tone-Optimized</span>
-                <small className="text-muted">Uzbek / Russian / English active</small>
+                <small className="text-muted">{langMode === 'multi' ? 'English + Uzbek + Russian' : 'English'}</small>
               </div>
               <div className="output-content">
                 <pre className="copy-text-area">{generatedCopy.post}</pre>
@@ -130,14 +177,27 @@ export default function ContentEngine({ activeProfile }) {
 
               <div className="output-actions flex-between mt-20">
                 <button className="btn btn-secondary btn-sm" onClick={() => setGeneratedCopy(null)} id="btn_discard_post">Discard</button>
-                {!scheduled ? (
-                  <button className="btn btn-accent btn-sm" onClick={handleSchedule} id="btn_schedule_post">
-                    <i className="fa-solid fa-calendar-check"></i> Approve & Schedule Post
-                  </button>
-                ) : (
-                  <span className="badge badge-success py-10 px-20 font-bold"><i className="fa-solid fa-circle-check"></i> Scheduled on Content Calendar</span>
-                )}
+                <div className="flex-gap-8">
+                  {platform === 'Telegram' && telegramReady && tgPostResult !== 'ok' && (
+                    <button className="btn btn-primary btn-sm" onClick={handlePostToTelegram} disabled={tgPosting} id="btn_post_telegram_now">
+                      <i className="fa-brands fa-telegram"></i> {tgPosting ? 'Publishing…' : `Post to ${tgStatus.chat.chatTitle} now`}
+                    </button>
+                  )}
+                  {tgPostResult === 'ok' && (
+                    <span className="badge badge-success py-10 px-20 font-bold"><i className="fa-solid fa-circle-check"></i> Published to Telegram</span>
+                  )}
+                  {!scheduled ? (
+                    <button className="btn btn-accent btn-sm" onClick={handleSchedule} id="btn_schedule_post">
+                      <i className="fa-solid fa-calendar-check"></i> Approve & Schedule
+                    </button>
+                  ) : (
+                    <span className="badge badge-success py-10 px-20 font-bold"><i className="fa-solid fa-circle-check"></i> Scheduled</span>
+                  )}
+                </div>
               </div>
+              {tgPostResult && tgPostResult !== 'ok' && (
+                <div className="auth-error-box mt-10">{tgPostResult}</div>
+              )}
             </div>
           )}
         </div>

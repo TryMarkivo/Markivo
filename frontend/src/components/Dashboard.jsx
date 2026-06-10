@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import ContentEngine from './ContentEngine';
 import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
+import TelegramConnect from './TelegramConnect';
 import api from '../lib/api';
 import './Dashboard.css';
 
@@ -10,6 +11,15 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [tgStatus, setTgStatus] = useState(null);
+  const [tgModalOpen, setTgModalOpen] = useState(false);
+
+  const refreshTelegramStatus = () => {
+    api.get('/api/telegram/status')
+      .then(setTgStatus)
+      .catch(() => setTgStatus({ connected: false }));
+  };
+  useEffect(refreshTelegramStatus, [activeProfile]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -150,8 +160,19 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                     <i className="fa-brands fa-instagram"></i> Instagram
                     <span className="dot"></span>
                   </div>
-                  <div className={`channel-pill ${activeProfile.platforms.telegram ? 'connected' : 'inactive'}`}>
-                    <i className="fa-brands fa-telegram"></i> Telegram
+                  <div
+                    className={`channel-pill ${tgStatus?.connected && tgStatus?.chat ? 'connected' : 'inactive'}`}
+                    onClick={() => setTgModalOpen(true)}
+                    style={{ cursor: 'pointer' }}
+                    title={tgStatus?.connected ? `Bot @${tgStatus.botUsername}` : 'Click to connect Telegram'}
+                    id="btn_telegram_pill"
+                  >
+                    <i className="fa-brands fa-telegram"></i>{' '}
+                    {tgStatus?.connected && tgStatus?.chat
+                      ? `Telegram · ${tgStatus.chat.chatTitle}`
+                      : tgStatus?.connected
+                        ? 'Telegram · finish setup'
+                        : 'Telegram · connect'}
                     <span className="dot"></span>
                   </div>
                   <div className={`channel-pill ${activeProfile.platforms.tiktok ? 'connected' : 'inactive'}`}>
@@ -294,8 +315,17 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
         </div>
       </main>
 
+      {/* --- TELEGRAM CONNECT MODAL --- */}
+      {tgModalOpen && (
+        <TelegramConnect
+          status={tgStatus}
+          onStatusChange={refreshTelegramStatus}
+          onClose={() => setTgModalOpen(false)}
+        />
+      )}
+
       {/* --- PERSISTENT RIGHT-FLOATING AI AGENT PANEL --- */}
-      <AIAgentSidebar token={token} activeProfile={activeProfile} />
+      <AIAgentSidebar token={token} activeProfile={activeProfile} telegramStatus={tgStatus} />
     </div>
   );
 }
