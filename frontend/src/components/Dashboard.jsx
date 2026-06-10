@@ -162,17 +162,25 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                   </div>
                   <div
                     className={`channel-pill ${tgStatus?.connected && tgStatus?.chat ? 'connected' : 'inactive'}`}
-                    onClick={() => setTgModalOpen(true)}
-                    style={{ cursor: 'pointer' }}
-                    title={tgStatus?.connected ? `Bot @${tgStatus.botUsername}` : 'Click to connect Telegram'}
+                    onClick={tgStatus?.comingSoon ? undefined : () => setTgModalOpen(true)}
+                    style={{ cursor: tgStatus?.comingSoon ? 'default' : 'pointer' }}
+                    title={
+                      tgStatus?.comingSoon
+                        ? 'Telegram integration is coming soon'
+                        : tgStatus?.connected
+                          ? `Bot @${tgStatus.botUsername}`
+                          : 'Click to connect Telegram'
+                    }
                     id="btn_telegram_pill"
                   >
                     <i className="fa-brands fa-telegram"></i>{' '}
-                    {tgStatus?.connected && tgStatus?.chat
-                      ? `Telegram · ${tgStatus.chat.chatTitle}`
-                      : tgStatus?.connected
-                        ? 'Telegram · finish setup'
-                        : 'Telegram · connect'}
+                    {tgStatus?.comingSoon
+                      ? 'Telegram · soon'
+                      : tgStatus?.connected && tgStatus?.chat
+                        ? `Telegram · ${tgStatus.chat.chatTitle}`
+                        : tgStatus?.connected
+                          ? 'Telegram · finish setup'
+                          : 'Telegram · connect'}
                     <span className="dot"></span>
                   </div>
                   <div className={`channel-pill ${activeProfile.platforms.tiktok ? 'connected' : 'inactive'}`}>

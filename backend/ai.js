@@ -73,6 +73,12 @@ function templateAgentAct({ query, profile, telegram }) {
 
   // Publish intent → hand back a drafted post for the approval gate.
   if (/\b(post|publish|announce|share|send)\b/.test(lower) && /telegram|channel|group/.test(lower)) {
+    if (telegram?.comingSoon) {
+      return {
+        type: 'reply',
+        reply: `Telegram publishing is coming soon — it isn't enabled in this version yet. Meanwhile I can draft the post text for you: just tell me the topic, or use the Content Engine tab.`,
+      };
+    }
     if (!telegram?.connected) {
       return {
         type: 'reply',
@@ -237,7 +243,9 @@ async function agentAct(ctx) {
           : '') +
         (telegram?.connected
           ? `\nTelegram: connected (${telegram.chatTitle || 'channel'}).`
-          : '\nTelegram: NOT connected. If the owner asks to post to Telegram, explain they can connect it from the dashboard Telegram card in about a minute (create a bot with @BotFather, paste the token, add the bot to their channel).'),
+          : telegram?.comingSoon
+            ? '\nTelegram: COMING SOON — the integration is not enabled in this version. If the owner asks to post to Telegram, say it is coming soon and offer to draft the post text meanwhile. Do not tell them to connect a bot.'
+            : '\nTelegram: NOT connected. If the owner asks to post to Telegram, explain they can connect it from the dashboard Telegram card in about a minute (create a bot with @BotFather, paste the token, add the bot to their channel).'),
       messages: [{ role: 'user', content: query || 'Hello' }],
       tools: tools.length ? tools : undefined,
     });

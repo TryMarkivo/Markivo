@@ -9,6 +9,9 @@ const TMP_DB = path.join(os.tmpdir(), `markivo-tgflow-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
+// Telegram is feature-flagged off by default (post-MVP); this suite tests the
+// full integration, so turn it on for this process.
+process.env.TELEGRAM_ENABLED = 'true';
 
 // Selective fetch stub: fake api.telegram.org, pass localhost through.
 const realFetch = global.fetch;

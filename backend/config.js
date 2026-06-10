@@ -48,6 +48,13 @@ const config = {
   // Cheap, fast model for high-volume content; capable model for the agent.
   aiContentModel: process.env.AI_CONTENT_MODEL || 'claude-haiku-4-5',
   aiAgentModel: process.env.AI_AGENT_MODEL || 'claude-opus-4-8',
+
+  // --- Feature flags ---
+  // Telegram is fully built (backend/telegram.js + TelegramConnect UI) but
+  // de-scoped from the MVP (decision 2026-06-10). Default OFF: routes answer
+  // 503 "coming soon" and the dashboard shows a Coming-soon pill. Flip to
+  // re-enable end-to-end — no code changes needed.
+  telegramEnabled: process.env.TELEGRAM_ENABLED === 'true',
 };
 
 config.aiEnabled = !!config.anthropicApiKey;

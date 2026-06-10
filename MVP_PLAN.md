@@ -3,9 +3,10 @@
 ## Overview
 This document outlines the Minimum Viable Product (MVP) implementation plan for Markivo, based on the Overview document specifications. The MVP focuses on core functionality that delivers immediate value while adhering to the ruthless scope control defined in Section 12.
 
-**MVP Scope**: Onboarding wizard → Google Business + Instagram + Telegram → AI content generation → Basic analytics → AI agent (chat only)
+**MVP Scope**: Onboarding wizard → Google Business + Instagram → AI content generation → Basic analytics → AI agent (chat only)
 
 **Excluded from MVP** (per Section 12):
+- Telegram integration — fully built 2026-06-10 (bot connect, channel detection, publish-with-approval) but de-scoped to post-MVP; ships disabled behind the `TELEGRAM_ENABLED` flag
 - Affiliate marketing system
 - AI website generation  
 - Gmail auto-reply learning

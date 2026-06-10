@@ -130,8 +130,18 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
 
             {/* SUGGESTION BARS */}
             <div className="chat-suggestions">
-              <button className="suggestion-pill" onClick={() => handleSendMessage(telegramStatus?.connected ? 'Post a friendly update about our business to Telegram' : 'How do I connect my Telegram channel?')} id="btn_sug_telegram">
-                📣 Post to Telegram
+              <button
+                className="suggestion-pill"
+                onClick={() => handleSendMessage(
+                  telegramStatus?.comingSoon
+                    ? 'Draft a short announcement post for our business'
+                    : telegramStatus?.connected
+                      ? 'Post a friendly update about our business to Telegram'
+                      : 'How do I connect my Telegram channel?'
+                )}
+                id="btn_sug_telegram"
+              >
+                {telegramStatus?.comingSoon ? '📣 Draft announcement' : '📣 Post to Telegram'}
               </button>
               <button className="suggestion-pill" onClick={() => handleSendMessage('Generate Instagram post copy')} id="btn_sug_insta">
                 ✍️ Draft Instagram post

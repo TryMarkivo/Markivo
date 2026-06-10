@@ -14,7 +14,7 @@ Asia, in Uzbek, Russian, and English.
 | Frontend | React 19 + Vite, `react-i18next` (English-first; uz/ru optional) |
 | Backend | Node.js + Express, JWT auth (access + refresh), SQLite (`better-sqlite3`) |
 | AI | Claude via `@anthropic-ai/sdk` — Haiku for content/slogans, Opus for the **Markiv** agent; smart-template fallback when no key is set |
-| Telegram | Real Bot API integration — guided BotFather setup, auto-branding, channel detection, publish-with-approval through Markiv |
+| Telegram | Real Bot API integration — guided BotFather setup, auto-branding, channel detection, publish-with-approval through Markiv. **Post-MVP: ships disabled behind `TELEGRAM_ENABLED`** |
 | Tests | Node's built-in `node:test` runner |
 | Deploy | Docker + docker-compose (backend container + nginx-served frontend) |
 
@@ -44,7 +44,12 @@ Set `ANTHROPIC_API_KEY` in `backend/.env` and restart. Content generation,
 slogans, and the Markiv agent switch from smart templates to live Claude
 generation — no code changes needed.
 
-## Connecting Telegram
+## Connecting Telegram (post-MVP, disabled by default)
+
+> The integration below is fully built and tested, but de-scoped from the MVP
+> (2026-06-10). It ships **off**: the dashboard shows a "Telegram · soon" pill
+> and the API answers 503 until you set `TELEGRAM_ENABLED=true` in
+> `backend/.env`.
 
 Telegram has no API for creating bots, so the flow is guided (~1 minute):
 

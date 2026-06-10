@@ -289,7 +289,19 @@ const requireProfile = (req, res) => {
   return profile;
 };
 
-app.post('/api/telegram/connect', verifyToken, async (req, res) => {
+// Telegram is de-scoped from the MVP: the integration below stays intact but
+// is gated off until TELEGRAM_ENABLED=true (see config.js feature flags).
+const telegramGate = (req, res, next) => {
+  if (!config.telegramEnabled) {
+    return res.status(503).json({
+      error: 'Telegram integration is coming soon — it is not part of the current MVP.',
+      comingSoon: true,
+    });
+  }
+  next();
+};
+
+app.post('/api/telegram/connect', verifyToken, telegramGate, async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -319,7 +331,7 @@ app.post('/api/telegram/connect', verifyToken, async (req, res) => {
   }
 });
 
-app.post('/api/telegram/detect-chat', verifyToken, async (req, res) => {
+app.post('/api/telegram/detect-chat', verifyToken, telegramGate, async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const conn = db.telegram.findByProfile(profile.id);
@@ -340,7 +352,7 @@ app.post('/api/telegram/detect-chat', verifyToken, async (req, res) => {
   }
 });
 
-app.post('/api/telegram/channel', verifyToken, async (req, res) => {
+app.post('/api/telegram/channel', verifyToken, telegramGate, async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const conn = db.telegram.findByProfile(profile.id);
@@ -360,6 +372,7 @@ app.post('/api/telegram/channel', verifyToken, async (req, res) => {
 });
 
 app.get('/api/telegram/status', verifyToken, (req, res) => {
+  if (!config.telegramEnabled) return res.json({ connected: false, comingSoon: true });
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.json({ connected: false });
   const conn = db.telegram.findByProfile(profile.id);
@@ -388,7 +401,7 @@ async function executeTelegramPost(profile, text) {
   return { messageId: sent.message_id, chatTitle: conn.chatTitle || conn.chatId };
 }
 
-app.post('/api/telegram/post', verifyToken, async (req, res) => {
+app.post('/api/telegram/post', verifyToken, telegramGate, async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const text = String(req.body.text || '').trim();
@@ -467,17 +480,22 @@ app.post('/api/agent/query', verifyToken, async (req, res) => {
     return res.json({ triggerApproval: true, approvalId: approval.id, payload: approval.action_payload });
   }
 
-  const conn = db.telegram.findByProfile(profile.id);
+  const conn = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
   const action = await ai.agentAct({
     query,
     profile,
     telegram: conn
       ? { connected: true, chatTitle: conn.chatTitle, chatType: conn.chatType, hasChat: !!conn.chatId }
-      : { connected: false },
+      : { connected: false, comingSoon: !config.telegramEnabled },
   });
 
   // Markiv proposed a Telegram publish → route through the human approval gate.
   if (action.type === 'telegram_post') {
+    if (!config.telegramEnabled) {
+      return res.json({
+        reply: 'Telegram publishing is coming soon — it is not enabled in this version yet. Meanwhile I can draft the post text for you in the Content Engine.',
+      });
+    }
     if (!conn || !conn.chatId) {
       return res.json({
         reply: conn
@@ -522,6 +540,9 @@ app.post('/api/agent/approve', verifyToken, async (req, res) => {
 
   // Approved Telegram posts are executed for real via the Bot API.
   if (approval.action_type === 'telegram_post') {
+    if (!config.telegramEnabled) {
+      return res.status(503).json({ error: 'Telegram publishing is coming soon — it is not part of the current MVP.' });
+    }
     try {
       const result = await executeTelegramPost(profile, approval.action_payload.text);
       db.approvals.updateStatus(approvalId, 'approved');
