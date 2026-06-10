@@ -49,6 +49,30 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+// --- AI GENERATION BUDGET (per pricing tier, monthly) ---
+// Content, slogans, and agent queries all draw from one allowance. Template
+// (keyless) generations count too — tiers sell generations, not API spend.
+const usageInfo = (user) => {
+  const tier = config.aiTierLimits[user.tier] != null ? user.tier : 'freemium';
+  const limit = config.aiTierLimits[tier];
+  const used = db.usage.countThisMonth(user.id);
+  const nowD = new Date();
+  const resetsAt = new Date(Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth() + 1, 1)).toISOString();
+  return { tier, used, limit, remaining: Math.max(0, limit - used), resetsAt };
+};
+
+const checkAiBudget = (req, res, next) => {
+  const usage = usageInfo(req.user);
+  if (usage.used >= usage.limit) {
+    return res.status(429).json({
+      error: `You've used all ${usage.limit} AI generations on your ${usage.tier} plan this month. ` +
+        `Your allowance resets on ${usage.resetsAt.slice(0, 10)} — or upgrade for more.`,
+      usage,
+    });
+  }
+  next();
+};
+
 // --- HEALTH ---
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'markivo-api' }));
 
@@ -163,9 +187,10 @@ app.post('/api/discovery/scan', verifyToken, scanLimiter, async (req, res) => {
 // ==========================================
 // 3.3 GUIDED SETUP WIZARD ROUTER (/api/onboarding)
 // ==========================================
-app.post('/api/onboarding/slogans', verifyToken, async (req, res) => {
+app.post('/api/onboarding/slogans', verifyToken, checkAiBudget, async (req, res) => {
   const { businessName, category, tone, description } = req.body;
   const slogans = await ai.generateSlogans({ businessName, category, tone, description });
+  db.usage.record({ userId: req.user.id, kind: 'slogans' });
   res.json({ slogans });
 });
 
@@ -271,7 +296,7 @@ app.get('/api/onboarding/active', verifyToken, (req, res) => {
 //   NOTE: copy is still templated. Real Claude generation is the "AI core"
 //   milestone.
 // ==========================================
-app.post('/api/content/copywrite', verifyToken, async (req, res) => {
+app.post('/api/content/copywrite', verifyToken, checkAiBudget, async (req, res) => {
   const { platform, topic, languages } = req.body;
   const profile = db.profiles.findByUserId(req.user.id);
 
@@ -284,11 +309,17 @@ app.post('/api/content/copywrite', verifyToken, async (req, res) => {
     brandTone: profile?.brandTone,
     audience: profile?.targetAudience,
   });
+  db.usage.record({ userId: req.user.id, kind: 'content' });
 
   // Surface hashtags in the post body so the existing UI shows them.
   const tags = (result.hashtags || []).filter(Boolean);
   const post = tags.length ? `${result.post}\n\n${tags.join(' ')}` : result.post;
   res.json({ post, mediaTip: result.mediaTip, hashtags: tags });
+});
+
+// Current month's AI generation usage for the signed-in user.
+app.get('/api/usage', verifyToken, (req, res) => {
+  res.json(usageInfo(req.user));
 });
 
 app.get('/api/content/calendar', verifyToken, (req, res) => {
@@ -490,12 +521,13 @@ app.get('/api/dashboard/stats', verifyToken, (req, res) => {
 //   NOTE: keyword-matched replies for now. Real Claude routing is the
 //   "AI core" milestone; the approval-gate plumbing here is real.
 // ==========================================
-app.post('/api/agent/query', verifyToken, async (req, res) => {
+app.post('/api/agent/query', verifyToken, checkAiBudget, async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'A query is required' });
 
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
+  db.usage.record({ userId: req.user.id, kind: 'agent' });
 
   const lower = query.toLowerCase();
   // Deterministic safety gate — anything touching ad spend / money always

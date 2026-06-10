@@ -49,6 +49,14 @@ const config = {
   aiContentModel: process.env.AI_CONTENT_MODEL || 'claude-haiku-4-5',
   aiAgentModel: process.env.AI_AGENT_MODEL || 'claude-opus-4-8',
 
+  // Monthly AI generation allowance per pricing tier (content + slogans +
+  // agent queries all count). Numbers are provisional until pricing is final.
+  aiTierLimits: {
+    freemium: parseInt(process.env.AI_LIMIT_FREEMIUM, 10) || 25,
+    pro: parseInt(process.env.AI_LIMIT_PRO, 10) || 100,
+    ultimate: parseInt(process.env.AI_LIMIT_ULTIMATE, 10) || 250,
+  },
+
   // --- Feature flags ---
   // Telegram is fully built (backend/telegram.js + TelegramConnect UI) but
   // de-scoped from the MVP (decision 2026-06-10). Default OFF: routes answer

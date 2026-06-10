@@ -13,6 +13,7 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
+  const [usage, setUsage] = useState(null);
 
   const refreshTelegramStatus = () => {
     api.get('/api/telegram/status')
@@ -20,6 +21,10 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
       .catch(() => setTgStatus({ connected: false }));
   };
   useEffect(refreshTelegramStatus, [activeProfile]);
+
+  useEffect(() => {
+    api.get('/api/usage').then(setUsage).catch(() => setUsage(null));
+  }, [activeProfile, activeTab]); // refresh when switching tabs (post-generation)
 
   useEffect(() => {
     async function fetchStats() {
@@ -119,6 +124,21 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
         </nav>
 
         <div className="sidebar-footer">
+          {usage && (
+            <div className="usage-meter" id="usage_meter" title={`Resets ${usage.resetsAt?.slice(0, 10)}`}>
+              <div className="usage-meter-label">
+                <span>AI generations</span>
+                <span>{usage.used} / {usage.limit}</span>
+              </div>
+              <div className="usage-meter-track">
+                <div
+                  className={`usage-meter-fill ${usage.used >= usage.limit ? 'full' : ''}`}
+                  style={{ width: `${Math.min(100, Math.round((usage.used / usage.limit) * 100))}%` }}
+                ></div>
+              </div>
+              <small className="usage-meter-tier">{usage.tier} plan</small>
+            </div>
+          )}
           <button className="btn btn-secondary w-full" onClick={onLogout} id="btn_logout">
             <i className="fa-solid fa-arrow-right-from-bracket"></i> Exit Dashboard
           </button>

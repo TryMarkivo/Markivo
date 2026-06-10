@@ -122,7 +122,15 @@ module.exports = function createDb(dbPath) {
       updated_at   TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS ai_usage (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind       TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
+    CREATE INDEX IF NOT EXISTS idx_ai_usage_user_time ON ai_usage(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_platforms_profile ON platforms(profile_id);
     CREATE INDEX IF NOT EXISTS idx_competitors_profile ON competitors(profile_id);
     CREATE INDEX IF NOT EXISTS idx_keywords_profile ON keywords(profile_id);
@@ -344,6 +352,21 @@ module.exports = function createDb(dbPath) {
         sqlite.prepare('UPDATE approvals SET status = ?, executed_at = ? WHERE id = ?')
           .run(status, now(), approvalId);
         return mapApproval(sqlite.prepare('SELECT * FROM approvals WHERE id = ?').get(approvalId));
+      },
+    },
+
+    usage: {
+      record({ userId, kind }) {
+        sqlite.prepare('INSERT INTO ai_usage (id, user_id, kind, created_at) VALUES (?, ?, ?, ?)')
+          .run(id(), userId, kind, now());
+      },
+      // Generations used since the start of the current UTC month.
+      // ISO-8601 strings compare lexicographically, so a prefix bound works.
+      countThisMonth(userId) {
+        const monthStart = `${new Date().toISOString().slice(0, 7)}-01`;
+        return sqlite.prepare(
+          'SELECT COUNT(*) AS n FROM ai_usage WHERE user_id = ? AND created_at >= ?'
+        ).get(userId, monthStart).n;
       },
     },
 
