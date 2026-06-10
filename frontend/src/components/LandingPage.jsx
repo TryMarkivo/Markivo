@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './LandingPage.css';
+import logoUrl from '../assets/markivo-logo.png';
 
 export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn }) {
   const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' | 'yearly'
@@ -15,13 +16,13 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
       {/* --- HEADER --- */}
       <header className="landing-header glass-card">
         <div className="logo-text">
-          <div className="logo-icon">M</div>
+          <img src={logoUrl} alt="Markivo" className="logo-img" />
           Markivo
         </div>
         <nav className="header-nav">
+          <a href="#how">How it works</a>
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
-          <a href="#about">About</a>
         </nav>
         <div className="header-actions">
           {isLoggedIn ? (
@@ -44,12 +45,14 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
       {/* --- HERO SECTION --- */}
       <section className="hero-section">
         <div className="hero-content">
-          <div className="badge animate-fade-in">✦ AI-Powered Marketing OS</div>
+          <div className="badge animate-fade-in">✦ THE AI MARKETING PLATFORM</div>
           <h1 className="hero-title animate-fade-in">
-            Build, Manage & Grow Your <span className="gradient-text">Entire Digital Presence</span> Automatically
+            From <span className="gradient-text">zero</span> to fully running.
           </h1>
           <p className="hero-subtitle animate-fade-in">
-            No marketing team? No social presence? No problem. Markivo connects or builds your Google, Instagram, and Telegram business channels, designs logos, schedules expert AI posts, and tracks competitors—completely in Uzbek, Russian, and English.
+            Markivo is an all-in-one marketing platform that builds, manages, and grows your
+            business's entire online presence — across every channel, in any language,
+            fully autonomously. Native Uzbek, Russian, and English.
           </p>
           <div className="hero-actions animate-fade-in">
             {isLoggedIn ? (
@@ -59,13 +62,19 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
             ) : (
               <>
                 <button className="btn btn-primary btn-lg" onClick={() => onStartOnboarding('B')} id="btn_hero_cta">
-                  Create My Business Presence <i className="fa-solid fa-arrow-right"></i>
+                  Build My Presence From Zero <i className="fa-solid fa-arrow-right"></i>
                 </button>
                 <button className="btn btn-secondary btn-lg" onClick={() => onStartOnboarding('A')} id="btn_hero_discover">
-                  Scan Existing Brand <i className="fa-solid fa-magnifying-glass"></i>
+                  Scan My Existing Brand <i className="fa-solid fa-magnifying-glass"></i>
                 </button>
               </>
             )}
+          </div>
+          <div className="hero-channels animate-fade-in">
+            <span><i className="fa-brands fa-google"></i> Google</span>
+            <span><i className="fa-brands fa-instagram"></i> Instagram</span>
+            <span><i className="fa-brands fa-telegram"></i> Telegram</span>
+            <span><i className="fa-brands fa-tiktok"></i> TikTok</span>
           </div>
         </div>
 
@@ -101,8 +110,8 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
                 <div className="post-header">
                   <span className="post-avatar">🤖</span>
                   <div>
-                    <h4>AI Marketing Agent</h4>
-                    <small>Scheduled for Telegram channel</small>
+                    <h4>Markiv — AI Marketing Agent</h4>
+                    <small>Drafted & scheduled, pending your approval</small>
                   </div>
                 </div>
                 <p className="post-text">"Looking for the best espresso in Tashkent? ☕ We've got you covered with fresh local pastries and cozy workspace booths!"</p>
@@ -116,43 +125,123 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
         </div>
       </section>
 
+      {/* --- PROBLEM SECTION --- */}
+      <section className="problem-section">
+        <h2 className="section-title">Millions of businesses have no marketing — and no idea where to start.</h2>
+        <div className="grid-3">
+          <div className="feature-card glass-card">
+            <div className="feature-icon icon-gold"><i className="fa-solid fa-user-clock"></i></div>
+            <h3>No team, no time</h3>
+            <p>Owner-operators do everything themselves. Marketing falls to the bottom of the list — or never happens at all.</p>
+          </div>
+          <div className="feature-card glass-card">
+            <div className="feature-icon icon-blue"><i className="fa-solid fa-puzzle-piece"></i></div>
+            <h3>Tools assume you exist</h3>
+            <p>HubSpot, Hootsuite and the rest are built for businesses that already have a presence, a budget, and a marketer.</p>
+          </div>
+          <div className="feature-card glass-card">
+            <div className="feature-icon icon-purple"><i className="fa-solid fa-earth-asia"></i></div>
+            <h3>Emerging markets ignored</h3>
+            <p>In Uzbekistan, Central Asia and the CIS, businesses are hungry for digital growth — but the tools aren't in their language.</p>
+          </div>
+        </div>
+        <p className="problem-gap">
+          The gap: every existing tool helps you <em>manage</em> marketing.
+          None of them <strong className="gradient-text">start it for you.</strong>
+        </p>
+      </section>
+
+      {/* --- HOW IT WORKS: TWO PATHS --- */}
+      <section className="paths-section" id="how">
+        <h2 className="section-title">Two paths. One outcome: a business that's fully online.</h2>
+        <p className="section-subtitle">Markivo either discovers your existing presence — or builds one entirely from scratch — then runs it on autopilot.</p>
+
+        <div className="grid-2 paths-grid">
+          <div className="path-card glass-card">
+            <div className="path-label">PATH A</div>
+            <h3>"I already have something"</h3>
+            <ol className="path-steps">
+              <li>Scan the web for accounts, maps listing, reviews & ads</li>
+              <li>See everything found in a confirm / reject view</li>
+              <li>Connect verified platforms securely</li>
+              <li>Dashboard fills with live data instantly</li>
+            </ol>
+            <button className="btn btn-secondary w-full" onClick={() => onStartOnboarding('A')} id="btn_path_a">
+              Scan My Digital Presence
+            </button>
+          </div>
+          <div className="path-card glass-card glass-card-glow">
+            <div className="path-label">PATH B</div>
+            <h3>"I have nothing yet"</h3>
+            <ol className="path-steps">
+              <li>Guided wizard: category, brand tone, audience</li>
+              <li>AI generates your slogan + logo, on brand</li>
+              <li>Sets up Google Business & social channels</li>
+              <li>Builds the first content calendar — then posts</li>
+            </ol>
+            <button className="btn btn-primary w-full" onClick={() => onStartOnboarding('B')} id="btn_path_b">
+              Build From Scratch
+            </button>
+          </div>
+        </div>
+        <p className="paths-outro">
+          Once set up, <strong>Markiv</strong> — your AI agent — takes over the day-to-day:
+          content, inbox, analytics and growth. Day after day.
+        </p>
+      </section>
+
       {/* --- FEATURES GRID --- */}
       <section className="features-section" id="features">
-        <h2 className="section-title">The Complete Marketing Toolbox</h2>
+        <h2 className="section-title">One platform replaces an entire marketing stack.</h2>
         <p className="section-subtitle">Everything you need to capture customers locally and globally</p>
 
         <div className="grid-3">
           <div className="feature-card glass-card">
             <div className="feature-icon icon-gold"><i className="fa-solid fa-wand-magic-sparkles"></i></div>
-            <h3>Onboarding Wizard</h3>
-            <p>Scan your existing web profile in seconds, or let our wizard build your logo, social handles, and Google profile from pure description.</p>
+            <h3>Brand & identity</h3>
+            <p>AI logo, slogan and tone-of-voice generated in seconds — a complete identity before your first post.</p>
           </div>
           <div className="feature-card glass-card">
-            <div className="feature-icon icon-blue"><i className="fa-solid fa-brain"></i></div>
-            <h3>Multilingual AI Copywriter</h3>
-            <p>Generate highly engaging local captions tailored specifically to platform differences. Seamless Uzbek, Russian, and English tone-matching.</p>
+            <div className="feature-icon icon-blue"><i className="fa-solid fa-paper-plane"></i></div>
+            <h3>Multi-platform posting</h3>
+            <p>Instagram, TikTok, Telegram, X & Google — written, scheduled and published from one place.</p>
           </div>
           <div className="feature-card glass-card">
             <div className="feature-icon icon-purple"><i className="fa-solid fa-camera"></i></div>
-            <h3>Photo/Video Assistant</h3>
-            <p>Get guided templates on how to capture your store like a professional, upload raw media, and let AI enhance quality and add subtitles.</p>
+            <h3>Content engine</h3>
+            <p>Shoot tips, automatic photo & video enhancement, and AI-generated video tuned to each platform.</p>
+          </div>
+          <div className="feature-card glass-card">
+            <div className="feature-icon icon-blue"><i className="fa-solid fa-inbox"></i></div>
+            <h3>Inbox agent</h3>
+            <p>Gmail summarized, sorted and auto-replied — and it learns your answers as it goes.</p>
+          </div>
+          <div className="feature-card glass-card">
+            <div className="feature-icon icon-gold"><i className="fa-solid fa-magnifying-glass-chart"></i></div>
+            <h3>SEO + AI search</h3>
+            <p>Rank on Google — and surface inside ChatGPT & Perplexity, where your customers now search.</p>
+          </div>
+          <div className="feature-card glass-card">
+            <div className="feature-icon icon-purple"><i className="fa-solid fa-users-viewfinder"></i></div>
+            <h3>Competitor intel</h3>
+            <p>Track rivals' posting, growth and gaps automatically — and get moves to counter them.</p>
           </div>
         </div>
       </section>
 
       {/* --- PRICING SECTION --- */}
       <section className="pricing-section" id="pricing">
-        <h2 className="section-title">Transparent, Scaling Plans</h2>
-        <p className="section-subtitle">Start free, unlock advanced AI generation when you are ready to scale</p>
+        <h2 className="section-title">Freemium that converts — three simple tiers.</h2>
+        <p className="section-subtitle">Start free, unlock the autonomous marketing team when you're ready to scale</p>
 
         <div className="billing-selector">
-          <button 
+          <button
             className={`billing-btn ${billingPeriod === 'monthly' ? 'active' : ''}`}
             onClick={() => setBillingPeriod('monthly')}
           >
             Monthly
           </button>
-          <button 
+          <button
             className={`billing-btn ${billingPeriod === 'yearly' ? 'active' : ''}`}
             onClick={() => setBillingPeriod('yearly')}
           >
@@ -163,19 +252,19 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
         <div className="grid-3 pricing-grid">
           {/* FREE */}
           <div className="pricing-card glass-card">
-            <h3>Freemium</h3>
-            <p className="plan-description">For newly opened local businesses</p>
+            <h3>Free</h3>
+            <p className="plan-description">The hook — everything to get online</p>
             <div className="plan-price">
               <span className="price-symbol">$</span>
               <span className="price-number">0</span>
               <span className="price-duration">/mo</span>
             </div>
             <ul className="plan-features">
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Full onboarding wizard setup</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Logo generation (1 time)</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Google Business setup guide</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> 1 Connected social platform</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Basic analytics dashboard</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Full onboarding — both paths</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> AI logo & slogan generation</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Google Business setup</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Social channels connected</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> 25 AI generations / month</li>
             </ul>
             <button className="btn btn-secondary w-full mt-auto" onClick={() => onStartOnboarding('B')} id="btn_plan_free">
               Get Started Free
@@ -184,21 +273,20 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
 
           {/* PRO */}
           <div className="pricing-card glass-card pro-card glass-card-glow">
-            <div className="popular-badge">MOST POPULAR</div>
-            <h3>Pro Plan</h3>
-            <p className="plan-description">Ideal for active growing businesses</p>
+            <div className="popular-badge">MOST VALUE</div>
+            <h3>Pro</h3>
+            <p className="plan-description">Ideal for active, growing businesses</p>
             <div className="plan-price">
               <span className="price-symbol">$</span>
               <span className="price-number">{pricing.pro[billingPeriod]}</span>
               <span className="price-duration">/mo</span>
             </div>
             <ul className="plan-features">
-              <li><i className="fa-solid fa-circle-check text-accent"></i> **Unlimited** platform connections</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> AI Video Generator (3 videos/wk)</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Scheduled publishing calendar</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Competitor tracking (3 brands)</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Gmail inbox AI summaries</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> AI Agent (100 tokens/mo)</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Everything in Free</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> AI image enhance & editor</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> AI video — 3 / week</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Gmail summary & sorting</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Markiv agent · 100 generations / mo</li>
             </ul>
             <button className="btn btn-primary w-full mt-auto" onClick={() => onStartOnboarding('B')} id="btn_plan_pro">
               Scale Up Now
@@ -208,19 +296,18 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
           {/* ULTIMATE */}
           <div className="pricing-card glass-card">
             <h3>Ultimate</h3>
-            <p className="plan-description">Full autonomous marketing team</p>
+            <p className="plan-description">A full autonomous marketing team</p>
             <div className="plan-price">
               <span className="price-symbol">$</span>
               <span className="price-number">{pricing.ultimate[billingPeriod]}</span>
               <span className="price-duration">/mo</span>
             </div>
             <ul className="plan-features">
-              <li><i className="fa-solid fa-circle-check text-accent"></i> **7 AI Videos** per week</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> AI website generation & hosting</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Autonomous Gmail FAQ replies</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> Unlimited competitor tracking</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> AI Agent (250 tokens/mo)</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> 24/7 VIP Local support</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Everything in Pro</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> AI video — 7 / week</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Gmail auto-reply (learns you)</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> AI website generation</li>
+              <li><i className="fa-solid fa-circle-check text-accent"></i> Markiv agent · 250 generations / mo</li>
             </ul>
             <button className="btn btn-secondary w-full mt-auto" onClick={() => onStartOnboarding('B')} id="btn_plan_ultimate">
               Go Autonomous
@@ -229,42 +316,38 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
         </div>
       </section>
 
-      {/* --- TESTIMONIALS --- */}
-      <section className="testimonials-section">
-        <h2 className="section-title">Loved by Local Founders</h2>
-        <p className="section-subtitle">Real feedback from business owners who built their digital storefronts</p>
-
-        <div className="grid-2">
-          <div className="testimonial-card glass-card">
-            <p className="testimonial-text">
-              "We opened our coffee shop in Tashkent and had no social media pages or Google Maps listing. In one evening, Markivo generated a beautiful brown coffee theme logo, registered us on Google, and generated daily Instagram posts in Russian and Uzbek. Our weekend traffic grew by 35%!"
-            </p>
-            <div className="testimonial-user">
-              <div className="avatar">AM</div>
-              <div>
-                <h4>Anvar Mirzayev</h4>
-                <small>Founder, Noir Coffee & Workspace</small>
-              </div>
+      {/* --- FOUNDER SECTION --- */}
+      <section className="founder-section" id="about">
+        <h2 className="section-title">Built by someone who's done it for real.</h2>
+        <div className="founder-card glass-card">
+          <div className="founder-head">
+            <div className="avatar avatar-lg">E</div>
+            <div>
+              <h3>Elshod — Founder & Builder</h3>
+              <small>CS + Business · ships solo · UZ / RU / EN</small>
             </div>
           </div>
-          <div className="testimonial-card glass-card">
-            <p className="testimonial-text">
-              "Managing Instagram, Telegram, and Google reviews was overwhelming while managing the barbershop. Markivo handles all post planning, suggests TikTok caption trends, and scans what the nearby barbershops are posting. It is like having a digital marketer on a $20 budget."
-            </p>
-            <div className="testimonial-user">
-              <div className="avatar">SD</div>
-              <div>
-                <h4>Sardor Dadajonov</h4>
-                <small>Owner, Style & Cut Studio</small>
-              </div>
-            </div>
+          <div className="grid-2 founder-points">
+            <p><strong>Builds the whole thing.</strong> CS background — architects the AI agents, automations and data pipelines, and ships the product solo.</p>
+            <p><strong>Thinks in solutions.</strong> A business education means features that solve real owner problems, not tech for its own sake.</p>
+            <p><strong>Owns the market.</strong> Deep Uzbekistan knowledge, where demand for digital growth is high and the tools are absent.</p>
+            <p><strong>Lived experience.</strong> Personally ran full marketing for a local business — this product exists because that job was too hard.</p>
           </div>
         </div>
       </section>
 
+      {/* --- CLOSING CTA --- */}
+      <section className="cta-banner glass-card glass-card-glow">
+        <h2>Let's give every business a marketing team — <span className="gradient-text">in code.</span></h2>
+        <p>Markivo turns zero into a fully-running online presence — autonomously, multilingually, and in the markets the giants ignore.</p>
+        <button className="btn btn-primary btn-lg" onClick={() => onStartOnboarding(isLoggedIn ? 'dashboard' : 'B')} id="btn_cta_bottom">
+          Start Free Today <i className="fa-solid fa-arrow-right"></i>
+        </button>
+      </section>
+
       {/* --- FOOTER --- */}
       <footer className="landing-footer">
-        <p>© 2026 Markivo. Built for local business builders. All rights reserved.</p>
+        <p>© 2026 Markivo. From zero to fully running. All rights reserved.</p>
       </footer>
     </div>
   );
