@@ -40,7 +40,10 @@ export default function App() {
           setActiveProfile(profileData);
           setView('dashboard');
         } else {
-          setView('landing');
+          // Not onboarded: restore landing on app load, but never stomp an
+          // onboarding flow the user just entered (this effect also fires
+          // right after register/login sets the token).
+          setView((v) => (v === 'onboarding_A' || v === 'onboarding_B' ? v : 'landing'));
         }
       } catch (err) {
         if (err.isNetwork) {
