@@ -25,6 +25,10 @@ npm-debug.log*
 # future landing-page work)
 Markivo_Pitch_Deck.pptx
 
+# Private credentials intake (see CLAUDE.md credentials workflow)
+CREDENTIALS.local.md
+*.local.md
+
 # local SQLite data
 backend/database/*.db
 backend/database/*.db-journal
