@@ -1,0 +1,450 @@
+# 🚀 Markivo — Full Product Overview & Build Plan
+
+
+---
+
+## 1. EXECUTIVE SUMMARY
+
+**One-line pitch:**
+An AI-powered marketing operating system that builds, manages, and grows a business's entire online presence — from zero to fully running — across every major platform, automatically.
+
+**The problem it solves:**
+Small and medium businesses — especially in emerging markets like Uzbekistan and Central Asia — have no marketing infrastructure, no marketing team, and no idea where to start. Western tools like HubSpot assume you already have a presence and a marketing team. This platform assumes you have neither.
+
+**The solution:**
+A guided, intelligent system that either discovers your existing marketing presence or builds one entirely from scratch — then manages it, grows it, and automates it using AI — in Uzbek, Russian, and English.
+
+**Target markets:**
+Global launch with deep localization for Uzbekistan, Central Asia, and CIS regions first.
+
+---
+
+## 2. VISION & MISSION
+
+**Vision:**
+To become the default marketing infrastructure for every business that has never had one.
+
+**Mission:**
+To give any business owner — regardless of technical skill, budget, or experience — a complete, autonomous marketing system that works while they focus on running their business.
+
+---
+
+## 3. TARGET USERS
+
+### Primary User Personas
+
+| Persona | Description | Pain Point |
+|---|---|---|
+| **The Owner-Operator** | Business owner with no marketing team. Does everything themselves. | No time, no knowledge, no tools |
+| **The In-House Marketer** | Hired marketing manager at an SMB. Limited budget, many platforms to manage. | Too many tools, no unified workflow |
+| **The Agency Manager** | Marketing agency managing multiple client accounts. | Client reporting overhead, scaling content |
+
+### Target Geographies (in order of priority)
+1. **Uzbekistan** — Primary beachhead. Underserved, founder has deep local knowledge.
+2. **Central Asia** (Kazakhstan, Kyrgyzstan, Tajikistan) — Natural expansion.
+3. **CIS** (Russia, Ukraine, Azerbaijan) — Language overlap, similar market dynamics.
+4. **Global** — Long-term target after product-market fit is established locally.
+
+### Languages Supported at Launch
+- 🇺🇿 Uzbek
+- 🇷🇺 Russian
+- 🇬🇧 English
+
+---
+
+## 4. CORE FEATURES & PRODUCT SCOPE
+
+### 4.1 Onboarding — Two Paths
+
+#### PATH A: "I Already Have Something" — Discovery Mode
+When a business says they already have marketing presence, the system:
+
+1. Takes business name + location input
+2. Scans the internet and aggregates all found data:
+   - Google Business Profile / Google Maps listing
+   - All social media accounts (Instagram, TikTok, Telegram, X, YouTube, Facebook)
+   - Website / landing page
+   - Reviews (Google, 2GIS, Yandex Maps, etc.)
+   - SEO ranking and keywords
+   - AI search presence (ChatGPT, Perplexity mentions)
+   - Any running ads (Google Ads, Meta Ads)
+   - Competitor mentions
+3. Displays results in a clean confirm/reject UI (✓ / ✗ per item)
+4. User verifies, corrects, or adds missing assets
+5. System connects to confirmed platforms via OAuth / API
+6. Dashboard populates with live data from all connected platforms
+
+#### PATH B: "I Have Nothing" — Build From Scratch Mode
+Full guided setup wizard. All questions are asked first, then all actions execute in order. User sees a live minimal progress feed ("Creating Google Business Profile... ✓") while actions run.
+
+**Question Sequence:**
+1. **Business Category** — dropdown + search
+2. **Business Description** — short text: *"Describe your business in 2-3 sentences"*
+3. **Location** — specific address input OR toggle: *"We operate online / remotely"*
+4. **Target Audience** — open text: *"Who is your ideal customer?"*
+5. **Brand Tone** — multiple choice (select one):
+   - Cozy & Warm
+   - Modern & Minimalist
+   - Energetic & Fast-paced
+   - Professional & Trustworthy
+   - Playful & Fun
+   - Luxury & Premium
+6. **Brand Identity / Slogan** — *"How should customers remember you?"*
+   - User enters their own, OR
+   - Click "Generate 3 examples" → choose one, OR
+   - Click "Generate again" for new options
+7. **Logo** — *"Do you have a logo?"*
+   - Yes → Upload logo
+   - No → AI generates logo based on brand tone + slogan
+8. **Website** — *"Enter your website URL"* (leave blank if none)
+9. **Existing Social Accounts** — multi-select checkboxes (Instagram, TikTok, Telegram, X, WhatsApp Business, YouTube, Facebook) with "I don't have any" option
+
+**Action Sequence (runs after all questions answered):**
+Progress shown in minimal live feed bottom of screen:
+1. ✦ Generate brand identity package (logo, color palette, tone guidelines)
+2. ✦ Create Google Business Profile
+3. ✦ Create Instagram account
+4. ✦ Create TikTok account
+5. ✦ Create Telegram business channel
+6. ✦ Create X (Twitter) account
+7. ✦ Create WhatsApp Business account
+8. ✦ Generate website / landing page (Ultimate tier only)
+9. ✦ Set up SEO baseline
+10. ✦ Build initial content calendar
+
+> **Technical Note:** Social media account creation via automation violates most platform ToS. The real implementation must use the business owner's own email/credentials + guided OAuth flows, NOT programmatic account creation. The UX feels automated from the user's side but technically the user authorizes each step.
+
+---
+
+### 4.2 Marketing Dashboard
+
+Central hub showing all connected platforms in one view:
+
+- Follower counts, growth trends
+- Post engagement rates per platform
+- Google Business views, calls, direction requests
+- SEO position tracking (keywords)
+- AI search visibility (appearance in ChatGPT/Perplexity results)
+- Active ads performance
+- Competitor tracking panel (local + global)
+- Content calendar view (scheduled, posted, drafts)
+
+---
+
+### 4.3 Content Engine
+
+#### AI Content Creation
+- Auto-generate captions, posts, stories for each platform (tone-matched to brand)
+- Platform-specific formatting (Instagram caption ≠ Telegram post ≠ TikTok caption)
+- Scheduled posting across all connected platforms
+- Hashtag research and auto-tagging
+
+#### Photo & Video Workflow
+- **Tutorial mode:** AI gives the user step-by-step instructions on how to shoot a promo photo or video using just their phone (lighting, angle, framing tips — matched to their business category)
+- **Upload & Enhance:** User uploads raw photo/video → AI automatically:
+  - Enhances image quality
+  - Edits and trims video
+  - Adds captions/subtitles
+  - Formats for each platform (Reels, TikTok, YouTube Shorts, Telegram)
+  - Posts across platforms with generated descriptions
+
+#### AI Video Generation (Pro & Ultimate)
+- Full AI-generated promotional videos using business info + brand assets
+- Pro: 3 videos/week
+- Ultimate: 7 videos/week
+
+#### UGC (User Generated Content) Engine
+- Auto-detects and aggregates UGC mentioning the business
+- Suggests reposts and engagement responses
+- Tracks brand mentions across platforms
+
+---
+
+### 4.4 SEO & AI Search Optimization
+
+- Traditional SEO: keyword tracking, on-page recommendations, backlink monitoring
+- **AI SEO (new category):** Optimize business presence to appear in ChatGPT, Perplexity, Gemini, and other AI assistant answers
+- Local SEO: Google Maps optimization, 2GIS (for CIS markets), Yandex Maps
+
+---
+
+### 4.5 Competitor Intelligence
+
+- User inputs competitors manually OR system suggests them based on category + location
+- Tracks competitor social growth, posting frequency, ad activity, keywords
+- Shows gap analysis: *"Your competitor posts 5x/week. You post 1x/week."*
+
+---
+
+### 4.6 AI Agent
+
+The platform's always-available AI assistant and task executor.
+
+**Automatic (no approval needed):**
+- Gmail inbox monitoring, summarizing, and sorting
+- Responding to known/FAQ emails using learned business knowledge (Ultimate)
+- Scheduling and publishing approved content
+- Tracking analytics and flagging anomalies
+
+**Always requires human approval:**
+- Sending any new email reply to an unknown contact
+- Publishing any content for the first time
+- Creating or modifying any ad campaign
+- Any action involving money (ad spend, etc.)
+- Any response to a customer complaint or review
+
+**Agent Learning:**
+- Ultimate tier: When agent encounters an unknown email question, it flags it, asks the owner for the answer, stores it, and uses it autonomously for all future similar questions.
+
+---
+
+### 4.7 Affiliate Marketing *(Optional / Future)*
+- Referral tracking system for businesses that run affiliate programs
+- Dashboard for tracking affiliate partners, commissions, conversions
+
+---
+
+## 5. PRICING MODEL
+
+### 🆓 Freemium — $0/month
+*For businesses just getting started*
+- Full onboarding wizard (both paths)
+- Logo generation (1 time)
+- Google Business Profile setup
+- Social media account connection/creation setup
+- Manual photo/video upload to social media (user writes descriptions)
+- Basic analytics dashboard
+- 1 connected platform
+
+---
+
+### ⚡ Pro — $20/month
+*For businesses ready to grow*
+Everything in Freemium, plus:
+- AI image enhancement & editor
+- AI video generation — **3 videos/week**
+- All platform connections (unlimited)
+- Gmail inbox summary & smart sorting
+- AI content generation for posts (all platforms)
+- Scheduled posting & content calendar
+- Competitor tracking (up to 3 competitors)
+- SEO tracking dashboard
+- AI Agent with **100 message tokens/month**
+
+---
+
+### 👑 Ultimate — $50/month
+*For businesses that want full autonomy*
+Everything in Pro, plus:
+- AI video generation — **7 videos/week** (3 Pro + 4 bonus)
+- Gmail **auto-reply** (learns from owner, replies autonomously to known questions)
+- AI website generation (1 website included)
+- **10 website edit requests/month** via AI chat
+- Affiliate marketing dashboard *(when launched)*
+- Competitor tracking (unlimited)
+- AI Agent with **250 message tokens/month**
+- Priority support
+
+---
+
+### 💼 Agency Plan — Custom Pricing *(Future)*
+- Multi-client dashboard
+- White-label option
+- Bulk seat pricing
+
+---
+
+## 6. TECHNICAL ARCHITECTURE
+
+### Tech Stack (Recommended)
+
+**Frontend:**
+- Next.js (React) — web app
+- Tailwind CSS — styling
+- Framer Motion — animations
+- Mobile-responsive first
+
+**Backend:**
+- Node.js + Express OR Python FastAPI
+- PostgreSQL — primary database
+- Redis — caching, job queues
+- BullMQ — background job processing (for platform actions)
+
+**AI Layer:**
+- Claude API (Anthropic) — AI agent, content generation, email intelligence
+- OpenAI / Stable Diffusion — image generation (logo, content visuals)
+- Runway ML / Kling AI — video generation
+- Whisper — audio/video transcription for subtitles
+
+**Integrations (Phase 1):**
+- Google Business Profile API
+- Google OAuth (Gmail access)
+- Meta Graph API (Instagram, Facebook)
+- TikTok for Business API
+- Telegram Bot API
+- Twitter/X API v2
+- Google Search Console API (SEO)
+
+**Integrations (Phase 2):**
+- YouTube Data API
+- WhatsApp Business API (requires Meta approval)
+- Google Ads API
+- Meta Ads API
+- Yandex / 2GIS API (CIS market)
+
+**Infrastructure:**
+- Vercel (frontend hosting)
+- Railway / Render (backend)
+- Cloudflare (CDN, DDoS protection)
+- AWS S3 (media storage)
+
+---
+
+### AI Agent Architecture
+
+```
+User Input / Trigger
+      ↓
+Intent Classification (Claude)
+      ↓
+┌─────────────────────────────────┐
+│  Task Router                    │
+│  - Content tasks → Content Agent│
+│  - Email tasks → Gmail Agent    │
+│  - Analytics → Data Agent       │
+│  - Publishing → Publish Agent   │
+└─────────────────────────────────┘
+      ↓
+Approval Gate (requires human? Y/N)
+      ↓
+Execute → Log → Update Dashboard
+```
+
+---
+
+## 7. COMPETITIVE LANDSCAPE
+
+| Competitor | Strength | Their Gap (Your Opportunity) |
+|---|---|---|
+| HubSpot | All-in-one, trusted brand | Too complex, expensive, English-only, assumes existing team |
+| Hootsuite / Sprout Social | Social scheduling | No onboarding, no build-from-scratch, no local markets |
+| Averi | AI content + onboarding | No CIS/Uzbek market, no video, no email agent |
+| Vendasta | SMB-focused, Google integration | Agency-first, not self-serve for owners |
+| HighLevel | Agency powerhouse | Overwhelming for solo business owners |
+| Thryv | SMB all-in-one | US-focused, no AI-forward features |
+| **You** | **From-scratch build, CIS-first, AI-native, multilingual, video-first** | — |
+
+**Your moat:** You are the only platform building this specifically for businesses that have ZERO starting point, in the languages and markets that existing tools ignore, with an AI agent that actually executes — not just suggests.
+
+---
+
+## 8. GO-TO-MARKET STRATEGY
+
+### Phase 1 — Uzbekistan Beachhead (Months 1–3)
+- Target: Restaurants, salons, retail shops in Tashkent
+- Channel: Direct outreach to business owners (founder-led sales)
+- Offer: Free onboarding, help them set everything up personally
+- Goal: 10 paid customers, collect testimonials and case studies
+- Leverage: Founder's existing local network and prior experience helping a local business
+
+### Phase 2 — Content-Led Growth (Months 3–6)
+- Build in public: Document the platform being built on social media
+- Create content showing before/after for local businesses using the platform
+- Uzbek/Russian-language YouTube, TikTok, Telegram channel tutorials
+- Partner with local business communities, co-working spaces, chambers of commerce
+
+### Phase 3 — CIS Expansion (Months 6–12)
+- Translate fully to Russian
+- Target Kazakhstan, Azerbaijan, Georgia
+- Explore partnerships with local business associations
+
+### Distribution Risks & Mitigations
+> *"Distribution and getting users"* — Founder's #1 concern. Rightfully so.
+
+- **Risk:** Building a great product nobody finds
+- **Mitigation:** Do not wait for product to be perfect. Get 5 real users during build. Let them shape the product. Their word of mouth is worth more than any ad.
+- **Mitigation:** Founder becomes the face of the brand on social media. Document the journey. This is free distribution.
+- **Mitigation:** Give the free tier genuine value. A business that got a free logo, Google profile, and Instagram setup will tell other business owners.
+
+---
+
+## 9. FOUNDER'S UNFAIR ADVANTAGE
+
+- **Computer Science + Business education** — Can architect AI agents, automation workflows, and data pipelines without external help
+- **Can build the MVP solo** — No co-founder dependency for V1
+- **Deep Central Asian market knowledge** — Uzbekistan specifically, where digital transformation demand is high but tools are absent
+- **Real-world marketing experience** — Personally ran full marketing for a local business (not theoretical knowledge)
+- **Fast learner** — Can pick up new APIs, frameworks, and AI tools as the platform requires
+- **Bilingual/Trilingual** — Can talk to users in Uzbek, Russian, and English natively
+
+---
+
+## 10. MILESTONES & SUCCESS METRICS
+
+### Timeline
+| Milestone | Target Date |
+|---|---|
+| Product overview & architecture finalized | Week 1 |
+| Core onboarding flow (Path B) built | Week 2–3 |
+| Google Business + 2 social platforms connected | Week 3 |
+| AI content generation working | Week 3–4 |
+| MVP live (Freemium + Pro) | Month 1 |
+| First paying customer | Month 1–1.5 |
+| 10 paying customers | Month 2 |
+| 50 paying customers | Month 3 |
+| 500 paying customers / $10,000 MRR | Month 12 |
+
+### 12-Month Success Definition
+- **500 paying customers**
+- **$10,000+ MRR** (mix of Pro $20 and Ultimate $50)
+- **3 countries** active (UZ, KZ + 1 more)
+- **NPS score > 50** (users actively recommending it)
+
+---
+
+## 11. RISKS & HONEST CHALLENGES
+
+| Risk | Severity | Mitigation |
+|---|---|---|
+| Platform API policy changes (Meta, TikTok) | High | Build abstraction layer; don't over-depend on any single API |
+| Social media account creation ToS violations | High | Use guided OAuth, never programmatic creation |
+| "Does everything" = "does nothing well" | High | MVP is ruthlessly scoped: onboarding + 2 platforms + content only |
+| Distribution / user acquisition | High | Founder-led sales first, build in public, free tier as hook |
+| AI costs eating margin | Medium | Token budgets per tier, monitor closely, optimize prompts |
+| Bigger player copies the idea | Medium | Move fast, build local moat, relationships > features |
+| Founder burnout (solo build) | Medium | Strict MVP scope, no feature creep until paying customers exist |
+
+---
+
+## 12. WHAT IS NOT BEING BUILT IN MVP
+*(Ruthless scope control)*
+
+- ❌ Affiliate marketing system
+- ❌ AI website generation
+- ❌ Gmail auto-reply learning
+- ❌ Agency multi-client dashboard
+- ❌ YouTube integration
+- ❌ WhatsApp Business API
+- ❌ Google Ads / Meta Ads management
+- ❌ AI video generation (Phase 2)
+- ❌ UGC engine
+
+**MVP is:** Onboarding wizard → Google Business + Instagram + Telegram → AI content generation → Basic analytics → AI agent (chat only)
+
+---
+
+## 13. OPEN QUESTIONS (To Resolve Before Building)
+
+1. **Final platform name** — decide before domain purchase and branding
+2. **Legal entity** — register business in Uzbekistan or offshore (UAE, Estonia)?
+3. **Payment processing** — Stripe not available in Uzbekistan directly. Options: Stripe via LLC abroad, PayPro Global, or Payme/Click for local users.
+4. **WhatsApp Business API** — Requires Meta review. Apply early, it takes weeks.
+5. **Gmail API access** — Requires Google OAuth verification for sensitive scopes (inbox read/write). Apply for verification early.
+6. **Logo generation model** — Which AI? (Ideogram, DALL-E 3, Recraft) — test quality vs cost.
+
+---
+
+*Document Version: 1.0*
+*Created: 2026*
+*Author: Elshod*
+*Status: Pre-build planning phase*

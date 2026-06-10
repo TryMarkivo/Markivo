@@ -1,0 +1,85 @@
+{
+  "app": {
+    "title": "Markivo",
+    "tagline": "AI-powered marketing OS for businesses"
+  },
+  "auth": {
+    "login": "Kirish",
+    "register": "Ro'yxatdan o'tish",
+    "email": "Elektron pochta",
+    "password": "Parol",
+    "fullName": "To'liq ism",
+    "forgotPassword": "Parolini unutdingizmi?",
+    "dontHaveAccount": "Hisobingiz yo'qmi?",
+    "alreadyHaveAccount": "Hisobingiz allaqachon bormi?",
+    "loginError": "Kirish muvaffaqiyatsiz",
+    "registerSuccess": "Ro'yxatdan o'tish muvaffaqiyatli!",
+    "networkError": "Ulanish xatosi. Iltimos, backend server ishga tushganligini tekshiring."
+  },
+  "onboarding": {
+    "pathA": "A yo'nalish: Kechish rejimi",
+    "pathB": "B yo'nalish: Bo'shdan qurish",
+    "step1": "1. Umumiy ma'lumotlar",
+    "step2": "2. Brend identiteti",
+    "step3": "3. Logotip dizayni",
+    "step4": "4. Kanal tanlovi",
+    "step5": "5. Tadbirlar bajarilmoqda",
+    "businessName": "Biznes nomi",
+    "businessCategory": "Biznes kategoriyasi",
+    "description": "Biznes tavsifi (2-3 gap)",
+    "location": "Manzil",
+    "onlineToggle": "Online / uzoqdalikda ishlaymiz",
+    "targetAudience": "Ma'lumoq mothajiy auditoriya",
+    "brandTone": "Brend tonasi",
+    "slogan": "Brend слогани",
+    "logoText": "Logotip matni",
+    "generateSlogans": "AI sloganlarini yaratish",
+    "selectChannels": "Ijtimoiy kanallarni tanlang",
+    "scaffoldBusiness": "Biznesni qurishni boshlash",
+    "scanning": "Skannash",
+    "scanComplete": "Skanning tugadi!",
+    "rescan": "Qayta skannen",
+    "connectChannels": "Kanallarni ulash",
+    "enterDashboard": "Dashboardga kirish"
+  },
+  "dashboard": {
+    "title": "Marketing Dashboard",
+    "followers": "Obunachilar",
+    "growth": "O'sish",
+    "engagement": "Jamoatlantirish",
+    "views": "Ko'rishlar",
+    "calls": "Qo'ng'iroqlar",
+    "directions": "Yo'nalishlar",
+    "seo": "SEO",
+    "aiSearch": "AI qidiruv",
+    "competitors": "Raqabalar",
+    "contentCalendar": "Conten kalendari"
+  },
+  "contentEngine": {
+    "title": "Conten muharriki",
+    "generateContent": "Conten yaratish",
+    "schedulePost": "Postni rejalashtirish",
+    "photoVideoWorkflow": "Foto va video ishchi chaini",
+    "tutorialMode": "Yordamchi rejim",
+    "uploadEnhance": "Yuklash va yaxshilash",
+    "aiVideo": "AI videolar (Pro/Ultimate)"
+  },
+  "agent": {
+    "title": "AI Agent",
+    "greeting": "Salom! Men sizning AI agentingizman. Qanday yordam bera olaman?",
+    "welcome": "Xush kelibsiz!",
+    "typing": "Yozilmoqda..."
+  },
+  "common": {
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "submit": "Yuborish",
+    "back": "Orqaga",
+    "next": "Keyingi",
+    "close": "Yopish",
+    "loading": "Yuklanmoqda...",
+    "error": "Xatolik",
+    "success": "Muvaffaqiyatli",
+    "pleaseWait": "Iltimos, kuting..."
+  }
+}

@@ -1,0 +1,106 @@
+.competitor-intel-container {
+  text-align: left;
+}
+
+.benchmark-table-box, .frequency-chart-box {
+  padding: 24px;
+}
+
+/* Benchmarks table list */
+.competitor-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.comp-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.comp-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.comp-row:last-child {
+  border-bottom: none;
+}
+
+.active-brand {
+  background: rgba(212, 163, 115, 0.04);
+  padding: 16px 12px;
+  margin: 4px -12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(212, 163, 115, 0.15);
+}
+
+.comp-name i {
+  margin-right: 6px;
+}
+
+/* SVG Chart Container */
+.svg-chart-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comp-bar-chart {
+  width: 100%;
+  max-width: 380px;
+  height: 180px;
+}
+
+/* Gap recommendation cards */
+.gaps-grid {
+  gap: 20px;
+}
+
+.gap-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gap-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gap-icon {
+  font-size: 1.15rem;
+}
+
+.text-danger { color: var(--accent-danger); }
+
+.gap-header h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.gap-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.gap-recommendation {
+  font-size: 0.8rem;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+}

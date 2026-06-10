@@ -1,0 +1,85 @@
+{
+  "app": {
+    "title": "Markivo",
+    "tagline": "AI-powered marketing OS for businesses"
+  },
+  "auth": {
+    "login": "Войти",
+    "register": "Регистрация",
+    "email": "Электронная почта",
+    "password": "Пароль",
+    "fullName": "Полное имя",
+    "forgotPassword": "Забыли пароль?",
+    "dontHaveAccount": "Нет аккаунта?",
+    "alreadyHaveAccount": "Уже есть аккаунт?",
+    "loginError": "Вход не удался",
+    "registerSuccess": "Регистрация прошла успешно!",
+    "networkError": "Ошибка соединения. Пожалуйста, убедитесь, что backend сервер запущен."
+  },
+  "onboarding": {
+    "pathA": "Путь A: Режим обнаружения",
+    "pathB": "Путь B: Режим создания с нуля",
+    "step1": "1. Основная информация",
+    "step2": "2. Бренд-Идентичность",
+    "step3": "3. Дизайн логотипа",
+    "step4": "4. Выбор каналов",
+    "step5": "5. Выполнение задач",
+    "businessName": "Название бизнеса",
+    "businessCategory": "Категория бизнеса",
+    "description": "Описание бизнеса (2-3 предложения)",
+    "location": "Местоположение",
+    "onlineToggle": "Работаем онлайн / удаленно",
+    "targetAudience": "Целевая аудитория",
+    "brandTone": "Тон бренда",
+    "slogan": "Слоган бренда",
+    "logoText": "Текст логотипа",
+    "generateSlogans": "Создать слоганы с помощью AI",
+    "selectChannels": "Выберите социальные каналы",
+    "scaffoldBusiness": "Запустить создание бизнеса",
+    "scanning": "Сканирование",
+    "scanComplete": "Сканирование завершено!",
+    "rescan": "Пересканировать",
+    "connectChannels": "Подключить каналы",
+    "enterDashboard": "Войти в панель управления"
+  },
+  "dashboard": {
+    "title": "Маркетинговая панель",
+    "followers": "Подписчики",
+    "growth": "Рост",
+    "engagement": "Вовлечение",
+    "views": "Просмотры",
+    "calls": "Звонки",
+    "directions": "Запросы направления",
+    "seo": "SEO",
+    "aiSearch": "AI поиск",
+    "competitors": "Конкурентов",
+    "contentCalendar": "Календарь контента"
+  },
+  "contentEngine": {
+    "title": "Двигатель контента",
+    "generateContent": "Создать контент",
+    "schedulePost": "Запланировать пост",
+    "photoVideoWorkflow": "Рабочий процесс фото и видео",
+    "tutorialMode": "Режим обучения",
+    "uploadEnhance": "Загрузить и улучшить",
+    "aiVideo": "AI видео (Pro/Ultimate)"
+  },
+  "agent": {
+    "title": "AI Agent",
+    "greeting": "Привет! Я ваш AI-агент. Чем я могу помочь?",
+    "welcome": "Добро пожаловать!",
+    "typing": "Печатает..."
+  },
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "submit": "Отправить",
+    "back": "Назад",
+    "next": "Далее",
+    "close": "Закрыть",
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "success": "Успешно",
+    "pleaseWait": "Пожалуйста, подождите..."
+  }
+}

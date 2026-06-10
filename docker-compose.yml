@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: ./backend
+    image: markivo-backend
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      # Override these for any real deployment.
+      JWT_SECRET: ${JWT_SECRET:-change_me_dev_secret}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      DB_PATH: /data/markivo.db
+    volumes:
+      - markivo-db:/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # The browser hits the backend on the host-mapped port. For production,
+        # set VITE_API_URL to your public API URL and CORS_ORIGIN to match.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+    image: markivo-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  markivo-db:
