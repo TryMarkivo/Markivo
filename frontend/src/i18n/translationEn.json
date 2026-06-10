@@ -1,0 +1,85 @@
+{
+  "app": {
+    "title": "Markivo",
+    "tagline": "AI-powered marketing OS for businesses"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Create Account",
+    "email": "Email Address",
+    "password": "Password",
+    "fullName": "Full Name",
+    "forgotPassword": "Forgot Password?",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "loginError": "Sign in failed",
+    "registerSuccess": "Account created successfully!",
+    "networkError": "Connection error. Please ensure the backend server is running."
+  },
+  "onboarding": {
+    "pathA": "Path A: Discovery Mode",
+    "pathB": "Path B: Build From Scratch",
+    "step1": "1. General Information",
+    "step2": "2. Brand Identity",
+    "step3": "3. Logo Design",
+    "step4": "4. Channel Selection",
+    "step5": "5. Executing Tasks",
+    "businessName": "Business Name",
+    "businessCategory": "Business Category",
+    "description": "Business Description (2-3 sentences)",
+    "location": "Location",
+    "onlineToggle": "We operate online / remotely",
+    "targetAudience": "Target Audience",
+    "brandTone": "Brand Tone",
+    "slogan": "Brand Slogan",
+    "logoText": "Logo Text",
+    "generateSlogans": "Generate AI Slogans",
+    "selectChannels": "Select Social Channels",
+    "scaffoldBusiness": "Start Building My Business",
+    "scanning": "Scanning",
+    "scanComplete": "Scan Complete!",
+    "rescan": "Rescan",
+    "connectChannels": "Connect Channels",
+    "enterDashboard": "Enter Dashboard"
+  },
+  "dashboard": {
+    "title": "Marketing Dashboard",
+    "followers": "Followers",
+    "growth": "Growth",
+    "engagement": "Engagement",
+    "views": "Views",
+    "calls": "Calls",
+    "directions": "Direction Requests",
+    "seo": "SEO",
+    "aiSearch": "AI Search",
+    "competitors": "Competitors",
+    "contentCalendar": "Content Calendar"
+  },
+  "contentEngine": {
+    "title": "Content Engine",
+    "generateContent": "Generate Content",
+    "schedulePost": "Schedule Post",
+    "photoVideoWorkflow": "Photo & Video Workflow",
+    "tutorialMode": "Tutorial Mode",
+    "uploadEnhance": "Upload & Enhance",
+    "aiVideo": "AI Videos (Pro/Ultimate)"
+  },
+  "agent": {
+    "title": "AI Agent",
+    "greeting": "Hello! I'm your AI Agent. How can I help you?",
+    "welcome": "Welcome!",
+    "typing": "Typing..."
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "pleaseWait": "Please wait..."
+  }
+}

@@ -1,0 +1,5 @@
+/* Styles are managed centrally in index.css and specific component sheets */
+.app-container {
+  min-height: 100vh;
+  position: relative;
+}

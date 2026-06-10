@@ -1,0 +1,237 @@
+.agent-sidebar-container {
+  width: 320px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 10;
+  transition: transform var(--transition-normal);
+  border-radius: 0;
+}
+
+.agent-sidebar-container.closed {
+  transform: translateX(276px); /* Leave just a tiny toggle visible */
+}
+
+.agent-header {
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(0,0,0,0.1);
+}
+
+.agent-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agent-avatar-icon {
+  font-size: 1.6rem;
+}
+
+.agent-header h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.agent-header small {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.agent-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  transition: var(--transition-fast);
+}
+
+.agent-toggle-btn:hover {
+  color: var(--accent-primary);
+}
+
+/* Chat thread list */
+.chat-thread-container {
+  flex: 1;
+  padding: 20px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-bubble-wrap {
+  display: flex;
+  width: 100%;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.bubble-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.bubble-time {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: right;
+}
+
+.agent-bubble {
+  justify-content: flex-start;
+}
+
+.agent-bubble .chat-bubble {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+}
+
+.user-bubble {
+  justify-content: flex-end;
+}
+
+.user-bubble .chat-bubble {
+  background: rgba(212, 163, 115, 0.1);
+  border: 1px solid rgba(212, 163, 115, 0.25);
+  color: #fff;
+}
+
+/* Suggestions lists */
+.chat-suggestions {
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.suggestion-pill {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-align: left;
+}
+
+.suggestion-pill:hover {
+  background: rgba(212, 163, 115, 0.05);
+  border-color: rgba(212, 163, 115, 0.2);
+  color: var(--text-primary);
+}
+
+/* Inputs panel */
+.chat-input-panel {
+  padding: 16px;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  gap: 8px;
+}
+
+.chat-field {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+}
+
+.btn-send {
+  padding: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+}
+
+/* Approval Gate modal overlay */
+.approval-gate-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.approval-gate-card {
+  width: 500px;
+  max-width: 90%;
+  padding: 40px;
+}
+
+.approval-gate-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 20px;
+}
+
+.shield-icon {
+  font-size: 2.25rem;
+}
+
+.approval-gate-header h3 {
+  font-size: 1.25rem;
+}
+
+.approval-gate-header small {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.approval-gate-details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gate-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.gate-detail-row span {
+  color: var(--text-secondary);
+}
+
+.gate-creative-box {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+}
+
+.gate-creative-box pre {
+  white-space: pre-wrap;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
