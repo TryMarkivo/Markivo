@@ -55,6 +55,15 @@ const config = {
   // 503 "coming soon" and the dashboard shows a Coming-soon pill. Flip to
   // re-enable end-to-end — no code changes needed.
   telegramEnabled: process.env.TELEGRAM_ENABLED === 'true',
+
+  // --- Google Places (Discovery scan) ---
+  // When GOOGLE_MAPS_API_KEY is unset, the discovery scan transparently falls
+  // back to deterministic mock results, so the app keeps working without it.
+  placesApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
+  placesTimeoutMs: parseInt(process.env.PLACES_TIMEOUT_MS, 10) || 8000,
+  // Per-IP scan rate limit — live scans cost real Places API quota.
+  scanRateLimit: parseInt(process.env.SCAN_RATE_LIMIT, 10) || 10,
+  scanRateWindowMs: (parseInt(process.env.SCAN_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
 };
 
 config.aiEnabled = !!config.anthropicApiKey;

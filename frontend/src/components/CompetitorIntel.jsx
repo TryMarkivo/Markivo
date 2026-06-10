@@ -32,10 +32,13 @@ export default function CompetitorIntel({ stats, activeProfile }) {
             {/* COMPETITORS */}
             {competitors.map((comp, idx) => (
               <div key={idx} className="comp-row">
-                <span className="comp-name">{comp.name}</span>
+                <span className="comp-name">
+                  {comp.name}
+                  {comp.rating != null && <span className="text-muted"> · ★ {comp.rating}</span>}
+                </span>
                 <span className="comp-channels">{comp.platformCount} channels</span>
-                <span className="comp-cadence">{comp.postsPerWeek} / week</span>
-                <span className="comp-followers">{(comp.followers || 0).toLocaleString()}</span>
+                <span className="comp-cadence">{comp.postsPerWeek != null ? `${comp.postsPerWeek} / week` : '—'}</span>
+                <span className="comp-followers">{comp.followers != null ? comp.followers.toLocaleString() : '—'}</span>
               </div>
             ))}
           </div>
@@ -96,7 +99,11 @@ export default function CompetitorIntel({ stats, activeProfile }) {
               <h4>Post Cadence Alert</h4>
             </div>
             <p className="gap-desc">
-              Your primary local competitor <strong>{competitors[0]?.name || 'Comp A'}</strong> posts average <strong>{competitors[0]?.postsPerWeek || 10} times</strong> per week. You post <strong>3 times</strong>.
+              {competitors[0]?.postsPerWeek != null ? (
+                <>Your primary local competitor <strong>{competitors[0].name}</strong> posts average <strong>{competitors[0].postsPerWeek} times</strong> per week. You post <strong>3 times</strong>.</>
+              ) : (
+                <>Your primary local competitor <strong>{competitors[0]?.name || 'nearby'}</strong> is active on Google Maps{competitors[0]?.rating != null && <> with a <strong>★ {competitors[0].rating}</strong> rating</>}. Consistent posting is your fastest way to stand out locally.</>
+              )}
             </p>
             <div className="gap-recommendation">
               <strong>💡 Solution:</strong> Schedule at least 4 more AI posts in your Content Engine to close the visibility gap.

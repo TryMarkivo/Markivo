@@ -33,6 +33,33 @@ test('profiles + platforms: create and read back with JSON logo', () => {
   db.close();
 });
 
+test('profiles: google discovery fields round-trip and migration is idempotent', () => {
+  const os = require('os');
+  const path = require('path');
+  const fs = require('fs');
+  const TMP = path.join(os.tmpdir(), `markivo-mig-${Date.now()}.db`);
+
+  // First open creates the table; second open re-runs the additive ALTER
+  // migration against an existing file — must not throw.
+  let db = createDb(TMP);
+  const u = db.users.create({ email: 'g@b.com', passwordHash: 'h', fullName: 'G' });
+  const p = db.profiles.create({
+    userId: u.id, businessName: 'Noir', googlePlaceId: 'pid_42', googleRating: 4.5, googleReviewsCount: 10,
+  });
+  assert.strictEqual(p.googlePlaceId, 'pid_42');
+  db.close();
+
+  db = createDb(TMP); // idempotent re-open
+  const found = db.profiles.findByUserId(u.id);
+  assert.strictEqual(found.googlePlaceId, 'pid_42');
+  assert.strictEqual(found.googleRating, 4.5);
+  assert.strictEqual(found.googleReviewsCount, 10);
+  db.close();
+  for (const f of [TMP, `${TMP}-shm`, `${TMP}-wal`]) {
+    try { fs.unlinkSync(f); } catch { /* ignore */ }
+  }
+});
+
 test('refresh tokens: store / find / revoke', () => {
   const db = createDb(':memory:');
   const u = db.users.create({ email: 'r@b.com', passwordHash: 'h', fullName: 'R' });

@@ -8,7 +8,8 @@ const config = require('./config');
 const createDb = require('./db');
 const ai = require('./ai');
 const tg = require('./telegram');
-const { validateRegister, validateLogin } = require('./validators');
+const places = require('./places');
+const { validateRegister, validateLogin, validateScan } = require('./validators');
 
 const db = createDb(config.dbPath);
 const app = express();
@@ -129,24 +130,34 @@ app.get('/api/auth/me', verifyToken, (req, res) => {
 
 // ==========================================
 // 3.2 DISCOVERY & SCAN ROUTER (/api/discovery)
-//   NOTE: still a simulated crawl — real Google Places / social APIs land in
-//   the "platform integrations" milestone.
+//   Real Google Places (New) lookup when GOOGLE_MAPS_API_KEY is set; the same
+//   deterministic mock as before when it isn't (see backend/places.js).
+//   Instagram detection and AI-search presence are later milestones.
 // ==========================================
-app.post('/api/discovery/scan', verifyToken, (req, res) => {
-  const { businessName, location } = req.body;
-  if (!businessName) return res.status(400).json({ error: 'Business name is required' });
+const scanLimiter = rateLimit({
+  windowMs: config.scanRateWindowMs,
+  max: config.scanRateLimit,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many scans from this device. Please wait a few minutes and try again.' },
+});
 
-  const cleanName = businessName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'business';
-  const searchLoc = location || 'Tashkent';
+app.post('/api/discovery/scan', verifyToken, scanLimiter, async (req, res) => {
+  const error = validateScan(req.body);
+  if (error) return res.status(400).json({ error });
 
-  setTimeout(() => {
-    res.json({
-      googleBusiness: { found: true, name: `${businessName} on Google Maps`, rating: 4.8, reviewsCount: 14, address: `${searchLoc}, Uzbekistan`, verified: true },
-      instagram: { found: true, handle: `@${cleanName}_uz`, followers: 1050, postsCount: 23, url: `https://instagram.com/${cleanName}_uz` },
-      telegram: { found: true, channel: `@${cleanName}`, subscribers: 720, url: `https://t.me/${cleanName}` },
-      aiSearchPresence: { chatgptMentioned: true, perplexityMentioned: false, perplexityScore: 72 },
+  try {
+    const result = await places.scanBusiness({
+      businessName: req.body.businessName.trim(),
+      location: (typeof req.body.location === 'string' && req.body.location.trim()) || 'Tashkent',
     });
-  }, 1200);
+    res.json(result);
+  } catch (err) {
+    // Upstream outage/misconfig must surface as an error, never as a fake
+    // "your business was not found" answer.
+    console.error('Places scan failed:', err.status || '', err.message);
+    res.status(502).json({ error: 'Business discovery is temporarily unavailable. Please try again shortly.' });
+  }
 });
 
 // ==========================================
@@ -158,10 +169,26 @@ app.post('/api/onboarding/slogans', verifyToken, async (req, res) => {
   res.json({ slogans });
 });
 
+// Cap + type-coerce competitor rows arriving from the client (Path A passes
+// real Places results through; anything malformed degrades to nothing).
+const sanitizeCompetitors = (list) => (Array.isArray(list) ? list : [])
+  .slice(0, 10)
+  .filter((c) => c && typeof (c.competitorName || c.name) === 'string')
+  .map((c) => ({
+    competitorName: String(c.competitorName || c.name).slice(0, 120),
+    rating: Number.isFinite(+c.rating) ? +c.rating : null,
+    followersCount: Number.isFinite(+c.followersCount) ? +c.followersCount : null,
+    postsPerWeek: Number.isFinite(+c.postsPerWeek) ? +c.postsPerWeek : null,
+    platformsDetected: Array.isArray(c.platformsDetected)
+      ? c.platformsDetected.slice(0, 6).map(String)
+      : ['google'],
+  }));
+
 app.post('/api/onboarding/construct', verifyToken, (req, res) => {
   const { businessName, category, description, location, isOnline, audience, tone, slogan, logo, platforms } = req.body;
   if (!businessName) return res.status(400).json({ error: 'Business name is required' });
 
+  const g = (req.body.google && typeof req.body.google === 'object') ? req.body.google : {};
   const safeCategory = category || 'Business';
   const profile = db.profiles.create({
     userId: req.user.id,
@@ -175,6 +202,9 @@ app.post('/api/onboarding/construct', verifyToken, (req, res) => {
     slogan,
     logoMetadata: logo || { text: businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' },
     onboardPath: req.body.onboardPath || 'B (Scratch)',
+    googlePlaceId: typeof g.placeId === 'string' ? g.placeId.slice(0, 128) : null,
+    googleRating: Number.isFinite(+g.rating) ? +g.rating : null,
+    googleReviewsCount: Number.isFinite(+g.reviewsCount) ? +g.reviewsCount : null,
   });
 
   // Platform connections selected in the wizard.
@@ -191,14 +221,19 @@ app.post('/api/onboarding/construct', verifyToken, (req, res) => {
     }
   });
 
-  // Seed benchmark competitors.
-  [
+  // Competitors: real nearby businesses from the discovery scan when Path A
+  // provides them; otherwise the benchmark seeds (Path B / keyless mode).
+  const realCompetitors = sanitizeCompetitors(req.body.competitors);
+  const competitorRows = realCompetitors.length ? realCompetitors : [
     { competitorName: 'Local Competitor A', rating: 4.5, followersCount: 2400, postsPerWeek: 10, platformsDetected: ['instagram', 'telegram'] },
     { competitorName: 'District Roasters B', rating: 4.7, followersCount: 4100, postsPerWeek: 8, platformsDetected: ['google', 'instagram'] },
     { competitorName: 'Global Competitor C', rating: 4.8, followersCount: 95000, postsPerWeek: 22, platformsDetected: ['google', 'instagram', 'telegram', 'tiktok'] },
-  ].forEach((c) => db.competitors.add({ profileId: profile.id, ...c }));
+  ];
+  competitorRows.forEach((c) => db.competitors.add({ profileId: profile.id, ...c }));
 
-  // Seed SEO keywords.
+  // Seed SEO keywords. (Still mocked — real rank tracking is a future
+  // milestone; the phrases improve automatically now that Path A passes the
+  // real Google category in.)
   const cat = safeCategory.toLowerCase();
   [
     { keywordPhrase: `best ${cat} in tashkent`, avgPosition: 8, volume: 'High' },

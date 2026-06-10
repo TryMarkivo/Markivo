@@ -46,6 +46,9 @@ module.exports = function createDb(dbPath) {
       slogan          TEXT,
       logo_metadata   TEXT,
       onboard_path    TEXT,
+      google_place_id      TEXT,
+      google_rating        REAL,
+      google_reviews_count INTEGER,
       created_at      TEXT NOT NULL
     );
 
@@ -128,6 +131,19 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_refresh_hash ON refresh_tokens(token_hash);
   `);
 
+  // Additive migrations for databases created before a column existed.
+  // (CREATE TABLE IF NOT EXISTS never alters an existing table.)
+  const addColumn = (table, ddl) => {
+    try {
+      sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+    } catch (e) {
+      if (!/duplicate column name/i.test(e.message)) throw e;
+    }
+  };
+  addColumn('profiles', 'google_place_id TEXT');
+  addColumn('profiles', 'google_rating REAL');
+  addColumn('profiles', 'google_reviews_count INTEGER');
+
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
 
@@ -143,6 +159,9 @@ module.exports = function createDb(dbPath) {
     logoMetadata: r.logo_metadata ? JSON.parse(r.logo_metadata) : null,
     logo: r.logo_metadata ? JSON.parse(r.logo_metadata) : null,
     onboardPath: r.onboard_path, created_at: r.created_at,
+    googlePlaceId: r.google_place_id || null,
+    googleRating: r.google_rating ?? null,
+    googleReviewsCount: r.google_reviews_count ?? null,
   };
   const mapPlatform = (r) => r && {
     id: r.id, profileId: r.profile_id, platformName: r.platform_name,
@@ -197,13 +216,19 @@ module.exports = function createDb(dbPath) {
           is_online: p.isOnline ? 1 : 0, target_audience: p.targetAudience || null,
           brand_tone: p.brandTone || null, slogan: p.slogan || null,
           logo_metadata: p.logoMetadata ? JSON.stringify(p.logoMetadata) : null,
-          onboard_path: p.onboardPath || null, created_at: now(),
+          onboard_path: p.onboardPath || null,
+          google_place_id: p.googlePlaceId || null,
+          google_rating: p.googleRating ?? null,
+          google_reviews_count: p.googleReviewsCount ?? null,
+          created_at: now(),
         };
         sqlite.prepare(
           `INSERT INTO profiles (id, user_id, business_name, category, description, location,
-             is_online, target_audience, brand_tone, slogan, logo_metadata, onboard_path, created_at)
+             is_online, target_audience, brand_tone, slogan, logo_metadata, onboard_path,
+             google_place_id, google_rating, google_reviews_count, created_at)
            VALUES (@id, @user_id, @business_name, @category, @description, @location,
-             @is_online, @target_audience, @brand_tone, @slogan, @logo_metadata, @onboard_path, @created_at)`
+             @is_online, @target_audience, @brand_tone, @slogan, @logo_metadata, @onboard_path,
+             @google_place_id, @google_rating, @google_reviews_count, @created_at)`
         ).run(row);
         return mapProfile(row);
       },

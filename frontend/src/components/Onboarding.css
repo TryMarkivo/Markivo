@@ -540,3 +540,81 @@
 .line-done .line-text { color: var(--text-primary); }
 .line-current .line-text { color: #fff; font-weight: 600; }
 .line-pending .line-text { color: var(--text-muted); }
+
+/* ===== Real discovery results (Path A) ===== */
+.result-item.disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.result-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+.star-row i {
+  color: #d4a373;
+  font-size: 12px;
+  margin-right: 1px;
+}
+
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7ee0a3;
+  background: rgba(126, 224, 163, 0.12);
+}
+
+.coming-soon-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: #2aabee;
+  background: rgba(42, 171, 238, 0.12);
+}
+
+.scan-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.08);
+}
+
+.scan-error-banner i {
+  color: #ff6b6b;
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.scan-error-banner h4 {
+  margin: 0 0 4px;
+}
+
+.scan-error-banner p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.alt-matches {
+  padding: 4px 16px 10px;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  margin: -6px 0 4px 22px;
+}

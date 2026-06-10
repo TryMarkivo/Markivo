@@ -33,4 +33,15 @@ function validateLogin(body = {}) {
   ]);
 }
 
-module.exports = { isNonEmptyString, isEmail, firstError, validateRegister, validateLogin };
+function validateScan(body = {}) {
+  const { businessName, location } = body;
+  const name = typeof businessName === 'string' ? businessName.trim() : '';
+  // Length checks only — names in Uzbek/Russian (Cyrillic) must pass untouched.
+  return firstError([
+    [name.length >= 2, 'Business name must be at least 2 characters'],
+    [name.length <= 100, 'Business name must be 100 characters or fewer'],
+    [location == null || (typeof location === 'string' && location.trim().length <= 100), 'Location must be 100 characters or fewer'],
+  ]);
+}
+
+module.exports = { isNonEmptyString, isEmail, firstError, validateRegister, validateLogin, validateScan };
