@@ -315,7 +315,9 @@
       "googleNotFoundText": "{{location}} hududida \"{{businessName}}\"ni topa olmadik. Imlo va joylashuvni tekshiring yoki Google Business Profile yarating — Markivo keyinroq sizga yo'l ko'rsatadi.",
       "alternativesIntro": "Bu sizning biznesingiz emasmi? Biz yana shularni topdik:",
       "alternativeItem": "· {{name}} — {{address}} (★ {{rating}})",
+      "altSelectTitle": "Buning o'rniga shu biznesni tanlash",
       "instagramTitle": "Instagram akkaunt nomi",
+      "foundViaWebsite": "Veb-saytingiz orqali aniqlandi",
       "instagramNotFoundTitle": "Instagram aniqlanmadi",
       "instagramNotFoundText": "Ochiq akkaunt avtomatik topilmadi — uni keyinroq dashbord orqali ulashingiz mumkin.",
       "telegramSyncText": "Kanalingizni Markivo dashbordiga sinxronlang",
@@ -644,6 +646,7 @@
     "justNow": "Hozirgina",
     "subtitle": "Sizning AI marketing agentingiz",
     "inputPlaceholder": "AI agentdan bajarishni so'rang...",
+    "clearChat": "Suhbatni tozalash",
     "authorizationNeeded": "Bu amal uchun ruxsatingiz kerak. Iltimos, quyidagi so'rovni ko'rib chiqing.",
     "fallback": {
       "instagramDraft": "Kontent dvigateli bo'limida siz uchun yuqori darajada optimallashtirilgan Instagram post qoralamasini tayyorlab qo'ydim. U \"{{tone}}\" brend ohangingizni aks ettiradi va mahalliy heshteglar bilan e'longa tayyor. Rejalashtirishimni istasangiz, ayting!",

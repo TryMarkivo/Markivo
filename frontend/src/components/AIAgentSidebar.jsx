@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import './AIAgentSidebar.css';
@@ -23,32 +23,64 @@ const CATEGORY_KEYS = {
 };
 
 export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(true);
-  const [messages, setMessages] = useState([
-    {
-      sender: 'agent',
-      text: t('agent.greeting', { defaultValue: "Hi! I'm Markiv 🤖 — your marketing agent. I can draft content, analyse competitors, and post straight to your Telegram channel when you ask.\n\nWhat shall we work on today?" }),
-      time: t('agent.justNow', 'Just now')
-    }
-  ]);
+  const greetingMessage = () => ({
+    sender: 'agent',
+    text: t('agent.greeting', { defaultValue: "Hi! I'm Markiv 🤖 — your marketing agent. I can draft content, analyse competitors, and post straight to your Telegram channel when you ask.\n\nWhat shall we work on today?" }),
+    time: t('agent.justNow', 'Just now')
+  });
+  const [messages, setMessages] = useState(() => [greetingMessage()]);
   const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const [showApprovalGate, setShowApprovalGate] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState(null);
   const [approvalId, setApprovalId] = useState(null);
   const [approvalSuccess, setApprovalSuccess] = useState(false);
+  const threadRef = useRef(null);
+
+  // Load persisted conversation history on mount; keep the greeting when empty.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get('/api/agent/history');
+        if (!cancelled && Array.isArray(data?.messages) && data.messages.length > 0) {
+          setMessages(data.messages.map(m => ({
+            sender: m.sender,
+            text: m.text,
+            time: m.created_at
+              ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : ''
+          })));
+        }
+      } catch {
+        /* history unavailable — keep the local greeting */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Auto-scroll the thread to the bottom whenever messages change.
+  useEffect(() => {
+    if (threadRef.current) {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
 
   const handleSendMessage = async (textToSend) => {
     const text = textToSend || inputText;
-    if (!text.trim()) return;
+    if (!text.trim() || isTyping) return;
 
     // Add user message
     const userMsg = { sender: 'user', text, time: t('agent.justNow', 'Just now') };
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
+    setIsTyping(true);
 
     try {
-      const data = await api.post('/api/agent/query', { query: text });
+      const data = await api.post('/api/agent/query', { query: text, lang: i18n.language });
+      setIsTyping(false);
 
       if (data.triggerApproval) {
         setApprovalId(data.approvalId);
@@ -69,6 +101,8 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
       setTimeout(() => {
         let agentReply = '';
         const lowercaseText = text.toLowerCase();
+
+        setIsTyping(false);
 
         if (lowercaseText.includes('instagram') || lowercaseText.includes('post') || lowercaseText.includes('copy')) {
           const toneKey = TONE_KEYS[activeProfile.tone];
@@ -92,6 +126,24 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
         setMessages(prev => [...prev, { sender: 'agent', text: agentReply, time: t('agent.justNow', 'Just now') }]);
       }, 800);
     }
+  };
+
+  const handleClearChat = async () => {
+    try {
+      if (typeof api.del === 'function') {
+        await api.del('/api/agent/history');
+      } else {
+        // api.js has no delete helper — call the endpoint directly.
+        await fetch(api.base + '/api/agent/history', {
+          method: 'DELETE',
+          headers: { Authorization: 'Bearer ' + api.tokens.access() }
+        });
+      }
+    } catch {
+      /* best-effort — reset locally regardless */
+    }
+    setIsTyping(false);
+    setMessages([greetingMessage()]);
   };
 
   const triggerApprovalGate = () => {
@@ -145,15 +197,28 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
               <small>{t('agent.subtitle', 'Your AI marketing agent')}</small>
             </div>
           </div>
-          <button className="agent-toggle-btn" onClick={() => setIsOpen(!isOpen)} id="btn_toggle_agent">
-            {isOpen ? <i className="fa-solid fa-angles-right"></i> : <i className="fa-solid fa-angles-left"></i>}
-          </button>
+          <div className="agent-header-actions">
+            {isOpen && (
+              <button
+                className="agent-clear-btn"
+                onClick={handleClearChat}
+                id="btn_clear_chat"
+                title={t('agent.clearChat', 'Clear conversation')}
+                aria-label={t('agent.clearChat', 'Clear conversation')}
+              >
+                <i className="fa-solid fa-trash-can"></i>
+              </button>
+            )}
+            <button className="agent-toggle-btn" onClick={() => setIsOpen(!isOpen)} id="btn_toggle_agent">
+              {isOpen ? <i className="fa-solid fa-angles-right"></i> : <i className="fa-solid fa-angles-left"></i>}
+            </button>
+          </div>
         </div>
 
         {isOpen && (
           <>
             {/* CHAT THREAD */}
-            <div className="chat-thread-container">
+            <div className="chat-thread-container" ref={threadRef}>
               {messages.map((msg, index) => (
                 <div key={index} className={`chat-bubble-wrap ${msg.sender === 'user' ? 'user-bubble' : 'agent-bubble'}`}>
                   <div className="chat-bubble">
@@ -162,6 +227,17 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
                   </div>
                 </div>
               ))}
+              {isTyping && (
+                <div className="chat-bubble-wrap agent-bubble" id="agent_typing_indicator">
+                  <div className="chat-bubble typing-bubble">
+                    <span className="typing-dots" role="status" aria-label={t('agent.typing', 'Typing...')}>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* SUGGESTION BARS */}
@@ -201,7 +277,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
                 id="inp_agent_chat"
               />
-              <button className="btn btn-primary btn-send" onClick={() => handleSendMessage()} id="btn_send_agent">
+              <button className="btn btn-primary btn-send" onClick={() => handleSendMessage()} disabled={isTyping} id="btn_send_agent">
                 <i className="fa-solid fa-paper-plane"></i>
               </button>
             </div>

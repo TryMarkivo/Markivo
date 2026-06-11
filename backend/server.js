@@ -12,7 +12,7 @@ const createDb = require('./db');
 const ai = require('./ai');
 const tg = require('./telegram');
 const places = require('./places');
-const { validateRegister, validateLogin, validateScan, validateProfileUpdate, validateMeUpdate } = require('./validators');
+const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
 
 const db = createDb(config.dbPath);
 const app = express();
@@ -42,6 +42,10 @@ const issueRefreshToken = (userId) => {
 };
 
 const publicUser = (u) => ({ id: u.id, email: u.email, fullName: u.fullName, tier: u.tier });
+
+// Express 4 does not catch errors from async handlers — without this wrapper
+// any thrown error becomes an unhandled rejection and kills the process.
+const asyncRoute = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -173,7 +177,7 @@ const scanLimiter = rateLimit({
   message: { error: 'Too many scans from this device. Please wait a few minutes and try again.' },
 });
 
-app.post('/api/discovery/scan', verifyToken, scanLimiter, async (req, res) => {
+app.post('/api/discovery/scan', verifyToken, scanLimiter, asyncRoute(async (req, res) => {
   const error = validateScan(req.body);
   if (error) return res.status(400).json({ error });
 
@@ -189,21 +193,44 @@ app.post('/api/discovery/scan', verifyToken, scanLimiter, async (req, res) => {
     console.error('Places scan failed:', err.status || '', err.message);
     res.status(502).json({ error: 'Business discovery is temporarily unavailable. Please try again shortly.' });
   }
-});
+}));
+
+// Competitor lookup around a confirmed business location (Nearby Search).
+// Keyless mode answers honestly with an empty list — the mock scan already
+// seeds benchmark competitors via /api/onboarding/construct.
+app.post('/api/discovery/competitors', verifyToken, scanLimiter, asyncRoute(async (req, res) => {
+  const error = validateCompetitors(req.body);
+  if (error) return res.status(400).json({ error });
+
+  if (!places.isLive()) return res.json({ competitors: [] });
+
+  try {
+    const competitors = await places.findCompetitors({
+      lat: req.body.lat,
+      lng: req.body.lng,
+      primaryType: req.body.primaryType.trim(),
+      excludePlaceId: typeof req.body.excludePlaceId === 'string' ? req.body.excludePlaceId : undefined,
+    });
+    res.json({ competitors });
+  } catch (err) {
+    console.error('Competitor lookup failed:', err.status || '', err.message);
+    res.status(502).json({ error: 'Business discovery is temporarily unavailable. Please try again shortly.' });
+  }
+}));
 
 // ==========================================
 // 3.3 GUIDED SETUP WIZARD ROUTER (/api/onboarding)
 // ==========================================
-app.post('/api/onboarding/slogans', verifyToken, checkAiBudget, async (req, res) => {
+app.post('/api/onboarding/slogans', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
   const { businessName, category, tone, description } = req.body;
   const slogans = await ai.generateSlogans({ businessName, category, tone, description });
   db.usage.record({ userId: req.user.id, kind: 'slogans' });
   res.json({ slogans });
-});
+}));
 
 // Brand logo variants for the wizard — deterministic SVG engine (logogen)
 // without a key, Claude-designed (strictly sanitized) with one.
-app.post('/api/onboarding/logos', verifyToken, checkAiBudget, async (req, res) => {
+app.post('/api/onboarding/logos', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
   const businessName = typeof req.body.businessName === 'string' ? req.body.businessName.trim() : '';
   if (businessName.length < 2 || businessName.length > 100) {
     return res.status(400).json({ error: 'Business name must be 2-100 characters' });
@@ -215,7 +242,7 @@ app.post('/api/onboarding/logos', verifyToken, checkAiBudget, async (req, res) =
   });
   db.usage.record({ userId: req.user.id, kind: 'logo' });
   res.json({ logos });
-});
+}));
 
 // Cap + type-coerce competitor rows arriving from the client (Path A passes
 // real Places results through; anything malformed degrades to nothing).
@@ -367,7 +394,7 @@ app.put('/api/me', verifyToken, (req, res) => {
 //   NOTE: copy is still templated. Real Claude generation is the "AI core"
 //   milestone.
 // ==========================================
-app.post('/api/content/copywrite', verifyToken, checkAiBudget, async (req, res) => {
+app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
   const { platform, topic, languages } = req.body;
   const profile = db.profiles.findByUserId(req.user.id);
 
@@ -387,7 +414,7 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, async (req, res) 
   const tags = (result.hashtags || []).filter(Boolean);
   const post = tags.length ? `${result.post}\n\n${tags.join(' ')}` : result.post;
   res.json({ post, mediaTip: result.mediaTip, hashtags: tags });
-});
+}));
 
 // Current month's AI generation usage for the signed-in user.
 app.get('/api/usage', verifyToken, (req, res) => {
@@ -417,7 +444,7 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
 // Publish immediately. Telegram (when enabled + a chat is linked) publishes
 // for real via the Bot API; every other platform is recorded as a simulated
 // "posted" calendar entry until those integrations land.
-app.post('/api/content/post-now', verifyToken, async (req, res) => {
+app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
@@ -446,7 +473,7 @@ app.post('/api/content/post-now', verifyToken, async (req, res) => {
     status: 'posted',
   });
   res.json({ success: true, simulated: true, post });
-});
+}));
 
 // ==========================================
 // 3.45 TELEGRAM INTEGRATION (/api/telegram)
@@ -473,7 +500,7 @@ const telegramGate = (req, res, next) => {
   next();
 };
 
-app.post('/api/telegram/connect', verifyToken, telegramGate, async (req, res) => {
+app.post('/api/telegram/connect', verifyToken, telegramGate, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -501,9 +528,9 @@ app.post('/api/telegram/connect', verifyToken, telegramGate, async (req, res) =>
       : `Could not connect the bot: ${err.description || err.message}`;
     res.status(400).json({ error: msg });
   }
-});
+}));
 
-app.post('/api/telegram/detect-chat', verifyToken, telegramGate, async (req, res) => {
+app.post('/api/telegram/detect-chat', verifyToken, telegramGate, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const conn = db.telegram.findByProfile(profile.id);
@@ -522,9 +549,9 @@ app.post('/api/telegram/detect-chat', verifyToken, telegramGate, async (req, res
   } catch (err) {
     res.status(400).json({ error: err.description || err.message });
   }
-});
+}));
 
-app.post('/api/telegram/channel', verifyToken, telegramGate, async (req, res) => {
+app.post('/api/telegram/channel', verifyToken, telegramGate, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const conn = db.telegram.findByProfile(profile.id);
@@ -541,7 +568,7 @@ app.post('/api/telegram/channel', verifyToken, telegramGate, async (req, res) =>
   } catch (err) {
     res.status(400).json({ error: err.description || err.message });
   }
-});
+}));
 
 app.get('/api/telegram/status', verifyToken, (req, res) => {
   if (!config.telegramEnabled) return res.json({ connected: false, comingSoon: true });
@@ -573,7 +600,7 @@ async function executeTelegramPost(profile, text) {
   return { messageId: sent.message_id, chatTitle: conn.chatTitle || conn.chatId };
 }
 
-app.post('/api/telegram/post', verifyToken, telegramGate, async (req, res) => {
+app.post('/api/telegram/post', verifyToken, telegramGate, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const text = String(req.body.text || '').trim();
@@ -585,7 +612,7 @@ app.post('/api/telegram/post', verifyToken, telegramGate, async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.description || err.message });
   }
-});
+}));
 
 // ==========================================
 // 3.5 DASHBOARD METRICS ROUTER
@@ -633,7 +660,7 @@ const DATA_URL_RE = /^data:(image\/(?:png|jpeg|webp)|video\/(?:mp4|webm));base64
 const EXT_FOR = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm' };
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
-app.post('/api/media/brief', verifyToken, checkAiBudget, async (req, res) => {
+app.post('/api/media/brief', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -648,7 +675,7 @@ app.post('/api/media/brief', verifyToken, checkAiBudget, async (req, res) => {
   const row = db.media.add({ profileId: profile.id, kind, mode, topic, brief, status: 'brief' });
   db.usage.record({ userId: req.user.id, kind: 'media' });
   res.json({ id: row.id, brief });
-});
+}));
 
 app.post('/api/media/upload', verifyToken, (req, res) => {
   const profile = requireProfile(req, res);
@@ -684,7 +711,7 @@ app.post('/api/media/upload', verifyToken, (req, res) => {
   res.json({ id: row.id, url: `/uploads/${file}` });
 });
 
-app.post('/api/media/:id/edit', verifyToken, checkAiBudget, async (req, res) => {
+app.post('/api/media/:id/edit', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -700,7 +727,7 @@ app.post('/api/media/:id/edit', verifyToken, checkAiBudget, async (req, res) => 
   db.media.update(row.id, { brief: { ...(row.brief || {}), editPlan: plan }, status: 'edit_plan' });
   db.usage.record({ userId: req.user.id, kind: 'media' });
   res.json({ id: row.id, plan });
-});
+}));
 
 app.get('/api/media', verifyToken, (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
@@ -710,16 +737,26 @@ app.get('/api/media', verifyToken, (req, res) => {
 
 // ==========================================
 // 3.6 AI AGENT & APPROVAL GATES (/api/agent)
-//   NOTE: keyword-matched replies for now. Real Claude routing is the
-//   "AI core" milestone; the approval-gate plumbing here is real.
+//   Markiv now has conversation memory (agent_messages), language-aware
+//   replies, and read/act tools (snapshot, calendar, drafting) passed into
+//   ai.js as closures. Money actions still always hit the approval gate.
 // ==========================================
-app.post('/api/agent/query', verifyToken, checkAiBudget, async (req, res) => {
+app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'A query is required' });
+  const lang = ['en', 'uz', 'ru'].includes(req.body.lang) ? req.body.lang : 'en';
 
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
   db.usage.record({ userId: req.user.id, kind: 'agent' });
+
+  // Conversation memory: load the recent turns BEFORE recording the new
+  // message, so the model sees prior context without a duplicate of it.
+  const history = db.agentMessages.listByProfile(profile.id, 12);
+  db.agentMessages.add({ profileId: profile.id, sender: 'user', text: query });
+  const recordAgentReply = (text) => {
+    if (text) db.agentMessages.add({ profileId: profile.id, sender: 'agent', text });
+  };
 
   const lower = query.toLowerCase();
   // Deterministic safety gate — anything touching ad spend / money always
@@ -745,28 +782,77 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, async (req, res) => {
     return res.json({ triggerApproval: true, approvalId: approval.id, payload: approval.action_payload });
   }
 
+  // What Markiv can SEE (snapshot) and DO (calendar/drafting closures) —
+  // passed into the AI layer as plain functions so ai.js stays db-free.
+  const calendarRows = db.calendar.listByProfile(profile.id);
+  const snapshot = {
+    stats: {
+      competitorCount: db.competitors.listByProfile(profile.id).length,
+      keywords: db.keywords.listByProfile(profile.id).slice(0, 3).map((k) => k.keyword_phrase),
+      scheduledPosts: calendarRows.filter((p) => p.status === 'scheduled').length,
+      postedPosts: calendarRows.filter((p) => p.status === 'posted').length,
+    },
+    usage: usageInfo(req.user),
+  };
+  const actions = {
+    snapshot: () => snapshot,
+    listScheduled: () =>
+      db.calendar.listByProfile(profile.id)
+        .filter((p) => p.status === 'scheduled')
+        .slice(0, 10)
+        .map((p) => ({
+          platform: p.platform,
+          post_text: (p.post_text || '').slice(0, 80),
+          scheduled_time: p.scheduled_time,
+          status: p.status,
+        })),
+    schedulePost: ({ platform, text, scheduledTime }) => {
+      const row = db.calendar.add({
+        profileId: profile.id,
+        platform: String(platform || 'instagram').toLowerCase(),
+        postText: String(text || '').slice(0, 4000),
+        scheduledTime: scheduledTime || new Date(Date.now() + 86400000).toISOString(),
+        status: 'scheduled',
+      });
+      return { scheduled: true, id: row.id, platform: row.platform, scheduledTime: row.scheduled_time };
+    },
+    draftContent: ({ platform, topic }) => ai.generateContent({
+      platform,
+      topic,
+      businessName: profile.businessName,
+      category: profile.category,
+      description: profile.description,
+      brandTone: profile.brandTone,
+      audience: profile.targetAudience,
+    }),
+  };
+
   const conn = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
   const action = await ai.agentAct({
     query,
+    history,
+    lang,
     profile,
     telegram: conn
       ? { connected: true, chatTitle: conn.chatTitle, chatType: conn.chatType, hasChat: !!conn.chatId }
       : { connected: false, comingSoon: !config.telegramEnabled },
+    snapshot,
+    actions,
   });
 
   // Markiv proposed a Telegram publish → route through the human approval gate.
   if (action.type === 'telegram_post') {
     if (!config.telegramEnabled) {
-      return res.json({
-        reply: 'Telegram publishing is coming soon — it is not enabled in this version yet. Meanwhile I can draft the post text for you in the Content Engine.',
-      });
+      const reply = 'Telegram publishing is coming soon — it is not enabled in this version yet. Meanwhile I can draft the post text for you in the Content Engine.';
+      recordAgentReply(reply);
+      return res.json({ reply });
     }
     if (!conn || !conn.chatId) {
-      return res.json({
-        reply: conn
-          ? `Your bot @${conn.botUsername} is connected, but no channel is linked yet. Open the Telegram card on your dashboard, add the bot to your channel as admin, and click Detect — then I can post for you.`
-          : `Your Telegram isn't connected yet. Open the Telegram card on your dashboard — it takes about a minute — and then I can post for you.`,
-      });
+      const reply = conn
+        ? `Your bot @${conn.botUsername} is connected, but no channel is linked yet. Open the Telegram card on your dashboard, add the bot to your channel as admin, and click Detect — then I can post for you.`
+        : `Your Telegram isn't connected yet. Open the Telegram card on your dashboard — it takes about a minute — and then I can post for you.`;
+      recordAgentReply(reply);
+      return res.json({ reply });
     }
     const approval = db.approvals.create({
       profileId: profile.id,
@@ -779,18 +865,37 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, async (req, res) => {
         text: action.text,
       },
     });
+    const reply = action.note || 'I drafted this post for your Telegram channel — review and approve to publish.';
+    recordAgentReply(reply);
     return res.json({
       triggerApproval: true,
       approvalId: approval.id,
       payload: approval.action_payload,
-      reply: action.note || 'I drafted this post for your Telegram channel — review and approve to publish.',
+      reply,
     });
   }
 
+  recordAgentReply(action.reply);
   res.json({ reply: action.reply });
+}));
+
+// Markiv's conversation memory for the signed-in user's profile.
+app.get('/api/agent/history', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ messages: [] });
+  res.json({
+    messages: db.agentMessages.listByProfile(profile.id, 40)
+      .map((m) => ({ sender: m.sender, text: m.text, created_at: m.created_at })),
+  });
 });
 
-app.post('/api/agent/approve', verifyToken, async (req, res) => {
+app.delete('/api/agent/history', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (profile) db.agentMessages.clearByProfile(profile.id);
+  res.json({ success: true });
+});
+
+app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
   const { approvalId } = req.body;
   const approval = db.approvals.findById(approvalId);
   if (!approval) return res.status(404).json({ error: 'Pending authorization request not found' });
@@ -827,7 +932,7 @@ app.post('/api/agent/approve', verifyToken, async (req, res) => {
     success: true,
     message: `Campaign authorized! Launched localized ad campaign costing ${updated.action_payload.cost}. (Simulation — Meta Ads integration coming soon.)`,
   });
-});
+}));
 
 // --- Uploaded media files (Media Studio) ---
 app.use('/uploads', express.static(UPLOADS_DIR));

@@ -72,38 +72,85 @@ function templateSlogans({ category, tone, description }) {
   );
 }
 
-function templateAgentAct({ query, profile, telegram }) {
+// The five canned agent replies, localized (en / ru / uz-Latin). The EN
+// coming-soon line must keep matching /coming soon/i — tests pin it.
+const AGENT_CANNED = {
+  en: {
+    comingSoon: () =>
+      `Telegram publishing is coming soon — it isn't enabled in this version yet. Meanwhile I can draft the post text for you: just tell me the topic, or use the Content Engine tab.`,
+    notConnected: () =>
+      `I'd love to post that for you, but your Telegram isn't connected yet. Open the Telegram card on your dashboard — it takes about a minute: create a bot with @BotFather, paste the token, and add the bot to your channel. Then just ask me again!`,
+    drafted: ({ name, tone }) =>
+      `I've drafted a post for ${name} in the Content Engine, matched to your "${tone}" tone. Want me to publish it to Telegram?`,
+    competitors: () =>
+      `Local competitors average 8-10 posts/week; you're at ~3. Closing that cadence gap will lift your organic reach.`,
+    greeting: () =>
+      `Hi, I'm Markiv 🤖 — your marketing agent. I can draft content, track competitors, plan campaigns, and post straight to your Telegram channel. Try: "Post our weekend offer to Telegram".`,
+  },
+  ru: {
+    comingSoon: () =>
+      `Публикация в Telegram появится совсем скоро — в этой версии она ещё не включена. А пока я могу подготовить текст поста: просто назовите тему или откройте вкладку «Контент».`,
+    notConnected: () =>
+      `Я бы с радостью это опубликовал, но Telegram ещё не подключён. Откройте карточку Telegram на дашборде — это займёт около минуты: создайте бота через @BotFather, вставьте токен и добавьте бота в канал. Потом просто попросите меня снова!`,
+    drafted: ({ name, tone }) =>
+      `Я подготовил пост для ${name} во вкладке «Контент», в вашем тоне «${tone}». Опубликовать его в Telegram?`,
+    competitors: () =>
+      `Местные конкуренты публикуют в среднем 8-10 постов в неделю; у вас ~3. Сократив этот разрыв, вы заметно поднимете органический охват.`,
+    greeting: () =>
+      `Привет, я Markiv 🤖 — ваш маркетинговый агент. Я пишу контент, слежу за конкурентами, планирую кампании и публикую посты в ваш Telegram-канал. Например: «Опубликуй наше предложение выходного дня в Telegram».`,
+  },
+  uz: {
+    comingSoon: () =>
+      `Telegramga joylash tez orada qo'shiladi — bu versiyada hali yoqilmagan. Hozircha men siz uchun post matnini tayyorlab beraman: mavzuni ayting yoki "Kontent" bo'limidan foydalaning.`,
+    notConnected: () =>
+      `Buni siz uchun joylagan bo'lardim, lekin Telegram hali ulanmagan. Dashboard'dagi Telegram kartasini oching — bir daqiqa kifoya: @BotFather orqali bot yarating, tokenni kiriting va botni kanalingizga qo'shing. Keyin yana so'rang!`,
+    drafted: ({ name, tone }) =>
+      `Men ${name} uchun "Kontent" bo'limida, "${tone}" ohangingizga mos post tayyorladim. Uni Telegramga joylaymi?`,
+    competitors: () =>
+      `Mahalliy raqobatchilar haftasiga o'rtacha 8-10 ta post joylaydi; sizda ~3 ta. Bu farqni yopsangiz, organik qamrovingiz sezilarli oshadi.`,
+    greeting: () =>
+      `Salom! Men Markiv 🤖 — sizning marketing agentingizman. Men siz uchun kontent yozaman, raqobatchilarni kuzataman, kampaniyalar rejalashtiraman va Telegram kanalingizga post joylayman. Masalan: "Hafta oxiri taklifimizni Telegramga joyla".`,
+  },
+};
+
+function templateAgentAct({ query, profile, telegram, lang, history }) {
   const lower = (query || '').toLowerCase();
   const name = profile?.businessName || 'your business';
+  const t = AGENT_CANNED[lang] || AGENT_CANNED.en;
+  // Conversation memory: the last thing the owner said is the best topic hint
+  // when the current message doesn't carry one itself.
+  const lastUserText = Array.isArray(history)
+    ? [...history].reverse().find((m) => m && m.sender === 'user' && m.text)?.text
+    : undefined;
 
   // Publish intent → hand back a drafted post for the approval gate.
-  if (/\b(post|publish|announce|share|send)\b/.test(lower) && /telegram|channel|group/.test(lower)) {
-    if (telegram?.comingSoon) {
-      return {
-        type: 'reply',
-        reply: `Telegram publishing is coming soon — it isn't enabled in this version yet. Meanwhile I can draft the post text for you: just tell me the topic, or use the Content Engine tab.`,
-      };
-    }
-    if (!telegram?.connected) {
-      return {
-        type: 'reply',
-        reply: `I'd love to post that for you, but your Telegram isn't connected yet. Open the Telegram card on your dashboard — it takes about a minute: create a bot with @BotFather, paste the token, and add the bot to your channel. Then just ask me again!`,
-      };
-    }
-    const draft = templateContent({ platform: 'telegram', topic: query.replace(/\b(post|publish|announce|share|send)\b/gi, '').replace(/\b(to|on|in|my)\s+(telegram|channel|group)\b/gi, '').trim() || undefined, businessName: name });
+  // (uz/ru keywords ride alongside the EN word-boundary forms; \b is
+  // ASCII-only in JS, so non-Latin words match as plain substrings.)
+  const wantsPublish = /\b(post|publish|announce|share|send)\b|joyla|chiqar|yubor|e'lon|опубликов|разместить|отправ|выложи/.test(lower);
+  const mentionsTelegram = /telegram|channel|group|kanal|guruh|телеграм|канал|групп/.test(lower);
+  if (wantsPublish && mentionsTelegram) {
+    if (telegram?.comingSoon) return { type: 'reply', reply: t.comingSoon() };
+    if (!telegram?.connected) return { type: 'reply', reply: t.notConnected() };
+    const topic = query
+      .replace(/\b(post|publish|announce|share|send)\b/gi, '')
+      .replace(/\b(to|on|in|my)\s+(telegram|channel|group)\b/gi, '')
+      .trim() || lastUserText || undefined;
+    const draft = templateContent({
+      platform: 'telegram',
+      topic,
+      businessName: name,
+      languages: lang === 'ru' ? ['en', 'ru'] : lang === 'uz' ? ['en', 'uz'] : ['en'],
+    });
     return { type: 'telegram_post', text: `${draft.post}\n\n${draft.hashtags.join(' ')}` };
   }
 
-  if (lower.includes('instagram') || lower.includes('post') || lower.includes('copy')) {
-    return { type: 'reply', reply: `I've drafted a post for ${name} in the Content Engine, matched to your "${profile?.brandTone || 'brand'}" tone. Want me to publish it to Telegram?` };
+  if (/instagram|post|copy|reklama|реклам|kontent|контент/.test(lower)) {
+    return { type: 'reply', reply: t.drafted({ name, tone: profile?.brandTone || 'brand' }) };
   }
-  if (lower.includes('competitor') || lower.includes('gap')) {
-    return { type: 'reply', reply: `Local competitors average 8-10 posts/week; you're at ~3. Closing that cadence gap will lift your organic reach.` };
+  if (/competitor|gap|raqobat|konkurent|конкурент/.test(lower)) {
+    return { type: 'reply', reply: t.competitors() };
   }
-  return {
-    type: 'reply',
-    reply: `Hi, I'm Markiv 🤖 — your marketing agent. I can draft content, track competitors, plan campaigns, and post straight to your Telegram channel. Try: "Post our weekend offer to Telegram".`,
-  };
+  return { type: 'reply', reply: t.greeting() };
 }
 
 // Media Studio fallback: a concrete, profile-tailored brief without any key.
@@ -289,17 +336,26 @@ async function generateSlogans(ctx) {
   }
 }
 
+const AGENT_LANG_RULE = {
+  en: 'Always reply in English.',
+  ru: 'Always reply in Russian.',
+  uz: 'Always reply in Uzbek (Latin script).',
+};
+
 /**
  * Markiv, the in-app agent. Returns one of:
  *   { type: 'reply', reply }                — plain chat answer
  *   { type: 'telegram_post', text, note? }  — a drafted post Markiv wants to
  *                                             publish; the SERVER routes it
  *                                             through the human approval gate.
- * Markiv never executes actions itself — it only proposes them.
+ * Markiv never spends money or publishes itself — those only happen behind
+ * the approval gate. Scheduling/drafting/reading are free and run directly
+ * via the `actions` closures the server passes in (ai.js stays db-free):
+ *   actions = { snapshot, listScheduled, schedulePost, draftContent }
  */
 async function agentAct(ctx) {
   if (!client) return templateAgentAct(ctx);
-  const { query, profile, telegram } = ctx;
+  const { query, history = [], lang = 'en', profile, telegram, snapshot, actions = {} } = ctx;
 
   const tools = [];
   if (telegram?.connected) {
@@ -321,31 +377,155 @@ async function agentAct(ctx) {
       },
     });
   }
+  if (actions.snapshot || snapshot) {
+    tools.push({
+      name: 'get_business_snapshot',
+      description:
+        "Get the owner's live business snapshot: competitor count, top SEO keywords, scheduled/posted " +
+        'post counts, and AI plan usage. Call this when the owner asks about stats, performance, ' +
+        'competitors, keywords, or their remaining plan allowance.',
+      input_schema: { type: 'object', properties: {} },
+    });
+  }
+  if (actions.listScheduled) {
+    tools.push({
+      name: 'list_scheduled_posts',
+      description:
+        "List up to 10 upcoming scheduled posts on the owner's content calendar. " +
+        'Call this when the owner asks what is scheduled, planned, or coming up.',
+      input_schema: { type: 'object', properties: {} },
+    });
+  }
+  if (actions.schedulePost) {
+    tools.push({
+      name: 'schedule_post',
+      description:
+        "Schedule a post on the owner's content calendar for later publication. Scheduling is free " +
+        'and needs NO approval — call it directly when the owner asks to schedule, plan, or queue a post. ' +
+        'Write the complete, final post text yourself.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string', description: "Target platform, e.g. 'instagram', 'telegram', 'tiktok'." },
+          text: { type: 'string', description: 'The complete, final post text to schedule.' },
+          scheduledTime: { type: 'string', description: 'ISO 8601 datetime to publish at, e.g. 2026-06-12T10:00:00Z.' },
+        },
+        required: ['text'],
+      },
+    });
+  }
+  if (actions.draftContent) {
+    tools.push({
+      name: 'draft_content',
+      description:
+        'Draft a platform-native social-media post (with a media tip and hashtags) using the content engine. ' +
+        'Call this when the owner asks for post copy or content ideas on a specific topic.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string', description: "Target platform, e.g. 'instagram', 'telegram', 'tiktok'." },
+          topic: { type: 'string', description: 'What the post should be about.' },
+        },
+        required: ['topic'],
+      },
+    });
+  }
+
+  const runTool = async (name, input = {}) => {
+    switch (name) {
+      case 'get_business_snapshot':
+        return actions.snapshot ? actions.snapshot() : snapshot;
+      case 'list_scheduled_posts':
+        return actions.listScheduled();
+      case 'schedule_post':
+        return actions.schedulePost({
+          platform: input.platform,
+          text: input.text,
+          scheduledTime: input.scheduledTime,
+        });
+      case 'draft_content':
+        return actions.draftContent({ platform: input.platform, topic: input.topic });
+      default:
+        return { error: `Unknown tool: ${name}` };
+    }
+  };
+
+  // Prior turns become alternating chat messages; the API requires the first
+  // message to be role "user", so any leading agent rows are dropped.
+  const messages = [];
+  for (const m of history) {
+    if (m && m.text) messages.push({ role: m.sender === 'agent' ? 'assistant' : 'user', content: m.text });
+  }
+  while (messages.length && messages[0].role !== 'user') messages.shift();
+  messages.push({ role: 'user', content: query || 'Hello' });
+
+  const system =
+    'You are Markiv, the AI marketing agent inside Markivo, helping a small business owner. ' +
+    `${AGENT_LANG_RULE[lang] || AGENT_LANG_RULE.en} ` +
+    'Be concise, practical, and encouraging. You can draft content, analyse competitors, plan campaigns, ' +
+    'schedule posts on the content calendar (free, no approval needed), ' +
+    'and publish to the connected Telegram channel via your tool. You never spend money or publish without ' +
+    'the approval gate the app provides — so when asked to post, call the tool with your best draft instead of asking for permission. ' +
+    'Reply with ONLY the final answer — no exploratory reasoning or meta-commentary. ' +
+    (profile
+      ? `\n\nBusiness context — name: ${profile.businessName}; category: ${profile.category}; ` +
+        `tone: ${profile.brandTone}; location: ${profile.location}; slogan: ${profile.slogan || 'n/a'}; ` +
+        `description: ${profile.description || 'n/a'}; target audience: ${profile.targetAudience || 'n/a'}.`
+      : '') +
+    (snapshot
+      ? '\n\nLive business snapshot:' +
+        `\n- Competitors tracked: ${snapshot.stats?.competitorCount ?? 0}` +
+        `\n- Top keywords: ${(snapshot.stats?.keywords || []).join(', ') || 'n/a'}` +
+        `\n- Scheduled posts: ${snapshot.stats?.scheduledPosts ?? 0}; published posts: ${snapshot.stats?.postedPosts ?? 0}` +
+        (snapshot.usage
+          ? `\n- AI generations used this month: ${snapshot.usage.used}/${snapshot.usage.limit} (${snapshot.usage.tier} plan)`
+          : '')
+      : '') +
+    (telegram?.connected
+      ? `\nTelegram: connected (${telegram.chatTitle || 'channel'}).`
+      : telegram?.comingSoon
+        ? '\nTelegram: COMING SOON — the integration is not enabled in this version. If the owner asks to post to Telegram, say it is coming soon and offer to draft the post text meanwhile. Do not tell them to connect a bot.'
+        : '\nTelegram: NOT connected. If the owner asks to post to Telegram, explain they can connect it from the dashboard Telegram card in about a minute (create a bot with @BotFather, paste the token, add the bot to their channel).');
 
   try {
-    const msg = await client.messages.create({
-      model: config.aiAgentModel,
-      max_tokens: 1000,
-      system:
-        'You are Markiv, the AI marketing agent inside Markivo, helping a small business owner. ' +
-        'Default to English; if the owner writes in Uzbek or Russian, reply in their language. ' +
-        'Be concise, practical, and encouraging. You can draft content, analyse competitors, plan campaigns, ' +
-        'and publish to the connected Telegram channel via your tool. You never spend money or publish without ' +
-        'the approval gate the app provides — so when asked to post, call the tool with your best draft instead of asking for permission. ' +
-        'Reply with ONLY the final answer — no exploratory reasoning or meta-commentary. ' +
-        (profile
-          ? `\n\nBusiness context — name: ${profile.businessName}; category: ${profile.category}; ` +
-            `tone: ${profile.brandTone}; location: ${profile.location}; slogan: ${profile.slogan || 'n/a'}; ` +
-            `description: ${profile.description || 'n/a'}; target audience: ${profile.targetAudience || 'n/a'}.`
-          : '') +
-        (telegram?.connected
-          ? `\nTelegram: connected (${telegram.chatTitle || 'channel'}).`
-          : telegram?.comingSoon
-            ? '\nTelegram: COMING SOON — the integration is not enabled in this version. If the owner asks to post to Telegram, say it is coming soon and offer to draft the post text meanwhile. Do not tell them to connect a bot.'
-            : '\nTelegram: NOT connected. If the owner asks to post to Telegram, explain they can connect it from the dashboard Telegram card in about a minute (create a bot with @BotFather, paste the token, add the bot to their channel).'),
-      messages: [{ role: 'user', content: query || 'Hello' }],
-      tools: tools.length ? tools : undefined,
-    });
+    const request = () =>
+      client.messages.create({
+        model: config.aiAgentModel,
+        max_tokens: 1000,
+        system,
+        messages,
+        tools: tools.length ? tools : undefined,
+      });
+
+    let msg = await request();
+
+    // Tool-use loop (max 4 iterations). post_to_telegram EXITS immediately —
+    // it must go through the human approval gate, never a tool_result.
+    for (let i = 0; i < 4 && msg.stop_reason === 'tool_use'; i++) {
+      const toolUses = (msg.content || []).filter((b) => b.type === 'tool_use');
+      const tgUse = toolUses.find((b) => b.name === 'post_to_telegram');
+      if (tgUse && tgUse.input?.text) {
+        return { type: 'telegram_post', text: tgUse.input.text, note: tgUse.input.note };
+      }
+
+      messages.push({ role: 'assistant', content: msg.content });
+      const results = [];
+      for (const tu of toolUses) {
+        let out;
+        try {
+          out = await runTool(tu.name, tu.input || {});
+        } catch (err) {
+          out = { error: err.message };
+        }
+        results.push({
+          type: 'tool_result',
+          tool_use_id: tu.id,
+          content: typeof out === 'string' ? out : JSON.stringify(out ?? null),
+        });
+      }
+      messages.push({ role: 'user', content: results });
+      msg = await request();
+    }
 
     const toolUse = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'post_to_telegram');
     if (toolUse && toolUse.input?.text) {

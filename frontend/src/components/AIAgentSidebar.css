@@ -56,6 +56,26 @@
   color: var(--accent-primary);
 }
 
+/* Header action cluster (clear + toggle) */
+.agent-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.agent-clear-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: var(--transition-fast);
+}
+
+.agent-clear-btn:hover {
+  color: var(--accent-danger);
+}
+
 /* Chat thread list */
 .chat-thread-container {
   flex: 1;
@@ -112,6 +132,49 @@
   background: rgba(212, 163, 115, 0.1);
   border: 1px solid rgba(212, 163, 115, 0.25);
   color: var(--text-primary);
+}
+
+/* Typing indicator */
+.typing-bubble {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+}
+
+.typing-dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: typing-dot-bounce 1.2s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typing-dot-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 
 /* Suggestions lists */

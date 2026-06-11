@@ -43,8 +43,27 @@ const humanizeType = (t) =>
 function mockScanResult(businessName, location) {
   const cleanName = businessName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'business';
   const searchLoc = location || 'Tashkent';
+  // Two deterministic alternatives carrying the FULL mapped field set, so the
+  // "is this your business?" UI flow is testable without an API key.
+  const alternatives = [
+    { suffix: 'Center', rating: 4.5, reviewsCount: 22, verified: true },
+    { suffix: 'City', rating: 4.3, reviewsCount: 9, verified: false },
+  ].map((alt, i) => ({
+    placeId: `mock_${cleanName}_alt_${i + 1}`,
+    name: `${businessName} ${alt.suffix}`,
+    rating: alt.rating,
+    reviewsCount: alt.reviewsCount,
+    address: `${searchLoc}, Uzbekistan`,
+    verified: alt.verified,
+    website: null,
+    phone: null,
+    mapsUrl: `https://maps.google.com/?q=${encodeURIComponent(`${businessName} ${alt.suffix}`)}`,
+    location: null,
+    primaryType: null,
+    category: null,
+  }));
   return {
-    googleBusiness: { found: true, name: `${businessName} on Google Maps`, rating: 4.8, reviewsCount: 14, address: `${searchLoc}, Uzbekistan`, verified: true },
+    googleBusiness: { found: true, name: `${businessName} on Google Maps`, rating: 4.8, reviewsCount: 14, address: `${searchLoc}, Uzbekistan`, verified: true, alternatives },
     instagram: { found: true, handle: `@${cleanName}_uz`, followers: 1050, postsCount: 23, url: `https://instagram.com/${cleanName}_uz` },
     telegram: { found: true, channel: `@${cleanName}`, subscribers: 720, url: `https://t.me/${cleanName}` },
     aiSearchPresence: { chatgptMentioned: true, perplexityMentioned: false, perplexityScore: 72 },
@@ -113,13 +132,14 @@ async function findCompetitors(
     }));
 }
 
-function mapTopMatch(businessName, places) {
-  const p = places[0];
+// Map one raw searchText place into the full client-facing shape. Used for
+// the top match AND its alternatives — the searchText response already
+// carries every field (no extra API cost to surface them on alternatives).
+function mapPlace(p, fallbackName = null) {
   const primaryType = p.primaryType || p.types?.[0] || null;
   return {
-    found: true,
     placeId: p.id,
-    name: p.displayName?.text || businessName,
+    name: p.displayName?.text || fallbackName,
     rating: p.rating ?? null,
     reviewsCount: p.userRatingCount ?? 0,
     address: p.formattedAddress || null,
@@ -130,12 +150,73 @@ function mapTopMatch(businessName, places) {
     location: p.location ? { lat: p.location.latitude, lng: p.location.longitude } : null,
     primaryType,
     category: humanizeType(primaryType),
-    alternatives: places.slice(1, 4).map((a) => ({
-      placeId: a.id,
-      name: a.displayName?.text || null,
-      address: a.formattedAddress || null,
-      rating: a.rating ?? null,
-    })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Social sniffing: businesses almost always link their Instagram/Telegram from
+// their own homepage. One plain GET (no Google quota, no scraping of the
+// platforms themselves) upgrades the honest-but-empty live answer.
+// ---------------------------------------------------------------------------
+
+const SNIFF_MAX_BYTES = 400_000; // ~400KB of homepage text is plenty
+const IG_LINK_RE = /instagram\.com\/([A-Za-z0-9_.]{2,30})/g;
+const TG_LINK_RE = /(?:t\.me|telegram\.me)\/([A-Za-z0-9_]{4,32})/g;
+// First path segments that are content/feature pages, not profile handles.
+const IG_NON_PROFILE = new Set(['p', 'reel', 'reels', 'explore']);
+const TG_NON_CHANNEL = new Set(['share', 'joinchat']);
+
+const sniffNotFound = () => ({
+  instagram: { found: false },
+  telegram: { found: false, comingSoon: true },
+});
+
+function firstHandle(html, regex, ignoreSet) {
+  for (const match of html.matchAll(regex)) {
+    const handle = match[1];
+    if (!ignoreSet.has(handle.toLowerCase())) return handle;
+  }
+  return null;
+}
+
+/**
+ * Fetch a business website's homepage and sniff out Instagram/Telegram
+ * profile links. Never throws — any fetch/parse problem degrades to the same
+ * { found: false } shapes the live scan used before sniffing existed.
+ */
+async function sniffSocialLinks(websiteUrl, { fetchImpl = fetch } = {}) {
+  let html;
+  try {
+    const res = await fetchImpl(websiteUrl, {
+      method: 'GET',
+      signal: AbortSignal.timeout(config.placesTimeoutMs),
+    });
+    if (!res.ok) throw new Error(`website responded ${res.status}`);
+    html = (await res.text()).slice(0, SNIFF_MAX_BYTES);
+  } catch (err) {
+    // Non-fatal by design: a broken/slow website must never fail the scan.
+    console.warn(`Social sniff failed for ${websiteUrl}:`, err.message);
+    return sniffNotFound();
+  }
+
+  const ig = firstHandle(html, IG_LINK_RE, IG_NON_PROFILE);
+  const tg = firstHandle(html, TG_LINK_RE, TG_NON_CHANNEL);
+
+  return {
+    instagram: ig
+      ? { found: true, handle: `@${ig}`, url: `https://instagram.com/${ig}`, source: 'website' }
+      : { found: false },
+    telegram: tg
+      ? { found: true, channel: `@${tg}`, url: `https://t.me/${tg}`, source: 'website', comingSoon: true }
+      : { found: false, comingSoon: true },
+  };
+}
+
+function mapTopMatch(businessName, places) {
+  return {
+    found: true,
+    ...mapPlace(places[0], businessName),
+    alternatives: places.slice(1, 4).map((a) => mapPlace(a)),
   };
 }
 
@@ -152,10 +233,10 @@ async function scanBusiness({ businessName, location = 'Tashkent' }, { fetchImpl
   const data = await searchText({ textQuery: `${businessName}, ${location}` }, { fetchImpl });
   const places = data.places || [];
 
-  // Instagram/Telegram presence detection has no public lookup API — with a
-  // real key we answer honestly (Telegram is additionally post-MVP).
-  // aiSearchPresence remains a static estimate until the AI-visibility
-  // milestone lands.
+  // Instagram/Telegram have no public lookup API — with a real key we answer
+  // honestly: not found, unless the business's own website links them (see
+  // sniffSocialLinks below). aiSearchPresence remains a static estimate until
+  // the AI-visibility milestone lands.
   const base = {
     live: true,
     instagram: { found: false },
@@ -168,6 +249,14 @@ async function scanBusiness({ businessName, location = 'Tashkent' }, { fetchImpl
   }
 
   const googleBusiness = mapTopMatch(businessName, places);
+
+  // Upgrade the static "not found" answers with whatever the business's own
+  // homepage links to. sniffSocialLinks never throws.
+  if (googleBusiness.website) {
+    const social = await sniffSocialLinks(googleBusiness.website, { fetchImpl });
+    base.instagram = social.instagram;
+    base.telegram = social.telegram;
+  }
 
   let competitors = [];
   if (googleBusiness.location && googleBusiness.primaryType) {
@@ -195,6 +284,7 @@ module.exports = {
   scanBusiness,
   findCompetitors,
   searchText,
+  sniffSocialLinks,
   humanizeType,
   mockScanResult,
   PlacesApiError,

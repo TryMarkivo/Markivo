@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import './Onboarding.css';
 
+// Normalize a social handle/channel for display ("noir.coffee" -> "@noir.coffee").
+const atHandle = (h) => (h && !h.startsWith('@') ? `@${h}` : h);
+
 const Stars = ({ rating }) => {
   const { t } = useTranslation();
   return (
@@ -23,6 +26,8 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
   const [scanStatus, setScanStatus] = useState(t('onboarding.scan.statusInit', 'Initiating global scan...'));
   const [scanResults, setScanResults] = useState(null);
   const [scanError, setScanError] = useState(null);
+  // Index of the alternative slot whose competitor refresh is in flight (null = idle).
+  const [altSwapIndex, setAltSwapIndex] = useState(null);
 
   // Checked statuses for platforms to connect
   const [connections, setConnections] = useState({
@@ -70,7 +75,8 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       setConnections({
         googleBusiness: !!data.googleBusiness?.found,
         instagram: !!data.instagram?.found,
-        telegram: !!data.telegram?.found,
+        // A comingSoon telegram detection is informational only — the integration is still gated.
+        telegram: !!data.telegram?.found && !data.telegram?.comingSoon,
       });
       setStep(3);
     } catch (err) {
@@ -86,6 +92,44 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       ...prev,
       [platform]: !prev[platform]
     }));
+  };
+
+  // User picked an alternative match: swap it with the current top pick (lossless —
+  // alternatives carry full business objects), then refresh nearby competitors for it.
+  const handleAlternativeSelect = async (alt, index) => {
+    if (altSwapIndex !== null) return; // a competitor refresh is already in flight
+    const current = scanResults?.googleBusiness;
+    if (!current || !alt) return;
+
+    // Previous top pick takes the clicked alternative's slot.
+    const prevTop = { ...current };
+    delete prevTop.found;
+    delete prevTop.alternatives;
+    const nextAlternatives = (current.alternatives || []).map((item, i) => (i === index ? prevTop : item));
+    setScanResults((prev) => ({
+      ...prev,
+      googleBusiness: { ...alt, found: true, alternatives: nextAlternatives },
+    }));
+
+    // Only refetch competitors when we know enough about the new pick.
+    if (alt.location?.lat == null || alt.location?.lng == null || !alt.primaryType) return;
+    setAltSwapIndex(index);
+    try {
+      const data = await api.post('/api/discovery/competitors', {
+        lat: alt.location.lat,
+        lng: alt.location.lng,
+        primaryType: alt.primaryType,
+        excludePlaceId: alt.placeId,
+      });
+      if (Array.isArray(data?.competitors)) {
+        setScanResults((prev) => ({ ...prev, competitors: data.competitors }));
+      }
+    } catch (err) {
+      // Non-fatal: keep the previous competitor list rather than blanking the insight.
+      console.warn('Competitor refresh failed:', err);
+    } finally {
+      setAltSwapIndex(null);
+    }
   };
 
   const handleConfirmOnboard = async () => {
@@ -260,14 +304,46 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
               </div>
             )}
 
-            {/* Alternatives — informational only */}
+            {/* Alternatives — click to make one of these the top pick */}
             {g?.alternatives?.length > 0 && (
               <div className="alt-matches" id="alt_matches_list">
                 <p className="result-meta">{t('onboarding.results.alternativesIntro', 'Not your business? We also found:')}</p>
-                {g.alternatives.map((a) => (
-                  <p key={a.placeId} className="result-meta">
-                    · {a.name}{a.address ? ` — ${a.address}` : ''}{a.rating != null ? ` (★ ${a.rating})` : ''}
-                  </p>
+                {g.alternatives.map((a, index) => (
+                  <div
+                    key={a.placeId}
+                    id={`btn_alt_${index}`}
+                    className="result-item glass-card"
+                    style={{ padding: '12px 16px', marginTop: 8 }}
+                    role="button"
+                    tabIndex={0}
+                    title={t('onboarding.results.altSelectTitle', 'Use this business instead')}
+                    onClick={() => handleAlternativeSelect(a, index)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleAlternativeSelect(a, index);
+                      }
+                    }}
+                  >
+                    <div className="result-status">
+                      <div>
+                        <h4>{a.name}</h4>
+                        {a.address && <p className="result-meta">{a.address}</p>}
+                        {a.rating != null && (
+                          <p className="result-meta">
+                            <Stars rating={a.rating} /> {t('onboarding.results.ratingReviews', { defaultValue_one: '{{rating}} · {{count}} review', defaultValue_other: '{{rating}} · {{count}} reviews', rating: a.rating, count: a.reviewsCount })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="checkbox-wrap">
+                      {altSwapIndex === index ? (
+                        <i className="fa-solid fa-spinner fa-spin unchecked-icon" aria-hidden="true"></i>
+                      ) : (
+                        <i className="fa-solid fa-right-left unchecked-icon" aria-hidden="true"></i>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -278,8 +354,17 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                 <div className="result-status">
                   <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
                   <div>
-                    <h4>{t('onboarding.results.instagramTitle', 'Instagram Handle')}</h4>
+                    <h4>
+                      {scanResults.instagram.source === 'website' && scanResults.instagram.handle
+                        ? atHandle(scanResults.instagram.handle)
+                        : t('onboarding.results.instagramTitle', 'Instagram Handle')}
+                    </h4>
                     <p>{t('onboarding.channels.instagramOauth', 'Connect via OAuth to manage your Instagram account')}</p>
+                    {scanResults.instagram.source === 'website' && (
+                      <p className="result-meta">
+                        <i className="fa-solid fa-link"></i> {t('onboarding.results.foundViaWebsite', 'Detected from your website')}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="checkbox-wrap">
@@ -303,7 +388,26 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
             )}
 
             {/* TELEGRAM */}
-            {scanResults.telegram?.found ? (
+            {scanResults.telegram?.found && scanResults.telegram?.comingSoon ? (
+              // Channel detected, but the integration is still gated — informational, not toggleable.
+              <div className="result-item glass-card disabled" id="card_telegram_soon">
+                <div className="result-status">
+                  <span className="platform-icon telegram"><i className="fa-brands fa-telegram"></i></span>
+                  <div>
+                    <h4>
+                      {scanResults.telegram.channel ? atHandle(scanResults.telegram.channel) : 'Telegram'}
+                      <span className="coming-soon-pill">{t('common.comingSoon', 'Coming soon')}</span>
+                    </h4>
+                    {scanResults.telegram.source === 'website' && (
+                      <p className="result-meta">
+                        <i className="fa-solid fa-link"></i> {t('onboarding.results.foundViaWebsite', 'Detected from your website')}
+                      </p>
+                    )}
+                    <p>{t('onboarding.results.telegramSoonText', 'Channel management and AI publishing for Telegram arrive right after the MVP.')}</p>
+                  </div>
+                </div>
+              </div>
+            ) : scanResults.telegram?.found ? (
               <div className={`result-item glass-card ${connections.telegram ? 'active' : ''}`} onClick={() => handleConnectionToggle('telegram')} id="btn_verify_telegram">
                 <div className="result-status">
                   <span className="platform-icon telegram"><i className="fa-brands fa-telegram"></i></span>

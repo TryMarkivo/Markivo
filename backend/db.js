@@ -135,6 +135,14 @@ module.exports = function createDb(dbPath) {
       created_at    TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS agent_messages (
+      id         TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      sender     TEXT NOT NULL,
+      text       TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS ai_usage (
       id         TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -151,6 +159,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_approvals_profile ON approvals(profile_id);
     CREATE INDEX IF NOT EXISTS idx_refresh_hash ON refresh_tokens(token_hash);
     CREATE INDEX IF NOT EXISTS idx_media_profile ON media(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_agent_messages_profile_time ON agent_messages(profile_id, created_at);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -208,6 +217,9 @@ module.exports = function createDb(dbPath) {
     brief: r.brief ? JSON.parse(r.brief) : null,
     filePath: r.file_path, originalName: r.original_name,
     status: r.status, created_at: r.created_at,
+  };
+  const mapAgentMessage = (r) => r && {
+    id: r.id, profileId: r.profile_id, sender: r.sender, text: r.text, created_at: r.created_at,
   };
   const mapApproval = (r) => r && {
     id: r.id, profileId: r.profile_id, action_type: r.action_type,
@@ -415,6 +427,37 @@ module.exports = function createDb(dbPath) {
         sqlite.prepare('UPDATE approvals SET status = ?, executed_at = ? WHERE id = ?')
           .run(status, now(), approvalId);
         return mapApproval(sqlite.prepare('SELECT * FROM approvals WHERE id = ?').get(approvalId));
+      },
+    },
+
+    // Markiv's conversation memory — one row per chat bubble.
+    agentMessages: {
+      add({ profileId, sender, text }) {
+        const row = {
+          id: id(), profile_id: profileId, sender,
+          text: text == null ? null : String(text), created_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO agent_messages (id, profile_id, sender, text, created_at)
+           VALUES (@id, @profile_id, @sender, @text, @created_at)`
+        ).run(row);
+        return mapAgentMessage(row);
+      },
+      // The LAST `limit` messages, returned in chronological order. rowid
+      // breaks ties when two rows land in the same millisecond (every
+      // user/agent pair does — they're written in one request).
+      listByProfile(profileId, limit = 40) {
+        // rowid must be aliased to survive the subquery (SQLite drops it
+        // from `SELECT *` projections).
+        return sqlite.prepare(
+          `SELECT * FROM (
+             SELECT *, rowid AS _rid FROM agent_messages WHERE profile_id = ?
+             ORDER BY created_at DESC, _rid DESC LIMIT ?
+           ) ORDER BY created_at ASC, _rid ASC`
+        ).all(profileId, limit).map(mapAgentMessage);
+      },
+      clearByProfile(profileId) {
+        sqlite.prepare('DELETE FROM agent_messages WHERE profile_id = ?').run(profileId);
       },
     },
 

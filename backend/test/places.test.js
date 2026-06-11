@@ -28,10 +28,25 @@ test('scanBusiness (keyless) returns the legacy mock shape without touching the 
   const r = await places.scanBusiness({ businessName: 'Noir Coffee', location: 'Tashkent' }, { fetchImpl: neverFetch });
 
   assert.strictEqual(r.live, false);
-  assert.deepStrictEqual(r.googleBusiness, {
+  const { alternatives, ...topMatch } = r.googleBusiness;
+  assert.deepStrictEqual(topMatch, {
     found: true, name: 'Noir Coffee on Google Maps', rating: 4.8, reviewsCount: 14,
     address: 'Tashkent, Uzbekistan', verified: true,
   });
+
+  // Mock now ships 2 deterministic alternatives with the FULL mapped field
+  // set, so the "is this your business?" UI flow is testable without a key.
+  assert.strictEqual(alternatives.length, 2);
+  for (const alt of alternatives) {
+    assert.strictEqual(typeof alt.placeId, 'string');
+    assert.strictEqual(typeof alt.rating, 'number');
+    for (const field of ['name', 'reviewsCount', 'address', 'verified', 'website', 'phone', 'mapsUrl', 'location', 'primaryType', 'category']) {
+      assert.ok(field in alt, `alternative missing field: ${field}`);
+    }
+  }
+  assert.strictEqual(alternatives[0].placeId, 'mock_noircoffee_alt_1');
+  assert.strictEqual(alternatives[0].name, 'Noir Coffee Center');
+
   assert.strictEqual(r.instagram.found, true);
   assert.strictEqual(r.instagram.handle, '@noircoffee_uz');
   assert.strictEqual(r.telegram.found, true);
@@ -105,6 +120,23 @@ test('POST /api/discovery/scan requires auth and validates input', async () => {
   assert.strictEqual(data.live, false);
   assert.strictEqual(data.googleBusiness.found, true);
   assert.strictEqual(data.googleBusiness.rating, 4.8);
+});
+
+test('POST /api/discovery/competitors: keyless → empty list; validates input; requires auth', async () => {
+  const noAuth = await post('/api/discovery/competitors', { lat: 41.3, lng: 69.2, primaryType: 'coffee_shop' });
+  assert.strictEqual(noAuth.status, 401);
+
+  const token = await register('comp');
+
+  const missingLat = await post('/api/discovery/competitors', { lng: 69.2, primaryType: 'coffee_shop' }, token);
+  assert.strictEqual(missingLat.status, 400);
+
+  const badType = await post('/api/discovery/competitors', { lat: 41.3, lng: 69.2, primaryType: 'x' }, token);
+  assert.strictEqual(badType.status, 400);
+
+  const ok = await post('/api/discovery/competitors', { lat: 41.3, lng: 69.2, primaryType: 'coffee_shop' }, token);
+  assert.strictEqual(ok.status, 200);
+  assert.deepStrictEqual(await ok.json(), { competitors: [] }); // keyless: honest empty
 });
 
 test('construct stores google identity and real competitors replace the seeds', async () => {

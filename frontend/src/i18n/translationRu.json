@@ -317,7 +317,9 @@
       "googleNotFoundText": "Мы не нашли «{{businessName}}» в {{location}}. Проверьте написание и локацию или создайте Google Business Profile — Markivo подскажет позже.",
       "alternativesIntro": "Это не ваш бизнес? Мы также нашли:",
       "alternativeItem": "· {{name}} — {{address}} (★ {{rating}})",
+      "altSelectTitle": "Выбрать этот бизнес вместо текущего",
       "instagramTitle": "Instagram-хэндл",
+      "foundViaWebsite": "Определено по вашему сайту",
       "instagramNotFoundTitle": "Instagram не обнаружен",
       "instagramNotFoundText": "Публичный аккаунт не найден автоматически — вы сможете подключить его позже из дашборда.",
       "telegramSyncText": "Синхронизируйте свой канал с дашбордом Markivo",
@@ -650,6 +652,7 @@
     "justNow": "Только что",
     "subtitle": "Ваш ИИ-агент по маркетингу",
     "inputPlaceholder": "Попросите ИИ-агента выполнить...",
+    "clearChat": "Очистить диалог",
     "authorizationNeeded": "Для этого действия нужна ваша авторизация. Пожалуйста, проверьте запрос ниже.",
     "fallback": {
       "instagramDraft": "Я подготовил для вас максимально оптимизированный черновик поста для Instagram во вкладке «Контент-движок». Он подчёркивает ваш фирменный тон «{{tone}}» и готов к публикации с локальными хэштегами. Скажите, если хотите, чтобы я его запланировал!",

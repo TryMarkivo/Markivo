@@ -44,6 +44,18 @@ function validateScan(body = {}) {
   ]);
 }
 
+// Discovery: competitor lookup around a confirmed business location.
+function validateCompetitors(body = {}) {
+  const { lat, lng, primaryType, excludePlaceId } = body;
+  const type = typeof primaryType === 'string' ? primaryType.trim() : '';
+  return firstError([
+    [typeof lat === 'number' && Number.isFinite(lat), 'A finite numeric lat is required'],
+    [typeof lng === 'number' && Number.isFinite(lng), 'A finite numeric lng is required'],
+    [type.length >= 2 && type.length <= 60, 'primaryType must be 2-60 characters'],
+    [excludePlaceId == null || typeof excludePlaceId === 'string', 'excludePlaceId must be a string'],
+  ]);
+}
+
 // Settings: partial profile update — every field is optional, but anything
 // present must be sane. Length checks only (Cyrillic must pass untouched).
 function validateProfileUpdate(body = {}) {
@@ -72,4 +84,4 @@ function validateMeUpdate(body = {}) {
   ]);
 }
 
-module.exports = { isNonEmptyString, isEmail, firstError, validateRegister, validateLogin, validateScan, validateProfileUpdate, validateMeUpdate };
+module.exports = { isNonEmptyString, isEmail, firstError, validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate };

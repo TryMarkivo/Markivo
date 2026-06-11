@@ -315,7 +315,9 @@
       "googleNotFoundText": "We couldn't find \"{{businessName}}\" in {{location}}. Check the spelling and location, or create a Google Business Profile — Markivo will guide you later.",
       "alternativesIntro": "Not your business? We also found:",
       "alternativeItem": "· {{name}} — {{address}} (★ {{rating}})",
+      "altSelectTitle": "Use this business instead",
       "instagramTitle": "Instagram Handle",
+      "foundViaWebsite": "Detected from your website",
       "instagramNotFoundTitle": "Instagram not detected",
       "instagramNotFoundText": "No public account found automatically — you can connect it later from the dashboard.",
       "telegramSyncText": "Sync your channel into the Markivo dashboard",
@@ -644,6 +646,7 @@
     "justNow": "Just now",
     "subtitle": "Your AI marketing agent",
     "inputPlaceholder": "Ask AI Agent to execute...",
+    "clearChat": "Clear conversation",
     "authorizationNeeded": "This action needs your authorization. Please review the request below.",
     "fallback": {
       "instagramDraft": "I've prepared a highly optimized Instagram draft post for you in your Content Engine tab. It highlights your custom brand tone \"{{tone}}\" and is ready for publishing with local hashtags. Let me know if you would like me to schedule it!",
