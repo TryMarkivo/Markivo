@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import ContentEngine from './ContentEngine';
+import MediaStudio from './MediaStudio';
 import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
@@ -12,7 +13,7 @@ import './Dashboard.css';
 
 export default function Dashboard({ token, activeProfile, onLogout, onProfileUpdate, theme, onToggleTheme, onLanguageChange }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'content' | 'competitors' | 'settings'
+  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'content' | 'media' | 'competitors' | 'settings'
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -103,7 +104,15 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         {/* LOGO BRIEF BLOCK */}
         <div className="active-profile-card">
           <div className="sidebar-logo-icon" style={{ backgroundColor: logoStyle.bgColor, borderColor: logoStyle.color, color: logoStyle.color }}>
-            {logoStyle.icon || '☕'}
+            {activeProfile.logo?.svg ? (
+              <img
+                src={'data:image/svg+xml;utf8,' + encodeURIComponent(activeProfile.logo.svg)}
+                alt=""
+                style={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
+              />
+            ) : (
+              logoStyle.icon || '☕'
+            )}
           </div>
           <div className="active-profile-info">
             <h4>{activeProfile.businessName}</h4>
@@ -125,6 +134,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             id="btn_tab_content"
           >
             <i className="fa-solid fa-wand-magic-sparkles"></i> {t('dashboard.nav.content', 'AI Content Engine')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'media' ? 'active' : ''}`}
+            onClick={() => setActiveTab('media')}
+            id="btn_tab_media"
+          >
+            <i className="fa-solid fa-clapperboard"></i> {t('dashboard.nav.media', 'Media Studio')}
           </button>
           <button
             className={`nav-item ${activeTab === 'competitors' ? 'active' : ''}`}
@@ -363,12 +379,17 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <ContentEngine token={token} activeProfile={activeProfile} />
           )}
 
-          {/* TAB 3: COMPETITOR INTEL */}
+          {/* TAB 3: MEDIA STUDIO */}
+          {activeTab === 'media' && (
+            <MediaStudio activeProfile={activeProfile} />
+          )}
+
+          {/* TAB 4: COMPETITOR INTEL */}
           {activeTab === 'competitors' && (
             <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} />
           )}
 
-          {/* TAB 4: SETTINGS */}
+          {/* TAB 5: SETTINGS */}
           {activeTab === 'settings' && (
             <SettingsPane
               activeProfile={activeProfile}

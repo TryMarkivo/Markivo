@@ -369,6 +369,85 @@
   font-size: 1.1rem;
 }
 
+/* ===== AI Logo Generation (Path B step 3) ===== */
+.logo-gen-panel {
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  background: rgba(212, 163, 115, 0.03);
+  border-color: rgba(212, 163, 115, 0.15);
+}
+
+.logo-gen-head {
+  gap: 16px;
+}
+
+.logo-gen-head .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.logo-gen-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.logo-gen-error {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: var(--accent-danger);
+}
+
+.logo-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.logo-variant-card {
+  padding: 10px;
+  border: 2px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: var(--transition-fast);
+}
+
+.logo-variant-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.logo-variant-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212, 163, 115, 0.4);
+}
+
+/* Selection ring */
+.logo-variant-card.selected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.25), 0 0 16px rgba(212, 163, 115, 0.2);
+}
+
+.logo-canvas-svg {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+}
+
+@media (max-width: 600px) {
+  .logo-variant-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* Logo Designer */
 .logo-designer-grid {
   gap: 32px;

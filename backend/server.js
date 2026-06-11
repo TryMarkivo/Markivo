@@ -3,6 +3,9 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 const config = require('./config');
 const createDb = require('./db');
@@ -19,6 +22,10 @@ const corsOptions = config.corsOrigins.includes('*')
   ? {}
   : { origin: config.corsOrigins };
 app.use(cors(corsOptions));
+// Media uploads arrive as base64 data URLs — route-scoped larger JSON limit.
+// Must be mounted BEFORE the global 1mb parser (the first parser to run wins;
+// later body-parsers skip an already-parsed body).
+app.use('/api/media/upload', express.json({ limit: '12mb' }));
 app.use(express.json({ limit: '1mb' }));
 
 // --- AUTH HELPERS ---
@@ -194,6 +201,22 @@ app.post('/api/onboarding/slogans', verifyToken, checkAiBudget, async (req, res)
   res.json({ slogans });
 });
 
+// Brand logo variants for the wizard — deterministic SVG engine (logogen)
+// without a key, Claude-designed (strictly sanitized) with one.
+app.post('/api/onboarding/logos', verifyToken, checkAiBudget, async (req, res) => {
+  const businessName = typeof req.body.businessName === 'string' ? req.body.businessName.trim() : '';
+  if (businessName.length < 2 || businessName.length > 100) {
+    return res.status(400).json({ error: 'Business name must be 2-100 characters' });
+  }
+  const logos = await ai.generateLogos({
+    businessName,
+    category: typeof req.body.category === 'string' ? req.body.category.slice(0, 120) : undefined,
+    tone: typeof req.body.tone === 'string' ? req.body.tone.slice(0, 120) : undefined,
+  });
+  db.usage.record({ userId: req.user.id, kind: 'logo' });
+  res.json({ logos });
+});
+
 // Cap + type-coerce competitor rows arriving from the client (Path A passes
 // real Places results through; anything malformed degrades to nothing).
 const sanitizeCompetitors = (list) => (Array.isArray(list) ? list : [])
@@ -258,19 +281,24 @@ app.post('/api/onboarding/construct', verifyToken, (req, res) => {
 
   // Seed SEO keywords. (Still mocked — real rank tracking is a future
   // milestone; the phrases improve automatically now that Path A passes the
-  // real Google category in.)
+  // real Google category in.) The third phrase derives from the profile's
+  // audience/category instead of a hardcoded niche.
   const cat = safeCategory.toLowerCase();
+  const audiencePhrase = (typeof audience === 'string' && audience.trim())
+    ? `${cat} for ${audience.trim().toLowerCase().slice(0, 60)}`
+    : `top rated ${cat}`;
   [
     { keywordPhrase: `best ${cat} in tashkent`, avgPosition: 8, volume: 'High' },
     { keywordPhrase: `${cat} near me`, avgPosition: 12, volume: 'Very High' },
-    { keywordPhrase: `cozy study workspace ${location || 'tashkent'}`, avgPosition: 4, volume: 'Medium' },
+    { keywordPhrase: `${audiencePhrase} ${location || 'tashkent'}`, avgPosition: 4, volume: 'Medium' },
   ].forEach((k) => db.keywords.add({ profileId: profile.id, ...k }));
 
-  // Seed an inaugural scheduled post.
+  // Seed an inaugural scheduled post — a generic welcome from the business
+  // name + category (uz/ru flavour kept, no business-type assumptions).
   db.calendar.add({
     profileId: profile.id,
     platform: 'instagram',
-    postText: `🇺🇿 O'zbekcha: #${businessName} eshiklari ochiq! Sizga yoqimli muhit va ajoyib ta'mni taqdim etamiz. ☕\n🇷🇺 Русский: Добро пожаловать в #${businessName}! Прекрасная атмосфера и незабываемый вкус.`,
+    postText: `🇺🇿 O'zbekcha: #${businessName} endi shu yerda! ${safeCategory} bo'yicha eng yaxshi taklif va yangiliklarni shu sahifada kuzatib boring. ✨\n🇷🇺 Русский: Добро пожаловать в #${businessName}! Следите за нашими новостями и лучшими предложениями здесь.`,
     scheduledTime: new Date(Date.now() + 86400000).toISOString(),
     status: 'scheduled',
   });
@@ -349,6 +377,7 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, async (req, res) 
     languages: Array.isArray(languages) ? languages : ['en'],
     businessName: req.body.businessName || profile?.businessName,
     category: profile?.category,
+    description: profile?.description,
     brandTone: profile?.brandTone,
     audience: profile?.targetAudience,
   });
@@ -383,6 +412,40 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
     status: 'scheduled',
   });
   res.json(post);
+});
+
+// Publish immediately. Telegram (when enabled + a chat is linked) publishes
+// for real via the Bot API; every other platform is recorded as a simulated
+// "posted" calendar entry until those integrations land.
+app.post('/api/content/post-now', verifyToken, async (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Profile not found' });
+
+  const platform = String(req.body.platform || 'instagram').toLowerCase();
+  const postText = typeof req.body.postText === 'string' ? req.body.postText.trim() : '';
+  if (!postText) return res.status(400).json({ error: 'Post text is required' });
+  if (postText.length > 4000) return res.status(400).json({ error: 'Post text must be 4000 characters or fewer' });
+
+  if (platform === 'telegram' && config.telegramEnabled) {
+    const conn = db.telegram.findByProfile(profile.id);
+    if (conn && conn.chatId) {
+      try {
+        const result = await executeTelegramPost(profile, postText);
+        return res.json({ success: true, simulated: false, ...result });
+      } catch (err) {
+        return res.status(400).json({ error: err.description || err.message });
+      }
+    }
+  }
+
+  const post = db.calendar.add({
+    profileId: profile.id,
+    platform,
+    postText,
+    scheduledTime: new Date().toISOString(),
+    status: 'posted',
+  });
+  res.json({ success: true, simulated: true, post });
 });
 
 // ==========================================
@@ -560,6 +623,92 @@ app.get('/api/dashboard/stats', verifyToken, (req, res) => {
 });
 
 // ==========================================
+// 3.55 MEDIA STUDIO ROUTER (/api/media)
+//   AI filming briefs, uploads, and edit plans today; actual image/video
+//   rendering + auto-editing engage once a media-generation API key lands
+//   (MEDIA_API_KEY — coming soon).
+// ==========================================
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const DATA_URL_RE = /^data:(image\/(?:png|jpeg|webp)|video\/(?:mp4|webm));base64,([A-Za-z0-9+/=\s]+)$/;
+const EXT_FOR = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm' };
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+app.post('/api/media/brief', verifyToken, checkAiBudget, async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const kind = String(req.body.kind || '').toLowerCase();
+  const mode = String(req.body.mode || '').toLowerCase();
+  const topic = typeof req.body.topic === 'string' ? req.body.topic.trim() : '';
+  if (!['image', 'video'].includes(kind)) return res.status(400).json({ error: 'Kind must be "image" or "video"' });
+  if (!['full', 'guided'].includes(mode)) return res.status(400).json({ error: 'Mode must be "full" or "guided"' });
+  if (topic.length < 2 || topic.length > 200) return res.status(400).json({ error: 'Topic must be 2-200 characters' });
+
+  const brief = await ai.generateMediaBrief({ kind, mode, topic, profile });
+  const row = db.media.add({ profileId: profile.id, kind, mode, topic, brief, status: 'brief' });
+  db.usage.record({ userId: req.user.id, kind: 'media' });
+  res.json({ id: row.id, brief });
+});
+
+app.post('/api/media/upload', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const { mediaId, filename, dataUrl } = req.body || {};
+  const match = typeof dataUrl === 'string' ? dataUrl.match(DATA_URL_RE) : null;
+  if (!match) {
+    return res.status(400).json({ error: 'Only PNG, JPEG, or WebP images and MP4 or WebM videos are accepted (as a base64 data URL).' });
+  }
+  const mime = match[1];
+  const buf = Buffer.from(match[2].replace(/\s+/g, ''), 'base64');
+  if (!buf.length) return res.status(400).json({ error: 'The uploaded file is empty' });
+  if (buf.length > MAX_UPLOAD_BYTES) return res.status(400).json({ error: 'File is too large — 8MB maximum' });
+
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  const file = `${crypto.randomUUID()}.${EXT_FOR[mime]}`;
+  fs.writeFileSync(path.join(UPLOADS_DIR, file), buf);
+
+  const filePath = `uploads/${file}`;
+  const originalName = typeof filename === 'string' ? filename.slice(0, 200) : null;
+  const existing = mediaId ? db.media.findById(String(mediaId)) : null;
+  const row = (existing && existing.profileId === profile.id)
+    ? db.media.update(existing.id, { status: 'uploaded', filePath, originalName })
+    : db.media.add({
+        profileId: profile.id,
+        kind: mime.startsWith('video/') ? 'video' : 'image',
+        status: 'uploaded',
+        filePath,
+        originalName,
+      });
+
+  res.json({ id: row.id, url: `/uploads/${file}` });
+});
+
+app.post('/api/media/:id/edit', verifyToken, checkAiBudget, async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const row = db.media.findById(req.params.id);
+  if (!row || row.profileId !== profile.id) return res.status(404).json({ error: 'Media item not found' });
+
+  const instructions = typeof req.body.instructions === 'string' ? req.body.instructions.trim() : '';
+  if (instructions.length < 2 || instructions.length > 500) {
+    return res.status(400).json({ error: 'Instructions must be 2-500 characters' });
+  }
+
+  const plan = await ai.generateEditPlan({ instructions, media: row, profile });
+  db.media.update(row.id, { brief: { ...(row.brief || {}), editPlan: plan }, status: 'edit_plan' });
+  db.usage.record({ userId: req.user.id, kind: 'media' });
+  res.json({ id: row.id, plan });
+});
+
+app.get('/api/media', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ items: [] });
+  res.json({ items: db.media.listByProfile(profile.id) });
+});
+
+// ==========================================
 // 3.6 AI AGENT & APPROVAL GATES (/api/agent)
 //   NOTE: keyword-matched replies for now. Real Claude routing is the
 //   "AI core" milestone; the approval-gate plumbing here is real.
@@ -577,14 +726,20 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, async (req, res) => {
   // requires explicit human approval, regardless of what the model would say.
   // Word-boundary regex so words like "upload" or "add" don't false-trigger.
   if (/\b(ads?|advert\w*|campaigns?|budgets?)\b/.test(lower)) {
+    // Ad creative is built from the owner's own profile (description first,
+    // category as the generic fallback) — no business-type assumptions.
+    const adCat = (profile.category || 'business').toLowerCase();
+    const adPitch = (profile.description && String(profile.description).trim())
+      ? String(profile.description).trim().replace(/\.+$/, '').slice(0, 140)
+      : `the ${adCat} experience your neighbourhood keeps coming back for`;
     const approval = db.approvals.create({
       profileId: profile.id,
       actionType: 'ad_creation',
       actionPayload: {
         action: 'Create Meta Ad Campaign',
         cost: '$5.00 / day',
-        target: 'Tashkent local workers radius',
-        creative: `🎯 Preview: "Experience the ultimate ${(profile.category || 'business').toLowerCase()} vibe at #${profile.businessName}! High-speed Wi-Fi, handcrafted coffee, and quiet study booths ready for you."`,
+        target: `${profile.targetAudience || 'Local customers'} near ${profile.location || 'Tashkent'}`,
+        creative: `🎯 Preview: "Discover #${profile.businessName} — ${adPitch}."`,
       },
     });
     return res.json({ triggerApproval: true, approvalId: approval.id, payload: approval.action_payload });
@@ -673,6 +828,9 @@ app.post('/api/agent/approve', verifyToken, async (req, res) => {
     message: `Campaign authorized! Launched localized ad campaign costing ${updated.action_payload.cost}. (Simulation — Meta Ads integration coming soon.)`,
   });
 });
+
+// --- Uploaded media files (Media Studio) ---
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // --- 404 + error handlers ---
 app.use((req, res) => res.status(404).json({ error: 'Endpoint not found' }));

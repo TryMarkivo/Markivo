@@ -32,3 +32,6 @@ CREDENTIALS.local.md
 # local SQLite data
 backend/database/*.db
 backend/database/*.db-journal
+
+# uploaded media files (Media Studio)
+backend/uploads/

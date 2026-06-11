@@ -195,3 +195,62 @@
 .tutorial-step-item p {
   font-size: 0.85rem;
 }
+
+/* Inline two-step schedule picker */
+.schedule-picker-panel {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.picker-step-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.picker-input {
+  width: 100%;
+}
+
+.picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.picker-chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.picker-chip:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.picker-chip.active {
+  background: var(--surface-2);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

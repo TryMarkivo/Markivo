@@ -135,13 +135,13 @@ export default function CompetitorIntel({ stats, activeProfile }) {
             <p className="gap-desc">
               <Trans
                 i18nKey="competitors.gaps.seoText"
-                defaults='Nearby competitors are actively ranking for <1>"aesthetic {{category}} study area"</1>. You are completely missing this local search vector.'
+                defaults='Nearby competitors are actively ranking for <1>{{category}}-relevant local search phrases</1> that your profiles never mention. You are completely missing this local search vector.'
                 values={{ category: category.toLowerCase() }}
                 components={{ 1: <strong /> }}
               />
             </p>
             <div className="gap-recommendation">
-              <strong>{t('competitors.gaps.solutionLabel', '💡 Solution:')}</strong> {t('competitors.gaps.seoSolution', 'Include terms like "quiet study area" or "study booth" in your next generated Telegram content copy.')}
+              <strong>{t('competitors.gaps.solutionLabel', '💡 Solution:')}</strong> {t('competitors.gaps.seoSolution', { defaultValue: 'Weave {{category}}-relevant local search phrases and the wording your ideal customers actually search for into your next generated Telegram content copy.', category: category.toLowerCase() })}
             </div>
           </div>
         </div>

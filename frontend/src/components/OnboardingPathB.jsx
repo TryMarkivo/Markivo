@@ -37,6 +37,12 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
   const [generatedSlogans, setGeneratedSlogans] = useState([]);
   const [generatingSlogans, setGeneratingSlogans] = useState(false);
 
+  // AI logo generation (step 3)
+  const [logoVariants, setLogoVariants] = useState([]);
+  const [generatingLogos, setGeneratingLogos] = useState(false);
+  const [logoGenError, setLogoGenError] = useState('');
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState(null);
+
   // Channels to create
   const [channels, setChannels] = useState({
     googleBusiness: true,
@@ -109,6 +115,33 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
     setGeneratingSlogans(false);
   };
 
+  const handleGenerateLogos = async () => {
+    setGeneratingLogos(true);
+    setLogoGenError('');
+    try {
+      const data = await api.post('/api/onboarding/logos', {
+        businessName: formData.businessName,
+        category: formData.category,
+        tone: formData.tone,
+      });
+      setLogoVariants(data.logos || data.variants || []);
+      setSelectedVariantIdx(null);
+    } catch (err) {
+      setLogoGenError(err.message);
+    }
+    setGeneratingLogos(false);
+  };
+
+  const handleSelectLogoVariant = (variant, idx) => {
+    setSelectedVariantIdx(idx);
+    setLogoStyle(p => ({
+      ...p,
+      svg: variant.svg,
+      color: variant.palette.accent,
+      bgColor: variant.palette.bg
+    }));
+  };
+
   const triggerLogoPreset = (tone) => {
     const presets = {
       'Cozy & Warm': { color: '#D4A373', bgColor: '#1E1B18', shape: 'circle', icon: '☕' },
@@ -172,11 +205,8 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       onboardPath: 'B (Scratch)',
       platforms: channels,
       logo: {
-        text: formData.logoText || formData.businessName,
-        color: logoStyle.color,
-        bgColor: logoStyle.bgColor,
-        shape: logoStyle.shape,
-        icon: logoStyle.icon
+        ...logoStyle, // carries color, bgColor, shape, icon — and svg when an AI variant was picked
+        text: formData.logoText || formData.businessName
       }
     };
 
@@ -382,6 +412,48 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           <h2>{t('onboarding.pathB.step3Title', 'Create Your Brand Icon')}</h2>
           <p className="subtitle">{t('onboarding.pathB.step3Subtitle', 'Customize your visual emblem. Our logo engine will render layouts tailored to your business theme.')}</p>
 
+          {/* AI LOGO GENERATION PANEL */}
+          <div className="logo-gen-panel glass-card">
+            <div className="flex-between logo-gen-head">
+              <p className="logo-gen-hint">{t('onboarding.logoGen.hint', '4 unique marks designed from your name, category and brand tone — pick one or customize manually below.')}</p>
+              <button
+                type="button"
+                className="btn btn-accent btn-sm"
+                onClick={handleGenerateLogos}
+                disabled={generatingLogos}
+                id="btn_generate_logos"
+              >
+                {generatingLogos
+                  ? t('common.generating', 'Generating...')
+                  : logoVariants.length > 0
+                    ? t('onboarding.logoGen.regenerate', '↻ Regenerate')
+                    : t('onboarding.logoGen.cta', '✦ Generate logo with AI')}
+              </button>
+            </div>
+
+            {logoGenError && <p className="logo-gen-error">{logoGenError}</p>}
+
+            {logoVariants.length > 0 && (
+              <div className="logo-variant-grid">
+                {logoVariants.map((l, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    id={`btn_logo_variant_${idx}`}
+                    className={`logo-variant-card ${selectedVariantIdx === idx ? 'selected' : ''}`}
+                    style={{ backgroundColor: l.palette?.bg }}
+                    onClick={() => handleSelectLogoVariant(l, idx)}
+                  >
+                    <img
+                      src={'data:image/svg+xml;utf8,' + encodeURIComponent(l.svg)}
+                      alt={t('onboarding.logoGen.variantAlt', { defaultValue: 'Logo variant {{num}}', num: idx + 1 })}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="grid-2 logo-designer-grid">
             <div className="logo-controls">
               <div className="form-group">
@@ -446,11 +518,21 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
             <div className="logo-preview-card glass-card text-center">
               <span className="logo-preview-title">{t('onboarding.pathB.logoPreviewTitle', 'Vector SVG Blueprint')}</span>
               <div className="logo-canvas-wrap" style={{ backgroundColor: logoStyle.bgColor }}>
-                <div className={`logo-canvas-shape ${logoStyle.shape}`} style={{ borderColor: logoStyle.color, color: logoStyle.color }}>
-                  <span className="logo-canvas-icon">{logoStyle.icon}</span>
-                </div>
-                <h3 className="logo-canvas-text" style={{ color: logoStyle.color }}>{formData.logoText || formData.businessName}</h3>
-                <small className="logo-canvas-slogan">{formData.slogan}</small>
+                {logoStyle.svg ? (
+                  <img
+                    className="logo-canvas-svg"
+                    src={'data:image/svg+xml;utf8,' + encodeURIComponent(logoStyle.svg)}
+                    alt={formData.logoText || formData.businessName}
+                  />
+                ) : (
+                  <>
+                    <div className={`logo-canvas-shape ${logoStyle.shape}`} style={{ borderColor: logoStyle.color, color: logoStyle.color }}>
+                      <span className="logo-canvas-icon">{logoStyle.icon}</span>
+                    </div>
+                    <h3 className="logo-canvas-text" style={{ color: logoStyle.color }}>{formData.logoText || formData.businessName}</h3>
+                    <small className="logo-canvas-slogan">{formData.slogan}</small>
+                  </>
+                )}
               </div>
               <p className="text-muted mt-10"><i className="fa-solid fa-sparkles"></i> {t('onboarding.pathB.logoPreviewNote', 'AI generates full visual assets from these design guidelines')}</p>
             </div>

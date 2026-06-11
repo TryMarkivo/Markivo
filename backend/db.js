@@ -122,6 +122,19 @@ module.exports = function createDb(dbPath) {
       updated_at   TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS media (
+      id            TEXT PRIMARY KEY,
+      profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      kind          TEXT,
+      mode          TEXT,
+      topic         TEXT,
+      brief         TEXT,
+      file_path     TEXT,
+      original_name TEXT,
+      status        TEXT,
+      created_at    TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS ai_usage (
       id         TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -137,6 +150,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_calendar_profile ON calendar(profile_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_profile ON approvals(profile_id);
     CREATE INDEX IF NOT EXISTS idx_refresh_hash ON refresh_tokens(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_media_profile ON media(profile_id);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -188,6 +202,12 @@ module.exports = function createDb(dbPath) {
   const mapCalendar = (r) => r && {
     id: r.id, profileId: r.profile_id, platform: r.platform, post_text: r.post_text,
     scheduled_time: r.scheduled_time, status: r.status,
+  };
+  const mapMedia = (r) => r && {
+    id: r.id, profileId: r.profile_id, kind: r.kind, mode: r.mode, topic: r.topic,
+    brief: r.brief ? JSON.parse(r.brief) : null,
+    filePath: r.file_path, originalName: r.original_name,
+    status: r.status, created_at: r.created_at,
   };
   const mapApproval = (r) => r && {
     id: r.id, profileId: r.profile_id, action_type: r.action_type,
@@ -395,6 +415,50 @@ module.exports = function createDb(dbPath) {
         sqlite.prepare('UPDATE approvals SET status = ?, executed_at = ? WHERE id = ?')
           .run(status, now(), approvalId);
         return mapApproval(sqlite.prepare('SELECT * FROM approvals WHERE id = ?').get(approvalId));
+      },
+    },
+
+    media: {
+      add(m) {
+        const row = {
+          id: id(), profile_id: m.profileId, kind: m.kind || null, mode: m.mode || null,
+          topic: m.topic || null, brief: m.brief ? JSON.stringify(m.brief) : null,
+          file_path: m.filePath || null, original_name: m.originalName || null,
+          status: m.status || 'brief', created_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO media (id, profile_id, kind, mode, topic, brief, file_path, original_name, status, created_at)
+           VALUES (@id, @profile_id, @kind, @mode, @topic, @brief, @file_path, @original_name, @status, @created_at)`
+        ).run(row);
+        return mapMedia(row);
+      },
+      listByProfile(profileId) {
+        return sqlite.prepare(
+          'SELECT * FROM media WHERE profile_id = ? ORDER BY created_at DESC, rowid DESC'
+        ).all(profileId).map(mapMedia);
+      },
+      findById(mediaId) {
+        return mapMedia(sqlite.prepare('SELECT * FROM media WHERE id = ?').get(mediaId));
+      },
+      // Partial update: only keys present in `fields` are written.
+      update(mediaId, fields = {}) {
+        const colFor = {
+          kind: 'kind', mode: 'mode', topic: 'topic', brief: 'brief',
+          filePath: 'file_path', originalName: 'original_name', status: 'status',
+        };
+        const sets = [];
+        const params = { mediaId };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          let value = fields[key];
+          if (key === 'brief') value = value ? JSON.stringify(value) : null;
+          sets.push(`${col} = @${key}`);
+          params[key] = value;
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE media SET ${sets.join(', ')} WHERE id = @mediaId`).run(params);
+        }
+        return mapMedia(sqlite.prepare('SELECT * FROM media WHERE id = ?').get(mediaId));
       },
     },
 

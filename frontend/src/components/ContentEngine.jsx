@@ -4,16 +4,29 @@ import api from '../lib/api';
 import './ContentEngine.css';
 
 export default function ContentEngine({ activeProfile }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [platform, setPlatform] = useState('Instagram');
   const [topic, setTopic] = useState('');
   const [langMode, setLangMode] = useState('en'); // 'en' | 'multi'
   const [loadingCopy, setLoadingCopy] = useState(false);
   const [generatedCopy, setGeneratedCopy] = useState(null);
-  const [scheduled, setScheduled] = useState(false);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgPosting, setTgPosting] = useState(false);
   const [tgPostResult, setTgPostResult] = useState(null); // null | 'ok' | error string
+
+  // Two-step schedule picker state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerStep, setPickerStep] = useState(1); // 1 = date, 2 = time
+  const [pickedDate, setPickedDate] = useState('');
+  const [pickedTime, setPickedTime] = useState('');
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState(null); // localized display string once scheduled
+  const [scheduleError, setScheduleError] = useState(null);
+
+  // Post Now state
+  const [postingNow, setPostingNow] = useState(false);
+  const [postedMsg, setPostedMsg] = useState(null);
+  const [postNowError, setPostNowError] = useState(null);
 
   useEffect(() => {
     api.get('/api/telegram/status').then(setTgStatus).catch(() => setTgStatus(null));
@@ -37,12 +50,32 @@ export default function ContentEngine({ activeProfile }) {
   // Before-After slider state
   const [sliderPosition, setSliderPosition] = useState(50);
 
+  const fmtDateInput = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayStr = fmtDateInput(new Date());
+  const dateOffset = (days) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return fmtDateInput(d);
+  };
+
+  const resetPostFlows = () => {
+    setPickerOpen(false);
+    setPickerStep(1);
+    setPickedDate('');
+    setPickedTime('');
+    setScheduledAt(null);
+    setScheduleError(null);
+    setPostedMsg(null);
+    setPostNowError(null);
+  };
+
   const handleGenerateCopy = async (e) => {
     e.preventDefault();
     if (!topic.trim()) return;
 
     setLoadingCopy(true);
-    setScheduled(false);
+    resetPostFlows();
     setTgPostResult(null);
     try {
       const data = await api.post('/api/content/copywrite', {
@@ -75,9 +108,65 @@ export default function ContentEngine({ activeProfile }) {
     setSliderPosition(percentage);
   };
 
+  // Opens the inline two-step picker (date -> time) instead of instantly scheduling.
   const handleSchedule = () => {
-    setScheduled(true);
+    setPickerOpen(true);
+    setPickerStep(1);
+    setScheduleError(null);
+    if (!pickedDate) setPickedDate(todayStr);
   };
+
+  const handleConfirmSchedule = async () => {
+    if (!pickedDate || !pickedTime || scheduling || !generatedCopy) return;
+    setScheduling(true);
+    setScheduleError(null);
+    try {
+      const when = new Date(`${pickedDate}T${pickedTime}`);
+      await api.post('/api/content/schedule', {
+        platform,
+        postText: generatedCopy.post,
+        scheduledTime: when.toISOString(),
+      });
+      setScheduledAt(when.toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }));
+      setPickerOpen(false);
+    } catch (err) {
+      setScheduleError(err.message || t('content.schedule.failed', 'Scheduling failed'));
+    }
+    setScheduling(false);
+  };
+
+  const handlePostNow = async () => {
+    if (!generatedCopy || postingNow) return;
+    setPostingNow(true);
+    setPostNowError(null);
+    try {
+      const response = await api.post('/api/content/post-now', {
+        platform,
+        postText: generatedCopy.post,
+      });
+      setPostedMsg(
+        response.simulated
+          ? t('content.output.postedSimulated', 'Logged as posted — live channel publishing activates with integrations')
+          : t('content.output.postedReal', { defaultValue: 'Published to {{target}}!', target: response.chatTitle })
+      );
+    } catch (err) {
+      setPostNowError(err.message || t('content.output.postNowFailed', 'Posting failed'));
+    }
+    setPostingNow(false);
+  };
+
+  // Display-only label map: lookup values stay English, label is translated
+  const categoryKeyMap = {
+    'Cafe / Coffee Shop': 'cafe',
+    'Beauty Salon / Spa': 'beauty',
+    'Co-working & Study Space': 'coworking',
+    'Retail Boutique / Fashion': 'retail',
+    'Local Restaurant / Food': 'restaurant',
+    'Professional Tech Agency': 'tech',
+  };
+  const categoryLabel = categoryKeyMap[activeProfile.category]
+    ? t(`onboarding.categories.${categoryKeyMap[activeProfile.category]}`, activeProfile.category)
+    : activeProfile.category;
 
   // Photography tutorials customized to business category
   const categoryTutorials = {
@@ -92,20 +181,32 @@ export default function ContentEngine({ activeProfile }) {
     ]
   };
 
-  const tutorials = categoryTutorials[activeProfile.category] || categoryTutorials['Cafe / Coffee Shop'];
+  // Category-aware generic fallback so non-cafe businesses never see cafe-specific tips
+  const genericTutorials = [
+    {
+      step: t('content.tutorials.generic.step1Title', '1. Signature Detail Close-up'),
+      tip: t('content.tutorials.generic.step1Tip', {
+        defaultValue: 'Get close to the detail customers love most about your {{category}}. Use 2x zoom, keep the subject sharp and let the background blur softly.',
+        category: categoryLabel,
+      }),
+    },
+    {
+      step: t('content.tutorials.generic.step2Title', '2. Golden Hour Lighting'),
+      tip: t('content.tutorials.generic.step2Tip', {
+        defaultValue: 'Shoot near your largest window between 4:00 PM and 5:30 PM so warm natural light traces the edges of your {{category}} space.',
+        category: categoryLabel,
+      }),
+    },
+    {
+      step: t('content.tutorials.generic.step3Title', '3. People in the Frame'),
+      tip: t('content.tutorials.generic.step3Tip', {
+        defaultValue: 'Capture a candid moment of a customer or team member enjoying your {{category}} — faces and movement outperform empty-room shots.',
+        category: categoryLabel,
+      }),
+    },
+  ];
 
-  // Display-only label map: lookup values stay English, label is translated
-  const categoryKeyMap = {
-    'Cafe / Coffee Shop': 'cafe',
-    'Beauty Salon / Spa': 'beauty',
-    'Co-working & Study Space': 'coworking',
-    'Retail Boutique / Fashion': 'retail',
-    'Local Restaurant / Food': 'restaurant',
-    'Professional Tech Agency': 'tech',
-  };
-  const categoryLabel = categoryKeyMap[activeProfile.category]
-    ? t(`onboarding.categories.${categoryKeyMap[activeProfile.category]}`, activeProfile.category)
-    : activeProfile.category;
+  const tutorials = categoryTutorials[activeProfile.category] || genericTutorials;
 
   return (
     <div className="content-engine-container animate-fade-in">
@@ -166,7 +267,10 @@ export default function ContentEngine({ activeProfile }) {
                 id="inp_topic"
                 className="input-field text-area"
                 rows="3"
-                placeholder={t('content.copywriter.topicPlaceholder', 'e.g. Free honeycomb cake slices with every double espresso this weekend!')}
+                placeholder={t('content.copywriter.topicPlaceholderByCategory', {
+                  defaultValue: 'e.g. A weekend special offer your {{category}} customers will love!',
+                  category: categoryLabel,
+                })}
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 required
@@ -195,7 +299,7 @@ export default function ContentEngine({ activeProfile }) {
               </div>
 
               <div className="output-actions flex-between mt-20">
-                <button className="btn btn-secondary btn-sm" onClick={() => setGeneratedCopy(null)} id="btn_discard_post">{t('common.discard', 'Discard')}</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setGeneratedCopy(null); resetPostFlows(); }} id="btn_discard_post">{t('common.discard', 'Discard')}</button>
                 <div className="flex-gap-8">
                   {platform === 'Telegram' && telegramReady && tgPostResult !== 'ok' && (
                     <button className="btn btn-primary btn-sm" onClick={handlePostToTelegram} disabled={tgPosting} id="btn_post_telegram_now">
@@ -205,17 +309,103 @@ export default function ContentEngine({ activeProfile }) {
                   {tgPostResult === 'ok' && (
                     <span className="badge badge-success py-10 px-20 font-bold"><i className="fa-solid fa-circle-check"></i> {t('content.telegram.published', 'Published to Telegram')}</span>
                   )}
-                  {!scheduled ? (
+                  {postedMsg ? (
+                    <span className="badge badge-success py-10 px-20 font-bold"><i className="fa-solid fa-circle-check"></i> {postedMsg}</span>
+                  ) : (
+                    <button className="btn btn-secondary btn-sm" onClick={handlePostNow} disabled={postingNow} id="btn_post_now">
+                      <i className="fa-solid fa-paper-plane"></i> {postingNow ? t('content.output.postingNow', 'Posting…') : t('content.output.postNowCta', 'Post Now')}
+                    </button>
+                  )}
+                  {!scheduledAt ? (
                     <button className="btn btn-accent btn-sm" onClick={handleSchedule} id="btn_schedule_post">
                       <i className="fa-solid fa-calendar-check"></i> {t('content.output.approveSchedule', 'Approve & Schedule')}
                     </button>
                   ) : (
-                    <span className="badge badge-success py-10 px-20 font-bold"><i className="fa-solid fa-circle-check"></i> {t('content.output.scheduled', 'Scheduled')}</span>
+                    <span className="badge badge-success py-10 px-20 font-bold"><i className="fa-solid fa-circle-check"></i> {t('content.output.scheduledAt', { defaultValue: 'Scheduled · {{when}}', when: scheduledAt })}</span>
                   )}
                 </div>
               </div>
+
+              {/* INLINE TWO-STEP SCHEDULE PICKER */}
+              {pickerOpen && !scheduledAt && (
+                <div className="schedule-picker-panel animate-fade-in">
+                  {pickerStep === 1 ? (
+                    <>
+                      <div className="picker-step-label">{t('content.schedule.stepDate', 'Step 1 · Pick a date')}</div>
+                      <input
+                        type="date"
+                        id="inp_schedule_date"
+                        className="input-field picker-input"
+                        min={todayStr}
+                        value={pickedDate}
+                        onChange={(e) => setPickedDate(e.target.value)}
+                      />
+                      <div className="picker-chips">
+                        {[
+                          { label: t('content.schedule.chipToday', 'Today'), days: 0 },
+                          { label: t('content.schedule.chipTomorrow', 'Tomorrow'), days: 1 },
+                          { label: t('content.schedule.chipIn3Days', 'In 3 days'), days: 3 },
+                        ].map((chip) => (
+                          <button
+                            key={chip.days}
+                            type="button"
+                            className={`picker-chip ${pickedDate === dateOffset(chip.days) ? 'active' : ''}`}
+                            onClick={() => { setPickedDate(dateOffset(chip.days)); setPickerStep(2); }}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="picker-actions">
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerOpen(false)}>{t('common.cancel', 'Cancel')}</button>
+                        <button type="button" className="btn btn-primary btn-sm" disabled={!pickedDate || pickedDate < todayStr} onClick={() => setPickerStep(2)}>{t('common.next', 'Next')}</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="picker-step-label">{t('content.schedule.stepTime', 'Step 2 · Pick a time')}</div>
+                      <input
+                        type="time"
+                        id="inp_schedule_time"
+                        className="input-field picker-input"
+                        value={pickedTime}
+                        onChange={(e) => setPickedTime(e.target.value)}
+                      />
+                      <div className="picker-chips">
+                        {[
+                          { label: t('content.schedule.chipMorning', 'Morning 09:00'), value: '09:00' },
+                          { label: t('content.schedule.chipLunch', 'Lunch 13:00'), value: '13:00' },
+                          { label: t('content.schedule.chipEvening', 'Evening 18:30'), value: '18:30' },
+                        ].map((chip) => (
+                          <button
+                            key={chip.value}
+                            type="button"
+                            className={`picker-chip ${pickedTime === chip.value ? 'active' : ''}`}
+                            onClick={() => setPickedTime(chip.value)}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="picker-actions">
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerStep(1)}>{t('common.back', 'Back')}</button>
+                        <button type="button" className="btn btn-accent btn-sm" id="btn_confirm_schedule" disabled={!pickedTime || scheduling} onClick={handleConfirmSchedule}>
+                          <i className="fa-solid fa-calendar-check"></i> {scheduling ? t('content.schedule.scheduling', 'Scheduling…') : t('content.schedule.confirm', 'Confirm Schedule')}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {scheduleError && (
+                    <div className="auth-error-box mt-10">{scheduleError}</div>
+                  )}
+                </div>
+              )}
+
               {tgPostResult && tgPostResult !== 'ok' && (
                 <div className="auth-error-box mt-10">{tgPostResult}</div>
+              )}
+              {postNowError && (
+                <div className="auth-error-box mt-10">{postNowError}</div>
               )}
             </div>
           )}

@@ -362,6 +362,12 @@
       "luxury1": "Nozik didning hashamati.",
       "luxury2": "Standartingizni yuksaltiring.",
       "luxury3": "Premium tanlov."
+    },
+    "logoGen": {
+      "cta": "✦ AI bilan logotip yaratish",
+      "hint": "Nomingiz, kategoriyangiz va brend ohangingiz asosida yaratilgan 4 ta noyob belgi — birini tanlang yoki quyida qo'lda sozlang.",
+      "regenerate": "↻ Qayta yaratish",
+      "variantAlt": "Logotip varianti {{num}}"
     }
   },
   "dashboard": {
@@ -384,6 +390,7 @@
     "nav": {
       "metrics": "Ko'rsatkichlar va qidiruv",
       "content": "AI kontent dvigateli",
+      "media": "Media studiya",
       "competitors": "Raqobatchilar tahlili"
     },
     "channels": {
@@ -439,6 +446,7 @@
       "langMulti": "🌐 EN + UZ + RU",
       "topicLabel": "Bu postning asosiy mavzusi nima?",
       "topicPlaceholder": "masalan, Shu hafta oxiri har bir dabl espressoga bepul asal torti bo'lagi!",
+      "topicPlaceholderByCategory": "Masalan: {{category}} mijozlaringizga yoqadigan dam olish kunlari uchun maxsus taklif!",
       "generating": "Mahalliylashtirilgan qoralamalar tayyorlanmoqda...",
       "generateCta": "Platforma qoralamalarini yaratish ✦"
     },
@@ -448,7 +456,26 @@
       "langMulti": "Ingliz + o'zbek + rus",
       "mediaTipTitle": "Tavsiya etilgan suratga olish kadri",
       "approveSchedule": "Tasdiqlash va rejalashtirish",
-      "scheduled": "Rejalashtirildi"
+      "scheduled": "Rejalashtirildi",
+      "scheduledAt": "Rejalashtirildi · {{when}}",
+      "postNowCta": "Hozir joylash",
+      "postingNow": "Joylanmoqda…",
+      "postNowFailed": "Joylashda xatolik yuz berdi",
+      "postedSimulated": "Joylangan deb belgilandi — kanallarga jonli e'lon qilish integratsiyalar ulanganda ishga tushadi",
+      "postedReal": "E'lon qilindi: {{target}}!"
+    },
+    "schedule": {
+      "stepDate": "1-qadam · Sanani tanlang",
+      "stepTime": "2-qadam · Vaqtni tanlang",
+      "chipToday": "Bugun",
+      "chipTomorrow": "Ertaga",
+      "chipIn3Days": "3 kundan keyin",
+      "chipMorning": "Ertalab 09:00",
+      "chipLunch": "Tushlik 13:00",
+      "chipEvening": "Kechqurun 18:30",
+      "confirm": "Rejani tasdiqlash",
+      "scheduling": "Rejalashtirilmoqda…",
+      "failed": "Rejalashtirib bo'lmadi"
     },
     "telegram": {
       "postNow": "Hozir {{chatTitle}}ga joylash",
@@ -479,11 +506,96 @@
         "step1Tip": "Halqa chiroqni to'g'ridan-to'g'ri mijozga qarating. Toza soch kesim chizig'iga yoki 3x zumda makro kipriklarga fokus qiling.",
         "step2Title": "2. Avval / keyin kadrlari",
         "step2Tip": "Mijozni aynan o'sha kresloga o'tkazing va bosh holatini saqlang — shunda yonma-yon solishtiruvlar toza chiqadi."
+      },
+      "generic": {
+        "step1Title": "1. Asosiy detal yaqin planda",
+        "step1Tip": "Mijozlar {{category}} biznesingizda eng yaxshi ko'radigan detalga yaqinlashing. 2x zumdan foydalaning, obyektni aniq tuting, fon esa yumshoq xiralashsin.",
+        "step2Title": "2. Oltin soat yorug'ligi",
+        "step2Tip": "Eng katta deraza yonida 16:00 dan 17:30 gacha suratga oling — iliq tabiiy yorug'lik {{category}} makoningiz qirralarini chiroyli yoritadi.",
+        "step3Title": "3. Kadrda odamlar",
+        "step3Tip": "Mijoz yoki jamoa a'zosi {{category}} muhitidan zavqlanayotgan samimiy lahzani suratga oling — yuzlar va harakat bo'sh xona kadrlaridan ko'ra yaxshiroq ishlaydi."
       }
     },
     "fallback": {
       "post": "✨ #{{businessName}}dan maxsus taklif! ✨\n\nAjoyib maskan izlayapsizmi? {{topic}}\n\n📍 Bugun Toshkentda bizga tashrif buyuring!\n\n#localbusiness #tashkent #vibe",
       "mediaTip": "📸 Maslahat: shom payti, derazalardan iliq ichki yorug'lik taralayotganda do'koningiz old tomonini gorizontal suratga oling."
+    }
+  },
+  "media": {
+    "title": "Media studiya",
+    "subtitle": "{{businessName}} uchun skrollni to'xtatadigan kontentni rejalashtiring, suratga oling va montaj qiling",
+    "modes": {
+      "fullTitle": "To'liq AI generatsiya",
+      "fullDesc": "Tasvirlab bering — AI hammasini o'zi yaratadi va baholaydi",
+      "guidedTitle": "Yo'riqnoma bilan suratga olish",
+      "guidedDesc": "AI to'liq suratga olish rejasini yozadi — siz suratga olasiz, AI montaj qiladi"
+    },
+    "kind": {
+      "image": "Rasm",
+      "video": "Video"
+    },
+    "brief": {
+      "title": "Ijodiy brif",
+      "subtitle": "AIga bu media nima haqida bo'lishi kerakligini ayting",
+      "kindLabel": "Media turi",
+      "topicLabel": "Mavzu",
+      "topicPlaceholder": "Masalan: yangi mavsumiy latte menyusi shu juma kuni ishga tushadi",
+      "generateCta": "Brif yaratish",
+      "generating": "Brifingiz yozilmoqda...",
+      "scriptTitle": "Ssenariy",
+      "shotListTitle": "Kadrlar ro'yxati",
+      "cameraTitle": "Kamera",
+      "lightingTitle": "Yorug'lik",
+      "audioTitle": "Audio",
+      "tipsTitle": "Pro maslahatlar",
+      "conceptTitle": "Konsepsiya",
+      "captionTitle": "Tayyor izoh",
+      "copy": "Nusxalash",
+      "copied": "Nusxalandi!",
+      "visualSpecTitle": "Vizual spetsifikatsiya"
+    },
+    "spec": {
+      "composition": "Kompozitsiya",
+      "palette": "Palitra",
+      "mood": "Kayfiyat"
+    },
+    "engine": {
+      "pending": "AI media dvigateli hozircha tayyorlanmoqda — generatsiya ishga tushishi bilan bu reja darhol bajarishga tayyor bo'ladi."
+    },
+    "upload": {
+      "title": "Tasvirga olingan materialni yuklang",
+      "subtitle": "O'zingiz suratga olgan foto yoki videoni qo'shing",
+      "dropHint": "Faylni shu yerga tashlang yoki tanlang",
+      "formats": "Rasmlar, MP4 yoki WebM — 8MB gacha",
+      "browseCta": "Fayl tanlash",
+      "uploading": "Yuklanmoqda...",
+      "badType": "Fayl turi qo'llab-quvvatlanmaydi — rasm yoki MP4/WebM video ishlating.",
+      "tooLarge": "Fayl juda katta — maksimal hajm 8MB.",
+      "videoReady": "Video yuklandi — montaj rejasiga tayyor"
+    },
+    "edit": {
+      "title": "AI montaj rejasi",
+      "subtitle": "AI bu mediani qanday montaj qilishi kerakligini tasvirlab bering",
+      "instructionsLabel": "Montaj bo'yicha ko'rsatmalar",
+      "instructionsPlaceholder": "Masalan: jonli qiling — zich kadr, iliq ranglar, yirik subtitrlar, trenddagi musiqa",
+      "generateCta": "Montaj rejasini yaratish",
+      "generating": "Montaj rejalashtirilmoqda...",
+      "stepsTitle": "Montaj bosqichlari",
+      "crop": "Kadrlash",
+      "colorGrade": "Rang korreksiyasi",
+      "captions": "Subtitrlar",
+      "audio": "Audio",
+      "exportTitle": "Eksport parametrlari",
+      "locked": "AI montaj rejasini ochish uchun media yuklang."
+    },
+    "library": {
+      "title": "Sizning medialaringiz",
+      "empty": "Hozircha bo'sh — boshlash uchun brif yarating yoki media yuklang."
+    },
+    "status": {
+      "brief": "Brif",
+      "uploaded": "Yuklangan",
+      "edit_plan": "Montaj rejasi"
     }
   },
   "competitors": {
@@ -520,8 +632,8 @@
       "solutionLabel": "💡 Yechim:",
       "cadenceSolution": "Ko'rinish farqini yopish uchun Kontent dvigatelida kamida yana 4 ta AI post rejalashtiring.",
       "seoTitle": "SEO kalit so'z bo'shliqlari",
-      "seoText": "Yaqin-atrofdagi raqobatchilar <1>\"estetik {{category}} o'qish maydoni\"</1> so'rovi bo'yicha faol reytinglanmoqda. Siz bu mahalliy qidiruv yo'nalishini butunlay boy beryapsiz.",
-      "seoSolution": "Keyingi yaratilgan Telegram kontentingizga \"sokin o'qish maydoni\" yoki \"o'qish kabinasi\" kabi iboralarni qo'shing."
+      "seoText": "Yaqin-atrofdagi raqobatchilar profillaringizda umuman tilga olinmaydigan <1>{{category}} bilan bog'liq mahalliy qidiruv so'rovlari</1> bo'yicha faol reytinglanmoqda. Siz bu mahalliy qidiruv yo'nalishini butunlay boy beryapsiz.",
+      "seoSolution": "Keyingi yaratilgan Telegram kontentingizga {{category}} bilan bog'liq mahalliy qidiruv iboralarini va ideal mijozlaringiz haqiqatda qidiradigan so'zlarni singdiring."
     }
   },
   "agent": {

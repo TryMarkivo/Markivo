@@ -362,6 +362,12 @@
       "luxury1": "The luxury of fine taste.",
       "luxury2": "Elevate your standard.",
       "luxury3": "Premium choice."
+    },
+    "logoGen": {
+      "cta": "✦ Generate logo with AI",
+      "hint": "4 unique marks designed from your name, category and brand tone — pick one or customize manually below.",
+      "regenerate": "↻ Regenerate",
+      "variantAlt": "Logo variant {{num}}"
     }
   },
   "dashboard": {
@@ -384,6 +390,7 @@
     "nav": {
       "metrics": "Metrics & Search",
       "content": "AI Content Engine",
+      "media": "Media Studio",
       "competitors": "Competitor Intel"
     },
     "channels": {
@@ -439,6 +446,7 @@
       "langMulti": "🌐 EN + UZ + RU",
       "topicLabel": "What is the focus of this post?",
       "topicPlaceholder": "e.g. Free honeycomb cake slices with every double espresso this weekend!",
+      "topicPlaceholderByCategory": "e.g. A weekend special offer your {{category}} customers will love!",
       "generating": "Crafting localized drafts...",
       "generateCta": "Generate Platform Drafts ✦"
     },
@@ -448,7 +456,26 @@
       "langMulti": "English + Uzbek + Russian",
       "mediaTipTitle": "Recommended Photography Frame",
       "approveSchedule": "Approve & Schedule",
-      "scheduled": "Scheduled"
+      "scheduled": "Scheduled",
+      "scheduledAt": "Scheduled · {{when}}",
+      "postNowCta": "Post Now",
+      "postingNow": "Posting…",
+      "postNowFailed": "Posting failed",
+      "postedSimulated": "Logged as posted — live channel publishing activates with integrations",
+      "postedReal": "Published to {{target}}!"
+    },
+    "schedule": {
+      "stepDate": "Step 1 · Pick a date",
+      "stepTime": "Step 2 · Pick a time",
+      "chipToday": "Today",
+      "chipTomorrow": "Tomorrow",
+      "chipIn3Days": "In 3 days",
+      "chipMorning": "Morning 09:00",
+      "chipLunch": "Lunch 13:00",
+      "chipEvening": "Evening 18:30",
+      "confirm": "Confirm Schedule",
+      "scheduling": "Scheduling…",
+      "failed": "Scheduling failed"
     },
     "telegram": {
       "postNow": "Post to {{chatTitle}} now",
@@ -479,11 +506,96 @@
         "step1Tip": "Use ring-light setups directly facing the client. Focus on clean hair cutlines or macro shot lashes at 3x zoom.",
         "step2Title": "2. Before / After Frames",
         "step2Tip": "Position the client in the exact same chair, maintaining the head alignment to ensure clean side-by-side post comparisons."
+      },
+      "generic": {
+        "step1Title": "1. Signature Detail Close-up",
+        "step1Tip": "Get close to the detail customers love most about your {{category}}. Use 2x zoom, keep the subject sharp and let the background blur softly.",
+        "step2Title": "2. Golden Hour Lighting",
+        "step2Tip": "Shoot near your largest window between 4:00 PM and 5:30 PM so warm natural light traces the edges of your {{category}} space.",
+        "step3Title": "3. People in the Frame",
+        "step3Tip": "Capture a candid moment of a customer or team member enjoying your {{category}} — faces and movement outperform empty-room shots."
       }
     },
     "fallback": {
       "post": "✨ Special offer from #{{businessName}}! ✨\n\nLooking for the perfect spot? {{topic}}\n\n📍 Visit us today in Tashkent!\n\n#localbusiness #tashkent #vibe",
       "mediaTip": "📸 Tip: Snap a landscape photo of your storefront at dusk with warm interior lighting glowing through the windows."
+    }
+  },
+  "media": {
+    "title": "Media Studio",
+    "subtitle": "Plan, shoot and edit scroll-stopping content for {{businessName}}",
+    "modes": {
+      "fullTitle": "Full AI generation",
+      "fullDesc": "Describe it, AI creates and evaluates everything",
+      "guidedTitle": "Guided shoot",
+      "guidedDesc": "AI writes your full shooting plan — you film, AI edits"
+    },
+    "kind": {
+      "image": "Image",
+      "video": "Video"
+    },
+    "brief": {
+      "title": "Creative brief",
+      "subtitle": "Tell the AI what this media should be about",
+      "kindLabel": "Media type",
+      "topicLabel": "Topic",
+      "topicPlaceholder": "e.g. New seasonal latte menu launching this Friday",
+      "generateCta": "Generate brief",
+      "generating": "Writing your brief...",
+      "scriptTitle": "Script",
+      "shotListTitle": "Shot list",
+      "cameraTitle": "Camera",
+      "lightingTitle": "Lighting",
+      "audioTitle": "Audio",
+      "tipsTitle": "Pro tips",
+      "conceptTitle": "Concept",
+      "captionTitle": "Ready caption",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "visualSpecTitle": "Visual spec"
+    },
+    "spec": {
+      "composition": "Composition",
+      "palette": "Palette",
+      "mood": "Mood"
+    },
+    "engine": {
+      "pending": "AI media engine pending — this plan is ready to run the moment the generation engine goes live."
+    },
+    "upload": {
+      "title": "Upload your footage",
+      "subtitle": "Drop in the photo or video you filmed",
+      "dropHint": "Drag & drop a file here, or browse",
+      "formats": "Images, MP4 or WebM — up to 8MB",
+      "browseCta": "Choose file",
+      "uploading": "Uploading...",
+      "badType": "Unsupported file type — use images, MP4 or WebM video.",
+      "tooLarge": "File is too large — the maximum size is 8MB.",
+      "videoReady": "Video uploaded — ready for an edit plan"
+    },
+    "edit": {
+      "title": "AI edit plan",
+      "subtitle": "Describe how the AI should edit this media",
+      "instructionsLabel": "Editing instructions",
+      "instructionsPlaceholder": "e.g. Make it punchy: tight crop, warm tones, bold subtitles, trending audio",
+      "generateCta": "Create edit plan",
+      "generating": "Planning the edit...",
+      "stepsTitle": "Edit steps",
+      "crop": "Crop",
+      "colorGrade": "Color grade",
+      "captions": "Captions",
+      "audio": "Audio",
+      "exportTitle": "Export spec",
+      "locked": "Upload media to unlock AI edit planning."
+    },
+    "library": {
+      "title": "Your media",
+      "empty": "Nothing here yet — generate a brief or upload media to get started."
+    },
+    "status": {
+      "brief": "Brief",
+      "uploaded": "Uploaded",
+      "edit_plan": "Edit plan"
     }
   },
   "competitors": {
@@ -520,8 +632,8 @@
       "solutionLabel": "💡 Solution:",
       "cadenceSolution": "Schedule at least 4 more AI posts in your Content Engine to close the visibility gap.",
       "seoTitle": "SEO Keyword Gaps",
-      "seoText": "Nearby competitors are actively ranking for <1>\"aesthetic {{category}} study area\"</1>. You are completely missing this local search vector.",
-      "seoSolution": "Include terms like \"quiet study area\" or \"study booth\" in your next generated Telegram content copy."
+      "seoText": "Nearby competitors are actively ranking for <1>{{category}}-relevant local search phrases</1> that your profiles never mention. You are completely missing this local search vector.",
+      "seoSolution": "Weave {{category}}-relevant local search phrases and the wording your ideal customers actually search for into your next generated Telegram content copy."
     }
   },
   "agent": {
