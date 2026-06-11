@@ -1,5 +1,6 @@
 node_modules
 database
+uploads
 .env
 *.db
 *.db-shm

@@ -597,7 +597,14 @@
     "status": {
       "brief": "Brif",
       "uploaded": "Yuklangan",
-      "edit_plan": "Montaj rejasi"
+      "edit_plan": "Montaj rejasi",
+      "rendered": "Render qilingan"
+    },
+    "render": {
+      "cta": "Rasm yaratish",
+      "rendering": "Rasm yaratilmoqda...",
+      "success": "Rasm tayyor — postlaringizda ishlatishingiz mumkin.",
+      "resultAlt": "Yaratilgan rasm"
     }
   },
   "competitors": {
@@ -742,6 +749,25 @@
     "theme": "Mavzu",
     "dark": "Tungi",
     "light": "Yorug'",
-    "language": "Til"
+    "language": "Til",
+    "plan": {
+      "title": "Tarif va to'lov",
+      "hint": "Tarif oylik AI generatsiya limitingizni belgilaydi va qo'shimcha imkoniyatlarni ochadi.",
+      "testMode": "Test rejimi — to'lov kalitlari sozlanmaguncha to'lovlar simulyatsiya qilinadi.",
+      "tierFree": "Bepul",
+      "tierPro": "Pro",
+      "tierUltimate": "Ultimate",
+      "perMonth": "/oy",
+      "limit": "Oyiga {{n}} ta AI generatsiya",
+      "current": "Joriy tarif",
+      "upgrade": "Oshirish",
+      "downgrade": "Pasaytirish",
+      "working": "Bajarilmoqda…",
+      "changed": "Tarif yangilandi! Yangi limitlar kuchga kirdi.",
+      "changeFailed": "Tarifni o'zgartirib bo'lmadi. Iltimos, qayta urinib ko'ring.",
+      "periodEnd": "Joriy davr {{date}} kuni tugaydi",
+      "unavailable": "To'lov holati hozircha mavjud emas.",
+      "loading": "Tarif yuklanmoqda…"
+    }
   }
 }

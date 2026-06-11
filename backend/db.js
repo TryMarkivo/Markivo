@@ -143,6 +143,18 @@ module.exports = function createDb(dbPath) {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id                 TEXT PRIMARY KEY,
+      user_id            TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      tier               TEXT NOT NULL,
+      status             TEXT NOT NULL,
+      provider           TEXT,
+      provider_ref       TEXT,
+      current_period_end TEXT,
+      created_at         TEXT NOT NULL,
+      updated_at         TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS ai_usage (
       id         TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -160,6 +172,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_refresh_hash ON refresh_tokens(token_hash);
     CREATE INDEX IF NOT EXISTS idx_media_profile ON media(profile_id);
     CREATE INDEX IF NOT EXISTS idx_agent_messages_profile_time ON agent_messages(profile_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -221,6 +234,12 @@ module.exports = function createDb(dbPath) {
   const mapAgentMessage = (r) => r && {
     id: r.id, profileId: r.profile_id, sender: r.sender, text: r.text, created_at: r.created_at,
   };
+  const mapSubscription = (r) => r && {
+    id: r.id, userId: r.user_id, tier: r.tier, status: r.status,
+    provider: r.provider, providerRef: r.provider_ref,
+    currentPeriodEnd: r.current_period_end,
+    created_at: r.created_at, updated_at: r.updated_at,
+  };
   const mapApproval = (r) => r && {
     id: r.id, profileId: r.profile_id, action_type: r.action_type,
     action_payload: r.action_payload ? JSON.parse(r.action_payload) : null,
@@ -244,6 +263,12 @@ module.exports = function createDb(dbPath) {
         return mapUser(sqlite.prepare('SELECT * FROM users WHERE lower(email) = lower(?)').get(email));
       },
       findById(userId) {
+        return mapUser(sqlite.prepare('SELECT * FROM users WHERE id = ?').get(userId));
+      },
+      // Pricing tier changes always go through here (billing layer) so the
+      // tier read by usageInfo is the DB's, never a stale JWT claim.
+      setTier(userId, tier) {
+        sqlite.prepare('UPDATE users SET tier = ? WHERE id = ?').run(tier, userId);
         return mapUser(sqlite.prepare('SELECT * FROM users WHERE id = ?').get(userId));
       },
       // Partial update: only keys present in `fields` are written.
@@ -405,6 +430,17 @@ module.exports = function createDb(dbPath) {
       listByProfile(profileId) {
         return sqlite.prepare('SELECT * FROM calendar WHERE profile_id = ? ORDER BY scheduled_time').all(profileId).map(mapCalendar);
       },
+      // All still-scheduled posts (any profile) whose time has come — the
+      // scheduled-post worker's work queue.
+      listDue(nowIso) {
+        return sqlite.prepare(
+          "SELECT * FROM calendar WHERE status = 'scheduled' AND scheduled_time <= ? ORDER BY scheduled_time"
+        ).all(nowIso).map(mapCalendar);
+      },
+      setStatus(postId, status) {
+        sqlite.prepare('UPDATE calendar SET status = ? WHERE id = ?').run(status, postId);
+        return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
     },
 
     approvals: {
@@ -517,6 +553,33 @@ module.exports = function createDb(dbPath) {
         return sqlite.prepare(
           'SELECT COUNT(*) AS n FROM ai_usage WHERE user_id = ? AND created_at >= ?'
         ).get(userId, monthStart).n;
+      },
+    },
+
+    // Pricing subscriptions — one row per user (the upsert replaces any
+    // previous subscription, so the table always reflects the current plan).
+    subscriptions: {
+      upsertForUser({ userId, tier, status, provider, providerRef, currentPeriodEnd }) {
+        const existing = sqlite.prepare('SELECT id FROM subscriptions WHERE user_id = ?').get(userId);
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE subscriptions SET tier = ?, status = ?, provider = ?, provider_ref = ?,
+             current_period_end = ?, updated_at = ? WHERE id = ?`
+          ).run(tier, status, provider || null, providerRef || null, currentPeriodEnd || null, now(), existing.id);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO subscriptions (id, user_id, tier, status, provider, provider_ref, current_period_end, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(id(), userId, tier, status, provider || null, providerRef || null, currentPeriodEnd || null, now(), now());
+        }
+        return this.findByUser(userId);
+      },
+      findByUser(userId) {
+        return mapSubscription(sqlite.prepare('SELECT * FROM subscriptions WHERE user_id = ?').get(userId));
+      },
+      // Stripe webhooks identify a subscription by its provider id, not ours.
+      findByProviderRef(providerRef) {
+        return mapSubscription(sqlite.prepare('SELECT * FROM subscriptions WHERE provider_ref = ?').get(providerRef));
       },
     },
 

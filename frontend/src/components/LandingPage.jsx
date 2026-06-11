@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
+import api from '../lib/api';
 import './LandingPage.css';
 import logoUrl from '../assets/markivo-logo.png';
 
@@ -11,6 +12,29 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
     freemium: { monthly: 0, yearly: 0 },
     pro: { monthly: 20, yearly: 16 },
     ultimate: { monthly: 50, yearly: 40 }
+  };
+
+  // Pricing CTA: logged-out users go through the register flow; logged-in
+  // users hit billing checkout (Stripe redirect or instant simulated upgrade).
+  const handlePlanClick = async (tier) => {
+    if (!isLoggedIn) {
+      onStartOnboarding('B');
+      return;
+    }
+    if (tier === 'freemium') {
+      onStartOnboarding('dashboard');
+      return;
+    }
+    try {
+      const data = await api.post('/api/billing/checkout', { tier });
+      if (data.url) {
+        window.location.assign(data.url);
+        return;
+      }
+    } catch (err) {
+      console.warn('Billing checkout failed:', err);
+    }
+    onStartOnboarding('dashboard');
   };
 
   return (
@@ -264,7 +288,7 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat4', 'Social channels connected')}</li>
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat5', '25 AI generations / month')}</li>
             </ul>
-            <button className="btn btn-secondary w-full mt-auto" onClick={() => onStartOnboarding('B')} id="btn_plan_free">
+            <button className="btn btn-secondary w-full mt-auto" onClick={() => handlePlanClick('freemium')} id="btn_plan_free">
               {t('landing.pricing.free.cta', 'Get Started Free')}
             </button>
           </div>
@@ -286,7 +310,7 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.pro.feat4', 'Gmail summary & sorting')}</li>
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.pro.feat5', 'Markiv agent · 100 generations / mo')}</li>
             </ul>
-            <button className="btn btn-primary w-full mt-auto" onClick={() => onStartOnboarding('B')} id="btn_plan_pro">
+            <button className="btn btn-primary w-full mt-auto" onClick={() => handlePlanClick('pro')} id="btn_plan_pro">
               {t('landing.pricing.pro.cta', 'Scale Up Now')}
             </button>
           </div>
@@ -307,7 +331,7 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.ultimate.feat4', 'AI website generation')}</li>
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.ultimate.feat5', 'Markiv agent · 250 generations / mo')}</li>
             </ul>
-            <button className="btn btn-secondary w-full mt-auto" onClick={() => onStartOnboarding('B')} id="btn_plan_ultimate">
+            <button className="btn btn-secondary w-full mt-auto" onClick={() => handlePlanClick('ultimate')} id="btn_plan_ultimate">
               {t('landing.pricing.ultimate.cta', 'Go Autonomous')}
             </button>
           </div>

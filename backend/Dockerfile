@@ -12,9 +12,18 @@ RUN npm ci --omit=dev || npm install --omit=dev
 
 COPY . .
 
+# Persistent data — mount named volumes here (see docker-compose.yml):
+#   /app/database  SQLite file        /app/uploads  user media
+RUN mkdir -p /app/database /app/uploads
+
 ENV NODE_ENV=production
 ENV PORT=5000
-ENV DB_PATH=/data/markivo.db
+ENV DB_PATH=/app/database/markivo.db
 
 EXPOSE 5000
+
+# Node-based check — the slim image ships neither curl nor wget.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||5000)+'/api/health',function(r){process.exit(r.statusCode===200?0:1)}).on('error',function(){process.exit(1)})"
+
 CMD ["node", "server.js"]

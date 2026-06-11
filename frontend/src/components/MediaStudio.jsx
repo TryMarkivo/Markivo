@@ -23,8 +23,13 @@ export default function MediaStudio({ activeProfile }) {
   const [briefId, setBriefId] = useState(null);
   const [brief, setBrief] = useState(null);
   const [briefMode, setBriefMode] = useState(null); // mode the current brief was generated with
+  const [briefKind, setBriefKind] = useState(null); // kind the current brief was generated with
   const [briefLoading, setBriefLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Render (full-AI image briefs)
+  const [renderingId, setRenderingId] = useState(null); // media id currently rendering
+  const [renders, setRenders] = useState({}); // media id -> { url } | { notice }
 
   // Upload
   const [uploaded, setUploaded] = useState(null); // { id, url, filename, isVideo }
@@ -62,6 +67,7 @@ export default function MediaStudio({ activeProfile }) {
       setBriefId(data.id);
       setBrief(data.brief);
       setBriefMode(mode);
+      setBriefKind(kind);
       loadLibrary();
     } catch (err) {
       setError(err.message);
@@ -128,14 +134,34 @@ export default function MediaStudio({ activeProfile }) {
     setPlanning(false);
   };
 
-  const mediaUrl = uploaded
-    ? (uploaded.url?.startsWith('http') ? uploaded.url : api.base + uploaded.url)
-    : null;
+  const handleRender = async (id) => {
+    if (!id || renderingId) return;
+    setRenderingId(id);
+    setError(null);
+    try {
+      const data = await api.post(`/api/media/${id}/render`, {});
+      setRenders((prev) => ({ ...prev, [id]: { url: data.url } }));
+      loadLibrary();
+    } catch (err) {
+      if (err.status === 501) {
+        // Engine keyless / unsupported kind — show the amber notice with the server's message.
+        setRenders((prev) => ({ ...prev, [id]: { notice: err.message } }));
+      } else {
+        setError(err.message);
+      }
+    }
+    setRenderingId(null);
+  };
+
+  const toAbsolute = (url) => (url?.startsWith('http') ? url : api.base + url);
+
+  const mediaUrl = uploaded ? toAbsolute(uploaded.url) : null;
 
   const statusLabels = {
     brief: t('media.status.brief', 'Brief'),
     uploaded: t('media.status.uploaded', 'Uploaded'),
     edit_plan: t('media.status.edit_plan', 'Edit plan'),
+    rendered: t('media.status.rendered', 'Rendered'),
   };
 
   const enginePendingText = t('media.engine.pending', 'AI media engine pending — this plan is ready to run the moment the generation engine goes live.');
@@ -347,7 +373,37 @@ export default function MediaStudio({ activeProfile }) {
               </div>
             )}
 
-            {engineNote(brief.note || enginePendingText)}
+            {briefKind === 'image' ? (
+              <div className="media-render-section">
+                {renders[briefId]?.url ? (
+                  <div className="render-result animate-fade-in">
+                    <div className="render-success-note">
+                      <i className="fa-solid fa-circle-check"></i>
+                      <span>{t('media.render.success', 'Image rendered — ready to use in your posts.')}</span>
+                    </div>
+                    <img src={toAbsolute(renders[briefId].url)} alt={t('media.render.resultAlt', 'Rendered image')} />
+                  </div>
+                ) : (
+                  <>
+                    {engineNote(renders[briefId]?.notice || brief.note || enginePendingText)}
+                    <button
+                      type="button"
+                      className="btn btn-primary w-full"
+                      id="btn_media_render"
+                      disabled={renderingId !== null}
+                      onClick={() => handleRender(briefId)}
+                    >
+                      <i className={`fa-solid ${renderingId === briefId ? 'fa-spinner fa-spin' : 'fa-image'}`}></i>{' '}
+                      {renderingId === briefId
+                        ? t('media.render.rendering', 'Rendering image...')
+                        : t('media.render.cta', 'Render image')}
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              engineNote(brief.note || enginePendingText)
+            )}
           </div>
         )}
       </div>
@@ -501,6 +557,27 @@ export default function MediaStudio({ activeProfile }) {
                   <span className={`media-status-chip ${item.status}`}>{statusLabels[item.status] || item.status}</span>
                 </div>
                 <span className="media-library-topic">{item.topic}</span>
+                {renders[item.id]?.url && (
+                  <img
+                    className="media-library-thumb animate-fade-in"
+                    src={toAbsolute(renders[item.id].url)}
+                    alt={t('media.render.resultAlt', 'Rendered image')}
+                  />
+                )}
+                {renders[item.id]?.notice && engineNote(renders[item.id].notice)}
+                {item.mode === 'full' && item.kind === 'image' && item.status === 'brief' && !renders[item.id]?.url && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary media-item-render-btn"
+                    disabled={renderingId !== null}
+                    onClick={() => handleRender(item.id)}
+                  >
+                    <i className={`fa-solid ${renderingId === item.id ? 'fa-spinner fa-spin' : 'fa-image'}`}></i>{' '}
+                    {renderingId === item.id
+                      ? t('media.render.rendering', 'Rendering image...')
+                      : t('media.render.cta', 'Render image')}
+                  </button>
+                )}
                 {item.created_at && (
                   <small className="media-library-date text-muted">{String(item.created_at).slice(0, 10)}</small>
                 )}

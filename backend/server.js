@@ -10,12 +10,17 @@ const path = require('path');
 const config = require('./config');
 const createDb = require('./db');
 const ai = require('./ai');
+const billing = require('./billing');
 const tg = require('./telegram');
 const places = require('./places');
+const mediagen = require('./mediagen');
 const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
 
 const db = createDb(config.dbPath);
 const app = express();
+// Trust the first proxy hop (TRUST_PROXY=true) so req.ip — and therefore the
+// rate-limiter keys — reflect the real client, not the nginx/platform proxy.
+if (config.trustProxy) app.set('trust proxy', 1);
 
 // --- CORS ---
 const corsOptions = config.corsOrigins.includes('*')
@@ -26,7 +31,9 @@ app.use(cors(corsOptions));
 // Must be mounted BEFORE the global 1mb parser (the first parser to run wins;
 // later body-parsers skip an already-parsed body).
 app.use('/api/media/upload', express.json({ limit: '12mb' }));
-app.use(express.json({ limit: '1mb' }));
+// `verify` keeps the raw request bytes on req.rawBody — Stripe webhook
+// signatures are computed over the exact payload, not the parsed JSON.
+app.use(express.json({ limit: '1mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 
 // --- AUTH HELPERS ---
 const signAccessToken = (user) =>
@@ -64,7 +71,10 @@ const verifyToken = (req, res, next) => {
 // Content, slogans, and agent queries all draw from one allowance. Template
 // (keyless) generations count too — tiers sell generations, not API spend.
 const usageInfo = (user) => {
-  const tier = config.aiTierLimits[user.tier] != null ? user.tier : 'freemium';
+  // Tier comes from the DB, never the JWT claim — a billing upgrade must
+  // raise the allowance instantly for sessions issued before the upgrade.
+  const dbUser = db.users.findById(user.id) || user;
+  const tier = config.aiTierLimits[dbUser.tier] != null ? dbUser.tier : 'freemium';
   const limit = config.aiTierLimits[tier];
   const used = db.usage.countThisMonth(user.id);
   const nowD = new Date();
@@ -743,6 +753,45 @@ app.post('/api/media/:id/edit', verifyToken, checkAiBudget, asyncRoute(async (re
   res.json({ id: row.id, plan });
 }));
 
+// Render a full-mode AI image brief into a real image (fal.ai FLUX). Keyless
+// mode answers 501 "engine pending"; video rendering is a later milestone.
+app.post('/api/media/:id/render', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const row = db.media.findById(req.params.id);
+  if (!row || row.profileId !== profile.id) return res.status(404).json({ error: 'Media item not found' });
+  if (row.mode !== 'full') {
+    return res.status(400).json({ error: 'Only full-mode AI briefs can be rendered — guided briefs are filmed by you.' });
+  }
+  if (row.kind === 'video') return res.status(501).json({ error: 'Video rendering is coming soon — image rendering is available now.' });
+  if (row.kind !== 'image') return res.status(400).json({ error: 'Only image briefs can be rendered' });
+
+  // Build the generation prompt from the stored creative brief + the owner's
+  // business context (concept first, then the visual spec fields).
+  const brief = row.brief || {};
+  const spec = brief.visualSpec || {};
+  const prompt = [
+    brief.concept || `A scroll-stopping marketing image for ${profile.businessName}${row.topic ? ` about ${row.topic}` : ''}`,
+    spec.composition && `Composition: ${spec.composition}`,
+    spec.palette && `Palette: ${spec.palette}`,
+    spec.mood && `Mood: ${spec.mood}`,
+    `Professional social-media photo for ${profile.businessName}, a ${(profile.category || 'business').toLowerCase()}` +
+      `${profile.location ? ` in ${profile.location}` : ''}. Photorealistic, no text, no watermark.`,
+  ].filter(Boolean).join('\n');
+
+  try {
+    const { filePath } = await mediagen.renderImage({ prompt });
+    // Stored without the leading slash (same convention as /api/media/upload).
+    const updated = db.media.update(row.id, { filePath: filePath.replace(/^\//, ''), status: 'rendered' });
+    db.usage.record({ userId: req.user.id, kind: 'media' });
+    res.json({ id: updated.id, url: filePath });
+  } catch (err) {
+    if (err instanceof mediagen.MediaEngineError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+}));
+
 app.get('/api/media', verifyToken, (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.json({ items: [] });
@@ -948,6 +997,82 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
   });
 }));
 
+// ==========================================
+// 3.7 BILLING ROUTER (/api/billing)
+//   Stripe Checkout subscriptions when STRIPE_SECRET_KEY is set; simulated
+//   instant upgrades when it isn't. Payme/Click follow after merchant
+//   onboarding (see billing.PROVIDERS).
+// ==========================================
+app.post('/api/billing/checkout', verifyToken, asyncRoute(async (req, res) => {
+  // The DB user, not the JWT claims — the claims carry a possibly-stale tier.
+  const dbUser = db.users.findById(req.user.id);
+  if (!dbUser) return res.status(404).json({ error: 'User session not found' });
+  try {
+    res.json(await billing.createCheckout(dbUser, req.body.tier));
+  } catch (err) {
+    if (err instanceof billing.BillingError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+}));
+
+app.get('/api/billing/status', verifyToken, asyncRoute(async (req, res) => {
+  const dbUser = db.users.findById(req.user.id);
+  if (!dbUser) return res.status(404).json({ error: 'User session not found' });
+  res.json(billing.getStatus(dbUser));
+}));
+
+// Stripe calls this — no verifyToken; authenticity comes from the signature
+// over the raw payload instead.
+app.post('/api/billing/webhook', asyncRoute(async (req, res) => {
+  if (!config.stripeWebhookSecret) return res.status(501).json({ error: 'webhook not configured' });
+  let event;
+  try {
+    event = billing.constructWebhookEvent(req.rawBody, req.headers['stripe-signature']);
+  } catch (err) {
+    const status = err instanceof billing.BillingError ? err.status : 400;
+    return res.status(status).json({ error: err.message });
+  }
+  billing.applyStripeEvent(event);
+  res.json({ received: true });
+}));
+
+// ==========================================
+// 3.8 SCHEDULED-POST WORKER
+//   Publishes due calendar posts. Telegram posts go out for real via the Bot
+//   API (when the flag is on and a chat is linked); other platforms stay
+//   'scheduled' until their integrations land. Runs every 60s when the
+//   server is started directly; tests invoke the exported tick by hand.
+// ==========================================
+async function runScheduledPostsTick() {
+  const due = db.calendar.listDue(new Date().toISOString());
+  let posted = 0;
+  let failed = 0;
+
+  for (const row of due) {
+    // Non-telegram platforms: integrations pending — leave the row untouched.
+    if (row.platform !== 'telegram') continue;
+    // Flag off, or the profile hasn't linked a chat yet: leave it scheduled so
+    // it publishes automatically once the setup completes.
+    if (!config.telegramEnabled) continue;
+    const conn = db.telegram.findByProfile(row.profileId);
+    if (!conn || !conn.chatId) continue;
+
+    // Send directly (NOT executeTelegramPost — that helper adds a NEW calendar
+    // row for ad-hoc posts; here the row already exists and just flips status).
+    try {
+      await tg.sendMessage(conn.botToken, conn.chatId, row.post_text);
+      db.calendar.setStatus(row.id, 'posted');
+      posted += 1;
+    } catch (err) {
+      db.calendar.setStatus(row.id, 'failed');
+      console.warn(`Scheduled telegram post ${row.id} failed:`, err.description || err.message);
+      failed += 1;
+    }
+  }
+
+  return { due: due.length, posted, failed };
+}
+
 // --- Uploaded media files (Media Studio) ---
 app.use('/uploads', express.static(UPLOADS_DIR));
 
@@ -965,6 +1090,11 @@ if (require.main === module) {
   app.listen(config.port, () => {
     console.log(`🚀 Markivo API server running on port ${config.port}`);
   });
+  // Scheduled-post worker: every 60s, publish due calendar posts.
+  if (process.env.NODE_ENV !== 'test' && process.env.WORKER_ENABLED !== 'false') {
+    setInterval(runScheduledPostsTick, 60000);
+    console.log('⏱️  Scheduled-post worker running (60s tick)');
+  }
 }
 
-module.exports = { app, db };
+module.exports = { app, db, runScheduledPostsTick };

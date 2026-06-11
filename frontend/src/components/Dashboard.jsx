@@ -397,6 +397,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               theme={theme}
               onToggleTheme={onToggleTheme}
               onLanguageChange={onLanguageChange}
+              onBillingChanged={() => api.get('/api/usage').then(setUsage).catch(() => {})}
             />
           )}
         </div>

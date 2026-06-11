@@ -7,27 +7,59 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      # Override these for any real deployment.
-      JWT_SECRET: ${JWT_SECRET:-change_me_dev_secret}
+      # REQUIRED — config.js refuses to boot in production without it.
+      # Generate: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+      JWT_SECRET: ${JWT_SECRET:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
-      DB_PATH: /data/markivo.db
+      # Persistent SQLite + uploaded media live on the named volumes below.
+      DB_PATH: /app/database/markivo.db
+      # The frontend nginx container proxies /api and /uploads to this service,
+      # so Express must trust X-Forwarded-* for correct rate-limiter client IPs.
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      # Public URL of the app (Stripe checkout redirects, links in messages).
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      # --- Integrations (all optional; features fall back gracefully) ---
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}
+      MEDIA_API_KEY: ${MEDIA_API_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Monthly subscription prices in USD (billing config defaults: 20 / 50).
+      TIER_PRICE_PRO: ${TIER_PRICE_PRO:-}
+      TIER_PRICE_ULTIMATE: ${TIER_PRICE_ULTIMATE:-}
     volumes:
-      - markivo-db:/data
+      - markivo-db:/app/database
+      - markivo-uploads:/app/uploads
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - require('http').get('http://127.0.0.1:'+(process.env.PORT||5000)+'/api/health',function(r){process.exit(r.statusCode===200?0:1)}).on('error',function(){process.exit(1)})
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       args:
-        # The browser hits the backend on the host-mapped port. For production,
-        # set VITE_API_URL to your public API URL and CORS_ORIGIN to match.
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+        # "/" bakes a same-origin API base — the nginx container proxies
+        # /api and /uploads to the backend, so no CORS and no exposed port
+        # needed for browsers. For a split deploy (separate API domain), set
+        # VITE_API_URL to the public API URL and CORS_ORIGIN to match.
+        VITE_API_URL: ${VITE_API_URL:-/}
     image: markivo-frontend
     ports:
       - "8080:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   markivo-db:
+  markivo-uploads:

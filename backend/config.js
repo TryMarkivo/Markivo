@@ -31,6 +31,9 @@ const corsOrigins = (process.env.CORS_ORIGIN || '*')
 const config = {
   isProd,
   port: parseInt(process.env.PORT, 10) || 5000,
+  // Behind a reverse proxy (nginx container, Railway/Render edge) Express must
+  // trust X-Forwarded-* or the per-IP rate limiters key on the proxy's IP.
+  trustProxy: process.env.TRUST_PROXY === 'true',
   jwtSecret,
   // Short-lived access token, long-lived refresh token.
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL || '1h',
@@ -57,6 +60,20 @@ const config = {
     ultimate: parseInt(process.env.AI_LIMIT_ULTIMATE, 10) || 250,
   },
 
+  // --- Billing (Stripe now; Payme/Click slot in after merchant onboarding) ---
+  // When STRIPE_SECRET_KEY is unset, billing runs in SIMULATED mode: tier
+  // changes apply instantly with no payment, so the upgrade flow stays
+  // testable offline (mirrors the keyless AI/Places fallbacks).
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+  // Frontend origin for checkout success/cancel redirects.
+  appUrl: process.env.APP_URL || 'http://localhost:5173',
+  // Monthly subscription prices in USD — provisional until pricing is final.
+  tierPrices: {
+    pro: parseInt(process.env.TIER_PRICE_PRO, 10) || 20,
+    ultimate: parseInt(process.env.TIER_PRICE_ULTIMATE, 10) || 50,
+  },
+
   // --- Feature flags ---
   // Telegram is fully built (backend/telegram.js + TelegramConnect UI) but
   // de-scoped from the MVP (decision 2026-06-10). Default OFF: routes answer
@@ -67,6 +84,11 @@ const config = {
   // --- Google Places (Discovery scan) ---
   // When GOOGLE_MAPS_API_KEY is unset, the discovery scan transparently falls
   // back to deterministic mock results, so the app keeps working without it.
+  // --- Media generation (fal.ai FLUX) ---
+  // Keyless mode: POST /api/media/:id/render answers 501 "Media engine
+  // pending" — briefs, uploads, and edit plans keep working without it.
+  mediaApiKey: process.env.MEDIA_API_KEY || '',
+
   placesApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
   placesTimeoutMs: parseInt(process.env.PLACES_TIMEOUT_MS, 10) || 8000,
   // Per-IP scan rate limit — live scans cost real Places API quota.

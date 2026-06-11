@@ -331,6 +331,46 @@
   margin-top: 2px;
 }
 
+/* ----- Render action (full-AI image briefs) ----- */
+.media-render-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.render-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.render-result img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+}
+
+.render-success-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(6, 214, 160, 0.08);
+  border: 1px solid rgba(6, 214, 160, 0.35);
+  color: var(--accent-success);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.render-success-note i {
+  margin-top: 2px;
+}
+
 /* ----- 4. Upload + 5. Edit plan ----- */
 .media-work-grid {
   display: grid;
@@ -565,6 +605,26 @@
   font-size: 0.72rem;
 }
 
+.media-library-thumb {
+  display: block;
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+}
+
+.media-item-render-btn {
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  justify-content: center;
+}
+
+.media-library-item .engine-pending-note {
+  padding: 10px 12px;
+  font-size: 0.75rem;
+}
+
 /* Status chips */
 .media-status-chip {
   font-size: 0.65rem;
@@ -589,6 +649,11 @@
 .media-status-chip.edit_plan {
   background: rgba(131, 56, 236, 0.12);
   color: var(--accent-purple);
+}
+
+.media-status-chip.rendered {
+  background: rgba(212, 163, 115, 0.15);
+  color: var(--accent-primary);
 }
 
 /* ----- Responsive ----- */

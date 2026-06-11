@@ -597,7 +597,14 @@
     "status": {
       "brief": "Brief",
       "uploaded": "Uploaded",
-      "edit_plan": "Edit plan"
+      "edit_plan": "Edit plan",
+      "rendered": "Rendered"
+    },
+    "render": {
+      "cta": "Render image",
+      "rendering": "Rendering image...",
+      "success": "Image rendered — ready to use in your posts.",
+      "resultAlt": "Rendered image"
     }
   },
   "competitors": {
@@ -742,6 +749,25 @@
     "theme": "Theme",
     "dark": "Dark",
     "light": "Light",
-    "language": "Language"
+    "language": "Language",
+    "plan": {
+      "title": "Plan & billing",
+      "hint": "Your plan sets your monthly AI generation limit and unlocks advanced features.",
+      "testMode": "Test mode — payments are simulated until billing keys are configured.",
+      "tierFree": "Free",
+      "tierPro": "Pro",
+      "tierUltimate": "Ultimate",
+      "perMonth": "/mo",
+      "limit": "{{n}} AI generations / month",
+      "current": "Current plan",
+      "upgrade": "Upgrade",
+      "downgrade": "Downgrade",
+      "working": "Working…",
+      "changed": "Plan updated! Your new limits are active.",
+      "changeFailed": "Could not change your plan. Please try again.",
+      "periodEnd": "Current period ends {{date}}",
+      "unavailable": "Billing status is unavailable right now.",
+      "loading": "Loading plan…"
+    }
   }
 }
