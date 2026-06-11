@@ -9,7 +9,7 @@ const createDb = require('./db');
 const ai = require('./ai');
 const tg = require('./telegram');
 const places = require('./places');
-const { validateRegister, validateLogin, validateScan } = require('./validators');
+const { validateRegister, validateLogin, validateScan, validateProfileUpdate, validateMeUpdate } = require('./validators');
 
 const db = createDb(config.dbPath);
 const app = express();
@@ -289,6 +289,49 @@ app.get('/api/onboarding/active', verifyToken, (req, res) => {
   const platformsMap = {};
   db.platforms.listByProfile(profile.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
   res.json({ onboarded: true, ...profile, platforms: platformsMap });
+});
+
+// ==========================================
+// 3.35 SETTINGS ROUTER (/api/profile, /api/me)
+// ==========================================
+app.put('/api/profile', verifyToken, (req, res) => {
+  const error = validateProfileUpdate(req.body);
+  if (error) return res.status(400).json({ error });
+
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+
+  const { businessName, category, description, location, isOnline, brandTone, slogan } = req.body;
+  const updated = db.profiles.update(profile.id, {
+    businessName: typeof businessName === 'string' ? businessName.trim() : businessName,
+    category,
+    description,
+    location,
+    isOnline,
+    targetAudience: req.body.targetAudience !== undefined ? req.body.targetAudience : req.body.audience,
+    brandTone,
+    slogan,
+    logoMetadata: req.body.logoMetadata !== undefined ? req.body.logoMetadata : req.body.logo,
+  });
+
+  // Return the profile WITH a platforms map so the dashboard can render
+  // immediately without a follow-up fetch (same shape as construct).
+  const platformsMap = {};
+  db.platforms.listByProfile(updated.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
+  res.json({ success: true, profile: { ...updated, platforms: platformsMap } });
+});
+
+app.put('/api/me', verifyToken, (req, res) => {
+  const error = validateMeUpdate(req.body);
+  if (error) return res.status(400).json({ error });
+
+  const { fullName, preferredLang } = req.body;
+  const user = db.users.updateProfile(req.user.id, {
+    fullName: typeof fullName === 'string' ? fullName.trim() : fullName,
+    preferredLang,
+  });
+  if (!user) return res.status(404).json({ error: 'User session not found' });
+  res.json({ id: user.id, email: user.email, fullName: user.fullName, tier: user.tier, preferredLang: user.preferredLang });
 });
 
 // ==========================================

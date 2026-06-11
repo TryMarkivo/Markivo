@@ -44,4 +44,32 @@ function validateScan(body = {}) {
   ]);
 }
 
-module.exports = { isNonEmptyString, isEmail, firstError, validateRegister, validateLogin, validateScan };
+// Settings: partial profile update — every field is optional, but anything
+// present must be sane. Length checks only (Cyrillic must pass untouched).
+function validateProfileUpdate(body = {}) {
+  const { businessName, category, description, location, slogan, brandTone } = body;
+  const audience = body.targetAudience !== undefined ? body.targetAudience : body.audience;
+  const name = typeof businessName === 'string' ? businessName.trim() : '';
+  const shortOk = (v) => v == null || (typeof v === 'string' && v.length <= 120);
+  return firstError([
+    [businessName === undefined || (name.length >= 2 && name.length <= 100), 'Business name must be 2-100 characters'],
+    [shortOk(category), 'Category must be 120 characters or fewer'],
+    [shortOk(location), 'Location must be 120 characters or fewer'],
+    [shortOk(slogan), 'Slogan must be 120 characters or fewer'],
+    [shortOk(audience), 'Target audience must be 120 characters or fewer'],
+    [shortOk(brandTone), 'Brand tone must be 120 characters or fewer'],
+    [description == null || (typeof description === 'string' && description.length <= 600), 'Description must be 600 characters or fewer'],
+  ]);
+}
+
+// Settings: partial account update.
+function validateMeUpdate(body = {}) {
+  const { fullName, preferredLang } = body;
+  const name = typeof fullName === 'string' ? fullName.trim() : '';
+  return firstError([
+    [fullName === undefined || (name.length >= 2 && name.length <= 80), 'Full name must be 2-80 characters'],
+    [preferredLang === undefined || ['uz', 'ru', 'en'].includes(preferredLang), 'Preferred language must be one of: uz, ru, en'],
+  ]);
+}
+
+module.exports = { isNonEmptyString, isEmail, firstError, validateRegister, validateLogin, validateScan, validateProfileUpdate, validateMeUpdate };

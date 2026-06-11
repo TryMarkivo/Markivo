@@ -4,6 +4,7 @@ import OnboardingPathA from './components/OnboardingPathA';
 import OnboardingPathB from './components/OnboardingPathB';
 import Dashboard from './components/Dashboard';
 import LanguageSelector from './components/LanguageSelector';
+import ThemeToggle from './components/ThemeToggle';
 import api from './lib/api';
 import './App.css';
 import './i18n/i18n';
@@ -11,6 +12,14 @@ import './i18n/i18n';
 export default function App() {
   const [view, setView] = useState('landing'); // 'landing' | 'onboarding_A' | 'onboarding_B' | 'dashboard'
   const [activeProfile, setActiveProfile] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('markivo_theme') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('markivo_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   
   // Auth state
   const [token, setToken] = useState(api.tokens.access() || null);
@@ -24,6 +33,13 @@ export default function App() {
     setToken(null);
     setActiveProfile(null);
     setView('landing');
+  };
+
+  // Persist the language choice on the account when signed in (best-effort).
+  const handleLanguageChange = (lng) => {
+    if (api.tokens.access()) {
+      api.put('/api/me', { preferredLang: lng }).catch(() => {});
+    }
   };
 
   // Validate the stored session and route to the dashboard if already onboarded.
@@ -109,7 +125,10 @@ export default function App() {
       {/* CONDITIONAL RENDER WORKSPACES */}
       {view === 'landing' && (
         <>
-          <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 50 }}><LanguageSelector /></div>
+          <div className="floating-controls">
+            <LanguageSelector onChange={handleLanguageChange} />
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
           <LandingPage
             onStartOnboarding={handleStartOnboarding}
             onOpenLogin={() => setAuthModal('login')}
@@ -133,10 +152,14 @@ export default function App() {
       )}
 
       {view === 'dashboard' && activeProfile && (
-        <Dashboard 
+        <Dashboard
           token={token}
-          activeProfile={activeProfile} 
-          onLogout={handleLogout} 
+          activeProfile={activeProfile}
+          onLogout={handleLogout}
+          onProfileUpdate={setActiveProfile}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLanguageChange={handleLanguageChange}
         />
       )}
 

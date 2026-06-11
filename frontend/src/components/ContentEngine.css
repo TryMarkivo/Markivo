@@ -22,7 +22,7 @@
   flex: 1;
   padding: 12px;
   border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   color: var(--text-secondary);
   font-weight: 600;
@@ -35,8 +35,8 @@
 }
 
 .platform-select-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 .platform-select-btn.active {
@@ -58,7 +58,7 @@
   font-family: var(--font-body);
   font-size: 0.9rem;
   color: var(--text-primary);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--input-bg);
   padding: 16px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--glass-border);
@@ -132,7 +132,7 @@
 .label-after {
   right: 12px;
   background: var(--accent-primary);
-  color: #000;
+  color: var(--text-on-accent);
 }
 
 /* Slider divider line */

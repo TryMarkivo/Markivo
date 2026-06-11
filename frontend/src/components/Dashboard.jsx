@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import ContentEngine from './ContentEngine';
 import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
+import SettingsPane from './SettingsPane';
+import ThemeToggle from './ThemeToggle';
 import api from '../lib/api';
+import logoUrl from '../assets/markivo-logo.png';
 import './Dashboard.css';
 
-export default function Dashboard({ token, activeProfile, onLogout }) {
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'content' | 'competitors'
+export default function Dashboard({ token, activeProfile, onLogout, onProfileUpdate, theme, onToggleTheme, onLanguageChange }) {
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'content' | 'competitors' | 'settings'
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -69,7 +74,7 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
     return (
       <div className="dashboard-loading text-center">
         <i className="fa-solid fa-spinner fa-spin fa-3x text-accent"></i>
-        <h3 className="mt-20">Loading Command Center...</h3>
+        <h3 className="mt-20">{t('dashboard.loading', 'Loading Command Center...')}</h3>
       </div>
     );
   }
@@ -77,13 +82,20 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
   // Helper to render logo symbol
   const logoStyle = activeProfile.logo || { text: activeProfile.businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' };
 
+  // Label maps for raw API/mock data values (fall back to raw value for unknown codes)
+  const volumeLabels = {
+    'High': t('dashboard.seo.volume.high', 'High'),
+    'Medium': t('dashboard.seo.volume.medium', 'Medium'),
+    'Very High': t('dashboard.seo.volume.veryHigh', 'Very High')
+  };
+
   return (
     <div className="dashboard-shell animate-fade-in">
       {/* --- SIDEBAR --- */}
       <aside className={`dashboard-sidebar glass-card ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <div className="logo-text">
-            <div className="logo-icon">M</div>
+            <img src={logoUrl} alt="Markivo" className="logo-img" />
             Markivo
           </div>
         </div>
@@ -105,30 +117,37 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
             onClick={() => setActiveTab('analytics')}
             id="btn_tab_analytics"
           >
-            <i className="fa-solid fa-chart-pie"></i> Metrics & Search
+            <i className="fa-solid fa-chart-pie"></i> {t('dashboard.nav.metrics', 'Metrics & Search')}
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === 'content' ? 'active' : ''}`}
             onClick={() => setActiveTab('content')}
             id="btn_tab_content"
           >
-            <i className="fa-solid fa-wand-magic-sparkles"></i> AI Content Engine
+            <i className="fa-solid fa-wand-magic-sparkles"></i> {t('dashboard.nav.content', 'AI Content Engine')}
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === 'competitors' ? 'active' : ''}`}
             onClick={() => setActiveTab('competitors')}
             id="btn_tab_competitors"
           >
-            <i className="fa-solid fa-users-viewfinder"></i> Competitor Intel
+            <i className="fa-solid fa-users-viewfinder"></i> {t('dashboard.nav.competitors', 'Competitor Intel')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+            id="btn_tab_settings"
+          >
+            <i className="fa-solid fa-gear"></i> {t('dashboard.settingsTab', 'Settings')}
           </button>
         </nav>
 
         <div className="sidebar-footer">
           {usage && (
-            <div className="usage-meter" id="usage_meter" title={`Resets ${usage.resetsAt?.slice(0, 10)}`}>
+            <div className="usage-meter" id="usage_meter" title={t('usage.resetsTitle', { defaultValue: 'Resets {{date}}', date: usage.resetsAt?.slice(0, 10) })}>
               <div className="usage-meter-label">
-                <span>AI generations</span>
-                <span>{usage.used} / {usage.limit}</span>
+                <span>{t('usage.label', 'AI generations')}</span>
+                <span>{t('usage.count', { defaultValue: '{{used}} / {{limit}}', used: usage.used, limit: usage.limit })}</span>
               </div>
               <div className="usage-meter-track">
                 <div
@@ -136,11 +155,11 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                   style={{ width: `${Math.min(100, Math.round((usage.used / usage.limit) * 100))}%` }}
                 ></div>
               </div>
-              <small className="usage-meter-tier">{usage.tier} plan</small>
+              <small className="usage-meter-tier">{t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}</small>
             </div>
           )}
           <button className="btn btn-secondary w-full" onClick={onLogout} id="btn_logout">
-            <i className="fa-solid fa-arrow-right-from-bracket"></i> Exit Dashboard
+            <i className="fa-solid fa-arrow-right-from-bracket"></i> {t('dashboard.exit', 'Exit Dashboard')}
           </button>
         </div>
       </aside>
@@ -153,11 +172,12 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
             <i className="fa-solid fa-bars"></i>
           </button>
           <div className="header-location">
-            <i className="fa-solid fa-location-dot text-accent"></i> <span>{activeProfile.location || 'Tashkent, Uzbekistan'}</span>
+            <i className="fa-solid fa-location-dot text-accent"></i> <span>{activeProfile.location || t('dashboard.defaultLocation', 'Tashkent, Uzbekistan')}</span>
           </div>
           <div className="header-badge-wrap">
-            <span className="badge badge-success"><i className="fa-solid fa-circle-check"></i> System Operational</span>
-            <span className="badge badge-primary">V1 Live</span>
+            <span className="badge badge-success"><i className="fa-solid fa-circle-check"></i> {t('dashboard.systemOperational', 'System Operational')}</span>
+            <span className="badge badge-primary">{t('dashboard.versionBadge', 'V1 Live')}</span>
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </div>
         </header>
 
@@ -170,10 +190,10 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
               
               {/* CONNECTED PLATFORMS */}
               <div className="channels-status-row">
-                <h3>Your Active Infrastructure</h3>
+                <h3>{t('dashboard.activeInfrastructure', 'Your Active Infrastructure')}</h3>
                 <div className="channels-grid">
                   <div className={`channel-pill ${activeProfile.platforms.googleBusiness ? 'connected' : 'inactive'}`}>
-                    <i className="fa-brands fa-google"></i> Google Profile
+                    <i className="fa-brands fa-google"></i> {t('dashboard.channels.google', 'Google Profile')}
                     <span className="dot"></span>
                   </div>
                   <div className={`channel-pill ${activeProfile.platforms.instagram ? 'connected' : 'inactive'}`}>
@@ -186,21 +206,21 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                     style={{ cursor: tgStatus?.comingSoon ? 'default' : 'pointer' }}
                     title={
                       tgStatus?.comingSoon
-                        ? 'Telegram integration is coming soon'
+                        ? t('telegram.pillTitleSoon', 'Telegram integration is coming soon')
                         : tgStatus?.connected
-                          ? `Bot @${tgStatus.botUsername}`
-                          : 'Click to connect Telegram'
+                          ? t('telegram.pillTitleBot', { defaultValue: 'Bot @{{username}}', username: tgStatus.botUsername })
+                          : t('telegram.pillTitleConnect', 'Click to connect Telegram')
                     }
                     id="btn_telegram_pill"
                   >
                     <i className="fa-brands fa-telegram"></i>{' '}
                     {tgStatus?.comingSoon
-                      ? 'Telegram · soon'
+                      ? t('telegram.pillSoon', 'Telegram · soon')
                       : tgStatus?.connected && tgStatus?.chat
-                        ? `Telegram · ${tgStatus.chat.chatTitle}`
+                        ? t('telegram.pillChat', { defaultValue: 'Telegram · {{chatTitle}}', chatTitle: tgStatus.chat.chatTitle })
                         : tgStatus?.connected
-                          ? 'Telegram · finish setup'
-                          : 'Telegram · connect'}
+                          ? t('telegram.pillFinishSetup', 'Telegram · finish setup')
+                          : t('telegram.pillConnect', 'Telegram · connect')}
                     <span className="dot"></span>
                   </div>
                   <div className={`channel-pill ${activeProfile.platforms.tiktok ? 'connected' : 'inactive'}`}>
@@ -216,12 +236,12 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                 {/* GOOGLE MAPS VIEWS */}
                 <div className="stat-card glass-card">
                   <div className="flex-between">
-                    <span className="stat-label">Google Maps Search Views</span>
-                    <span className="trend-percentage positive">+{stats.metrics.googleViews.change}%</span>
+                    <span className="stat-label">{t('dashboard.stats.googleViews', 'Google Maps Search Views')}</span>
+                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.googleViews.change })}</span>
                   </div>
                   <div className="stat-number-wrap">
                     <h2>{stats.metrics.googleViews.current.toLocaleString()}</h2>
-                    <span className="text-muted">past 30 days</span>
+                    <span className="text-muted">{t('dashboard.stats.past30Days', 'past 30 days')}</span>
                   </div>
                   <div className="stat-chart-svg">
                     {/* SVG Sparkline drawing */}
@@ -234,8 +254,8 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                 {/* INSTAGRAM FOLLOWERS */}
                 <div className="stat-card glass-card">
                   <div className="flex-between">
-                    <span className="stat-label">Instagram Followers</span>
-                    <span className="trend-percentage positive">+{stats.metrics.instagramFollowers.change}%</span>
+                    <span className="stat-label">{t('dashboard.stats.instagramFollowers', 'Instagram Followers')}</span>
+                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}</span>
                   </div>
                   <div className="stat-number-wrap">
                     <h2>{stats.metrics.instagramFollowers.current.toLocaleString()}</h2>
@@ -251,8 +271,8 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                 {/* TELEGRAM ACTIVE MEMBERS */}
                 <div className="stat-card glass-card">
                   <div className="flex-between">
-                    <span className="stat-label">Telegram Channel Members</span>
-                    <span className="trend-percentage positive">+{stats.metrics.telegramSubscribers.change}%</span>
+                    <span className="stat-label">{t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}</span>
+                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.telegramSubscribers.change })}</span>
                   </div>
                   <div className="stat-number-wrap">
                     <h2>{stats.metrics.telegramSubscribers.current.toLocaleString()}</h2>
@@ -271,14 +291,14 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                 
                 {/* SEO LOCAL KEYWORDS */}
                 <div className="seo-panel glass-card">
-                  <h3>Local SEO Rankings</h3>
-                  <p className="panel-subtitle">How your business ranks in Tashkent search results</p>
-                  
+                  <h3>{t('dashboard.seo.title', 'Local SEO Rankings')}</h3>
+                  <p className="panel-subtitle">{t('dashboard.seo.subtitle', 'How your business ranks in Tashkent search results')}</p>
+
                   <div className="keywords-list">
                     <div className="kw-header">
-                      <span>Search Keyword</span>
-                      <span>Avg. Position</span>
-                      <span>Volume</span>
+                      <span>{t('dashboard.seo.keywordCol', 'Search Keyword')}</span>
+                      <span>{t('dashboard.seo.positionCol', 'Avg. Position')}</span>
+                      <span>{t('dashboard.seo.volumeCol', 'Volume')}</span>
                     </div>
                     {stats.seoKeywords.map((kw, idx) => {
                       const position = kw.avg_position ?? kw.position;
@@ -286,7 +306,7 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                         <div key={idx} className="kw-row">
                           <span className="kw-text">{kw.keyword_phrase || kw.keyword}</span>
                           <span className={`kw-pos ${position <= 10 ? 'top-10' : ''}`}>#{position}</span>
-                          <span className="kw-volume">{kw.volume}</span>
+                          <span className="kw-volume">{volumeLabels[kw.volume] || kw.volume}</span>
                         </div>
                       );
                     })}
@@ -295,8 +315,8 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
 
                 {/* AI SEARCH PRESENCE INDEX */}
                 <div className="ai-search-panel glass-card">
-                  <h3>AI Search Visibility</h3>
-                  <p className="panel-subtitle">How models recommend you in natural chat queries</p>
+                  <h3>{t('dashboard.aiSearch.title', 'AI Search Visibility')}</h3>
+                  <p className="panel-subtitle">{t('dashboard.aiSearch.subtitle', 'How models recommend you in natural chat queries')}</p>
 
                   <div className="ai-score-ring-wrap">
                     <div className="ai-ring-container">
@@ -306,23 +326,30 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
                       </svg>
                       <div className="ai-score-inside">
                         <span>{stats.aiPresence.perplexityScore}</span>
-                        <small>index</small>
+                        <small>{t('dashboard.aiSearch.indexLabel', 'index')}</small>
                       </div>
                     </div>
                     <div className="ai-score-info">
-                      <h4>Highly Search Optimised</h4>
-                      <p>Cited in <strong>{stats.aiPresence.sourcesCitedCount} distinct</strong> search models this week.</p>
+                      <h4>{t('dashboard.aiSearch.optimised', 'Highly Search Optimised')}</h4>
+                      <p>
+                        <Trans
+                          i18nKey="dashboard.aiSearch.citedIn"
+                          defaults="Cited in <1>{{count}} distinct</1> search models this week."
+                          values={{ count: stats.aiPresence.sourcesCitedCount }}
+                          components={{ 1: <strong /> }}
+                        />
+                      </p>
                     </div>
                   </div>
 
                   <div className="ai-mentions-breakdown border-top-onboard pt-20">
                     <div className="mention-item">
-                      <span><i className="fa-solid fa-message text-success"></i> ChatGPT recommendation rank</span>
-                      <strong className="text-success">{stats.aiPresence.chatgptRank}</strong>
+                      <span><i className="fa-solid fa-message text-success"></i> {t('dashboard.aiSearch.chatgptRank', 'ChatGPT recommendation rank')}</span>
+                      <strong className="text-success">{stats.aiPresence.chatgptRank === 'Top 10' ? t('dashboard.aiSearch.rankTop10', 'Top 10') : stats.aiPresence.chatgptRank}</strong>
                     </div>
                     <div className="mention-item mt-10">
-                      <span><i className="fa-solid fa-lightbulb text-accent"></i> Perplexity Citations</span>
-                      <strong>Active</strong>
+                      <span><i className="fa-solid fa-lightbulb text-accent"></i> {t('dashboard.aiSearch.perplexityCitations', 'Perplexity Citations')}</span>
+                      <strong>{t('dashboard.aiSearch.active', 'Active')}</strong>
                     </div>
                   </div>
                 </div>
@@ -339,6 +366,17 @@ export default function Dashboard({ token, activeProfile, onLogout }) {
           {/* TAB 3: COMPETITOR INTEL */}
           {activeTab === 'competitors' && (
             <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} />
+          )}
+
+          {/* TAB 4: SETTINGS */}
+          {activeTab === 'settings' && (
+            <SettingsPane
+              activeProfile={activeProfile}
+              onProfileUpdate={onProfileUpdate}
+              theme={theme}
+              onToggleTheme={onToggleTheme}
+              onLanguageChange={onLanguageChange}
+            />
           )}
         </div>
       </main>

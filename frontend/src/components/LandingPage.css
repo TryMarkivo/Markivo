@@ -96,7 +96,7 @@
 }
 
 .preview-header {
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--input-bg);
   padding: 12px 16px;
   display: flex;
   align-items: center;
@@ -110,7 +110,7 @@
   border-radius: 50%;
 }
 
-.dot-red { background: #ff5a5f; }
+.dot-red { background: var(--accent-danger); }
 .dot-yellow { background: #ffbd2e; }
 .dot-green { background: #27c93f; }
 
@@ -127,7 +127,7 @@
 
 .preview-sidebar {
   width: 140px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--input-bg);
   border-right: 1px solid var(--glass-border);
   padding: 20px 12px;
   display: flex;
@@ -155,8 +155,8 @@
 }
 
 .preview-menu-item.active {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 .preview-main {
@@ -174,7 +174,7 @@
 }
 
 .preview-stat-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-1);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
   padding: 14px;
@@ -200,7 +200,7 @@
 .text-purple { color: var(--accent-purple); }
 
 .stat-chart-mini {
-  color: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
   font-size: 1.1rem;
   align-self: flex-end;
 }
@@ -332,7 +332,7 @@
 
 .billing-selector {
   display: inline-flex;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--input-bg);
   padding: 6px;
   border-radius: 50px;
   border: 1px solid var(--glass-border);
@@ -350,12 +350,12 @@
 
 .billing-btn.active {
   background: var(--accent-primary);
-  color: #000;
+  color: var(--text-on-accent);
 }
 
 .discount-badge {
-  background: #fff;
-  color: #000;
+  background: var(--text-primary);
+  color: var(--bg-primary);
   font-size: 0.65rem;
   padding: 2px 6px;
   border-radius: 20px;
@@ -435,7 +435,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: var(--accent-primary);
-  color: #000;
+  color: var(--text-on-accent);
   font-size: 0.7rem;
   font-weight: 800;
   padding: 4px 16px;

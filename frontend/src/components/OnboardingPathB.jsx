@@ -1,8 +1,19 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import './Onboarding.css';
 
+const TONE_KEYS = {
+  'Cozy & Warm': 'cozy',
+  'Modern & Minimalist': 'modern',
+  'Energetic & Fast-paced': 'energetic',
+  'Professional & Trustworthy': 'professional',
+  'Playful & Fun': 'playful',
+  'Luxury & Premium': 'luxury'
+};
+
 export default function OnboardingPathB({ onOnboardSuccess }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1); // 1: Info, 2: Tone & Slogans, 3: Logo, 4: Channels, 5: Action Logs
   const [formData, setFormData] = useState({
     businessName: '',
@@ -43,25 +54,25 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
   // Generate action logs based on selected channels
   const generateActionLogs = () => {
     const logs = [
-      { text: 'Generating brand identity visual package...', icon: 'fa-palette' },
-      { text: 'Saving high-res SVG & PNG logo layouts...', icon: 'fa-file-image' }
+      { text: t('onboarding.pipeline.logBrand', 'Generating brand identity visual package...'), icon: 'fa-palette' },
+      { text: t('onboarding.pipeline.logLogo', 'Saving high-res SVG & PNG logo layouts...'), icon: 'fa-file-image' }
     ];
 
     if (channels.googleBusiness) {
-      logs.push({ text: 'Configuring Google Business Profile endpoints...', icon: 'fa-map-location-dot' });
+      logs.push({ text: t('onboarding.pipeline.logGoogle', 'Configuring Google Business Profile endpoints...'), icon: 'fa-map-location-dot' });
     }
 
     if (channels.instagram) {
-      logs.push({ text: 'Scaffolding Instagram Business profile structure...', icon: 'fa-instagram' });
+      logs.push({ text: t('onboarding.pipeline.logInstagram', 'Scaffolding Instagram Business profile structure...'), icon: 'fa-instagram' });
     }
 
     if (channels.telegram) {
-      logs.push({ text: 'Establishing secure Telegram channel webhook bot...', icon: 'fa-paper-plane' });
+      logs.push({ text: t('onboarding.pipeline.logTelegram', 'Establishing secure Telegram channel webhook bot...'), icon: 'fa-paper-plane' });
     }
 
     logs.push(
-      { text: 'Compiling SEO semantic metadata and Tashkent keyword tags...', icon: 'fa-tags' },
-      { text: 'Scheduling inaugural calendar AI post drafts...', icon: 'fa-calendar-days' }
+      { text: t('onboarding.pipeline.logSeo', 'Compiling SEO semantic metadata and Tashkent keyword tags...'), icon: 'fa-tags' },
+      { text: t('onboarding.pipeline.logCalendar', 'Scheduling inaugural calendar AI post drafts...'), icon: 'fa-calendar-days' }
     );
 
     return logs;
@@ -184,10 +195,10 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       <div className="onboarding-header">
         {step < 5 && (
           <button className="btn-back" onClick={handlePrevStep} disabled={step === 1} id="btn_back_onboard_b">
-            <i className="fa-solid fa-arrow-left"></i> Previous Step
+            <i className="fa-solid fa-arrow-left"></i> {t('onboarding.pathB.prevStep', 'Previous Step')}
           </button>
         )}
-        <div className="onboarding-badge">PATH B: BUILD FROM SCRATCH</div>
+        <div className="onboarding-badge">{t('onboarding.pathB.badge', 'Path B: Build From Scratch')}</div>
       </div>
 
       {/* STEPPERS */}
@@ -206,16 +217,16 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       {/* STEP 1: GENERAL INFORMATION */}
       {step === 1 && (
         <div className="step-content animate-fade-in">
-          <h2>Let's Discover Your Business Vibe</h2>
-          <p className="subtitle">Tell us about your project, and we will build its entire visual and social infrastructure.</p>
+          <h2>{t('onboarding.pathB.step1Title', "Let's Discover Your Business Vibe")}</h2>
+          <p className="subtitle">{t('onboarding.pathB.step1Subtitle', 'Tell us about your project, and we will build its entire visual and social infrastructure.')}</p>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="inp_name_b">Business Name</label>
+            <label className="form-label" htmlFor="inp_name_b">{t('onboarding.businessName', 'Business Name')}</label>
             <input
               type="text"
               id="inp_name_b"
               className="input-field"
-              placeholder="e.g. Noir Cafe & Workspace"
+              placeholder={t('onboarding.pathB.namePlaceholder', 'e.g. Noir Cafe & Workspace')}
               value={formData.businessName}
               onChange={(e) => {
                 handleInputChange('businessName', e.target.value);
@@ -226,29 +237,29 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="sel_category">Business Category</label>
+            <label className="form-label" htmlFor="sel_category">{t('onboarding.businessCategory', 'Business Category')}</label>
             <select
               id="sel_category"
               className="select-field"
               value={formData.category}
               onChange={(e) => handleInputChange('category', e.target.value)}
             >
-              <option>Cafe / Coffee Shop</option>
-              <option>Beauty Salon / Spa</option>
-              <option>Co-working & Study Space</option>
-              <option>Retail Boutique / Fashion</option>
-              <option>Local Restaurant / Food</option>
-              <option>Professional Tech Agency</option>
+              <option value="Cafe / Coffee Shop">{t('onboarding.categories.cafe', 'Cafe / Coffee Shop')}</option>
+              <option value="Beauty Salon / Spa">{t('onboarding.categories.beauty', 'Beauty Salon / Spa')}</option>
+              <option value="Co-working & Study Space">{t('onboarding.categories.coworking', 'Co-working & Study Space')}</option>
+              <option value="Retail Boutique / Fashion">{t('onboarding.categories.retail', 'Retail Boutique / Fashion')}</option>
+              <option value="Local Restaurant / Food">{t('onboarding.categories.restaurant', 'Local Restaurant / Food')}</option>
+              <option value="Professional Tech Agency">{t('onboarding.categories.tech', 'Professional Tech Agency')}</option>
             </select>
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="inp_desc_b">Describe your business in 2-3 sentences</label>
+            <label className="form-label" htmlFor="inp_desc_b">{t('onboarding.pathB.descriptionLabel', 'Describe your business in 2-3 sentences')}</label>
             <textarea
               id="inp_desc_b"
               className="input-field text-area"
               rows="3"
-              placeholder="What makes your brand unique? e.g. A warm coffee shop in Tashkent serving third-wave espresso, offering high-speed WiFi booths for programmers and students, and fresh handmade Uzbek honey cakes."
+              placeholder={t('onboarding.pathB.descriptionPlaceholder', 'What makes your brand unique? e.g. A warm coffee shop in Tashkent serving third-wave espresso, offering high-speed WiFi booths for programmers and students, and fresh handmade Uzbek honey cakes.')}
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
             ></textarea>
@@ -256,14 +267,14 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
           <div className="form-group">
             <div className="flex-between">
-              <label className="form-label" htmlFor="inp_loc_b">Physical Address</label>
+              <label className="form-label" htmlFor="inp_loc_b">{t('onboarding.pathB.addressLabel', 'Physical Address')}</label>
               <label className="checkbox-label-toggle">
                 <input
                   type="checkbox"
                   checked={formData.isOnline}
                   onChange={(e) => handleInputChange('isOnline', e.target.checked)}
                 />
-                We operate online / remotely
+                {t('onboarding.onlineToggle', 'We operate online / remotely')}
               </label>
             </div>
             {!formData.isOnline && (
@@ -271,7 +282,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                 type="text"
                 id="inp_loc_b"
                 className="input-field"
-                placeholder="e.g. Amir Temur Avenue, Tashkent"
+                placeholder={t('onboarding.pathB.addressPlaceholder', 'e.g. Amir Temur Avenue, Tashkent')}
                 value={formData.location}
                 onChange={(e) => handleInputChange('location', e.target.value)}
               />
@@ -279,19 +290,19 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="inp_audience">Who is your ideal customer?</label>
+            <label className="form-label" htmlFor="inp_audience">{t('onboarding.pathB.audienceLabel', 'Who is your ideal customer?')}</label>
             <input
               type="text"
               id="inp_audience"
               className="input-field"
-              placeholder="e.g. Young programmers, designers, coffee enthusiasts, and remote workers"
+              placeholder={t('onboarding.pathB.audiencePlaceholder', 'e.g. Young programmers, designers, coffee enthusiasts, and remote workers')}
               value={formData.audience}
               onChange={(e) => handleInputChange('audience', e.target.value)}
             />
           </div>
 
           <button className="btn btn-primary w-full btn-lg" onClick={handleNextStep} disabled={!formData.businessName} id="btn_onboard_b_step1">
-            Choose Brand Tone & Slogan <i className="fa-solid fa-arrow-right"></i>
+            {t('onboarding.pathB.step1Cta', 'Choose Brand Tone & Slogan')} <i className="fa-solid fa-arrow-right"></i>
           </button>
         </div>
       )}
@@ -299,11 +310,11 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       {/* STEP 2: TONE & SLOGANS */}
       {step === 2 && (
         <div className="step-content animate-fade-in">
-          <h2>Define Your Brand Identity</h2>
-          <p className="subtitle">Pick a tone that aligns with your space, and generate a customized brand slogan.</p>
+          <h2>{t('onboarding.pathB.step2Title', 'Define Your Brand Identity')}</h2>
+          <p className="subtitle">{t('onboarding.pathB.step2Subtitle', 'Pick a tone that aligns with your space, and generate a customized brand slogan.')}</p>
 
           <div className="form-group">
-            <label className="form-label">Brand Tone</label>
+            <label className="form-label">{t('onboarding.brandTone', 'Brand Tone')}</label>
             <div className="grid-3 tone-grid">
               {['Cozy & Warm', 'Modern & Minimalist', 'Energetic & Fast-paced', 'Professional & Trustworthy', 'Playful & Fun', 'Luxury & Premium'].map((tone) => (
                 <div
@@ -312,7 +323,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                   onClick={() => handleToneChange(tone)}
                 >
                   <span className="tone-bullet"></span>
-                  {tone}
+                  {t(`onboarding.tones.${TONE_KEYS[tone]}`, tone)}
                 </div>
               ))}
             </div>
@@ -320,7 +331,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
           <div className="form-group border-top-onboard pt-20">
             <div className="flex-between align-center mb-10">
-              <label className="form-label">Custom Brand Slogan</label>
+              <label className="form-label">{t('onboarding.pathB.sloganLabel', 'Custom Brand Slogan')}</label>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
@@ -328,7 +339,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                 disabled={generatingSlogans || !formData.description}
                 id="btn_generate_slogans"
               >
-                {generatingSlogans ? 'Generating...' : 'Generate 3 AI Slogans ✦'}
+                {generatingSlogans ? t('common.generating', 'Generating...') : t('onboarding.pathB.generateSlogans', 'Generate 3 AI Slogans ✦')}
               </button>
             </div>
 
@@ -349,7 +360,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               <input
                 type="text"
                 className="input-field"
-                placeholder="Write your own slogan, or describe your cafe above and click 'Generate'"
+                placeholder={t('onboarding.pathB.sloganPlaceholder', "Write your own slogan, or describe your cafe above and click 'Generate'")}
                 value={formData.slogan}
                 onChange={(e) => handleInputChange('slogan', e.target.value)}
               />
@@ -357,9 +368,9 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           </div>
 
           <div className="action-buttons-wrap">
-            <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step2_back">Back</button>
+            <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step2_back">{t('common.back', 'Back')}</button>
             <button className="btn btn-primary" onClick={handleNextStep} id="btn_step2_next">
-              Design My Custom Logo <i className="fa-solid fa-arrow-right"></i>
+              {t('onboarding.pathB.step2Cta', 'Design My Custom Logo')} <i className="fa-solid fa-arrow-right"></i>
             </button>
           </div>
         </div>
@@ -368,13 +379,13 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       {/* STEP 3: LOGO DESIGNER */}
       {step === 3 && (
         <div className="step-content animate-fade-in">
-          <h2>Create Your Brand Icon</h2>
-          <p className="subtitle">Customize your visual emblem. Our logo engine will render layouts tailored to your business theme.</p>
+          <h2>{t('onboarding.pathB.step3Title', 'Create Your Brand Icon')}</h2>
+          <p className="subtitle">{t('onboarding.pathB.step3Subtitle', 'Customize your visual emblem. Our logo engine will render layouts tailored to your business theme.')}</p>
 
           <div className="grid-2 logo-designer-grid">
             <div className="logo-controls">
               <div className="form-group">
-                <label className="form-label" htmlFor="inp_logo_text">Logo Text</label>
+                <label className="form-label" htmlFor="inp_logo_text">{t('onboarding.logoText', 'Logo Text')}</label>
                 <input
                   type="text"
                   id="inp_logo_text"
@@ -385,7 +396,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Emblem Shape</label>
+                <label className="form-label">{t('onboarding.pathB.shapeLabel', 'Emblem Shape')}</label>
                 <div className="flex-gap-8">
                   {['circle', 'square', 'hexagon', 'shield'].map((shape) => (
                     <button
@@ -394,14 +405,14 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                       className={`btn btn-secondary btn-sm shape-btn ${logoStyle.shape === shape ? 'active' : ''}`}
                       onClick={() => setLogoStyle(p => ({ ...p, shape }))}
                     >
-                      {shape}
+                      {t(`onboarding.shapes.${shape}`, shape)}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Icon Symbol</label>
+                <label className="form-label">{t('onboarding.pathB.iconLabel', 'Icon Symbol')}</label>
                 <div className="flex-gap-8">
                   {['☕', '✦', '⚡', '🛡️', '👑', '💄', '🍕', '💼'].map((symbol) => (
                     <button
@@ -417,7 +428,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Color Themes</label>
+                <label className="form-label">{t('onboarding.pathB.colorLabel', 'Color Themes')}</label>
                 <div className="color-presets">
                   {['#D4A373', '#FF7F11', '#3A86F0', '#FF007F', '#E5C158', '#06D6A0'].map((colorHex) => (
                     <div
@@ -433,7 +444,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
             {/* LIVE PREVIEW OF LOGO USING SVG LAYOUTS */}
             <div className="logo-preview-card glass-card text-center">
-              <span className="logo-preview-title">Vector SVG Blueprint</span>
+              <span className="logo-preview-title">{t('onboarding.pathB.logoPreviewTitle', 'Vector SVG Blueprint')}</span>
               <div className="logo-canvas-wrap" style={{ backgroundColor: logoStyle.bgColor }}>
                 <div className={`logo-canvas-shape ${logoStyle.shape}`} style={{ borderColor: logoStyle.color, color: logoStyle.color }}>
                   <span className="logo-canvas-icon">{logoStyle.icon}</span>
@@ -441,14 +452,14 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                 <h3 className="logo-canvas-text" style={{ color: logoStyle.color }}>{formData.logoText || formData.businessName}</h3>
                 <small className="logo-canvas-slogan">{formData.slogan}</small>
               </div>
-              <p className="text-muted mt-10"><i className="fa-solid fa-sparkles"></i> AI generates full visual assets from this design guidelines</p>
+              <p className="text-muted mt-10"><i className="fa-solid fa-sparkles"></i> {t('onboarding.pathB.logoPreviewNote', 'AI generates full visual assets from these design guidelines')}</p>
             </div>
           </div>
 
           <div className="action-buttons-wrap">
-            <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step3_back">Back</button>
+            <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step3_back">{t('common.back', 'Back')}</button>
             <button className="btn btn-primary" onClick={handleNextStep} id="btn_step3_next">
-              Select Social Channels <i className="fa-solid fa-arrow-right"></i>
+              {t('onboarding.pathB.step3Cta', 'Select Social Channels')} <i className="fa-solid fa-arrow-right"></i>
             </button>
           </div>
         </div>
@@ -457,8 +468,8 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       {/* STEP 4: CHANNELS SELECTION */}
       {step === 4 && (
         <div className="step-content animate-fade-in">
-          <h2>Select Channels to Initialize</h2>
-          <p className="subtitle">Choose which accounts to scaffold automatically. Markivo creates draft structures verified for Central Asia.</p>
+          <h2>{t('onboarding.pathB.step4Title', 'Select Channels to Initialize')}</h2>
+          <p className="subtitle">{t('onboarding.pathB.step4Subtitle', 'Choose which accounts to scaffold automatically. Markivo creates draft structures verified for Central Asia.')}</p>
 
           <div className="results-grid">
             {/* GOOGLE BUSINESS */}
@@ -466,8 +477,8 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               <div className="result-status">
                 <span className="platform-icon google"><i className="fa-brands fa-google"></i></span>
                 <div>
-                  <h4>Google Business Profile</h4>
-                  <p>Connect via OAuth to manage your Business Profile</p>
+                  <h4>{t('onboarding.channels.googleTitle', 'Google Business Profile')}</h4>
+                  <p>{t('onboarding.channels.googleOauth', 'Connect via OAuth to manage your Business Profile')}</p>
                 </div>
               </div>
               <div className="checkbox-wrap">
@@ -480,8 +491,8 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               <div className="result-status">
                 <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
                 <div>
-                  <h4>Instagram Creator Account</h4>
-                  <p>Connect via OAuth to manage your Instagram account</p>
+                  <h4>{t('onboarding.channels.instagramTitle', 'Instagram Creator Account')}</h4>
+                  <p>{t('onboarding.channels.instagramOauth', 'Connect via OAuth to manage your Instagram account')}</p>
                 </div>
               </div>
               <div className="checkbox-wrap">
@@ -494,8 +505,8 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               <div className="result-status">
                 <span className="platform-icon telegram"><i className="fa-brands fa-telegram"></i></span>
                 <div>
-                  <h4>Telegram Business Channel</h4>
-                  <p>Connect via OAuth to manage your Telegram channel</p>
+                  <h4>{t('onboarding.channels.telegramTitle', 'Telegram Business Channel')}</h4>
+                  <p>{t('onboarding.channels.telegramOauth', 'Connect via OAuth to manage your Telegram channel')}</p>
                 </div>
               </div>
               <div className="checkbox-wrap">
@@ -505,9 +516,9 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           </div>
 
           <div className="action-buttons-wrap">
-            <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step4_back">Back</button>
+            <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step4_back">{t('common.back', 'Back')}</button>
             <button className="btn btn-accent btn-lg" onClick={startActionPipeline} id="btn_start_pipeline">
-              Scaffold My Business <i className="fa-solid fa-rocket animate-pulse"></i>
+              {t('onboarding.pathB.scaffoldCta', 'Scaffold My Business')} <i className="fa-solid fa-rocket animate-pulse"></i>
             </button>
           </div>
         </div>
@@ -516,8 +527,8 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       {/* STEP 5: PIPELINE EXECUTION */}
       {step === 5 && (
         <div className="step-content text-center py-40">
-          <h2>Constructing Your Digital Infrastructure</h2>
-          <p className="subtitle">Please wait while Markivo's AI engine creates and registers your digital profiles.</p>
+          <h2>{t('onboarding.pipeline.title', 'Constructing Your Digital Infrastructure')}</h2>
+          <p className="subtitle">{t('onboarding.pipeline.subtitle', "Please wait while Markivo's AI engine creates and registers your digital profiles.")}</p>
 
           <div className="pipeline-console glass-card text-left">
             <div className="console-header">
@@ -534,9 +545,9 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
                 return (
                   <div key={index} className={`console-line ${isCompleted ? 'line-done' : ''} ${isCurrent ? 'line-current' : ''} ${isPending ? 'line-pending' : ''}`}>
-                    {isCompleted && <span className="line-symbol text-success"><i className="fa-solid fa-check-double"></i> SUCCESS</span>}
-                    {isCurrent && <span className="line-symbol text-accent animate-pulse"><i className="fa-solid fa-spinner fa-spin"></i> RUNNING</span>}
-                    {isPending && <span className="line-symbol text-muted"><i className="fa-regular fa-clock"></i> PENDING</span>}
+                    {isCompleted && <span className="line-symbol text-success"><i className="fa-solid fa-check-double"></i> {t('onboarding.pipeline.statusSuccess', 'SUCCESS')}</span>}
+                    {isCurrent && <span className="line-symbol text-accent animate-pulse"><i className="fa-solid fa-spinner fa-spin"></i> {t('onboarding.pipeline.statusRunning', 'RUNNING')}</span>}
+                    {isPending && <span className="line-symbol text-muted"><i className="fa-regular fa-clock"></i> {t('onboarding.pipeline.statusPending', 'PENDING')}</span>}
                     <span className="line-text"><i className={`fa-solid ${log.icon} ml-10`}></i> {log.text}</span>
                   </div>
                 );

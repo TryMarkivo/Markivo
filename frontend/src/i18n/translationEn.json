@@ -3,6 +3,27 @@
     "title": "Markivo",
     "tagline": "AI-powered marketing OS for businesses"
   },
+  "common": {
+    "brandName": "Markivo",
+    "comingSoon": "Coming soon",
+    "tryAgain": "Try Again",
+    "generating": "Generating...",
+    "back": "Back",
+    "discard": "Discard",
+    "done": "Done",
+    "somethingWentWrong": "Something went wrong",
+    "active": "Active",
+    "scanMyPresence": "Scan My Digital Presence",
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "next": "Next",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "pleaseWait": "Please wait..."
+  },
   "auth": {
     "login": "Sign In",
     "register": "Create Account",
@@ -14,11 +35,167 @@
     "alreadyHaveAccount": "Already have an account?",
     "loginError": "Sign in failed",
     "registerSuccess": "Account created successfully!",
-    "networkError": "Connection error. Please ensure the backend server is running."
+    "networkError": "Could not reach the server. Please ensure the backend is running.",
+    "failed": "Authentication failed",
+    "createAccountTitle": "Create Your Account",
+    "welcomeBack": "Welcome Back",
+    "registerCta": "Register Account",
+    "fullNamePlaceholder": "e.g. Alisher Usmanov",
+    "emailPlaceholder": "name@business.com",
+    "newToMarkivo": "New to Markivo?"
+  },
+  "usage": {
+    "label": "AI generations",
+    "count": "{{used}} / {{limit}}",
+    "tierPlan": "{{tier}} plan",
+    "resetsTitle": "Resets {{date}}",
+    "tiers": {
+      "free": "Free",
+      "pro": "Pro",
+      "ultimate": "Ultimate"
+    }
+  },
+  "landing": {
+    "nav": {
+      "how": "How it works",
+      "features": "Features",
+      "pricing": "Pricing"
+    },
+    "header": {
+      "goToDashboard": "Go to Dashboard",
+      "getStarted": "Get Started"
+    },
+    "hero": {
+      "badge": "✦ THE AI MARKETING PLATFORM",
+      "titlePre": "From",
+      "titleHighlight": "zero",
+      "titlePost": "to fully running.",
+      "subtitle": "Markivo is an all-in-one marketing platform that builds, manages, and grows your business's entire online presence — across every channel, in any language, fully autonomously. Native Uzbek, Russian, and English.",
+      "ctaDashboard": "Go to My Dashboard",
+      "ctaBuild": "Build My Presence From Zero",
+      "ctaScan": "Scan My Existing Brand"
+    },
+    "preview": {
+      "demoBrand": "☕ Cafe Noir",
+      "menuDashboard": "Dashboard",
+      "menuContent": "Content Engine",
+      "menuCompetitors": "Competitor Gaps",
+      "statGoogle": "Google Maps Views",
+      "statInstagram": "Instagram Growth",
+      "agentName": "Markiv — AI Marketing Agent",
+      "agentStatus": "Drafted & scheduled, pending your approval",
+      "postText": "\"Looking for the best espresso in Tashkent? ☕ We've got you covered with fresh local pastries and cozy workspace booths!\"",
+      "approved": "Approved",
+      "uzRuReady": "Uzbek/Russian Ready"
+    },
+    "problem": {
+      "title": "Millions of businesses have no marketing — and no idea where to start.",
+      "card1Title": "No team, no time",
+      "card1Text": "Owner-operators do everything themselves. Marketing falls to the bottom of the list — or never happens at all.",
+      "card2Title": "Tools assume you exist",
+      "card2Text": "HubSpot, Hootsuite and the rest are built for businesses that already have a presence, a budget, and a marketer.",
+      "card3Title": "Emerging markets ignored",
+      "card3Text": "In Uzbekistan, Central Asia and the CIS, businesses are hungry for digital growth — but the tools aren't in their language.",
+      "gap": "The gap: every existing tool helps you <1>manage</1> marketing. None of them <3>start it for you.</3>"
+    },
+    "paths": {
+      "title": "Two paths. One outcome: a business that's fully online.",
+      "subtitle": "Markivo either discovers your existing presence — or builds one entirely from scratch — then runs it on autopilot.",
+      "pathALabel": "PATH A",
+      "pathATitle": "\"I already have something\"",
+      "pathAStep1": "Scan the web for accounts, maps listing, reviews & ads",
+      "pathAStep2": "See everything found in a confirm / reject view",
+      "pathAStep3": "Connect verified platforms securely",
+      "pathAStep4": "Dashboard fills with live data instantly",
+      "pathACta": "Scan My Digital Presence",
+      "pathBLabel": "PATH B",
+      "pathBTitle": "\"I have nothing yet\"",
+      "pathBStep1": "Guided wizard: category, brand tone, audience",
+      "pathBStep2": "AI generates your slogan + logo, on brand",
+      "pathBStep3": "Sets up Google Business & social channels",
+      "pathBStep4": "Builds the first content calendar — then posts",
+      "pathBCta": "Build From Scratch",
+      "outro": "Once set up, <1>Markiv</1> — your AI agent — takes over the day-to-day: content, inbox, analytics and growth. Day after day."
+    },
+    "features": {
+      "title": "One platform replaces an entire marketing stack.",
+      "subtitle": "Everything you need to capture customers locally and globally",
+      "brandTitle": "Brand & identity",
+      "brandText": "AI logo, slogan and tone-of-voice generated in seconds — a complete identity before your first post.",
+      "postingTitle": "Multi-platform posting",
+      "postingText": "Instagram, TikTok, Telegram, X & Google — written, scheduled and published from one place.",
+      "contentTitle": "Content engine",
+      "contentText": "Shoot tips, automatic photo & video enhancement, and AI-generated video tuned to each platform.",
+      "inboxTitle": "Inbox agent",
+      "inboxText": "Gmail summarized, sorted and auto-replied — and it learns your answers as it goes.",
+      "seoTitle": "SEO + AI search",
+      "seoText": "Rank on Google — and surface inside ChatGPT & Perplexity, where your customers now search.",
+      "intelTitle": "Competitor intel",
+      "intelText": "Track rivals' posting, growth and gaps automatically — and get moves to counter them."
+    },
+    "pricing": {
+      "title": "Freemium that converts — three simple tiers.",
+      "subtitle": "Start free, unlock the autonomous marketing team when you're ready to scale",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "save20": "Save 20%",
+      "perMonth": "/mo",
+      "free": {
+        "name": "Free",
+        "desc": "The hook — everything to get online",
+        "feat1": "Full onboarding — both paths",
+        "feat2": "AI logo & slogan generation",
+        "feat3": "Google Business setup",
+        "feat4": "Social channels connected",
+        "feat5": "25 AI generations / month",
+        "cta": "Get Started Free"
+      },
+      "pro": {
+        "badge": "MOST VALUE",
+        "name": "Pro",
+        "desc": "Ideal for active, growing businesses",
+        "feat1": "Everything in Free",
+        "feat2": "AI image enhance & editor",
+        "feat3": "AI video — 3 / week",
+        "feat4": "Gmail summary & sorting",
+        "feat5": "Markiv agent · 100 generations / mo",
+        "cta": "Scale Up Now"
+      },
+      "ultimate": {
+        "name": "Ultimate",
+        "desc": "A full autonomous marketing team",
+        "feat1": "Everything in Pro",
+        "feat2": "AI video — 7 / week",
+        "feat3": "Gmail auto-reply (learns you)",
+        "feat4": "AI website generation",
+        "feat5": "Markiv agent · 250 generations / mo",
+        "cta": "Go Autonomous"
+      }
+    },
+    "founder": {
+      "title": "Built by someone who's done it for real.",
+      "name": "Elshod — Founder & Builder",
+      "meta": "CS + Business · ships solo · UZ / RU / EN",
+      "point1Title": "Builds the whole thing.",
+      "point1Text": "CS background — architects the AI agents, automations and data pipelines, and ships the product solo.",
+      "point2Title": "Thinks in solutions.",
+      "point2Text": "A business education means features that solve real owner problems, not tech for its own sake.",
+      "point3Title": "Owns the market.",
+      "point3Text": "Deep Uzbekistan knowledge, where demand for digital growth is high and the tools are absent.",
+      "point4Title": "Lived experience.",
+      "point4Text": "Personally ran full marketing for a local business — this product exists because that job was too hard."
+    },
+    "cta": {
+      "titlePre": "Let's give every business a marketing team —",
+      "titleHighlight": "in code.",
+      "subtitle": "Markivo turns zero into a fully-running online presence — autonomously, multilingually, and in the markets the giants ignore.",
+      "button": "Start Free Today"
+    },
+    "footer": {
+      "copyright": "© {{year}} Markivo. From zero to fully running. All rights reserved."
+    }
   },
   "onboarding": {
-    "pathA": "Path A: Discovery Mode",
-    "pathB": "Path B: Build From Scratch",
     "step1": "1. General Information",
     "step2": "2. Brand Identity",
     "step3": "3. Logo Design",
@@ -40,7 +217,152 @@
     "scanComplete": "Scan Complete!",
     "rescan": "Rescan",
     "connectChannels": "Connect Channels",
-    "enterDashboard": "Enter Dashboard"
+    "enterDashboard": "Enter Dashboard",
+    "pathA": {
+      "badge": "Path A: Discovery Mode",
+      "back": "Back to Home",
+      "title": "Scan Your Existing Marketing Channels",
+      "subtitle": "Enter your business name and location, and our AI scanner will search the web to aggregate your reviews, social channels, and search presence.",
+      "namePlaceholder": "e.g. Noir Coffee & Workspace",
+      "locationLabel": "City / Location",
+      "locationPlaceholder": "e.g. Tashkent",
+      "scanCta": "Scan My Digital Presence"
+    },
+    "pathB": {
+      "badge": "Path B: Build From Scratch",
+      "prevStep": "Previous Step",
+      "step1Title": "Let's Discover Your Business Vibe",
+      "step1Subtitle": "Tell us about your project, and we will build its entire visual and social infrastructure.",
+      "namePlaceholder": "e.g. Noir Cafe & Workspace",
+      "descriptionLabel": "Describe your business in 2-3 sentences",
+      "descriptionPlaceholder": "What makes your brand unique? e.g. A warm coffee shop in Tashkent serving third-wave espresso, offering high-speed WiFi booths for programmers and students, and fresh handmade Uzbek honey cakes.",
+      "addressLabel": "Physical Address",
+      "addressPlaceholder": "e.g. Amir Temur Avenue, Tashkent",
+      "audienceLabel": "Who is your ideal customer?",
+      "audiencePlaceholder": "e.g. Young programmers, designers, coffee enthusiasts, and remote workers",
+      "step1Cta": "Choose Brand Tone & Slogan",
+      "step2Title": "Define Your Brand Identity",
+      "step2Subtitle": "Pick a tone that aligns with your space, and generate a customized brand slogan.",
+      "sloganLabel": "Custom Brand Slogan",
+      "generateSlogans": "Generate 3 AI Slogans ✦",
+      "sloganPlaceholder": "Write your own slogan, or describe your cafe above and click 'Generate'",
+      "step2Cta": "Design My Custom Logo",
+      "step3Title": "Create Your Brand Icon",
+      "step3Subtitle": "Customize your visual emblem. Our logo engine will render layouts tailored to your business theme.",
+      "shapeLabel": "Emblem Shape",
+      "iconLabel": "Icon Symbol",
+      "colorLabel": "Color Themes",
+      "logoPreviewTitle": "Vector SVG Blueprint",
+      "logoPreviewNote": "AI generates full visual assets from these design guidelines",
+      "step3Cta": "Select Social Channels",
+      "step4Title": "Select Channels to Initialize",
+      "step4Subtitle": "Choose which accounts to scaffold automatically. Markivo creates draft structures verified for Central Asia.",
+      "scaffoldCta": "Scaffold My Business"
+    },
+    "categories": {
+      "cafe": "Cafe / Coffee Shop",
+      "beauty": "Beauty Salon / Spa",
+      "coworking": "Co-working & Study Space",
+      "retail": "Retail Boutique / Fashion",
+      "restaurant": "Local Restaurant / Food",
+      "tech": "Professional Tech Agency"
+    },
+    "tones": {
+      "cozy": "Cozy & Warm",
+      "modern": "Modern & Minimalist",
+      "energetic": "Energetic & Fast-paced",
+      "professional": "Professional & Trustworthy",
+      "playful": "Playful & Fun",
+      "luxury": "Luxury & Premium"
+    },
+    "shapes": {
+      "circle": "circle",
+      "square": "square",
+      "hexagon": "hexagon",
+      "shield": "shield"
+    },
+    "channels": {
+      "googleTitle": "Google Business Profile",
+      "googleOauth": "Connect via OAuth to manage your Business Profile",
+      "instagramTitle": "Instagram Creator Account",
+      "instagramOauth": "Connect via OAuth to manage your Instagram account",
+      "telegramTitle": "Telegram Business Channel",
+      "telegramOauth": "Connect via OAuth to manage your Telegram channel"
+    },
+    "scan": {
+      "starsTitle": "{{rating}} / 5",
+      "statusInit": "Initiating global scan...",
+      "statusMaps": "Scanning Google Maps...",
+      "statusSocial": "Discovering social media accounts (@Handles)...",
+      "statusReviews": "Checking reviews & nearby competitors...",
+      "statusAi": "Checking AI visibility in ChatGPT / Perplexity...",
+      "statusComplete": "Scan complete! Compiling results...",
+      "title": "Scanning Digital Footprint",
+      "progress": "{{percent}}% completed",
+      "errorTitle": "The scan could not be completed",
+      "errorFallback": "The discovery scan failed. Please try again."
+    },
+    "results": {
+      "title": "Scan Results",
+      "foundTitle": "We Found Your Business!",
+      "subtitle": "Toggle which platforms you'd like to sync into the Markivo central dashboard. We'll populate your dashboard with active data in Uzbek, Russian, and English.",
+      "googleVerifiedTitle": "Listed as operational on Google",
+      "onGoogle": "On Google",
+      "ratingReviews_one": "{{rating}} · {{count}} review",
+      "ratingReviews_other": "{{rating}} · {{count}} reviews",
+      "viewOnMaps": "View on Google Maps",
+      "googleNotFoundTitle": "Not found on Google Maps",
+      "googleNotFoundText": "We couldn't find \"{{businessName}}\" in {{location}}. Check the spelling and location, or create a Google Business Profile — Markivo will guide you later.",
+      "alternativesIntro": "Not your business? We also found:",
+      "alternativeItem": "· {{name}} — {{address}} (★ {{rating}})",
+      "instagramTitle": "Instagram Handle",
+      "instagramNotFoundTitle": "Instagram not detected",
+      "instagramNotFoundText": "No public account found automatically — you can connect it later from the dashboard.",
+      "telegramSyncText": "Sync your channel into the Markivo dashboard",
+      "telegramSoonText": "Channel management and AI publishing for Telegram arrive right after the MVP.",
+      "insightTitle": "AI Local Discovery Scan Insight",
+      "insightFoundBase": "\"{{name}}\" is live on Google Maps",
+      "insightFoundRating": " with a {{rating}}★ rating across {{count}} reviews",
+      "insightFoundCompetitors_one": ", and we spotted {{count}} similar business competing nearby",
+      "insightFoundCompetitors_other": ", and we spotted {{count}} similar businesses competing nearby",
+      "insightFoundTail": ". Connecting your channels lets the Markivo agent track competitors, strengthen your local SEO, and draft content tuned to your audience.",
+      "insightNotFound": "We couldn't confirm a Google Maps listing yet — that's the single highest-impact channel for local discovery. Markivo will help you establish your presence and start tracking competitors from day one.",
+      "confirmCta": "Connect Channels & Enter Dashboard"
+    },
+    "pipeline": {
+      "title": "Constructing Your Digital Infrastructure",
+      "subtitle": "Please wait while Markivo's AI engine creates and registers your digital profiles.",
+      "logBrand": "Generating brand identity visual package...",
+      "logLogo": "Saving high-res SVG & PNG logo layouts...",
+      "logGoogle": "Configuring Google Business Profile endpoints...",
+      "logInstagram": "Scaffolding Instagram Business profile structure...",
+      "logTelegram": "Establishing secure Telegram channel webhook bot...",
+      "logSeo": "Compiling SEO semantic metadata and Tashkent keyword tags...",
+      "logCalendar": "Scheduling inaugural calendar AI post drafts...",
+      "statusSuccess": "SUCCESS",
+      "statusRunning": "RUNNING",
+      "statusPending": "PENDING"
+    },
+    "mockSlogans": {
+      "cozy1": "A cozy corner for your day.",
+      "cozy2": "Warm flavors, local connections.",
+      "cozy3": "Handcrafted comfort, daily.",
+      "modern1": "Simply better {{category}}.",
+      "modern2": "Aesthetic simplicity.",
+      "modern3": "Modern taste.",
+      "energetic1": "Fuel your hustle.",
+      "energetic2": "Fast. Fresh. Bold.",
+      "energetic3": "Get up and go.",
+      "professional1": "Quality you can count on.",
+      "professional2": "Excellence served daily.",
+      "professional3": "Your local favorite.",
+      "playful1": "Fun times, fresh vibes!",
+      "playful2": "Yum in every bite.",
+      "playful3": "Your happy place.",
+      "luxury1": "The luxury of fine taste.",
+      "luxury2": "Elevate your standard.",
+      "luxury3": "Premium choice."
+    }
   },
   "dashboard": {
     "title": "Marketing Dashboard",
@@ -50,10 +372,53 @@
     "views": "Views",
     "calls": "Calls",
     "directions": "Direction Requests",
-    "seo": "SEO",
-    "aiSearch": "AI Search",
     "competitors": "Competitors",
-    "contentCalendar": "Content Calendar"
+    "contentCalendar": "Content Calendar",
+    "loading": "Loading Command Center...",
+    "exit": "Exit Dashboard",
+    "defaultLocation": "Tashkent, Uzbekistan",
+    "systemOperational": "System Operational",
+    "versionBadge": "V1 Live",
+    "activeInfrastructure": "Your Active Infrastructure",
+    "settingsTab": "Settings",
+    "nav": {
+      "metrics": "Metrics & Search",
+      "content": "AI Content Engine",
+      "competitors": "Competitor Intel"
+    },
+    "channels": {
+      "google": "Google Profile"
+    },
+    "stats": {
+      "googleViews": "Google Maps Search Views",
+      "instagramFollowers": "Instagram Followers",
+      "telegramMembers": "Telegram Channel Members",
+      "past30Days": "past 30 days",
+      "changePositive": "+{{change}}%"
+    },
+    "seo": {
+      "title": "Local SEO Rankings",
+      "subtitle": "How your business ranks in Tashkent search results",
+      "keywordCol": "Search Keyword",
+      "positionCol": "Avg. Position",
+      "volumeCol": "Volume",
+      "volume": {
+        "high": "High",
+        "medium": "Medium",
+        "veryHigh": "Very High"
+      }
+    },
+    "aiSearch": {
+      "title": "AI Search Visibility",
+      "subtitle": "How models recommend you in natural chat queries",
+      "indexLabel": "index",
+      "optimised": "Highly Search Optimised",
+      "citedIn": "Cited in <1>{{count}} distinct</1> search models this week.",
+      "chatgptRank": "ChatGPT recommendation rank",
+      "perplexityCitations": "Perplexity Citations",
+      "active": "Active",
+      "rankTop10": "Top 10"
+    }
   },
   "contentEngine": {
     "title": "Content Engine",
@@ -64,22 +429,204 @@
     "uploadEnhance": "Upload & Enhance",
     "aiVideo": "AI Videos (Pro/Ultimate)"
   },
+  "content": {
+    "copywriter": {
+      "title": "Multilingual AI Copywriter",
+      "subtitle": "Generate scheduled posts formatted specifically per channel",
+      "platformLabel": "Destination Platform",
+      "languageLabel": "Post Language",
+      "langEn": "🇬🇧 English",
+      "langMulti": "🌐 EN + UZ + RU",
+      "topicLabel": "What is the focus of this post?",
+      "topicPlaceholder": "e.g. Free honeycomb cake slices with every double espresso this weekend!",
+      "generating": "Crafting localized drafts...",
+      "generateCta": "Generate Platform Drafts ✦"
+    },
+    "output": {
+      "toneOptimized": "Platform Tone-Optimized",
+      "langEn": "English",
+      "langMulti": "English + Uzbek + Russian",
+      "mediaTipTitle": "Recommended Photography Frame",
+      "approveSchedule": "Approve & Schedule",
+      "scheduled": "Scheduled"
+    },
+    "telegram": {
+      "postNow": "Post to {{chatTitle}} now",
+      "publishing": "Publishing…",
+      "published": "Published to Telegram",
+      "postFailed": "Posting failed"
+    },
+    "enhancer": {
+      "title": "AI Photo Enhancement",
+      "subtitle": "Upload smartphone photos and let our AI optimize brightness, textures & contrast",
+      "afterLabel": "Enhanced AI Frame",
+      "beforeLabel": "Raw Phone Photo",
+      "hint": "Hover or drag across the frame to preview raw smartphone vs. AI optimized results"
+    },
+    "tutorials": {
+      "title": "Dynamic Phone Photography Guide",
+      "subtitle": "Step-by-step creative angles customized to <1>{{category}}</1> spaces",
+      "cafe": {
+        "step1Title": "1. The Perfect Steam Pour",
+        "step1Tip": "Use a slow panning motion holding your phone at a 45-degree angle. Zoom 2x to isolate the cup detail against a soft-focus background.",
+        "step2Title": "2. Golden Hour Lighting",
+        "step2Tip": "Shoot near your main windows between 4:00 PM and 5:30 PM. Let the natural local light trace the edge of coffee cups or pastries.",
+        "step3Title": "3. Cozy Booth Workspace Vibe",
+        "step3Tip": "Stand at the corner of a booth. Place a laptop showing active code or designs next to a freshly served cappuccino to simulate standard workspaces."
+      },
+      "beauty": {
+        "step1Title": "1. Crisp Close-up Texture",
+        "step1Tip": "Use ring-light setups directly facing the client. Focus on clean hair cutlines or macro shot lashes at 3x zoom.",
+        "step2Title": "2. Before / After Frames",
+        "step2Tip": "Position the client in the exact same chair, maintaining the head alignment to ensure clean side-by-side post comparisons."
+      }
+    },
+    "fallback": {
+      "post": "✨ Special offer from #{{businessName}}! ✨\n\nLooking for the perfect spot? {{topic}}\n\n📍 Visit us today in Tashkent!\n\n#localbusiness #tashkent #vibe",
+      "mediaTip": "📸 Tip: Snap a landscape photo of your storefront at dusk with warm interior lighting glowing through the windows."
+    }
+  },
+  "competitors": {
+    "benchmark": {
+      "title": "Local Competitor Benchmark",
+      "subtitle": "How your channel infrastructure compares to nearby local brands",
+      "colName": "Brand Name",
+      "colChannels": "Channels",
+      "colCadence": "Cadence",
+      "colFollowers": "Followers",
+      "you": "You (Active Profile)",
+      "connectedCount": "{{count}} Connected",
+      "perWeek": "{{count}} / week",
+      "channelsCount_one": "{{count}} channel",
+      "channelsCount_other": "{{count}} channels",
+      "ratingSuffix": " · ★ {{rating}}"
+    },
+    "frequency": {
+      "title": "Weekly Posting Frequency",
+      "subtitle": "Benchmark of content frequency across competing channels",
+      "axisLabel": "{{count}} / wk",
+      "you": "You",
+      "compA": "Comp A",
+      "compB": "Comp B",
+      "compC": "Global C"
+    },
+    "gaps": {
+      "title": "Actionable AI Moat Recommendations",
+      "cadenceTitle": "Post Cadence Alert",
+      "cadenceTextKnown": "Your primary local competitor <1>{{name}}</1> posts average <3>{{count}} times</3> per week. You post <5>{{yourCount}} times</5>.",
+      "cadenceTextUnknown": "Your primary local competitor <1>{{name}}</1> is active on Google Maps{{ratingPart}}. Consistent posting is your fastest way to stand out locally.",
+      "cadenceRating": " with a ★ {{rating}} rating",
+      "nearbyFallback": "nearby",
+      "solutionLabel": "💡 Solution:",
+      "cadenceSolution": "Schedule at least 4 more AI posts in your Content Engine to close the visibility gap.",
+      "seoTitle": "SEO Keyword Gaps",
+      "seoText": "Nearby competitors are actively ranking for <1>\"aesthetic {{category}} study area\"</1>. You are completely missing this local search vector.",
+      "seoSolution": "Include terms like \"quiet study area\" or \"study booth\" in your next generated Telegram content copy."
+    }
+  },
   "agent": {
     "title": "AI Agent",
-    "greeting": "Hello! I'm your AI Agent. How can I help you?",
     "welcome": "Welcome!",
-    "typing": "Typing..."
+    "typing": "Typing...",
+    "greeting": "Hi! I'm Markiv 🤖 — your marketing agent. I can draft content, analyse competitors, and post straight to your Telegram channel when you ask.\n\nWhat shall we work on today?",
+    "justNow": "Just now",
+    "subtitle": "Your AI marketing agent",
+    "inputPlaceholder": "Ask AI Agent to execute...",
+    "authorizationNeeded": "This action needs your authorization. Please review the request below.",
+    "fallback": {
+      "instagramDraft": "I've prepared a highly optimized Instagram draft post for you in your Content Engine tab. It highlights your custom brand tone \"{{tone}}\" and is ready for publishing with local hashtags. Let me know if you would like me to schedule it!",
+      "competitorGap": "I ran a local gap analysis. Your nearby competitors post average 8-12 times a week. Your current scheduling cadence is 3 times a week. I suggest scheduling 3-4 more items in your content calendar this week to boost organic engagement!",
+      "generic": "I understand you want to \"{{query}}\". I can draft copy, review competitor trends, or optimize your Google Profile keywords. Type 'create ad campaign' or click the suggestions below to authorize external changes."
+    },
+    "prompts": {
+      "draftAnnouncement": "Draft a short announcement post for our business",
+      "postTelegram": "Post a friendly update about our business to Telegram",
+      "connectTelegram": "How do I connect my Telegram channel?",
+      "instagramCopy": "Generate Instagram post copy",
+      "competitorGaps": "Check competitor gaps",
+      "createAd": "Create ad campaign"
+    },
+    "suggestions": {
+      "draftAnnouncement": "📣 Draft announcement",
+      "postTelegram": "📣 Post to Telegram",
+      "instagram": "✍️ Draft Instagram post",
+      "gaps": "📊 Check competitor gaps",
+      "ad": "🚀 Create ad campaign"
+    },
+    "approval": {
+      "titleSuffix": "{{action}} — APPROVAL REQUIRED",
+      "defaultAction": "Action",
+      "subtitle": "Requires direct human confirmation",
+      "actionLabel": "Action:",
+      "costLabel": "Cost:",
+      "destinationLabel": "Destination:",
+      "reject": "Disapprove & Cancel",
+      "approve": "Approve & Execute",
+      "executing": "Executing...",
+      "executed": "✅ Action approved and executed!",
+      "simulated": "✅ Action approved! (Simulated — server offline.)",
+      "error": "The action could not be executed. Please try again.",
+      "mockAction": "Create Meta Ad Campaign",
+      "mockCost": "$5.00 / day",
+      "mockTarget": "Tashkent, remote workers (2-5km radius)",
+      "mockCreative": "🎯 Preview: \"Experience the ultimate {{category}} vibe at #{{businessName}}! High-speed Wi-Fi, handcrafted coffee, and quiet study booths ready for you.\""
+    }
   },
-  "common": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "submit": "Submit",
-    "back": "Back",
-    "next": "Next",
-    "close": "Close",
-    "loading": "Loading...",
-    "error": "Error",
-    "success": "Success",
-    "pleaseWait": "Please wait..."
+  "telegram": {
+    "setupTitle": "Telegram Setup",
+    "connectedNotice": "Bot @{{username}} connected and branded with your business identity ✓",
+    "linkedNotice": "Linked to \"{{chatTitle}}\" ✓",
+    "step1Title": "Step 1 of 2 — Create your business bot (~1 minute)",
+    "step1Item1": "Open <1>@BotFather</1> in Telegram",
+    "step1Item2": "Send <1>/newbot</1> and follow the two prompts",
+    "step1Item3": "Copy the <1>API token</1> BotFather gives you and paste it below",
+    "step1Note": "Once you paste the token, Markivo automatically brands the bot with your business name, description, and slogan.",
+    "botTokenLabel": "Bot API Token",
+    "botTokenPlaceholder": "e.g. 1234567890:ABCdefGhIJKlmNoPQRstuVWxyZ...",
+    "connecting": "Connecting & branding your bot…",
+    "connectCta": "Connect & Brand My Bot ✦",
+    "step2Title": "Step 2 of 2 — Link your channel or group",
+    "step2Text": "Add <1>@{{username}}</1> to your Telegram channel as an <3>administrator</3> (with \"Post messages\" permission), or to your group as a member. Then click detect:",
+    "detecting": "Looking for your channel…",
+    "detectCta": "🔍 Detect My Channel",
+    "manualLabel": "Or enter it manually",
+    "manualPlaceholder": "@yourchannel",
+    "linkCta": "Link",
+    "doneTitle": "Telegram is fully connected!",
+    "doneText": "Bot <1>@{{username}}</1> posts to <3>{{chatTitle}}</3> ({{chatType}}).",
+    "doneHint": "Now just tell <1>Markiv</1> in the chat panel: <3>\"Post our weekend offer to Telegram\"</3> — you approve, it publishes. 🚀",
+    "chatTypes": {
+      "channel": "channel",
+      "group": "group"
+    },
+    "pillTitleSoon": "Telegram integration is coming soon",
+    "pillTitleBot": "Bot @{{username}}",
+    "pillTitleConnect": "Click to connect Telegram",
+    "pillSoon": "Telegram · soon",
+    "pillChat": "Telegram · {{chatTitle}}",
+    "pillFinishSetup": "Telegram · finish setup",
+    "pillConnect": "Telegram · connect"
+  },
+  "settings": {
+    "title": "Settings",
+    "saved": "Saved! Your business profile is updated.",
+    "saveFailed": "Could not save. Please try again.",
+    "business": "Business profile",
+    "businessHint": "Markivo personalizes content, insights, and the Markiv agent from these details.",
+    "businessName": "Business name",
+    "category": "Category",
+    "location": "Location",
+    "tone": "Brand tone",
+    "audience": "Target audience",
+    "slogan": "Slogan",
+    "description": "Business description",
+    "descriptionPh": "What you offer, what makes you special, who you serve…",
+    "saving": "Saving…",
+    "save": "Save changes",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "language": "Language"
   }
 }

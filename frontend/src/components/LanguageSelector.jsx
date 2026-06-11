@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const LanguageSelector = () => {
-  const { i18n, t } = useTranslation();
+/* Compact pill switcher: 🇺🇿 UZ · 🇷🇺 RU · 🇬🇧 EN */
+const LanguageSelector = ({ onChange }) => {
+  const { i18n } = useTranslation();
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
-    // Save preference to localStorage
     localStorage.setItem('markivo_language', lng);
+    onChange?.(lng); // optional: persist to the user's profile when signed in
   };
 
   // Load language preference from localStorage on mount
@@ -19,28 +20,25 @@ const LanguageSelector = () => {
   }, [i18n]);
 
   const languageOptions = [
-    { code: 'uz', name: 'O\'zbek', flag: '🇺🇿' },
-    { code: 'ru', name: 'Русский', flag: '🇷🇺' },
-    { code: 'en', name: 'English', flag: '🇬🇧' }
+    { code: 'uz', label: 'UZ', name: "O'zbek", flag: '🇺🇿' },
+    { code: 'ru', label: 'RU', name: 'Русский', flag: '🇷🇺' },
+    { code: 'en', label: 'EN', name: 'English', flag: '🇬🇧' },
   ];
 
   return (
-    <div className="language-selector glass-card">
-      <div className="language-header">
-        <span className="language-label">{t('common.language') || 'Language'}</span>
-        <div className="language-flags">
-          {languageOptions.map(lang => (
-            <button
-              key={lang.code}
-              className={`lang-btn ${i18n.language === lang.code ? 'active' : ''}`}
-              onClick={() => changeLanguage(lang.code)}
-              title={lang.name}
-            >
-              {lang.flag}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="language-selector" role="group" aria-label="Language">
+      {languageOptions.map((lang) => (
+        <button
+          key={lang.code}
+          className={`lang-btn ${i18n.language === lang.code ? 'active' : ''}`}
+          onClick={() => changeLanguage(lang.code)}
+          title={lang.name}
+          id={`btn_lang_${lang.code}`}
+        >
+          <span>{lang.flag}</span>
+          {lang.label}
+        </button>
+      ))}
     </div>
   );
 };

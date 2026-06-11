@@ -78,6 +78,7 @@ export const api = {
   tokens,
   get: (path, opts) => request(path, { ...opts, method: 'GET' }),
   post: (path, body, opts) => request(path, { ...opts, method: 'POST', body }),
+  put: (path, body, opts) => request(path, { ...opts, method: 'PUT', body }),
 
   async register(payload) {
     const data = await request('/api/auth/register', { method: 'POST', body: payload, auth: false });

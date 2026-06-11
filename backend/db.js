@@ -214,6 +214,21 @@ module.exports = function createDb(dbPath) {
       findById(userId) {
         return mapUser(sqlite.prepare('SELECT * FROM users WHERE id = ?').get(userId));
       },
+      // Partial update: only keys present in `fields` are written.
+      updateProfile(userId, fields = {}) {
+        const colFor = { fullName: 'full_name', preferredLang: 'preferred_lang' };
+        const sets = [];
+        const params = { userId };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          sets.push(`${col} = @${key}`);
+          params[key] = fields[key];
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = @userId`).run(params);
+        }
+        return mapUser(sqlite.prepare('SELECT * FROM users WHERE id = ?').get(userId));
+      },
     },
 
     profiles: {
@@ -246,6 +261,34 @@ module.exports = function createDb(dbPath) {
         ).get(userId));
       },
       findById(profileId) {
+        return mapProfile(sqlite.prepare('SELECT * FROM profiles WHERE id = ?').get(profileId));
+      },
+      // Partial update: only keys present in `fields` are written.
+      update(profileId, fields = {}) {
+        const colFor = {
+          businessName: 'business_name',
+          category: 'category',
+          description: 'description',
+          location: 'location',
+          isOnline: 'is_online',
+          targetAudience: 'target_audience',
+          brandTone: 'brand_tone',
+          slogan: 'slogan',
+          logoMetadata: 'logo_metadata',
+        };
+        const sets = [];
+        const params = { profileId };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          let value = fields[key];
+          if (key === 'isOnline') value = value ? 1 : 0;
+          if (key === 'logoMetadata') value = value ? JSON.stringify(value) : null;
+          sets.push(`${col} = @${key}`);
+          params[key] = value;
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE profiles SET ${sets.join(', ')} WHERE id = @profileId`).run(params);
+        }
         return mapProfile(sqlite.prepare('SELECT * FROM profiles WHERE id = ?').get(profileId));
       },
     },

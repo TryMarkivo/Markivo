@@ -51,7 +51,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-2);
   border: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
@@ -64,7 +64,7 @@
 
 .stepper-dot.active {
   background: var(--accent-primary);
-  color: #000;
+  color: var(--text-on-accent);
   border-color: var(--accent-primary);
   box-shadow: 0 0 15px rgba(212, 163, 115, 0.3);
 }
@@ -72,7 +72,7 @@
 .stepper-line {
   flex: 1;
   height: 2px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-2);
   margin: 0 12px;
   max-width: 60px;
 }
@@ -173,7 +173,7 @@
 .progress-bar-outer {
   width: 100%;
   height: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-2);
   border-radius: 10px;
   overflow: hidden;
   margin-bottom: 10px;
@@ -229,7 +229,7 @@
   font-size: 1.25rem;
 }
 
-.google { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.google { background: var(--surface-2); color: var(--text-primary); }
 .instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #fff; }
 .telegram { background: #0088cc; color: #fff; }
 .tiktok { background: #010101; color: #fff; border: 1px solid #25f4ee; }
@@ -557,7 +557,7 @@
 }
 
 .star-row i {
-  color: #d4a373;
+  color: var(--accent-primary);
   font-size: 12px;
   margin-right: 1px;
 }
@@ -571,7 +571,7 @@
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  color: #7ee0a3;
+  color: var(--accent-success);
   background: rgba(126, 224, 163, 0.12);
 }
 
@@ -583,7 +583,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.4px;
-  color: #2aabee;
+  color: var(--accent-secondary);
   background: rgba(42, 171, 238, 0.12);
 }
 
@@ -598,7 +598,7 @@
 }
 
 .scan-error-banner i {
-  color: #ff6b6b;
+  color: var(--accent-danger);
   font-size: 20px;
   margin-top: 2px;
 }
@@ -615,6 +615,6 @@
 
 .alt-matches {
   padding: 4px 16px 10px;
-  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  border-left: 2px solid var(--border-subtle);
   margin: -6px 0 4px 22px;
 }
