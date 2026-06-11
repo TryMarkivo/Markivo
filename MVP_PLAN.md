@@ -6,7 +6,7 @@ This document outlines the Minimum Viable Product (MVP) implementation plan for 
 **MVP Scope**: Onboarding wizard → Google Business + Instagram → AI content generation → Basic analytics → AI agent (chat only)
 
 **Excluded from MVP** (per Section 12):
-- Telegram integration — fully built 2026-06-10 (bot connect, channel detection, publish-with-approval) but de-scoped to post-MVP; ships disabled behind the `TELEGRAM_ENABLED` flag
+- ~~Telegram integration~~ — built 2026-06-10, briefly de-scoped, **re-enabled for launch 2026-06-11** (`TELEGRAM_ENABLED` flag kept for rollback)
 - Affiliate marketing system
 - AI website generation  
 - Gmail auto-reply learning

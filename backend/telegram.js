@@ -142,6 +142,10 @@ async function verifyPostAccess(token, chatId, botUserId) {
 const sendMessage = (token, chatId, text) =>
   call(token, 'sendMessage', { chat_id: chatId, text });
 
+// Live subscriber/member count for the linked chat (dashboard metric).
+const getChatMemberCount = (token, chatId) =>
+  call(token, 'getChatMemberCount', { chat_id: chatId });
+
 module.exports = {
   TelegramError,
   isValidTokenFormat,
@@ -152,4 +156,5 @@ module.exports = {
   detectChat,
   verifyPostAccess,
   sendMessage,
+  getChatMemberCount,
 };

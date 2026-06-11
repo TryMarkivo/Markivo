@@ -617,7 +617,7 @@ app.post('/api/telegram/post', verifyToken, telegramGate, asyncRoute(async (req,
 // ==========================================
 // 3.5 DASHBOARD METRICS ROUTER
 // ==========================================
-app.get('/api/dashboard/stats', verifyToken, (req, res) => {
+app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Active profile not found' });
 
@@ -625,12 +625,26 @@ app.get('/api/dashboard/stats', verifyToken, (req, res) => {
   const keywords = db.keywords.listByProfile(profile.id);
   const cat = (profile.category || 'business').toLowerCase();
 
+  // Telegram subscribers: REAL count when the integration is on and a chat is
+  // linked; the demo number otherwise (other metrics await their integrations).
+  let telegramSubscribers = { current: 980, change: 11.2 };
+  if (config.telegramEnabled) {
+    const conn = db.telegram.findByProfile(profile.id);
+    if (conn && conn.chatId) {
+      try {
+        telegramSubscribers = { current: await tg.getChatMemberCount(conn.botToken, conn.chatId), change: 0, live: true };
+      } catch (err) {
+        console.warn('getChatMemberCount failed, using demo number:', err.message);
+      }
+    }
+  }
+
   res.json({
     metrics: {
       googleViews: { current: 4320, change: 12.4 },
       googleCalls: { current: 148, change: 8.2 },
       instagramFollowers: { current: 1542, change: 15.6 },
-      telegramSubscribers: { current: 980, change: 11.2 },
+      telegramSubscribers,
       tiktokFollowers: { current: 0, change: 0 },
     },
     competitors: (competitors.length ? competitors : [
@@ -647,7 +661,7 @@ app.get('/api/dashboard/stats', verifyToken, (req, res) => {
     ],
     aiPresence: { perplexityScore: 78, chatgptRank: 'Top 5', sourcesCitedCount: 4 },
   });
-});
+}));
 
 // ==========================================
 // 3.55 MEDIA STUDIO ROUTER (/api/media)

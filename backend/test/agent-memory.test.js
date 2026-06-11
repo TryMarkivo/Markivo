@@ -11,7 +11,9 @@ const TMP_DB = path.join(os.tmpdir(), `markivo-agentmem-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
-delete process.env.TELEGRAM_ENABLED;
+// Explicit 'false' (not delete): dotenv loads backend/.env at require time but
+// never overrides existing env — this pins the flag OFF for this suite.
+process.env.TELEGRAM_ENABLED = 'false';
 
 const { app } = require('../server');
 const createDb = require('../db');

@@ -32,6 +32,7 @@ global.fetch = async (url, opts) => {
     setMyCommands: { ok: true, result: true },
     getChat: { ok: true, result: { id: -100555, type: 'channel', title: 'Noir News' } },
     getChatMember: { ok: true, result: { status: 'administrator', can_post_messages: true } },
+    getChatMemberCount: { ok: true, result: 1234 },
     sendMessage: { ok: true, result: { message_id: 1001 } },
     getUpdates: {
       ok: true,
@@ -148,4 +149,14 @@ test('direct /api/telegram/post publishes immediately', async () => {
   const data = await res.json();
   assert.strictEqual(data.success, true);
   assert.strictEqual(data.chatTitle, 'Noir News');
+});
+
+test('dashboard stats report the LIVE subscriber count once a chat is linked', async () => {
+  const res = await global.fetch(`${base}/api/dashboard/stats`, {
+    headers: { Authorization: `Bearer ${access}` },
+  });
+  assert.strictEqual(res.status, 200);
+  const { metrics } = await res.json();
+  assert.strictEqual(metrics.telegramSubscribers.current, 1234);
+  assert.strictEqual(metrics.telegramSubscribers.live, true);
 });
