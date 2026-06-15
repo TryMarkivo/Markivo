@@ -22,7 +22,12 @@
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
-    "pleaseWait": "Please wait..."
+    "pleaseWait": "Please wait...",
+    "offlineDemo": "Demo data — server offline",
+    "themeToLight": "Switch to light theme",
+    "themeToDark": "Switch to dark theme",
+    "themeToggle": "Toggle color theme",
+    "language": "Language"
   },
   "auth": {
     "login": "Sign In",
@@ -267,6 +272,38 @@
       "restaurant": "Local Restaurant / Food",
       "tech": "Professional Tech Agency"
     },
+    "fallbackSlogans": {
+      "cozy": [
+        "A cozy corner for your day.",
+        "Warm flavors, local connections.",
+        "Handcrafted comfort, daily."
+      ],
+      "modern": [
+        "Simply better, beautifully simple.",
+        "Aesthetic simplicity.",
+        "Modern taste, refined."
+      ],
+      "energetic": [
+        "Fuel your hustle.",
+        "Fast. Fresh. Bold.",
+        "Get up and go."
+      ],
+      "professional": [
+        "Quality you can count on.",
+        "Excellence, served daily.",
+        "Your trusted local choice."
+      ],
+      "playful": [
+        "Fun times, fresh vibes!",
+        "Joy in every visit.",
+        "Your happy place."
+      ],
+      "luxury": [
+        "The luxury of fine taste.",
+        "Elevate your standard.",
+        "The premium choice."
+      ]
+    },
     "tones": {
       "cozy": "Cozy & Warm",
       "modern": "Modern & Minimalist",
@@ -329,7 +366,8 @@
       "insightFoundCompetitors_other": ", and we spotted {{count}} similar businesses competing nearby",
       "insightFoundTail": ". Connecting your channels lets the Markivo agent track competitors, strengthen your local SEO, and draft content tuned to your audience.",
       "insightNotFound": "We couldn't confirm a Google Maps listing yet — that's the single highest-impact channel for local discovery. Markivo will help you establish your presence and start tracking competitors from day one.",
-      "confirmCta": "Connect Channels & Enter Dashboard"
+      "confirmCta": "Connect Channels & Enter Dashboard",
+      "sampleData": "Sample scan — add a Maps API key for a live scan of your real presence"
     },
     "pipeline": {
       "title": "Constructing Your Digital Infrastructure",
@@ -604,7 +642,8 @@
       "cta": "Render image",
       "rendering": "Rendering image...",
       "success": "Image rendered — ready to use in your posts.",
-      "resultAlt": "Rendered image"
+      "resultAlt": "Rendered image",
+      "resultAltNamed": "Rendered image: {{topic}}"
     }
   },
   "competitors": {
@@ -692,7 +731,10 @@
       "mockCost": "$5.00 / day",
       "mockTarget": "Tashkent, remote workers (2-5km radius)",
       "mockCreative": "🎯 Preview: \"Experience the ultimate {{category}} vibe at #{{businessName}}! High-speed Wi-Fi, handcrafted coffee, and quiet study booths ready for you.\""
-    }
+    },
+    "send": "Send",
+    "collapse": "Collapse panel",
+    "expand": "Expand panel"
   },
   "telegram": {
     "setupTitle": "Telegram Setup",

@@ -267,7 +267,7 @@ export default function MediaStudio({ activeProfile }) {
 
           <button type="submit" className="btn btn-primary w-full" disabled={briefLoading || !topic.trim()} id="btn_media_brief">
             {briefLoading
-              ? t('media.brief.generating', 'Writing your brief...')
+              ? <><i className="fa-solid fa-spinner fa-spin"></i> {t('media.brief.generating', 'Writing your brief...')}</>
               : t('media.brief.generateCta', 'Generate brief')}
           </button>
         </form>
@@ -381,7 +381,7 @@ export default function MediaStudio({ activeProfile }) {
                       <i className="fa-solid fa-circle-check"></i>
                       <span>{t('media.render.success', 'Image rendered — ready to use in your posts.')}</span>
                     </div>
-                    <img src={toAbsolute(renders[briefId].url)} alt={t('media.render.resultAlt', 'Rendered image')} />
+                    <img src={toAbsolute(renders[briefId].url)} alt={t('media.render.resultAltNamed', { defaultValue: 'Rendered image: {{topic}}', topic })} />
                   </div>
                 ) : (
                   <>
@@ -484,7 +484,7 @@ export default function MediaStudio({ activeProfile }) {
               </div>
               <button type="submit" className="btn btn-accent w-full" disabled={planning || !instructions.trim()} id="btn_media_edit">
                 {planning
-                  ? t('media.edit.generating', 'Planning the edit...')
+                  ? <><i className="fa-solid fa-spinner fa-spin"></i> {t('media.edit.generating', 'Planning the edit...')}</>
                   : t('media.edit.generateCta', 'Create edit plan')}
               </button>
             </form>
@@ -561,7 +561,7 @@ export default function MediaStudio({ activeProfile }) {
                   <img
                     className="media-library-thumb animate-fade-in"
                     src={toAbsolute(renders[item.id].url)}
-                    alt={t('media.render.resultAlt', 'Rendered image')}
+                    alt={t('media.render.resultAltNamed', { defaultValue: 'Rendered image: {{topic}}', topic: item.topic })}
                   />
                 )}
                 {renders[item.id]?.notice && engineNote(renders[item.id].notice)}

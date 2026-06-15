@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 /* Compact pill switcher: 🇺🇿 UZ · 🇷🇺 RU · 🇬🇧 EN */
 const LanguageSelector = ({ onChange }) => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
@@ -26,13 +26,15 @@ const LanguageSelector = ({ onChange }) => {
   ];
 
   return (
-    <div className="language-selector" role="group" aria-label="Language">
+    <div className="language-selector" role="group" aria-label={t('common.language', 'Language')}>
       {languageOptions.map((lang) => (
         <button
           key={lang.code}
           className={`lang-btn ${i18n.language === lang.code ? 'active' : ''}`}
           onClick={() => changeLanguage(lang.code)}
           title={lang.name}
+          aria-label={lang.name}
+          aria-pressed={i18n.language === lang.code}
           id={`btn_lang_${lang.code}`}
         >
           <span>{lang.flag}</span>

@@ -22,7 +22,12 @@
     "loading": "Yuklanmoqda...",
     "error": "Xatolik",
     "success": "Muvaffaqiyatli",
-    "pleaseWait": "Iltimos, kuting..."
+    "pleaseWait": "Iltimos, kuting...",
+    "offlineDemo": "Demo ma'lumotlar — server oflayn",
+    "themeToLight": "Yorug' mavzuga o'tish",
+    "themeToDark": "Tungi mavzuga o'tish",
+    "themeToggle": "Mavzuni almashtirish",
+    "language": "Til"
   },
   "auth": {
     "login": "Kirish",
@@ -267,6 +272,38 @@
       "restaurant": "Mahalliy restoran / Taom",
       "tech": "Professional IT agentligi"
     },
+    "fallbackSlogans": {
+      "cozy": [
+        "Kuningiz uchun shinam burchak.",
+        "Iliq ta'm, mahalliy aloqalar.",
+        "Har kuni qo'lda tayyorlangan qulaylik."
+      ],
+      "modern": [
+        "Oddiy, ammo chiroyli.",
+        "Soddalik estetikasi.",
+        "Zamonaviy ta'm."
+      ],
+      "energetic": [
+        "Sur'atingizga quvvat.",
+        "Tez. Yangi. Dadil.",
+        "Oldinga va yuqoriga."
+      ],
+      "professional": [
+        "Ishonsa bo'ladigan sifat.",
+        "Har kuni mukammallik.",
+        "Sizning ishonchli tanlovingiz."
+      ],
+      "playful": [
+        "Quvnoq damlar, yangi kayfiyat!",
+        "Har tashrifda quvonch.",
+        "Sizning baxtli maskaningiz."
+      ],
+      "luxury": [
+        "Nafis ta'm hashamati.",
+        "Standartingizni ko'taring.",
+        "Premium tanlov."
+      ]
+    },
     "tones": {
       "cozy": "Shinam va iliq",
       "modern": "Zamonaviy va minimalistik",
@@ -329,7 +366,8 @@
       "insightFoundCompetitors_other": ", shuningdek, yaqin-atrofda {{count}} ta o'xshash raqobatchi biznesni payqadik",
       "insightFoundTail": ". Kanallaringizni ulasangiz, Markivo agenti raqobatchilarni kuzatadi, mahalliy SEO'ni kuchaytiradi va auditoriyangizga mos kontent qoralamalarini tayyorlaydi.",
       "insightNotFound": "Google Maps'dagi yozuvingizni hali tasdiqlay olmadik — bu esa mahalliy qidiruv uchun eng ta'sirli kanal. Markivo birinchi kundanoq onlayn mavjudligingizni yo'lga qo'yish va raqobatchilarni kuzatishni boshlashga yordam beradi.",
-      "confirmCta": "Kanallarni ulash va dashbordga kirish"
+      "confirmCta": "Kanallarni ulash va dashbordga kirish",
+      "sampleData": "Namuna skan — haqiqiy mavjudligingizni jonli skanlash uchun Maps API kalitini qo'shing"
     },
     "pipeline": {
       "title": "Raqamli infratuzilmangiz qurilmoqda",
@@ -604,7 +642,8 @@
       "cta": "Rasm yaratish",
       "rendering": "Rasm yaratilmoqda...",
       "success": "Rasm tayyor — postlaringizda ishlatishingiz mumkin.",
-      "resultAlt": "Yaratilgan rasm"
+      "resultAlt": "Yaratilgan rasm",
+      "resultAltNamed": "Yaratilgan rasm: {{topic}}"
     }
   },
   "competitors": {
@@ -692,7 +731,10 @@
       "mockCost": "$5.00 / kun",
       "mockTarget": "Toshkent, masofaviy ishlovchilar (2-5 km radius)",
       "mockCreative": "🎯 Ko'rib chiqish: \"#{{businessName}}da eng zo'r {{category}} muhitini his eting! Yuqori tezlikdagi Wi-Fi, qo'lda tayyorlangan qahva va sokin o'qish kabinalari sizni kutmoqda.\""
-    }
+    },
+    "send": "Yuborish",
+    "collapse": "Panelni yig'ish",
+    "expand": "Panelni ochish"
   },
   "telegram": {
     "setupTitle": "Telegram sozlamasi",

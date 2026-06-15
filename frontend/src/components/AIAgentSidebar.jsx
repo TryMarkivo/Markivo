@@ -37,6 +37,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
   const [approvalDetails, setApprovalDetails] = useState(null);
   const [approvalId, setApprovalId] = useState(null);
   const [approvalSuccess, setApprovalSuccess] = useState(false);
+  const [offline, setOffline] = useState(false);
   const threadRef = useRef(null);
 
   // Load persisted conversation history on mount; keep the greeting when empty.
@@ -81,6 +82,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
     try {
       const data = await api.post('/api/agent/query', { query: text, lang: i18n.language });
       setIsTyping(false);
+      setOffline(false);
 
       if (data.triggerApproval) {
         setApprovalId(data.approvalId);
@@ -96,8 +98,8 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
         setMessages(prev => [...prev, { sender: 'agent', text: data.reply, time: t('agent.justNow', 'Just now') }]);
       }
     } catch {
-      console.warn('Agent API offline. Triggering local backup simulation.');
-      // Offline fallback simulation
+      // Server unreachable — fall back to a clearly-flagged local simulation.
+      setOffline(true);
       setTimeout(() => {
         let agentReply = '';
         const lowercaseText = text.toLowerCase();
@@ -209,7 +211,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
                 <i className="fa-solid fa-trash-can"></i>
               </button>
             )}
-            <button className="agent-toggle-btn" onClick={() => setIsOpen(!isOpen)} id="btn_toggle_agent">
+            <button className="agent-toggle-btn" onClick={() => setIsOpen(!isOpen)} id="btn_toggle_agent" aria-label={t(isOpen ? 'agent.collapse' : 'agent.expand', isOpen ? 'Collapse panel' : 'Expand panel')}>
               {isOpen ? <i className="fa-solid fa-angles-right"></i> : <i className="fa-solid fa-angles-left"></i>}
             </button>
           </div>
@@ -219,6 +221,11 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
           <>
             {/* CHAT THREAD */}
             <div className="chat-thread-container" ref={threadRef}>
+              {offline && (
+                <div className="chat-offline-note" role="status">
+                  <i className="fa-solid fa-triangle-exclamation"></i> {t('common.offlineDemo', 'Demo data — server offline')}
+                </div>
+              )}
               {messages.map((msg, index) => (
                 <div key={index} className={`chat-bubble-wrap ${msg.sender === 'user' ? 'user-bubble' : 'agent-bubble'}`}>
                   <div className="chat-bubble">
@@ -277,7 +284,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
                 id="inp_agent_chat"
               />
-              <button className="btn btn-primary btn-send" onClick={() => handleSendMessage()} disabled={isTyping} id="btn_send_agent">
+              <button className="btn btn-primary btn-send" onClick={() => handleSendMessage()} disabled={isTyping} id="btn_send_agent" aria-label={t('agent.send', 'Send')}>
                 <i className="fa-solid fa-paper-plane"></i>
               </button>
             </div>

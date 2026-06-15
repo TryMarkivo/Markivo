@@ -81,7 +81,6 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       setStep(3);
     } catch (err) {
       // A real outage must show an error, never fabricated results.
-      console.error('Scan API failed:', err);
       setScanError(err.data?.error || err.message || t('onboarding.scan.errorFallback', 'The discovery scan failed. Please try again.'));
       setStep(3);
     }
@@ -124,9 +123,8 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       if (Array.isArray(data?.competitors)) {
         setScanResults((prev) => ({ ...prev, competitors: data.competitors }));
       }
-    } catch (err) {
+    } catch {
       // Non-fatal: keep the previous competitor list rather than blanking the insight.
-      console.warn('Competitor refresh failed:', err);
     } finally {
       setAltSwapIndex(null);
     }
@@ -156,8 +154,8 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
     try {
       const data = await api.post('/api/onboarding/construct', finalProfile);
       onOnboardSuccess(data.profile);
-    } catch (err) {
-      console.error('Failed to submit onboard, proceeding locally:', err);
+    } catch {
+      // Offline/failed construct: proceed with the locally-built profile.
       onOnboardSuccess({ ...finalProfile, platforms: connections });
     }
   };
@@ -259,6 +257,12 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
           <p className="subtitle">
             {t('onboarding.results.subtitle', "Toggle which platforms you'd like to sync into the Markivo central dashboard. We'll populate your dashboard with active data in Uzbek, Russian, and English.")}
           </p>
+
+          {scanResults.live === false && (
+            <div className="demo-offline-banner" role="status">
+              <i className="fa-solid fa-flask"></i> {t('onboarding.results.sampleData', 'Sample scan — add a Maps API key for a live scan of your real presence')}
+            </div>
+          )}
 
           <div className="results-grid">
             {/* GOOGLE BUSINESS */}

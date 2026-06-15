@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import LandingPage from './components/LandingPage';
 import OnboardingPathA from './components/OnboardingPathA';
 import OnboardingPathB from './components/OnboardingPathB';
@@ -10,6 +11,7 @@ import './App.css';
 import './i18n/i18n';
 
 export default function App() {
+  const { t } = useTranslation();
   const [view, setView] = useState('landing'); // 'landing' | 'onboarding_A' | 'onboarding_B' | 'dashboard'
   const [activeProfile, setActiveProfile] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('markivo_theme') || 'dark');
@@ -26,6 +28,7 @@ export default function App() {
   const [authModal, setAuthModal] = useState(null); // null | 'login' | 'register'
   const [authForm, setAuthForm] = useState({ email: '', password: '', fullName: '' });
   const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
   const [authPathTarget, setAuthPathTarget] = useState('B'); // Onboarding Path targeted after login
 
   const handleLogout = () => {
@@ -62,16 +65,23 @@ export default function App() {
           setView((v) => (v === 'onboarding_A' || v === 'onboarding_B' ? v : 'landing'));
         }
       } catch (err) {
-        if (err.isNetwork) {
-          console.warn('Backend server offline. Proceeding in offline sandbox environment.');
-        } else {
-          // Session invalid/expired and refresh failed — sign out cleanly.
+        // Network offline: keep the current view; offline fallbacks handle the UX.
+        // Otherwise the session is invalid/expired and refresh failed — sign out.
+        if (!err.isNetwork) {
           handleLogout();
         }
       }
     }
     verifySession();
   }, [token]);
+
+  // Close the auth modal on Escape for keyboard accessibility.
+  useEffect(() => {
+    if (!authModal) return;
+    const onKey = (e) => { if (e.key === 'Escape') setAuthModal(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [authModal]);
 
   const handleStartOnboarding = (path) => {
     setAuthPathTarget(path);
@@ -87,6 +97,7 @@ export default function App() {
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
+    setAuthLoading(true);
 
     try {
       const data = authModal === 'register'
@@ -102,9 +113,11 @@ export default function App() {
     } catch (err) {
       setAuthError(
         err.isNetwork
-          ? 'Could not reach the server. Please ensure the backend is running.'
-          : (err.message || 'Authentication failed')
+          ? t('auth.networkError', 'Could not reach the server. Please ensure the backend is running.')
+          : (err.message || t('auth.failed', 'Authentication failed'))
       );
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -165,48 +178,54 @@ export default function App() {
 
       {/* --- AUTH GATE MODAL OVERLAYS --- */}
       {authModal && (
-        <div className="auth-overlay animate-fade-in" id="auth_overlay_modal">
-          <div className="auth-card glass-card glass-card-glow text-left">
+        <div
+          className="auth-overlay animate-fade-in"
+          id="auth_overlay_modal"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setAuthModal(null); }}
+        >
+          <div className="auth-card glass-card glass-card-glow text-left" role="dialog" aria-modal="true" aria-labelledby="auth_modal_title">
             <div className="auth-header flex-between mb-20">
-              <h3>{authModal === 'register' ? 'Create Your Account' : 'Welcome Back'}</h3>
-              <button className="btn-close" onClick={() => setAuthModal(null)} id="btn_close_auth">
+              <h3 id="auth_modal_title">{authModal === 'register' ? t('auth.createAccountTitle', 'Create Your Account') : t('auth.welcomeBack', 'Welcome Back')}</h3>
+              <button className="btn-close" onClick={() => setAuthModal(null)} id="btn_close_auth" aria-label={t('common.close', 'Close')}>
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
 
-            {authError && <div className="auth-error-box mb-20">{authError}</div>}
+            {authError && <div className="auth-error-box mb-20" role="alert">{authError}</div>}
 
             <form onSubmit={handleAuthSubmit}>
               {authModal === 'register' && (
                 <div className="form-group">
-                  <label className="form-label" htmlFor="inp_reg_name">Full Name</label>
+                  <label className="form-label" htmlFor="inp_reg_name">{t('auth.fullName', 'Full Name')}</label>
                   <input
                     type="text"
                     id="inp_reg_name"
                     className="input-field"
-                    placeholder="e.g. Alisher Usmanov"
+                    placeholder={t('auth.fullNamePlaceholder', 'e.g. Alisher Usmanov')}
                     value={authForm.fullName}
                     onChange={(e) => setAuthForm(p => ({ ...p, fullName: e.target.value }))}
+                    autoFocus={authModal === 'register'}
                     required
                   />
                 </div>
               )}
 
               <div className="form-group">
-                <label className="form-label" htmlFor="inp_auth_email">Email Address</label>
+                <label className="form-label" htmlFor="inp_auth_email">{t('auth.email', 'Email Address')}</label>
                 <input
                   type="email"
                   id="inp_auth_email"
                   className="input-field"
-                  placeholder="name@business.com"
+                  placeholder={t('auth.emailPlaceholder', 'name@business.com')}
                   value={authForm.email}
                   onChange={(e) => setAuthForm(p => ({ ...p, email: e.target.value }))}
+                  autoFocus={authModal === 'login'}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label" htmlFor="inp_auth_pass">Password</label>
+                <label className="form-label" htmlFor="inp_auth_pass">{t('auth.password', 'Password')}</label>
                 <input
                   type="password"
                   id="inp_auth_pass"
@@ -218,16 +237,18 @@ export default function App() {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary w-full btn-lg mt-10" id="btn_auth_submit">
-                {authModal === 'register' ? 'Register Account' : 'Sign In'}
+              <button type="submit" className="btn btn-primary w-full btn-lg mt-10" id="btn_auth_submit" disabled={authLoading}>
+                {authLoading
+                  ? (<><i className="fa-solid fa-spinner fa-spin"></i> {t('common.pleaseWait', 'Please wait...')}</>)
+                  : (authModal === 'register' ? t('auth.registerCta', 'Register Account') : t('auth.login', 'Sign In'))}
               </button>
             </form>
 
             <div className="auth-toggle-link mt-20 text-center">
               {authModal === 'register' ? (
-                <p>Already have an account? <span onClick={() => setAuthModal('login')} className="link-text">Sign In</span></p>
+                <p>{t('auth.alreadyHaveAccount', 'Already have an account?')} <span onClick={() => setAuthModal('login')} className="link-text">{t('auth.login', 'Sign In')}</span></p>
               ) : (
-                <p>New to Markivo? <span onClick={() => setAuthModal('register')} className="link-text">Create Account</span></p>
+                <p>{t('auth.newToMarkivo', 'New to Markivo?')} <span onClick={() => setAuthModal('register')} className="link-text">{t('auth.register', 'Create Account')}</span></p>
               )}
             </div>
           </div>

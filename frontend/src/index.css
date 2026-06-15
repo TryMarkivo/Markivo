@@ -15,7 +15,8 @@
   --accent-purple: #8338ec;    /* Deep violet */
   --accent-success: #06d6a0;   /* Mint green */
   --accent-danger: #ff5a5f;    /* Vibrant red */
-  
+  --tg-blue: #2aabee;          /* Telegram brand blue (legible on both themes) */
+
   --text-primary: #f8f9fa;
   --text-secondary: #a9abb3;
   --text-muted: #6b6d76;
@@ -86,6 +87,33 @@
 [data-theme="light"] .blob {
   mix-blend-mode: multiply;
   opacity: 0.07;
+}
+
+/* --- Offline / demo-data indicators (shown only in server-offline fallbacks) --- */
+.demo-offline-banner,
+.chat-offline-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin-bottom: 16px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--accent-primary);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.chat-offline-note {
+  margin: 8px 10px 4px;
+  font-size: 0.76rem;
+}
+
+/* Long unbroken strings (URLs, tokens) must wrap inside chat/caption blocks. */
+.bubble-text,
+.media-caption-box {
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* --- 2. GLOBAL RESET & BASE STYLES --- */

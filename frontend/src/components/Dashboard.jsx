@@ -20,6 +20,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [usage, setUsage] = useState(null);
+  const [statsOffline, setStatsOffline] = useState(false);
 
   const refreshTelegramStatus = () => {
     api.get('/api/telegram/status')
@@ -38,8 +39,10 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       try {
         const data = await api.get('/api/dashboard/stats');
         setStats(data);
-      } catch (err) {
-        console.error('Failed to fetch statistics, using offline presets:', err);
+        setStatsOffline(false);
+      } catch {
+        // Server unreachable — show clearly-flagged offline preset data.
+        setStatsOffline(true);
         // Fallback static data customized to category
         setStats({
           metrics: {
@@ -107,7 +110,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             {activeProfile.logo?.svg ? (
               <img
                 src={'data:image/svg+xml;utf8,' + encodeURIComponent(activeProfile.logo.svg)}
-                alt=""
+                alt={activeProfile.businessName}
                 style={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
               />
             ) : (
@@ -203,7 +206,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           {/* TAB 1: METRICS & SEARCH */}
           {activeTab === 'analytics' && (
             <div className="tab-analytics animate-fade-in">
-              
+
+              {statsOffline && (
+                <div className="demo-offline-banner" role="status">
+                  <i className="fa-solid fa-triangle-exclamation"></i> {t('common.offlineDemo', 'Demo data — server offline')}
+                </div>
+              )}
+
               {/* CONNECTED PLATFORMS */}
               <div className="channels-status-row">
                 <h3>{t('dashboard.activeInfrastructure', 'Your Active Infrastructure')}</h3>
@@ -275,7 +284,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                   </div>
                   <div className="stat-number-wrap">
                     <h2>{stats.metrics.instagramFollowers.current.toLocaleString()}</h2>
-                    <span className="text-muted">@{activeProfile.businessName.toLowerCase().replace(/ /g, '')}_uz</span>
+                    <span className="text-muted">@{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
                   </div>
                   <div className="stat-chart-svg">
                     <svg viewBox="0 0 100 30" className="sparkline">

@@ -100,17 +100,12 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
         tone: formData.tone,
       });
       setGeneratedSlogans(data.slogans);
-    } catch (err) {
-      console.error('Failed to generate slogans, using mocks:', err);
-      const mocks = {
-        'Cozy & Warm': [`A cozy corner for your day.`, `Warm flavors, local connections.`, `Handcrafted comfort, daily.`],
-        'Modern & Minimalist': [`Simply better ${formData.category}.`, `Aesthetic simplicity.`, `Modern taste.`],
-        'Energetic & Fast-paced': [`Fuel your hustle.`, `Fast. Fresh. Bold.`, `Get up and go.`],
-        'Professional & Trustworthy': [`Quality you can count on.`, `Excellence served daily.`, `Your local favorite.`],
-        'Playful & Fun': [`Fun times, fresh vibes!`, `Yum in every bite.`, `Your happy place.`],
-        'Luxury & Premium': [`The luxury of fine taste.`, `Elevate your standard.`, `Premium choice.`]
-      };
-      setGeneratedSlogans(mocks[formData.tone] || mocks['Cozy & Warm']);
+    } catch {
+      // Offline fallback: localized slogans for the chosen tone so uz/ru users
+      // never see English. The backend normally returns these live.
+      const toneKey = TONE_KEYS[formData.tone] || 'cozy';
+      const localized = t(`onboarding.fallbackSlogans.${toneKey}`, { returnObjects: true });
+      setGeneratedSlogans(Array.isArray(localized) ? localized : []);
     }
     setGeneratingSlogans(false);
   };
@@ -213,8 +208,8 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
     try {
       const data = await api.post('/api/onboarding/construct', finalProfile);
       onOnboardSuccess(data.profile);
-    } catch (err) {
-      console.error('Failed to submit onboarding profile, falling back:', err);
+    } catch {
+      // Offline/failed construct: proceed with the locally-built profile.
       onOnboardSuccess({ ...finalProfile, platforms: channels });
     }
   };

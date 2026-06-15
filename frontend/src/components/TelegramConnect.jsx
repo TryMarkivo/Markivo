@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import api from '../lib/api';
 import './Onboarding.css';
@@ -19,6 +19,13 @@ export default function TelegramConnect({ status, onStatusChange, onClose }) {
 
   const connected = !!status?.connected;
   const hasChat = !!status?.chat;
+
+  // Close on Escape for keyboard accessibility.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const run = async (fn) => {
     setBusy(true);
@@ -59,17 +66,21 @@ export default function TelegramConnect({ status, onStatusChange, onClose }) {
     });
 
   return (
-    <div className="auth-overlay animate-fade-in" id="telegram_connect_modal">
-      <div className="auth-card glass-card glass-card-glow text-left" style={{ maxWidth: 560 }}>
+    <div
+      className="auth-overlay animate-fade-in"
+      id="telegram_connect_modal"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+    >
+      <div className="auth-card glass-card glass-card-glow text-left" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-labelledby="telegram_modal_title">
         <div className="auth-header flex-between mb-20">
-          <h3><i className="fa-brands fa-telegram" style={{ color: '#2AABEE' }}></i> {t('telegram.setupTitle', 'Telegram Setup')}</h3>
-          <button className="btn-close" onClick={onClose} id="btn_close_telegram">
+          <h3 id="telegram_modal_title"><i className="fa-brands fa-telegram" style={{ color: 'var(--tg-blue)' }}></i> {t('telegram.setupTitle', 'Telegram Setup')}</h3>
+          <button className="btn-close" onClick={onClose} id="btn_close_telegram" aria-label={t('common.close', 'Close')}>
             <i className="fa-solid fa-xmark"></i>
           </button>
         </div>
 
-        {error && <div className="auth-error-box mb-20">{error}</div>}
-        {notice && <div className="badge badge-success mb-20" style={{ display: 'block', padding: 10 }}>{notice}</div>}
+        {error && <div className="auth-error-box mb-20" role="alert">{error}</div>}
+        {notice && <div className="badge badge-success mb-20" style={{ display: 'block', padding: 10 }} role="status">{notice}</div>}
 
         {/* STEP 1 — create bot & paste token */}
         {!connected && (
