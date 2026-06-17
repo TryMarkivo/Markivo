@@ -5,6 +5,7 @@ import MediaStudio from './MediaStudio';
 import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
+import ConnectionsPanel from './ConnectionsPanel';
 import SettingsPane from './SettingsPane';
 import ThemeToggle from './ThemeToggle';
 import api from '../lib/api';
@@ -13,7 +14,14 @@ import './Dashboard.css';
 
 export default function Dashboard({ token, activeProfile, onLogout, onProfileUpdate, theme, onToggleTheme, onLanguageChange }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'content' | 'media' | 'competitors' | 'settings'
+  // Tab state. After an OAuth connect redirect (…/?connected=key or
+  // ?connect_error=Label) open the Connections tab so the owner sees the result
+  // — computed lazily from the URL to avoid a setState-in-effect cascade.
+  const [activeTab, setActiveTab] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return (p.get('connected') || p.get('connect_error')) ? 'connections' : 'analytics';
+  }); // 'analytics' | 'content' | 'media' | 'competitors' | 'connections' | 'settings'
+
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -151,6 +159,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             id="btn_tab_competitors"
           >
             <i className="fa-solid fa-users-viewfinder"></i> {t('dashboard.nav.competitors', 'Competitor Intel')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'connections' ? 'active' : ''}`}
+            onClick={() => setActiveTab('connections')}
+            id="btn_tab_connections"
+          >
+            <i className="fa-solid fa-plug"></i> {t('dashboard.nav.connections', 'Connections')}
           </button>
           <button
             className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
@@ -398,7 +413,12 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} />
           )}
 
-          {/* TAB 5: SETTINGS */}
+          {/* TAB 5: PLATFORM CONNECTIONS */}
+          {activeTab === 'connections' && (
+            <ConnectionsPanel activeProfile={activeProfile} />
+          )}
+
+          {/* TAB 6: SETTINGS */}
           {activeTab === 'settings' && (
             <SettingsPane
               activeProfile={activeProfile}
