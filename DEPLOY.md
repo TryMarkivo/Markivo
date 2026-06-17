@@ -83,6 +83,77 @@ docker compose up -d --build
   provisions certificates automatically. Keep `TRUST_PROXY=true` (default).
 - Data persists in the `markivo-db` and `markivo-uploads` named volumes.
 
+## Variant D — Free stack (Vercel + Fly.io) — keep SQLite
+
+Cheapest way to go live: **frontend on Vercel (free)**, **backend on Fly.io
+(free allowance, persistent volume)**, no database rewrite. Auth is bearer-token
+(localStorage), so the split origin is fine — it just needs `CORS_ORIGIN` set.
+Config files: `frontend/vercel.json` and `backend/fly.toml` (already in the repo).
+
+> Free-tier limits and Vercel's exact DNS values drift over time — confirm them
+> in each dashboard at signup rather than trusting the numbers below verbatim.
+
+### 1. Backend → Fly.io
+
+```sh
+# Install flyctl + sign up (https://fly.io/docs/flyctl/install/)
+curl -L https://fly.io/install.sh | sh
+fly auth signup            # or: fly auth login
+
+cd backend
+fly launch --no-deploy --copy-config   # reuses backend/fly.toml; pick app name + region
+
+# Persistent SQLite volume (must match `source`/`region` in fly.toml):
+fly volumes create markivo_data --size 1 --region fra
+
+# Secrets — never put these in fly.toml. Generate JWT_SECRET fresh here:
+fly secrets set \
+  JWT_SECRET="$(node -e "console.log(require('crypto').randomBytes(48).toString('hex'))")" \
+  CORS_ORIGIN="https://trymarkivo.com,https://www.trymarkivo.com,https://<your-vercel-project>.vercel.app" \
+  APP_URL="https://trymarkivo.com"
+# Optional integrations (blank = graceful fallback):
+#   fly secrets set ANTHROPIC_API_KEY=... GOOGLE_MAPS_API_KEY=... STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=... MEDIA_API_KEY=...
+
+fly deploy
+curl https://<app-name>.fly.dev/api/health   # expect {"status":"ok"} / HTTP 200
+```
+
+The backend is now live on its free `https://<app-name>.fly.dev` domain — the
+frontend calls that directly, so no custom API domain is required to launch.
+(`min_machines_running = 1` keeps the scheduled-post worker ticking 24/7.)
+
+### 2. Frontend → Vercel
+
+1. Push the repo to GitHub, then **Add New → Project** at vercel.com and import it.
+2. **Root Directory = `frontend`** (framework auto-detected as Vite via
+   `frontend/vercel.json`).
+3. Environment variable (Production): `VITE_API_URL=https://<app-name>.fly.dev`.
+4. Deploy → live at `https://<your-vercel-project>.vercel.app`.
+
+### 3. DNS → point trymarkivo.com at Vercel (Namecheap)
+
+1. In Vercel: **Project → Settings → Domains → Add `trymarkivo.com`**. Vercel
+   shows the exact records to create. Typically:
+   - `A` record — Host `@` → `76.76.21.21`
+   - `CNAME` record — Host `www` → `cname.vercel-dns.com`
+2. Namecheap → **Domain List → Manage → Advanced DNS**: delete the default
+   parking/CNAME records, add the two above. Keep "Namecheap BasicDNS" (no need
+   to change nameservers).
+3. Wait for propagation (minutes–hours). Vercel auto-provisions the HTTPS cert.
+4. If you didn't already include the final domain in `CORS_ORIGIN`, set it now
+   and `fly deploy` again.
+
+### 4. Verify
+
+```sh
+./scripts/smoke.sh https://trymarkivo.com https://<app-name>.fly.dev
+```
+
+Later niceties (not needed to launch): an `api.trymarkivo.com` subdomain
+(`fly certs add api.trymarkivo.com` + a `CNAME` to `<app-name>.fly.dev`),
+a second Fly volume or object storage for durable uploads, and Supabase Postgres
+if SQLite is outgrown (swap point: `backend/db.js`).
+
 ---
 
 ## Post-deploy smoke test
