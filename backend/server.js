@@ -14,6 +14,7 @@ const billing = require('./billing');
 const tg = require('./telegram');
 const places = require('./places');
 const mediagen = require('./mediagen');
+const connectors = require('./connectors/registry');
 const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
 
 const db = createDb(config.dbPath);
@@ -625,6 +626,108 @@ app.post('/api/telegram/post', verifyToken, telegramGate, asyncRoute(async (req,
 }));
 
 // ==========================================
+// 3.46 PLATFORM CONNECTORS (/api/connect)
+//   Generic OAuth connect + publish for Instagram/Facebook/TikTok/Google
+//   Business/YouTube — all through each platform's OFFICIAL API, on the owner's
+//   behalf, behind the approval gate. Telegram keeps its dedicated
+//   /api/telegram/* routes (its adapter delegates to them). Every connector has
+//   a keyless SANDBOX fallback, so the whole surface works without any platform
+//   credentials (simulated connect + publish), mirroring the AI/Places/Stripe
+//   fallbacks.
+// ==========================================
+
+// Publish to a connected platform via its connector, then record the calendar
+// entry (the connector performs only the platform action). Sandbox connectors
+// return { simulated:true } and never throw; live failures throw ConnectorError.
+async function executePlatformPost(profile, platform, text, mediaUrl) {
+  const adapter = connectors.get(platform);
+  if (!adapter) throw new Error(`Unknown platform: ${platform}`);
+  const result = await adapter.publish({ db, profile, text, mediaUrl });
+  db.calendar.add({
+    profileId: profile.id, platform, postText: text,
+    scheduledTime: new Date().toISOString(), status: 'posted',
+  });
+  return result;
+}
+
+// Connection status for every platform (dashboard connect screen).
+app.get('/api/connect/status', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  res.json({ catalogue: connectors.catalogue(), status: await connectors.statusAll({ db, profile }) });
+}));
+
+// Begin connecting a platform. LIVE → returns the OAuth consent URL to open.
+// SANDBOX (no platform credentials) → records a simulated connection so the
+// dashboard shows "connected (sandbox)" and the publish flow is exercisable
+// keyless. Telegram is redirected to its dedicated card.
+app.post('/api/connect/:key/start', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const adapter = connectors.get(req.params.key);
+  if (!adapter) return res.status(404).json({ error: 'Unknown platform' });
+  if (adapter.key === 'telegram') {
+    return res.status(409).json({ error: 'Connect Telegram from the Telegram card (BotFather token).' });
+  }
+  // Signed state ties the OAuth callback back to this profile + platform.
+  const state = jwt.sign({ pid: profile.id, key: adapter.key }, config.jwtSecret, { expiresIn: '15m' });
+  const url = adapter.getAuthUrl({ profile, state });
+  if (url) return res.json({ mode: 'oauth', url });
+  // Sandbox: simulate a connection so the rest of the flow works keyless.
+  db.connections.upsert({ profileId: profile.id, platform: adapter.key, status: 'sandbox', accountHandle: `@sandbox_${adapter.key}` });
+  db.platforms.setConnected(profile.id, adapter.key, `@sandbox_${adapter.key}`, true);
+  res.json({ mode: 'sandbox', status: await adapter.status({ db, profile }) });
+}));
+
+// OAuth redirect target. Stateless — the signed `state` carries the profile id,
+// so this route needs no bearer token (the user is mid-redirect at the platform).
+app.get('/api/connect/:key/callback', asyncRoute(async (req, res) => {
+  const adapter = connectors.get(req.params.key);
+  if (!adapter) return res.status(404).send('Unknown platform');
+  let claims;
+  try { claims = jwt.verify(String(req.query.state || ''), config.jwtSecret); }
+  catch { return res.status(400).send('This connection link has expired — please start the connection again.'); }
+  const profile = db.profiles.findById(claims.pid);
+  if (!profile || claims.key !== adapter.key) return res.status(400).send('Invalid connection state.');
+  try {
+    await adapter.handleCallback({ db, profile, query: req.query });
+    db.platforms.setConnected(profile.id, adapter.key, null, true);
+    return res.redirect(`${config.appUrl}/?connected=${adapter.key}`);
+  } catch (err) {
+    console.error(`Connect callback for ${adapter.key} failed:`, err.message);
+    return res.redirect(`${config.appUrl}/?connect_error=${encodeURIComponent(adapter.label)}`);
+  }
+}));
+
+// Direct publish to a connected platform (dashboard "post now"). Mirrors
+// /api/telegram/post; sandbox connectors record a simulated posted entry.
+app.post('/api/connect/:key/post', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const adapter = connectors.get(req.params.key);
+  if (!adapter || adapter.key === 'telegram') return res.status(404).json({ error: 'Unknown platform' });
+  const text = String(req.body.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'Post text is required' });
+  if (text.length > 4000) return res.status(400).json({ error: 'Post text must be 4000 characters or fewer' });
+  try {
+    const result = await executePlatformPost(profile, adapter.key, text, req.body.mediaUrl);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(err.code || 400).json({ error: err.message });
+  }
+}));
+
+app.post('/api/connect/:key/disconnect', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const adapter = connectors.get(req.params.key);
+  if (!adapter) return res.status(404).json({ error: 'Unknown platform' });
+  await adapter.disconnect({ db, profile });
+  db.platforms.setConnected(profile.id, adapter.key, null, false);
+  res.json({ success: true });
+}));
+
+// ==========================================
 // 3.5 DASHBOARD METRICS ROUTER
 // ==========================================
 app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
@@ -891,6 +994,12 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
   };
 
   const conn = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
+  // Connected non-Telegram platforms Markiv may publish to (via the approval
+  // gate). Empty when nothing is connected — Markiv then offers only Telegram.
+  const connectedPlatforms = db.connections.listByProfile(profile.id)
+    .map((c) => connectors.get(c.platform))
+    .filter(Boolean)
+    .map((a) => ({ key: a.key, label: a.label }));
   const action = await ai.agentAct({
     query,
     history,
@@ -899,6 +1008,7 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
     telegram: conn
       ? { connected: true, chatTitle: conn.chatTitle, chatType: conn.chatType, hasChat: !!conn.chatId }
       : { connected: false, comingSoon: !config.telegramEnabled },
+    platforms: connectedPlatforms,
     snapshot,
     actions,
   });
@@ -936,6 +1046,31 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
       payload: approval.action_payload,
       reply,
     });
+  }
+
+  // Markiv proposed a publish to a connected platform → route through the gate.
+  if (action.type === 'platform_post') {
+    const adapter = connectors.get(action.platform);
+    if (!adapter) {
+      const reply = "I couldn't tell which platform to post to — could you name it (e.g. Instagram, TikTok)?";
+      recordAgentReply(reply);
+      return res.json({ reply });
+    }
+    const approval = db.approvals.create({
+      profileId: profile.id,
+      actionType: 'platform_post',
+      actionPayload: {
+        action: `Publish ${adapter.label} Post`,
+        cost: 'Free — organic post',
+        target: adapter.label,
+        creative: action.text,
+        text: action.text,
+        platform: adapter.key,
+      },
+    });
+    const reply = action.note || `I drafted this post for your ${adapter.label} — review and approve to publish.`;
+    recordAgentReply(reply);
+    return res.json({ triggerApproval: true, approvalId: approval.id, payload: approval.action_payload, reply });
   }
 
   recordAgentReply(action.reply);
@@ -986,6 +1121,26 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
     } catch (err) {
       db.approvals.updateStatus(approvalId, 'failed');
       return res.status(400).json({ error: `Publishing failed: ${err.description || err.message}` });
+    }
+  }
+
+  // Approved platform posts (Instagram/Facebook/TikTok/Google Business/YouTube)
+  // publish via the connector — sandbox connectors return a simulated result.
+  if (approval.action_type === 'platform_post') {
+    const platform = approval.action_payload.platform;
+    const adapter = connectors.get(platform);
+    try {
+      const result = await executePlatformPost(profile, platform, approval.action_payload.text, approval.action_payload.mediaUrl);
+      db.approvals.updateStatus(approvalId, 'approved');
+      return res.json({
+        success: true,
+        message: result.simulated
+          ? `✅ Drafted & queued for ${adapter ? adapter.label : platform} (sandbox — connect live credentials to publish for real).`
+          : `✅ Published to ${adapter ? adapter.label : platform}!`,
+      });
+    } catch (err) {
+      db.approvals.updateStatus(approvalId, 'failed');
+      return res.status(err.code || 400).json({ error: `Publishing failed: ${err.message}` });
     }
   }
 

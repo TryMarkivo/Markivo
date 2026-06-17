@@ -122,6 +122,23 @@ module.exports = function createDb(dbPath) {
       updated_at   TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS platform_connections (
+      id               TEXT PRIMARY KEY,
+      profile_id       TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform         TEXT NOT NULL,
+      status           TEXT DEFAULT 'connected',
+      account_handle   TEXT,
+      account_id       TEXT,
+      access_token     TEXT,
+      refresh_token    TEXT,
+      token_expires_at TEXT,
+      scopes           TEXT,
+      meta             TEXT,
+      created_at       TEXT NOT NULL,
+      updated_at       TEXT,
+      UNIQUE(profile_id, platform)
+    );
+
     CREATE TABLE IF NOT EXISTS media (
       id            TEXT PRIMARY KEY,
       profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -173,6 +190,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_media_profile ON media(profile_id);
     CREATE INDEX IF NOT EXISTS idx_agent_messages_profile_time ON agent_messages(profile_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_platform_connections_profile ON platform_connections(profile_id);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -626,6 +644,76 @@ module.exports = function createDb(dbPath) {
       },
       remove(profileId) {
         sqlite.prepare('DELETE FROM telegram_connections WHERE profile_id = ?').run(profileId);
+      },
+    },
+
+    // Generic per-platform connection store for the connector framework
+    // (Instagram/Facebook/TikTok/Google Business/YouTube). OAuth tokens are
+    // encrypted at rest with the same AES-256-GCM helper Telegram uses; the
+    // mapper decrypts on the way out and returns null on a decrypt failure
+    // (e.g. JWT_SECRET rotated) so a stale connection degrades gracefully.
+    connections: {
+      mapRow(r) {
+        if (!r) return null;
+        const dec = (v) => {
+          if (!v) return null;
+          try { return secrets.decrypt(v); } catch { return undefined; }
+        };
+        const accessToken = dec(r.access_token);
+        const refreshToken = dec(r.refresh_token);
+        // undefined => stored ciphertext could not be decrypted: unusable.
+        if (accessToken === undefined || refreshToken === undefined) return null;
+        return {
+          id: r.id, profileId: r.profile_id, platform: r.platform, status: r.status,
+          accountHandle: r.account_handle, accountId: r.account_id,
+          accessToken, refreshToken, tokenExpiresAt: r.token_expires_at,
+          scopes: r.scopes || null,
+          meta: r.meta ? JSON.parse(r.meta) : null,
+          created_at: r.created_at, updated_at: r.updated_at,
+        };
+      },
+      upsert({ profileId, platform, status = 'connected', accountHandle, accountId,
+               accessToken, refreshToken, tokenExpiresAt, scopes, meta }) {
+        const enc = (v) => (v ? secrets.encrypt(String(v)) : null);
+        const existing = sqlite.prepare(
+          'SELECT id FROM platform_connections WHERE profile_id = ? AND platform = ?'
+        ).get(profileId, platform);
+        const metaJson = meta ? JSON.stringify(meta) : null;
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE platform_connections SET status = ?, account_handle = ?, account_id = ?,
+             access_token = ?, refresh_token = ?, token_expires_at = ?, scopes = ?, meta = ?, updated_at = ?
+             WHERE id = ?`
+          ).run(status, accountHandle || null, accountId || null, enc(accessToken), enc(refreshToken),
+                tokenExpiresAt || null, scopes || null, metaJson, now(), existing.id);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO platform_connections (id, profile_id, platform, status, account_handle, account_id,
+               access_token, refresh_token, token_expires_at, scopes, meta, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(id(), profileId, platform, status, accountHandle || null, accountId || null,
+                enc(accessToken), enc(refreshToken), tokenExpiresAt || null, scopes || null, metaJson, now());
+        }
+        return this.findByProfile(profileId, platform);
+      },
+      findByProfile(profileId, platform) {
+        return this.mapRow(sqlite.prepare(
+          'SELECT * FROM platform_connections WHERE profile_id = ? AND platform = ?'
+        ).get(profileId, platform));
+      },
+      listByProfile(profileId) {
+        return sqlite.prepare('SELECT * FROM platform_connections WHERE profile_id = ?')
+          .all(profileId).map((r) => this.mapRow(r)).filter(Boolean);
+      },
+      setStatus(profileId, platform, status) {
+        sqlite.prepare(
+          'UPDATE platform_connections SET status = ?, updated_at = ? WHERE profile_id = ? AND platform = ?'
+        ).run(status, now(), profileId, platform);
+        return this.findByProfile(profileId, platform);
+      },
+      remove(profileId, platform) {
+        sqlite.prepare('DELETE FROM platform_connections WHERE profile_id = ? AND platform = ?')
+          .run(profileId, platform);
       },
     },
 

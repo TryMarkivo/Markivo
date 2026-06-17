@@ -94,6 +94,27 @@ const config = {
   // Per-IP scan rate limit — live scans cost real Places API quota.
   scanRateLimit: parseInt(process.env.SCAN_RATE_LIMIT, 10) || 10,
   scanRateWindowMs: (parseInt(process.env.SCAN_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
+
+  // --- Platform connectors (Instagram/Facebook/TikTok/Google Business/YouTube) ---
+  // Each platform publishes through its OFFICIAL API, on the user's behalf, behind
+  // the human approval gate. When a platform's OAuth credentials are absent its
+  // adapter runs in SANDBOX mode (simulated connect + publish) so the app and the
+  // tests work fully keyless — mirroring the AI/Places/Stripe fallbacks.
+  //
+  // `redirectBase` is the PUBLIC API base used to build OAuth redirect URIs
+  // (`<redirectBase>/api/connect/<key>/callback`). It must match the redirect URI
+  // registered in each platform's developer console. Defaults to APP_URL in dev.
+  connectors: (() => {
+    const redirectBase = (process.env.OAUTH_REDIRECT_BASE || process.env.APP_URL || 'http://localhost:5000').replace(/\/$/, '');
+    const meta = { clientId: process.env.META_CLIENT_ID || '', clientSecret: process.env.META_CLIENT_SECRET || '' };
+    const tiktok = { clientKey: process.env.TIKTOK_CLIENT_KEY || '', clientSecret: process.env.TIKTOK_CLIENT_SECRET || '' };
+    // Google OAuth client is shared by the Google Business Profile and YouTube adapters.
+    const google = { clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '', clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '' };
+    meta.enabled = !!(meta.clientId && meta.clientSecret);
+    tiktok.enabled = !!(tiktok.clientKey && tiktok.clientSecret);
+    google.enabled = !!(google.clientId && google.clientSecret);
+    return { redirectBase, meta, tiktok, google };
+  })(),
 };
 
 config.aiEnabled = !!config.anthropicApiKey;

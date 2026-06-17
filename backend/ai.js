@@ -355,7 +355,7 @@ const AGENT_LANG_RULE = {
  */
 async function agentAct(ctx) {
   if (!client) return templateAgentAct(ctx);
-  const { query, history = [], lang = 'en', profile, telegram, snapshot, actions = {} } = ctx;
+  const { query, history = [], lang = 'en', profile, telegram, platforms = [], snapshot, actions = {} } = ctx;
 
   const tools = [];
   if (telegram?.connected) {
@@ -374,6 +374,27 @@ async function agentAct(ctx) {
           note: { type: 'string', description: 'One short sentence to show the owner about this draft.' },
         },
         required: ['text'],
+      },
+    });
+  }
+  if (platforms && platforms.length) {
+    const names = platforms.map((p) => p.label).join(', ');
+    const keys = platforms.map((p) => p.key).join(', ');
+    tools.push({
+      name: 'publish_post',
+      description:
+        `Publish a post to one of the owner's connected platforms (${names}). ` +
+        'Call this whenever the owner asks to post, publish, announce, or share something on one of those platforms. ' +
+        'Pick the right platform key and write the final, polished, ready-to-publish text. ' +
+        'Do NOT ask the owner for confirmation first — every publish already goes through an approval screen.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string', description: `Which platform to publish to. One of: ${keys}.` },
+          text: { type: 'string', description: 'The complete, final post text, ready to publish.' },
+          note: { type: 'string', description: 'One short sentence to show the owner about this draft.' },
+        },
+        required: ['platform', 'text'],
       },
     });
   }
@@ -507,6 +528,11 @@ async function agentAct(ctx) {
       if (tgUse && tgUse.input?.text) {
         return { type: 'telegram_post', text: tgUse.input.text, note: tgUse.input.note };
       }
+      // Generic publish → route through the approval gate, never a tool_result.
+      const ppUse = toolUses.find((b) => b.name === 'publish_post');
+      if (ppUse && ppUse.input?.text && ppUse.input?.platform) {
+        return { type: 'platform_post', platform: ppUse.input.platform, text: ppUse.input.text, note: ppUse.input.note };
+      }
 
       messages.push({ role: 'assistant', content: msg.content });
       const results = [];
@@ -530,6 +556,10 @@ async function agentAct(ctx) {
     const toolUse = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'post_to_telegram');
     if (toolUse && toolUse.input?.text) {
       return { type: 'telegram_post', text: toolUse.input.text, note: toolUse.input.note };
+    }
+    const ppFinal = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'publish_post');
+    if (ppFinal && ppFinal.input?.text && ppFinal.input?.platform) {
+      return { type: 'platform_post', platform: ppFinal.input.platform, text: ppFinal.input.text, note: ppFinal.input.note };
     }
     const reply = textOf(msg);
     return reply ? { type: 'reply', reply } : templateAgentAct(ctx);
