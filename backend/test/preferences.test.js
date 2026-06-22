@@ -93,3 +93,17 @@ test('scheduling a post is learned and surfaced via /api/preferences', async () 
   assert.match(prefs.examples[0].text, /Cardamom buns/);
   assert.equal(prefs.examples[0].platform, 'instagram');
 });
+
+test('an edited draft is learned as the final edited text, not the discarded draft', async () => {
+  const res = await post('/api/content/post-now', {
+    platform: 'instagram',
+    postText: 'Owner edited version — buns pulled at 8 sharp',
+    draftText: 'Mark original draft about fresh buns this morning',
+  });
+  assert.equal(res.status, 200);
+
+  const prefs = await getJson('/api/preferences');
+  const texts = prefs.examples.map((e) => e.text);
+  assert.ok(texts.some((x) => /Owner edited version/.test(x)), 'the edited final text is learned');
+  assert.ok(!texts.some((x) => /Mark original draft/.test(x)), 'the discarded draft is not stored as an example');
+});

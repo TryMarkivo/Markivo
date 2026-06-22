@@ -10,6 +10,10 @@ export default function ContentEngine({ activeProfile }) {
   const [langMode, setLangMode] = useState('en'); // 'en' | 'multi'
   const [loadingCopy, setLoadingCopy] = useState(false);
   const [generatedCopy, setGeneratedCopy] = useState(null);
+  // The owner can edit Mark's draft before posting. We keep the original draft
+  // (generatedCopy.post) and the edited text separately so the backend can learn
+  // from the edit (a stronger taste signal than an unedited approval).
+  const [editedPost, setEditedPost] = useState('');
   const [tgStatus, setTgStatus] = useState(null);
   const [tgPosting, setTgPosting] = useState(false);
   const [tgPostResult, setTgPostResult] = useState(null); // null | 'ok' | error string
@@ -39,7 +43,7 @@ export default function ContentEngine({ activeProfile }) {
     setTgPosting(true);
     setTgPostResult(null);
     try {
-      await api.post('/api/telegram/post', { text: generatedCopy.post });
+      await api.post('/api/telegram/post', { text: editedPost });
       setTgPostResult('ok');
     } catch (err) {
       setTgPostResult(err.message || t('content.telegram.postFailed', 'Posting failed'));
@@ -86,17 +90,20 @@ export default function ContentEngine({ activeProfile }) {
         businessName: activeProfile.businessName,
       });
       setGeneratedCopy(data);
+      setEditedPost(data.post || '');
     } catch (err) {
       console.error('Failed to generate copy, using offline presets:', err);
       // Fallback
-      setGeneratedCopy({
+      const fallback = {
         post: t('content.fallback.post', {
           defaultValue: '✨ Special offer from #{{businessName}}! ✨\n\nLooking for the perfect spot? {{topic}}\n\n📍 Visit us today in Tashkent!\n\n#localbusiness #tashkent #vibe',
           businessName: activeProfile.businessName,
           topic,
         }),
         mediaTip: t('content.fallback.mediaTip', '📸 Tip: Snap a landscape photo of your storefront at dusk with warm interior lighting glowing through the windows.')
-      });
+      };
+      setGeneratedCopy(fallback);
+      setEditedPost(fallback.post);
     }
     setLoadingCopy(false);
   };
@@ -124,7 +131,8 @@ export default function ContentEngine({ activeProfile }) {
       const when = new Date(`${pickedDate}T${pickedTime}`);
       await api.post('/api/content/schedule', {
         platform,
-        postText: generatedCopy.post,
+        postText: editedPost,
+        draftText: generatedCopy.post,
         scheduledTime: when.toISOString(),
       });
       setScheduledAt(when.toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }));
@@ -142,7 +150,8 @@ export default function ContentEngine({ activeProfile }) {
     try {
       const response = await api.post('/api/content/post-now', {
         platform,
-        postText: generatedCopy.post,
+        postText: editedPost,
+        draftText: generatedCopy.post,
       });
       setPostedMsg(
         response.simulated
@@ -290,7 +299,18 @@ export default function ContentEngine({ activeProfile }) {
                 <small className="text-muted">{langMode === 'multi' ? t('content.output.langMulti', 'English + Uzbek + Russian') : t('content.output.langEn', 'English')}</small>
               </div>
               <div className="output-content">
-                <pre className="copy-text-area">{generatedCopy.post}</pre>
+                <textarea
+                  className="copy-text-area copy-text-edit"
+                  value={editedPost}
+                  onChange={(e) => setEditedPost(e.target.value)}
+                  spellCheck={false}
+                  aria-label={t('content.output.editLabel', 'Edit the post before publishing')}
+                />
+                {editedPost.trim() !== (generatedCopy.post || '').trim() && (
+                  <small className="copy-edited-hint">
+                    <i className="fa-solid fa-pen"></i> {t('content.output.edited', 'Edited — Mark will learn from your changes')}
+                  </small>
+                )}
               </div>
               
               <div className="output-tips-card">

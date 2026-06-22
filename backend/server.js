@@ -56,6 +56,12 @@ const publicUser = (u) => ({ id: u.id, email: u.email, fullName: u.fullName, tie
 // any thrown error becomes an unhandled rejection and kills the process.
 const asyncRoute = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+// Preference-memory signal: if the owner changed Mark's draft before publishing,
+// that edit is the strongest taste signal ('edited'); otherwise they endorsed it
+// as-is ('approved'). Whitespace-insensitive so trivial spacing isn't an "edit".
+const normText = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+const feedbackSignal = (draft, final) => (draft && normText(draft) !== normText(final) ? 'edited' : 'approved');
+
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   if (!authHeader) return res.status(401).json({ error: 'Authorization header is missing' });
@@ -535,8 +541,13 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
     scheduledTime: scheduledTime || new Date(Date.now() + 86400000).toISOString(),
     status: 'scheduled',
   });
-  // Preference memory: scheduling a post is the owner endorsing this exact text.
-  db.feedback.record({ profileId: profile.id, platform: (platform || 'instagram').toLowerCase(), signal: 'approved', finalText: postText, topic: req.body.topic });
+  // Preference memory: scheduling endorses this text; if it differs from Mark's
+  // original draft (req.body.draftText), the edit is the stronger taste signal.
+  const schedDraft = typeof req.body.draftText === 'string' ? req.body.draftText : null;
+  db.feedback.record({
+    profileId: profile.id, platform: (platform || 'instagram').toLowerCase(),
+    signal: feedbackSignal(schedDraft, postText), draftText: schedDraft, finalText: postText, topic: req.body.topic,
+  });
   res.json(post);
 });
 
@@ -552,8 +563,10 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
   if (!postText) return res.status(400).json({ error: 'Post text is required' });
   if (postText.length > 4000) return res.status(400).json({ error: 'Post text must be 4000 characters or fewer' });
 
-  // Preference memory: publishing now endorses this exact text.
-  db.feedback.record({ profileId: profile.id, platform, signal: 'approved', finalText: postText, topic: req.body.topic });
+  // Preference memory: publishing now endorses this text; an edit vs the
+  // original draft (req.body.draftText) is the stronger taste signal.
+  const nowDraft = typeof req.body.draftText === 'string' ? req.body.draftText : null;
+  db.feedback.record({ profileId: profile.id, platform, signal: feedbackSignal(nowDraft, postText), draftText: nowDraft, finalText: postText, topic: req.body.topic });
 
   if (platform === 'telegram' && config.telegramEnabled) {
     const conn = db.telegram.findByProfile(profile.id);
@@ -1201,15 +1214,26 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
     return res.status(403).json({ error: 'This approval belongs to a different business' });
   }
 
+  // The owner may tweak Mark's draft at the gate before approving — publish the
+  // edit and record it as the stronger 'edited' taste signal.
+  const gateEdited = typeof req.body.editedText === 'string' && req.body.editedText.trim()
+    ? req.body.editedText.trim()
+    : null;
+
   // Approved Telegram posts are executed for real via the Bot API.
   if (approval.action_type === 'telegram_post') {
     if (!config.telegramEnabled) {
       return res.status(503).json({ error: 'Telegram publishing is coming soon — it is not part of the current MVP.' });
     }
     try {
-      const result = await executeTelegramPost(profile, approval.action_payload.text);
+      const tgText = gateEdited || approval.action_payload.text;
+      const result = await executeTelegramPost(profile, tgText);
       db.approvals.updateStatus(approvalId, 'approved');
-      db.feedback.record({ profileId: profile.id, platform: 'telegram', signal: 'approved', finalText: approval.action_payload.text });
+      db.feedback.record({
+        profileId: profile.id, platform: 'telegram',
+        signal: feedbackSignal(gateEdited ? approval.action_payload.text : null, tgText),
+        draftText: gateEdited ? approval.action_payload.text : null, finalText: tgText,
+      });
       return res.json({
         success: true,
         message: `✅ Published to ${result.chatTitle}! Your subscribers can see it now.`,
@@ -1226,9 +1250,14 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
     const platform = approval.action_payload.platform;
     const adapter = connectors.get(platform);
     try {
-      const result = await executePlatformPost(profile, platform, approval.action_payload.text, approval.action_payload.mediaUrl);
+      const ppText = gateEdited || approval.action_payload.text;
+      const result = await executePlatformPost(profile, platform, ppText, approval.action_payload.mediaUrl);
       db.approvals.updateStatus(approvalId, 'approved');
-      db.feedback.record({ profileId: profile.id, platform, signal: 'approved', finalText: approval.action_payload.text });
+      db.feedback.record({
+        profileId: profile.id, platform,
+        signal: feedbackSignal(gateEdited ? approval.action_payload.text : null, ppText),
+        draftText: gateEdited ? approval.action_payload.text : null, finalText: ppText,
+      });
       return res.json({
         success: true,
         message: result.simulated

@@ -78,6 +78,13 @@ test('briefDigest tolerates the rich (object) brief shape without crashing', () 
   assert.match(d, /Imagery: phone photos/);
 });
 
+test("briefDigest always includes the owner's onboarding words, even with a rich brief", () => {
+  const rich = { positioning: 'X', valueProposition: 'Y', usp: ['a'] };
+  const d = brand.briefDigest(rich, PROFILE);
+  assert.match(d, /Owner's own words \(from onboarding\)/);
+  assert.match(d, /single-origin espresso bar in Chilonzor/);
+});
+
 test('briefDigest surfaces owner-entered businessFacts as the only number source', () => {
   const b = brand.templateBrief(PROFILE);
   b.businessFacts = { signatureItems: ['cardamom bun'], hours: '8-20 daily', offer: { type: 'discount', value: '20%', deadline: 'Fri' } };

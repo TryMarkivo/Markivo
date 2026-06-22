@@ -67,6 +67,28 @@
   line-height: 1.5;
 }
 
+/* Editable variant: the generated post is a textarea the owner can tweak. */
+textarea.copy-text-edit {
+  display: block;
+  width: 100%;
+  min-height: 170px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+textarea.copy-text-edit:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+.copy-edited-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -10px 0 16px;
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+}
+
 .output-tips-card {
   padding: 16px;
   background: rgba(58, 134, 240, 0.05);

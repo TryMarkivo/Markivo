@@ -182,6 +182,13 @@ function briefDigest(brief, profile = {}) {
   if (palette.length) push('Palette', palette.map(String).join(', '));
   push('Imagery', brief.imageryStyle || vd.imageryStyle);
 
+  // The owner's own onboarding answers — always include verbatim so their
+  // original intent is never lost to brief synthesis (the brief is a synthesis;
+  // these are the ground truth they typed at signup).
+  if (profile.description) lines.push(`Owner's own words (from onboarding): ${profile.description}`);
+  const aud = profile.targetAudience || profile.audience;
+  if (aud) lines.push(`Owner's stated audience (from onboarding): ${aud}`);
+
   // business facts (owner-entered) — the only source of real numbers
   const f = brief.businessFacts;
   if (f && typeof f === 'object') {
