@@ -671,7 +671,13 @@ const profileLines = (profile) =>
   `Category: ${profile?.category || 'general'}\n` +
   `Business description: ${profile?.description || 'n/a'}\n` +
   `Target audience: ${profile?.targetAudience || 'local customers'}\n` +
-  `Brand tone: ${profile?.brandTone || 'Cozy & Warm'}\n`;
+  `Brand tone: ${profile?.brandTone || 'Cozy & Warm'}\n` +
+  // The brand brief is the single source of truth — Media Studio matches it for
+  // voice/visuals and never invents facts not present in it (same guard the
+  // content pipeline and the agent use).
+  (profile?.brandBrief
+    ? `\nBRAND BRIEF (match this exactly; never invent prices, hours, products, or numbers not stated here):\n${brand.briefDigest(profile.brandBrief, profile)}\n`
+    : '');
 
 async function generateMediaBrief(ctx) {
   if (!client) return templateMediaBrief(ctx);
