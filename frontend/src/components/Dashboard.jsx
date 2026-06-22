@@ -6,6 +6,7 @@ import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
 import ConnectionsPanel from './ConnectionsPanel';
+import BrandPanel from './BrandPanel';
 import SettingsPane from './SettingsPane';
 import ThemeToggle from './ThemeToggle';
 import api from '../lib/api';
@@ -20,7 +21,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [activeTab, setActiveTab] = useState(() => {
     const p = new URLSearchParams(window.location.search);
     return (p.get('connected') || p.get('connect_error')) ? 'connections' : 'analytics';
-  }); // 'analytics' | 'content' | 'media' | 'competitors' | 'connections' | 'settings'
+  }); // 'analytics' | 'brand' | 'content' | 'media' | 'competitors' | 'connections' | 'settings'
 
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -138,6 +139,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             id="btn_tab_analytics"
           >
             <i className="fa-solid fa-chart-pie"></i> {t('dashboard.nav.metrics', 'Metrics & Search')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'brand' ? 'active' : ''}`}
+            onClick={() => setActiveTab('brand')}
+            id="btn_tab_brand"
+          >
+            <i className="fa-solid fa-fingerprint"></i> {t('dashboard.nav.brand', 'Brand Identity')}
           </button>
           <button
             className={`nav-item ${activeTab === 'content' ? 'active' : ''}`}
@@ -396,6 +404,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               </div>
 
             </div>
+          )}
+
+          {/* TAB: BRAND IDENTITY */}
+          {activeTab === 'brand' && (
+            <BrandPanel activeProfile={activeProfile} onProfileUpdate={onProfileUpdate} />
           )}
 
           {/* TAB 2: AI CONTENT ENGINE */}
