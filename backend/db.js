@@ -205,6 +205,10 @@ module.exports = function createDb(dbPath) {
   addColumn('profiles', 'google_place_id TEXT');
   addColumn('profiles', 'google_rating REAL');
   addColumn('profiles', 'google_reviews_count INTEGER');
+  // Brand Identity Brief (JSON): positioning, voice, persona, content pillars,
+  // visual direction. Generated post-onboarding and read by every AI generator
+  // so output is specific to THIS business, not generic.
+  addColumn('profiles', 'brand_brief TEXT');
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -224,6 +228,7 @@ module.exports = function createDb(dbPath) {
     googlePlaceId: r.google_place_id || null,
     googleRating: r.google_rating ?? null,
     googleReviewsCount: r.google_reviews_count ?? null,
+    brandBrief: r.brand_brief ? JSON.parse(r.brand_brief) : null,
   };
   const mapPlatform = (r) => r && {
     id: r.id, profileId: r.profile_id, platformName: r.platform_name,
@@ -350,6 +355,7 @@ module.exports = function createDb(dbPath) {
           brandTone: 'brand_tone',
           slogan: 'slogan',
           logoMetadata: 'logo_metadata',
+          brandBrief: 'brand_brief',
         };
         const sets = [];
         const params = { profileId };
@@ -358,6 +364,7 @@ module.exports = function createDb(dbPath) {
           let value = fields[key];
           if (key === 'isOnline') value = value ? 1 : 0;
           if (key === 'logoMetadata') value = value ? JSON.stringify(value) : null;
+          if (key === 'brandBrief') value = value ? JSON.stringify(value) : null;
           sets.push(`${col} = @${key}`);
           params[key] = value;
         }

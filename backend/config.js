@@ -51,6 +51,17 @@ const config = {
   // Cheap, fast model for high-volume content; capable model for the agent.
   aiContentModel: process.env.AI_CONTENT_MODEL || 'claude-haiku-4-5',
   aiAgentModel: process.env.AI_AGENT_MODEL || 'claude-opus-4-8',
+  // Capable model for the multi-step marketing pipeline (strategy + critique +
+  // brand-brief synthesis). Falls back to the content model if unset.
+  aiPipelineModel: process.env.AI_PIPELINE_MODEL || process.env.AI_AGENT_MODEL || 'claude-opus-4-8',
+
+  // --- Gemini (Google) — second model for grounded research/trends ---
+  // Keyless mode: the Gemini provider transparently no-ops (callers fall back to
+  // Claude or templates), so the app and tests run with zero Gemini config.
+  // Flip live by setting GEMINI_API_KEY. Claude = strategy/voice/copy/critique;
+  // Gemini = local-market research, trends, seasonal hooks feeding the strategy step.
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
 
   // Monthly AI generation allowance per pricing tier (content + slogans +
   // agent queries all count). Numbers are provisional until pricing is final.
@@ -118,6 +129,7 @@ const config = {
 };
 
 config.aiEnabled = !!config.anthropicApiKey;
+config.geminiEnabled = !!config.geminiApiKey;
 
 // Convenience helpers used by the auth layer.
 config.newRefreshToken = () => crypto.randomBytes(32).toString('hex');

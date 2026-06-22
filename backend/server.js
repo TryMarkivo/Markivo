@@ -10,6 +10,7 @@ const path = require('path');
 const config = require('./config');
 const createDb = require('./db');
 const ai = require('./ai');
+const brand = require('./brand');
 const billing = require('./billing');
 const tg = require('./telegram');
 const places = require('./places');
@@ -270,7 +271,7 @@ const sanitizeCompetitors = (list) => (Array.isArray(list) ? list : [])
       : ['google'],
   }));
 
-app.post('/api/onboarding/construct', verifyToken, (req, res) => {
+app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) => {
   const { businessName, category, description, location, isOnline, audience, tone, slogan, logo, platforms } = req.body;
   if (!businessName) return res.status(400).json({ error: 'Business name is required' });
 
@@ -341,12 +342,31 @@ app.post('/api/onboarding/construct', verifyToken, (req, res) => {
     status: 'scheduled',
   });
 
+  // Brand Identity Brief — the foundation every AI generator reads from so
+  // output is specific to THIS business. Keyless: an instant template brief;
+  // live: one Claude call. Never blocks onboarding — degrades to the template
+  // on any failure.
+  let brandBrief = null;
+  try {
+    brandBrief = await brand.generateBrandBrief({
+      businessName,
+      category: safeCategory,
+      description,
+      brandTone: tone || 'Cozy & Warm',
+      audience,
+      location: isOnline ? 'Online / Remote' : (location || 'Tashkent'),
+    });
+    if (brandBrief) db.profiles.update(profile.id, { brandBrief });
+  } catch (err) {
+    console.error('Brand brief generation failed at onboarding (non-fatal):', err.message);
+  }
+
   // Return the profile WITH a platforms map so the dashboard can render
   // immediately without a follow-up fetch.
   const platformsMap = {};
   db.platforms.listByProfile(profile.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
-  res.json({ success: true, profile: { ...profile, platforms: platformsMap } });
-});
+  res.json({ success: true, profile: { ...profile, brandBrief, platforms: platformsMap } });
+}));
 
 app.get('/api/onboarding/active', verifyToken, (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
@@ -401,9 +421,61 @@ app.put('/api/me', verifyToken, (req, res) => {
 });
 
 // ==========================================
+// 3.38 BRAND IDENTITY ENGINE (/api/brand)
+//   The brand brief is the foundation every AI generator reads from so output
+//   is specific to THIS business. Generated at onboarding; viewable, editable,
+//   and regenerable here. businessFacts (signature items, prices, hours,
+//   booking link, offer) are owner-entered and the ONLY source of real numbers.
+// ==========================================
+app.get('/api/brand', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+  res.json({ brandBrief: profile.brandBrief || null, fields: brand.fields });
+});
+
+// Regenerate the brief from the current profile. Counts as an AI generation.
+// Preserves any owner-entered businessFacts across the regenerate.
+app.post('/api/brand/generate', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+
+  const brandBrief = await brand.generateBrandBrief({
+    businessName: profile.businessName,
+    category: profile.category,
+    description: profile.description,
+    brandTone: profile.brandTone,
+    audience: profile.targetAudience,
+    location: profile.location,
+  });
+  if (brandBrief && profile.brandBrief && profile.brandBrief.businessFacts) {
+    brandBrief.businessFacts = profile.brandBrief.businessFacts;
+  }
+  const updated = db.profiles.update(profile.id, { brandBrief });
+  db.usage.record({ userId: req.user.id, kind: 'brand' });
+  res.json({ success: true, brandBrief: updated.brandBrief });
+}));
+
+// Partial edit: merge the posted fields (incl. businessFacts) into the brief.
+app.put('/api/brand', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+
+  const incoming = req.body && typeof req.body.brandBrief === 'object' && req.body.brandBrief
+    ? req.body.brandBrief
+    : req.body;
+  if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
+    return res.status(400).json({ error: 'A brandBrief object is required' });
+  }
+  const merged = { ...(profile.brandBrief || {}), ...incoming };
+  const updated = db.profiles.update(profile.id, { brandBrief: merged });
+  res.json({ success: true, brandBrief: updated.brandBrief });
+});
+
+// ==========================================
 // 3.4 AI CONTENT ENGINE ROUTER (/api/content)
-//   NOTE: copy is still templated. Real Claude generation is the "AI core"
-//   milestone.
+//   Copy now runs the staged marketing pipeline (strategy -> draft -> quality
+//   gate -> refine) grounded in the brand brief; keyless falls back to a smart
+//   template.
 // ==========================================
 app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
   const { platform, topic, languages } = req.body;
@@ -418,6 +490,8 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async 
     description: profile?.description,
     brandTone: profile?.brandTone,
     audience: profile?.targetAudience,
+    location: profile?.location,
+    brief: profile?.brandBrief,
   });
   db.usage.record({ userId: req.user.id, kind: 'content' });
 
@@ -990,6 +1064,8 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
       description: profile.description,
       brandTone: profile.brandTone,
       audience: profile.targetAudience,
+      location: profile.location,
+      brief: profile.brandBrief,
     }),
   };
 

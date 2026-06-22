@@ -1,20 +1,20 @@
 const config = require('./config');
 const logogen = require('./logogen');
+const anthropic = require('./providers/anthropic');
+const brand = require('./brand');
+const frameworks = require('./marketing/frameworks');
+const rubric = require('./marketing/rubric');
+const marketing = require('./marketing/prompts');
 
-// Lazily construct the Anthropic client only when a key is present, so the app
-// runs with zero AI config (every function falls back to a smart template).
-let client = null;
-if (config.aiEnabled) {
-  const Anthropic = require('@anthropic-ai/sdk');
-  client = new Anthropic({ apiKey: config.anthropicApiKey });
-}
+// Shared Anthropic client (constructed once in providers/anthropic.js). Null in
+// keyless mode, so every function falls back to a smart template.
+const client = anthropic.client;
 
-const textOf = (msg) =>
-  (msg.content || [])
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .trim();
+const textOf = anthropic.textOf;
+
+// ${placeholder} interpolation for the authored pipeline prompt templates.
+const fill = (tmpl, vars) =>
+  String(tmpl).replace(/\$\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
 
 const cleanTag = (name) => `#${(name || 'business').toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
@@ -259,42 +259,107 @@ const CONTENT_SCHEMA = {
 
 const LANG_NAMES = { en: 'English', uz: 'Uzbek (Latin script)', ru: 'Russian' };
 
+// Strategy step output — the creative plan the copywriter then executes.
+const STRATEGY_SCHEMA = {
+  type: 'object',
+  properties: {
+    objective: { type: 'string' },
+    audiencePersona: { type: 'string' },
+    customerMoment: { type: 'string' },
+    angle: { type: 'string' },
+    singleMessage: { type: 'string' },
+    hook: { type: 'string' },
+    cta: { type: 'string' },
+    proofPoint: { type: 'string' },
+    mediaDirection: { type: 'string' },
+    toneNote: { type: 'string' },
+    avoid: { type: 'string' },
+  },
+  required: ['objective', 'audiencePersona', 'customerMoment', 'angle', 'singleMessage',
+    'hook', 'cta', 'proofPoint', 'mediaDirection', 'toneNote', 'avoid'],
+  additionalProperties: false,
+};
+
+// One refine pass — only when the local quality gate trips (e.g. a banned
+// cliche slips through). Reuses CONTENT_SCHEMA so multi-language copy stays
+// inside `post`, matching the existing UI contract.
+async function refineDraft({ platform, draft, ctx, langNames }) {
+  try {
+    const out = await anthropic.completeJSON({
+      model: config.aiContentModel,
+      system: rubric.refineSystemPrompt +
+        '\n\nOUTPUT OVERRIDE: Return ONLY JSON {"post": string, "mediaTip": string, "hashtags": string[]}. ' +
+        'Put every requested language INSIDE `post`, English first, clearly separated — no separate ' +
+        'translations field, no changeLog.',
+      prompt:
+        `Business: ${ctx.businessName || 'a local business'}\n` +
+        `Category: ${ctx.category || 'general'}\n` +
+        `Brand tone: ${ctx.brandTone || 'Cozy & Warm'}\n` +
+        `Location: ${ctx.location || 'n/a'}\n` +
+        `Platform: ${platform}\n` +
+        `Languages: ${langNames || 'English'}\n\n` +
+        `ORIGINAL DRAFT:\n${draft.post}\n\n` +
+        `Hashtags: ${(draft.hashtags || []).join(' ')}\n\n` +
+        'Rewrite it to remove every cliche and clear the quality bar. Keep it ready-to-publish.',
+      schema: CONTENT_SCHEMA,
+      maxTokens: 1200,
+    });
+    if (!out || !out.post) return null;
+    return { post: out.post, mediaTip: out.mediaTip || draft.mediaTip, hashtags: out.hashtags || draft.hashtags };
+  } catch (err) {
+    console.error('AI refineDraft failed, keeping draft:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Pro content pipeline: STRATEGY -> DRAFT -> local quality gate -> (refine).
+ * Reads the brand brief (ctx.brief) so copy is specific to THIS business.
+ * Keyless mode or any failure falls back to the smart template — callers and
+ * the return shape ({ post, mediaTip, hashtags }) are unchanged.
+ */
 async function generateContent(ctx) {
   if (!client) return templateContent(ctx);
-  const { platform = 'instagram', topic, businessName, category, description, brandTone, audience } = ctx;
+  const platform = ctx.platform || 'instagram';
   const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => LANG_NAMES[l]);
-  const langInstruction =
-    langs.length <= 1
-      ? 'Write the post in English only.'
-      : `Write the same message in each of these languages, English first, clearly separated: ${langs.map((l) => LANG_NAMES[l]).join(', ')}.`;
+  const langNames = (langs.length ? langs : ['en']).map((l) => LANG_NAMES[l]).join(', ');
+  const digest = brand.briefDigest(ctx.brief, ctx);
+  const rule = frameworks.rulesFor(platform);
+  const topic = ctx.topic || 'a friendly general promotion that drives a visit';
+
   try {
-    const msg = await client.messages.create({
+    // 1. Strategy — decide angle, hook, single message, one CTA (cheap model).
+    const strategy = await anthropic.completeJSON({
       model: config.aiContentModel,
-      max_tokens: 1500,
-      system:
-        "You are Markivo's expert social-media copywriter for small businesses. " +
-        `${langInstruction} Write a single platform-native post that matches the brand tone. ` +
-        'Keep hashtags OUT of the post body — return them separately. Respond as JSON only.',
-      messages: [
-        {
-          role: 'user',
-          content:
-            `Business: ${businessName || 'a local business'}\n` +
-            `Category: ${category || 'general'}\n` +
-            `Business description: ${description || 'n/a'}\n` +
-            `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
-            `Target audience: ${audience || 'local customers'}\n` +
-            `Platform: ${platform}\n` +
-            `Post topic: ${topic || 'a friendly general promotion'}\n\n` +
-            'Write the post, a one-line phone photography/video tip, and 4-6 relevant hashtags.',
-        },
-      ],
-      output_config: { format: { type: 'json_schema', schema: CONTENT_SCHEMA } },
+      system: marketing.pipeline.strategySystemPrompt +
+        (rule ? `\n\nPLATFORM-NATIVE RULES for ${platform}:\n${JSON.stringify(rule)}` : ''),
+      prompt: fill(marketing.pipeline.strategyUserTemplate, { platform, brief: digest, topic }),
+      schema: STRATEGY_SCHEMA,
+      maxTokens: 900,
     });
-    const parsed = JSON.parse(textOf(msg));
-    return { post: parsed.post, mediaTip: parsed.mediaTip, hashtags: parsed.hashtags || [] };
+
+    // 2. Draft — execute the strategy into a final platform-native post.
+    const draft = await anthropic.completeJSON({
+      model: config.aiContentModel,
+      system: marketing.pipeline.draftSystemPrompt,
+      prompt: fill(marketing.pipeline.draftUserTemplate, {
+        platform, brief: digest, strategy: JSON.stringify(strategy), topic, languages: langNames,
+      }),
+      schema: CONTENT_SCHEMA,
+      maxTokens: 1300,
+    });
+    if (!draft || !draft.post) return templateContent(ctx);
+
+    let out = { post: draft.post, mediaTip: draft.mediaTip, hashtags: draft.hashtags || [] };
+
+    // 3. Local quality gate — if a banned cliche slipped through, one refine pass.
+    if (rubric.hasCliche(out.post)) {
+      const refined = await refineDraft({ platform, draft: out, ctx, langNames });
+      if (refined) out = refined;
+    }
+    return out;
   } catch (err) {
-    console.error('AI generateContent failed, using template:', err.message);
+    console.error('AI generateContent pipeline failed, using template:', err.message);
     return templateContent(ctx);
   }
 }
@@ -481,17 +546,11 @@ async function agentAct(ctx) {
   messages.push({ role: 'user', content: query || 'Hello' });
 
   const system =
-    'You are Markiv, the AI marketing agent inside Markivo, helping a small business owner. ' +
-    `${AGENT_LANG_RULE[lang] || AGENT_LANG_RULE.en} ` +
-    'Be concise, practical, and encouraging. You can draft content, analyse competitors, plan campaigns, ' +
-    'schedule posts on the content calendar (free, no approval needed), ' +
-    'and publish to the connected Telegram channel via your tool. You never spend money or publish without ' +
-    'the approval gate the app provides — so when asked to post, call the tool with your best draft instead of asking for permission. ' +
-    'Reply with ONLY the final answer — no exploratory reasoning or meta-commentary. ' +
+    marketing.pipeline.agentSystemPrompt + ' ' +
+    `${AGENT_LANG_RULE[lang] || AGENT_LANG_RULE.en}` +
     (profile
-      ? `\n\nBusiness context — name: ${profile.businessName}; category: ${profile.category}; ` +
-        `tone: ${profile.brandTone}; location: ${profile.location}; slogan: ${profile.slogan || 'n/a'}; ` +
-        `description: ${profile.description || 'n/a'}; target audience: ${profile.targetAudience || 'n/a'}.`
+      ? `\n\nBRAND BRIEF for this business (${profile.businessName}):\n` +
+        `${brand.briefDigest(profile.brandBrief, profile)}`
       : '') +
     (snapshot
       ? '\n\nLive business snapshot:' +
