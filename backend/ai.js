@@ -5,6 +5,7 @@ const brand = require('./brand');
 const frameworks = require('./marketing/frameworks');
 const rubric = require('./marketing/rubric');
 const marketing = require('./marketing/prompts');
+const preferences = require('./preferences');
 
 // Shared Anthropic client (constructed once in providers/anthropic.js). Null in
 // keyless mode, so every function falls back to a smart template.
@@ -326,13 +327,16 @@ async function generateContent(ctx) {
   const digest = brand.briefDigest(ctx.brief, ctx);
   const rule = frameworks.rulesFor(platform);
   const topic = ctx.topic || 'a friendly general promotion that drives a visit';
+  // Preference memory: what this owner has actually published (per-business taste).
+  const prefBlock = preferences.preferenceDigest(ctx.preferences);
 
   try {
     // 1. Strategy — decide angle, hook, single message, one CTA (cheap model).
     const strategy = await anthropic.completeJSON({
       model: config.aiContentModel,
       system: marketing.pipeline.strategySystemPrompt +
-        (rule ? `\n\nPLATFORM-NATIVE RULES for ${platform}:\n${JSON.stringify(rule)}` : ''),
+        (rule ? `\n\nPLATFORM-NATIVE RULES for ${platform}:\n${JSON.stringify(rule)}` : '') +
+        (prefBlock ? `\n\n${prefBlock}` : ''),
       prompt: fill(marketing.pipeline.strategyUserTemplate, { platform, brief: digest, topic }),
       schema: STRATEGY_SCHEMA,
       maxTokens: 900,
@@ -341,7 +345,7 @@ async function generateContent(ctx) {
     // 2. Draft — execute the strategy into a final platform-native post.
     const draft = await anthropic.completeJSON({
       model: config.aiContentModel,
-      system: marketing.pipeline.draftSystemPrompt,
+      system: marketing.pipeline.draftSystemPrompt + (prefBlock ? `\n\n${prefBlock}` : ''),
       prompt: fill(marketing.pipeline.draftUserTemplate, {
         platform, brief: digest, strategy: JSON.stringify(strategy), topic, languages: langNames,
       }),
@@ -420,7 +424,8 @@ const AGENT_LANG_RULE = {
  */
 async function agentAct(ctx) {
   if (!client) return templateAgentAct(ctx);
-  const { query, history = [], lang = 'en', profile, telegram, platforms = [], snapshot, actions = {} } = ctx;
+  const { query, history = [], lang = 'en', profile, telegram, platforms = [], snapshot, actions = {}, preferences: ownerExamples = [] } = ctx;
+  const agentPrefBlock = preferences.preferenceDigest(ownerExamples);
 
   const tools = [];
   if (telegram?.connected) {
@@ -552,6 +557,7 @@ async function agentAct(ctx) {
       ? `\n\nBRAND BRIEF for this business (${profile.businessName}):\n` +
         `${brand.briefDigest(profile.brandBrief, profile)}`
       : '') +
+    (agentPrefBlock ? `\n\n${agentPrefBlock}` : '') +
     (snapshot
       ? '\n\nLive business snapshot:' +
         `\n- Competitors tracked: ${snapshot.stats?.competitorCount ?? 0}` +

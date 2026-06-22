@@ -471,6 +471,17 @@ app.put('/api/brand', verifyToken, (req, res) => {
   res.json({ success: true, brandBrief: updated.brandBrief });
 });
 
+// What Mark has learned from this owner — the posts they've published/approved
+// that now steer future drafts. Powers a "Mark has learned from N posts" UI.
+app.get('/api/preferences', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+  res.json({
+    count: db.feedback.countByProfile(profile.id),
+    examples: db.feedback.recentExamples(profile.id, 5),
+  });
+});
+
 // ==========================================
 // 3.4 AI CONTENT ENGINE ROUTER (/api/content)
 //   Copy now runs the staged marketing pipeline (strategy -> draft -> quality
@@ -492,6 +503,7 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async 
     audience: profile?.targetAudience,
     location: profile?.location,
     brief: profile?.brandBrief,
+    preferences: profile ? db.feedback.recentExamples(profile.id) : [],
   });
   db.usage.record({ userId: req.user.id, kind: 'content' });
 
@@ -523,6 +535,8 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
     scheduledTime: scheduledTime || new Date(Date.now() + 86400000).toISOString(),
     status: 'scheduled',
   });
+  // Preference memory: scheduling a post is the owner endorsing this exact text.
+  db.feedback.record({ profileId: profile.id, platform: (platform || 'instagram').toLowerCase(), signal: 'approved', finalText: postText, topic: req.body.topic });
   res.json(post);
 });
 
@@ -537,6 +551,9 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
   const postText = typeof req.body.postText === 'string' ? req.body.postText.trim() : '';
   if (!postText) return res.status(400).json({ error: 'Post text is required' });
   if (postText.length > 4000) return res.status(400).json({ error: 'Post text must be 4000 characters or fewer' });
+
+  // Preference memory: publishing now endorses this exact text.
+  db.feedback.record({ profileId: profile.id, platform, signal: 'approved', finalText: postText, topic: req.body.topic });
 
   if (platform === 'telegram' && config.telegramEnabled) {
     const conn = db.telegram.findByProfile(profile.id);
@@ -1066,6 +1083,7 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
       audience: profile.targetAudience,
       location: profile.location,
       brief: profile.brandBrief,
+      preferences: db.feedback.recentExamples(profile.id),
     }),
   };
 
@@ -1087,6 +1105,7 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
     platforms: connectedPlatforms,
     snapshot,
     actions,
+    preferences: db.feedback.recentExamples(profile.id),
   });
 
   // Markiv proposed a Telegram publish → route through the human approval gate.
@@ -1190,6 +1209,7 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
     try {
       const result = await executeTelegramPost(profile, approval.action_payload.text);
       db.approvals.updateStatus(approvalId, 'approved');
+      db.feedback.record({ profileId: profile.id, platform: 'telegram', signal: 'approved', finalText: approval.action_payload.text });
       return res.json({
         success: true,
         message: `✅ Published to ${result.chatTitle}! Your subscribers can see it now.`,
@@ -1208,6 +1228,7 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
     try {
       const result = await executePlatformPost(profile, platform, approval.action_payload.text, approval.action_payload.mediaUrl);
       db.approvals.updateStatus(approvalId, 'approved');
+      db.feedback.record({ profileId: profile.id, platform, signal: 'approved', finalText: approval.action_payload.text });
       return res.json({
         success: true,
         message: result.simulated

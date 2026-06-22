@@ -160,6 +160,20 @@ module.exports = function createDb(dbPath) {
       created_at TEXT NOT NULL
     );
 
+    -- Preference memory: every post the owner publishes/schedules/approves is a
+    -- positive example of their taste. Mark few-shots on these so it adapts to
+    -- each owner over time (no model retraining — pure retrieval + prompting).
+    CREATE TABLE IF NOT EXISTS content_feedback (
+      id         TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform   TEXT,
+      signal     TEXT,              -- 'approved' | 'rejected' | 'edited'
+      draft_text TEXT,              -- what Mark originally wrote (nullable)
+      final_text TEXT,              -- what the owner endorsed/published
+      topic      TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS subscriptions (
       id                 TEXT PRIMARY KEY,
       user_id            TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -189,6 +203,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_refresh_hash ON refresh_tokens(token_hash);
     CREATE INDEX IF NOT EXISTS idx_media_profile ON media(profile_id);
     CREATE INDEX IF NOT EXISTS idx_agent_messages_profile_time ON agent_messages(profile_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_content_feedback_profile ON content_feedback(profile_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_platform_connections_profile ON platform_connections(profile_id);
   `);
@@ -519,6 +534,56 @@ module.exports = function createDb(dbPath) {
       },
       clearByProfile(profileId) {
         sqlite.prepare('DELETE FROM agent_messages WHERE profile_id = ?').run(profileId);
+      },
+    },
+
+    // Preference memory — what the owner actually publishes is the strongest
+    // signal of their taste. Used to personalise future generations per business.
+    feedback: {
+      record({ profileId, platform, signal = 'approved', draftText, finalText, topic }) {
+        const text = finalText == null ? null : String(finalText).slice(0, 4000);
+        if (!text || !text.trim()) return null; // only store meaningful posts
+        const row = {
+          id: id(), profile_id: profileId, platform: platform || null, signal,
+          draft_text: draftText == null ? null : String(draftText).slice(0, 4000),
+          final_text: text, topic: topic == null ? null : String(topic).slice(0, 300),
+          created_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO content_feedback (id, profile_id, platform, signal, draft_text, final_text, topic, created_at)
+           VALUES (@id, @profile_id, @platform, @signal, @draft_text, @final_text, @topic, @created_at)`
+        ).run(row);
+        return { id: row.id };
+      },
+      // Recent owner-endorsed posts (newest first), de-duplicated by text — the
+      // positive few-shot examples the generators match.
+      recentExamples(profileId, limit = 3) {
+        const rows = sqlite.prepare(
+          `SELECT platform, final_text, topic, created_at, rowid AS _rid FROM content_feedback
+           WHERE profile_id = ? AND signal IN ('approved', 'edited') AND final_text IS NOT NULL
+           ORDER BY created_at DESC, _rid DESC LIMIT ?`
+        ).all(profileId, Math.max(1, Math.min(40, limit * 5)));
+        const seen = new Set();
+        const out = [];
+        for (const r of rows) {
+          const key = (r.final_text || '').trim().slice(0, 120).toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push({ platform: r.platform, text: r.final_text, topic: r.topic, created_at: r.created_at });
+          if (out.length >= limit) break;
+        }
+        return out;
+      },
+      countByProfile(profileId) {
+        return sqlite.prepare(
+          "SELECT COUNT(*) AS n FROM content_feedback WHERE profile_id = ? AND signal IN ('approved', 'edited')"
+        ).get(profileId).n;
+      },
+      listByProfile(profileId, limit = 20) {
+        return sqlite.prepare(
+          `SELECT platform, signal, final_text, topic, created_at FROM content_feedback
+           WHERE profile_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`
+        ).all(profileId, limit);
       },
     },
 
