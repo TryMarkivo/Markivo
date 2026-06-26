@@ -801,7 +801,25 @@
     "pillSoon": "Instagram · soon",
     "pillConnected": "Instagram · @{{username}}",
     "pillConnectedGeneric": "Instagram · connected",
-    "pillConnect": "Instagram · connect"
+    "pillConnect": "Instagram · connect",
+    "createPostCta": "Create a post",
+    "composer": {
+      "title": "New Instagram post",
+      "hint": "Posts to {{handle}}. Instagram requires media — use a JPEG image or an MP4 video (Reel). Max 8MB.",
+      "pick": "Choose image or video",
+      "change": "Change file",
+      "caption": "Caption",
+      "captionPh": "Write a caption… #hashtags welcome",
+      "tooLarge": "File is too large — 8MB maximum.",
+      "uploading": "Uploading…",
+      "publishing": "Publishing…",
+      "publishingVideo": "Publishing… (video can take a minute)",
+      "publish": "Publish to Instagram ✦",
+      "publishedTitle": "Published to Instagram!",
+      "publishedTo": "Posted to {{handle}}.",
+      "viewPost": "View post on Instagram ↗",
+      "another": "Post another"
+    }
   },
   "settings": {
     "title": "Settings",

@@ -807,7 +807,25 @@
     "pillSoon": "Instagram · скоро",
     "pillConnected": "Instagram · @{{username}}",
     "pillConnectedGeneric": "Instagram · подключён",
-    "pillConnect": "Instagram · подключить"
+    "pillConnect": "Instagram · подключить",
+    "createPostCta": "Создать публикацию",
+    "composer": {
+      "title": "Новая публикация в Instagram",
+      "hint": "Публикация в {{handle}}. Instagram требует медиа — используйте JPEG-изображение или MP4-видео (Reel). Максимум 8 МБ.",
+      "pick": "Выбрать изображение или видео",
+      "change": "Заменить файл",
+      "caption": "Подпись",
+      "captionPh": "Напишите подпись… #хештеги приветствуются",
+      "tooLarge": "Файл слишком большой — максимум 8 МБ.",
+      "uploading": "Загрузка…",
+      "publishing": "Публикация…",
+      "publishingVideo": "Публикация… (видео может занять минуту)",
+      "publish": "Опубликовать в Instagram ✦",
+      "publishedTitle": "Опубликовано в Instagram!",
+      "publishedTo": "Опубликовано в {{handle}}.",
+      "viewPost": "Открыть публикацию в Instagram ↗",
+      "another": "Опубликовать ещё"
+    }
   },
   "settings": {
     "title": "Настройки",

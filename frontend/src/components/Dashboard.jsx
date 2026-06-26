@@ -6,6 +6,7 @@ import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
 import InstagramConnect from './InstagramConnect';
+import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
 import ThemeToggle from './ThemeToggle';
 import api from '../lib/api';
@@ -22,6 +23,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [igStatus, setIgStatus] = useState(null);
   const [igModalOpen, setIgModalOpen] = useState(false);
+  const [igComposerOpen, setIgComposerOpen] = useState(false);
   // Derive the OAuth round-trip notice once, from the URL the callback set us to
   // (?instagram=connected|error&reason=…). A lazy initializer reads this external
   // state during the first render; the effect below only handles side effects.
@@ -486,6 +488,16 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           status={igStatus}
           onStatusChange={refreshInstagramStatus}
           onClose={() => setIgModalOpen(false)}
+          onCompose={() => { setIgModalOpen(false); setIgComposerOpen(true); }}
+        />
+      )}
+
+      {/* --- INSTAGRAM COMPOSER MODAL --- */}
+      {igComposerOpen && (
+        <InstagramComposer
+          status={igStatus}
+          onPosted={refreshInstagramStatus}
+          onClose={() => setIgComposerOpen(false)}
         />
       )}
 

@@ -801,7 +801,25 @@
     "pillSoon": "Instagram · tez orada",
     "pillConnected": "Instagram · @{{username}}",
     "pillConnectedGeneric": "Instagram · ulangan",
-    "pillConnect": "Instagram · ulash"
+    "pillConnect": "Instagram · ulash",
+    "createPostCta": "Post yaratish",
+    "composer": {
+      "title": "Yangi Instagram posti",
+      "hint": "{{handle}} ga joylanadi. Instagram media talab qiladi — JPEG rasm yoki MP4 video (Reel) ishlating. Maksimal 8MB.",
+      "pick": "Rasm yoki video tanlang",
+      "change": "Faylni almashtirish",
+      "caption": "Izoh",
+      "captionPh": "Izoh yozing… #hashtaglar mumkin",
+      "tooLarge": "Fayl juda katta — maksimal 8MB.",
+      "uploading": "Yuklanmoqda…",
+      "publishing": "Joylanmoqda…",
+      "publishingVideo": "Joylanmoqda… (video bir daqiqa olishi mumkin)",
+      "publish": "Instagram'ga joylash ✦",
+      "publishedTitle": "Instagram'ga joylandi!",
+      "publishedTo": "{{handle}} ga joylandi.",
+      "viewPost": "Instagram'da postni ko'rish ↗",
+      "another": "Yana joylash"
+    }
   },
   "settings": {
     "title": "Sozlamalar",

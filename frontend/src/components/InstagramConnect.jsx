@@ -10,7 +10,7 @@ import './Onboarding.css';
  * backend callback (which stores the token) and then to the dashboard, where a
  * ?instagram=connected param surfaces the result.
  */
-export default function InstagramConnect({ status, onStatusChange, onClose }) {
+export default function InstagramConnect({ status, onStatusChange, onClose, onCompose }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -105,10 +105,15 @@ export default function InstagramConnect({ status, onStatusChange, onClose }) {
                 components={{ 1: <strong /> }}
               />
             </p>
-            <button className="btn btn-secondary mt-20" onClick={handleDisconnect} disabled={busy} id="btn_ig_disconnect">
-              {busy ? t('common.working', 'Working…') : t('instagram.disconnectCta', 'Disconnect')}
+            <button className="btn btn-primary w-full mt-20" onClick={() => onCompose?.()} id="btn_ig_compose">
+              <i className="fa-solid fa-pen-nib"></i> {t('instagram.createPostCta', 'Create a post')}
             </button>
-            <button className="btn btn-primary mt-20 ml-10" onClick={onClose} id="btn_ig_done">{t('common.done', 'Done')}</button>
+            <div className="flex-gap-8 mt-10" style={{ justifyContent: 'center' }}>
+              <button className="btn btn-secondary" onClick={handleDisconnect} disabled={busy} id="btn_ig_disconnect">
+                {busy ? t('common.working', 'Working…') : t('instagram.disconnectCta', 'Disconnect')}
+              </button>
+              <button className="btn btn-text" onClick={onClose} id="btn_ig_done">{t('common.done', 'Done')}</button>
+            </div>
           </div>
         )}
       </div>

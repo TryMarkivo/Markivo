@@ -476,15 +476,15 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
-  // Instagram publishes for real when connected AND an image is supplied
-  // (imageUrl or mediaId) — Instagram has no text-only post type.
+  // Instagram publishes for real when connected AND media is supplied (imageUrl,
+  // videoUrl, or mediaId) — Instagram has no text-only post type.
   if (platform === 'instagram' && config.instagramEnabled) {
     const conn = db.instagram.findByProfile(profile.id);
     if (conn && conn.igUserId) {
-      const imageUrl = resolveInstagramImageUrl(profile, req.body);
-      if (imageUrl) {
+      const media = resolveInstagramMedia(profile, req.body);
+      if (media.imageUrl || media.videoUrl) {
         try {
-          const result = await executeInstagramPost(profile, { imageUrl, caption: postText });
+          const result = await executeInstagramPost(profile, { ...media, caption: postText });
           return res.json({ success: true, simulated: false, ...result });
         } catch (err) {
           return res.status(400).json({ error: err.message });
@@ -740,29 +740,36 @@ app.post('/api/instagram/disconnect', verifyToken, (req, res) => {
   res.json({ success: true });
 });
 
-// Resolve a post image to a PUBLIC URL Instagram can fetch server-side. Accepts
-// an explicit imageUrl (used as-is) or a mediaId whose uploaded/rendered file we
-// expose via the public base (the dev tunnel). Returns '' when none resolvable.
-function resolveInstagramImageUrl(profile, body = {}) {
-  const explicit = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
-  if (explicit) return explicit;
+// Resolve post media to a PUBLIC URL Instagram can fetch server-side. Accepts an
+// explicit imageUrl/videoUrl (used as-is) or a mediaId whose uploaded/rendered
+// file we expose via the public base (the dev tunnel). The media row's `kind`
+// decides image vs video. Returns { imageUrl, videoUrl, mediaType } — all '' when
+// nothing is resolvable.
+function resolveInstagramMedia(profile, body = {}) {
+  const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
+  const videoUrl = typeof body.videoUrl === 'string' ? body.videoUrl.trim() : '';
+  if (imageUrl) return { imageUrl, videoUrl: '', mediaType: '' };
+  if (videoUrl) return { imageUrl: '', videoUrl, mediaType: 'REELS' };
   if (body.mediaId) {
     const m = db.media.findById(String(body.mediaId));
     if (m && m.profileId === profile.id && m.filePath && config.publicBaseUrl) {
-      return `${config.publicBaseUrl}/${m.filePath.replace(/^\/+/, '')}`;
+      const url = `${config.publicBaseUrl}/${m.filePath.replace(/^\/+/, '')}`;
+      if (m.kind === 'video') return { imageUrl: '', videoUrl: url, mediaType: 'REELS' };
+      return { imageUrl: url, videoUrl: '', mediaType: '' };
     }
   }
-  return '';
+  return { imageUrl: '', videoUrl: '', mediaType: '' };
 }
 
 // Shared executor — used by the direct post route AND /api/content/post-now.
-// Publishes an image post for real via the Instagram Graph API and records it.
-async function executeInstagramPost(profile, { imageUrl, caption }) {
+// Publishes an image OR video (Reels) post for real and records it. Video
+// containers are polled to FINISHED inside ig.publishMediaPost before publishing.
+async function executeInstagramPost(profile, { imageUrl, videoUrl, mediaType, caption }) {
   const conn = db.instagram.findByProfile(profile.id);
   if (!conn) throw new Error('Instagram is not connected');
   if (!conn.igUserId) throw new Error('This Instagram connection has no linked account id — reconnect Instagram');
-  if (!imageUrl) throw new Error('An image is required — Instagram does not support text-only posts');
-  const { mediaId } = await ig.publishImage(conn, { imageUrl, caption });
+  if (!imageUrl && !videoUrl) throw new Error('An image or video is required — Instagram does not support text-only posts');
+  const { mediaId, permalink } = await ig.publishMediaPost(conn, { imageUrl, videoUrl, mediaType, caption });
   db.calendar.add({
     profileId: profile.id,
     platform: 'instagram',
@@ -770,7 +777,7 @@ async function executeInstagramPost(profile, { imageUrl, caption }) {
     scheduledTime: new Date().toISOString(),
     status: 'posted',
   });
-  return { mediaId, username: conn.igUsername };
+  return { mediaId, permalink, username: conn.igUsername };
 }
 
 app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (req, res) => {
@@ -778,12 +785,12 @@ app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (re
   if (!profile) return;
   const caption = typeof req.body.caption === 'string' ? req.body.caption.trim() : '';
   if (caption.length > 2200) return res.status(400).json({ error: 'Caption must be 2200 characters or fewer' });
-  const imageUrl = resolveInstagramImageUrl(profile, req.body);
-  if (!imageUrl) {
-    return res.status(400).json({ error: 'Provide an imageUrl, or a mediaId with an uploaded image — Instagram posts require an image.' });
+  const media = resolveInstagramMedia(profile, req.body);
+  if (!media.imageUrl && !media.videoUrl) {
+    return res.status(400).json({ error: 'Provide an imageUrl, videoUrl, or a mediaId with an uploaded file — Instagram posts require an image or video.' });
   }
   try {
-    const result = await executeInstagramPost(profile, { imageUrl, caption });
+    const result = await executeInstagramPost(profile, { ...media, caption });
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(400).json({ error: err.message });

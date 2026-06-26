@@ -134,9 +134,13 @@ async function resolveAccount(token) {
 }
 
 // --- Content publishing (graph.instagram.com) ---
-// Two-step flow: create a media container from a PUBLIC image URL, then publish
-// it. Instagram fetches image_url server-side, so it must be reachable from the
-// internet (JPEG); there is no text-only post type.
+// Two-step flow: create a media container from a PUBLIC media URL, then publish
+// it. Instagram fetches the URL server-side, so it must be reachable from the
+// internet (JPEG for images, MP4/MOV for video). There is no text-only post
+// type. Video (Reels) containers process asynchronously, so we poll the
+// container's status_code until FINISHED before publishing.
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function graphPost(pathname, params) {
   let res;
@@ -152,13 +156,29 @@ async function graphPost(pathname, params) {
   return parseJson(res, 'publish');
 }
 
-// Step 1 — create an image media container; returns its creation id.
-async function createMediaContainer(token, igUserId, { imageUrl, caption }) {
-  const data = await graphPost(`${igUserId}/media`, {
-    image_url: imageUrl,
-    ...(caption ? { caption } : {}),
-    access_token: token,
-  });
+async function graphGet(url) {
+  let res;
+  try {
+    res = await fetch(url, { method: 'GET' });
+  } catch (err) {
+    throw new InstagramError(`network error (${err.message})`, 0, 'network');
+  }
+  return parseJson(res, 'graph get');
+}
+
+// Step 1 — create a media container (image OR video). Returns its creation id.
+async function createMediaContainer(token, igUserId, { imageUrl, videoUrl, mediaType, caption }) {
+  const params = { access_token: token, ...(caption ? { caption } : {}) };
+  if (videoUrl) {
+    // Feed video posts go through the Reels product on this API.
+    params.media_type = mediaType || 'REELS';
+    params.video_url = videoUrl;
+  } else if (imageUrl) {
+    params.image_url = imageUrl;
+  } else {
+    throw new InstagramError('createMediaContainer requires an imageUrl or videoUrl', 0, 'publish');
+  }
+  const data = await graphPost(`${igUserId}/media`, params);
   if (!data.id) throw new InstagramError('no container id in create-media response', 0, 'publish');
   return data.id;
 }
@@ -173,11 +193,60 @@ async function publishMedia(token, igUserId, creationId) {
   return data.id;
 }
 
-// High-level: create + publish an image post for a stored connection.
-async function publishImage(conn, { imageUrl, caption }) {
-  const creationId = await createMediaContainer(conn.accessToken, conn.igUserId, { imageUrl, caption });
+// Poll a container's processing state (mainly for video). Returns the status_code
+// string: IN_PROGRESS | FINISHED | ERROR | EXPIRED | PUBLISHED.
+async function getContainerStatus(token, creationId) {
+  const url = new URL(`${GRAPH_BASE}/${creationId}`);
+  url.searchParams.set('fields', 'status_code');
+  url.searchParams.set('access_token', token);
+  const data = await graphGet(url);
+  return data.status_code;
+}
+
+// Wait until a (video) container finishes processing before it can be published.
+// `opts.sleepFn` is injectable for tests; defaults to real timers.
+async function waitForContainerReady(token, creationId, opts = {}) {
+  const attempts = opts.attempts || 24;
+  const delayMs = opts.delayMs == null ? 5000 : opts.delayMs;
+  const wait = opts.sleepFn || sleep;
+  for (let i = 0; i < attempts; i++) {
+    const status = await getContainerStatus(token, creationId);
+    if (status === 'FINISHED') return;
+    if (status === 'ERROR' || status === 'EXPIRED') {
+      throw new InstagramError(`media processing ${status}`, 0, 'publish');
+    }
+    await wait(delayMs);
+  }
+  throw new InstagramError('media processing timed out — try again', 0, 'publish');
+}
+
+// Best-effort permalink for a published post (for nice UX); null on failure.
+async function getPermalink(token, mediaId) {
+  try {
+    const url = new URL(`${GRAPH_BASE}/${mediaId}`);
+    url.searchParams.set('fields', 'permalink');
+    url.searchParams.set('access_token', token);
+    const data = await graphGet(url);
+    return data.permalink || null;
+  } catch {
+    return null;
+  }
+}
+
+// High-level: create + (poll, for video) + publish a post for a stored
+// connection. Accepts { imageUrl } or { videoUrl, mediaType }. Returns ids +
+// permalink. `opts` is forwarded to the video poll (test injection).
+async function publishMediaPost(conn, { imageUrl, videoUrl, mediaType, caption }, opts = {}) {
+  const creationId = await createMediaContainer(conn.accessToken, conn.igUserId, { imageUrl, videoUrl, mediaType, caption });
+  if (videoUrl) await waitForContainerReady(conn.accessToken, creationId, opts);
   const mediaId = await publishMedia(conn.accessToken, conn.igUserId, creationId);
-  return { creationId, mediaId };
+  const permalink = await getPermalink(conn.accessToken, mediaId);
+  return { creationId, mediaId, permalink };
+}
+
+// Backward-compatible image-only helper.
+async function publishImage(conn, { imageUrl, caption }) {
+  return publishMediaPost(conn, { imageUrl, caption });
 }
 
 module.exports = {
@@ -188,5 +257,9 @@ module.exports = {
   resolveAccount,
   createMediaContainer,
   publishMedia,
+  getContainerStatus,
+  waitForContainerReady,
+  getPermalink,
+  publishMediaPost,
   publishImage,
 };

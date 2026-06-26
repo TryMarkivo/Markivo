@@ -18,6 +18,7 @@ process.env.INSTAGRAM_REDIRECT_URI = 'http://localhost:5000/api/instagram/oauth/
 const realFetch = global.fetch;
 let igCalls = [];
 let codeExchangeBody = () => ({ access_token: 'SHORT_TOKEN', user_id: '17841400000000000', permissions: 'instagram_business_basic,instagram_business_content_publish' });
+let videoStatus = () => 'FINISHED';
 global.fetch = async (url, opts) => {
   const u = String(url);
   const isIg = u.includes('api.instagram.com') || u.includes('graph.instagram.com');
@@ -37,6 +38,10 @@ global.fetch = async (url, opts) => {
     body = { id: 'MEDIA_999' };
   } else if (parsed.host === 'graph.instagram.com' && pathname.endsWith('/media')) {
     body = { id: 'CONTAINER_1' };
+  } else if (parsed.host === 'graph.instagram.com' && q.fields === 'status_code') {
+    body = { status_code: videoStatus(), id: pathname.slice(1) };
+  } else if (parsed.host === 'graph.instagram.com' && q.fields === 'permalink') {
+    body = { id: pathname.slice(1), permalink: 'https://www.instagram.com/p/TEST123/' };
   } else if (parsed.host === 'graph.instagram.com' && pathname.endsWith('/me')) {
     body = { user_id: '17841400000000000', username: 'noir_cafe', account_type: 'BUSINESS', name: 'Noir Cafe', id: '17841400000000000' };
   } else {
@@ -209,6 +214,55 @@ test('POST /api/instagram/post publishes an image and records it on the calendar
 test('POST /api/instagram/post without an image is rejected (no text-only posts)', async () => {
   const res = await post('/api/instagram/post', { caption: 'text only' }, access);
   assert.strictEqual(res.status, 400);
+});
+
+test('publishMediaPost for video polls the container to FINISHED, then publishes', async () => {
+  igCalls = [];
+  videoStatus = () => 'FINISHED';
+  const conn = { accessToken: 'TOK', igUserId: 'IGUSER', igUsername: 'noir_cafe' };
+  const r = await ig.publishMediaPost(conn, { videoUrl: 'https://x/y.mp4', caption: 'reel' }, { sleepFn: async () => {}, delayMs: 0 });
+  assert.strictEqual(r.mediaId, 'MEDIA_999');
+  assert.strictEqual(r.permalink, 'https://www.instagram.com/p/TEST123/');
+  // container created with media_type=REELS + video_url, then a status poll ran
+  assert.ok(igCalls.some((c) => c.pathname.endsWith('/media') && c.method === 'POST'));
+  assert.ok(igCalls.some((c) => c.q.fields === 'status_code'));
+});
+
+test('waitForContainerReady throws when the container status is ERROR', async () => {
+  videoStatus = () => 'ERROR';
+  await assert.rejects(
+    () => ig.waitForContainerReady('TOK', 'CONTAINER_1', { sleepFn: async () => {}, attempts: 3 }),
+    (err) => { assert.ok(err instanceof ig.InstagramError); assert.match(err.message, /ERROR/); return true; }
+  );
+  videoStatus = () => 'FINISHED';
+});
+
+test('POST /api/instagram/post with a videoUrl publishes a Reel', async () => {
+  igCalls = [];
+  const res = await post('/api/instagram/post', { caption: 'A reel 🎬', videoUrl: 'https://example.com/clip.mp4' }, access);
+  assert.strictEqual(res.status, 200);
+  const data = await res.json();
+  assert.strictEqual(data.mediaId, 'MEDIA_999');
+  assert.strictEqual(data.permalink, 'https://www.instagram.com/p/TEST123/');
+  const container = igCalls.find((c) => c.pathname.endsWith('/media') && c.method === 'POST');
+  assert.ok(container, 'a media container was created');
+});
+
+test('POST /api/instagram/post resolves an uploaded mediaId to a public image URL (composer path)', async () => {
+  // 1x1 PNG — exercises the same upload -> mediaId -> publish path the composer uses.
+  const pngDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const up = await post('/api/media/upload', { filename: 'tiny.png', dataUrl: pngDataUrl }, access);
+  assert.strictEqual(up.status, 200);
+  const { id: mediaId } = await up.json();
+
+  igCalls = [];
+  const res = await post('/api/instagram/post', { mediaId, caption: 'From media library' }, access);
+  assert.strictEqual(res.status, 200);
+  const data = await res.json();
+  assert.strictEqual(data.mediaId, 'MEDIA_999');
+  // the container was created from the public /uploads URL (image path, no poll)
+  assert.ok(igCalls.some((c) => c.pathname.endsWith('/media') && c.method === 'POST'));
+  assert.ok(!igCalls.some((c) => c.q.fields === 'status_code'), 'image post should not poll video status');
 });
 
 test('disconnect clears the connection', async () => {
