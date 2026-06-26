@@ -94,9 +94,28 @@ const config = {
   // Per-IP scan rate limit — live scans cost real Places API quota.
   scanRateLimit: parseInt(process.env.SCAN_RATE_LIMIT, 10) || 10,
   scanRateWindowMs: (parseInt(process.env.SCAN_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
+
+  // --- Instagram (Instagram API with Instagram Login) — "Connect Instagram" ---
+  // Uses the Instagram **Business Login** flow (instagram.com auth →
+  // api.instagram.com / graph.instagram.com), NOT Facebook Login. Credentials
+  // are the INSTAGRAM app ID/secret (found under the app's Instagram product →
+  // API setup with Instagram login) — distinct from the Facebook app's. When
+  // unset the connect routes answer 503 "coming soon" (instagramEnabled ===
+  // false). INSTAGRAM_REDIRECT_URI must match the redirect registered in the
+  // Instagram business-login settings byte-for-byte, and is reused unchanged in
+  // the token exchange.
+  instagramAppId: process.env.INSTAGRAM_APP_ID || '',
+  instagramAppSecret: process.env.INSTAGRAM_APP_SECRET || '',
+  instagramRedirectUri:
+    process.env.INSTAGRAM_REDIRECT_URI ||
+    process.env.META_REDIRECT_URI ||
+    'http://localhost:5000/api/instagram/oauth/callback',
+  instagramScopes: 'instagram_business_basic,instagram_business_content_publish',
 };
 
 config.aiEnabled = !!config.anthropicApiKey;
+// Instagram connect goes live only when both Instagram app credentials are set.
+config.instagramEnabled = !!(config.instagramAppId && config.instagramAppSecret);
 
 // Convenience helpers used by the auth layer.
 config.newRefreshToken = () => crypto.randomBytes(32).toString('hex');

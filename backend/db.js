@@ -122,6 +122,19 @@ module.exports = function createDb(dbPath) {
       updated_at   TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS instagram_connections (
+      id               TEXT PRIMARY KEY,
+      profile_id       TEXT UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      access_token     TEXT NOT NULL,
+      token_expires_at TEXT,
+      ig_user_id       TEXT,
+      ig_username      TEXT,
+      page_id          TEXT,
+      account_name     TEXT,
+      created_at       TEXT NOT NULL,
+      updated_at       TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS media (
       id            TEXT PRIMARY KEY,
       profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -173,6 +186,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_media_profile ON media(profile_id);
     CREATE INDEX IF NOT EXISTS idx_agent_messages_profile_time ON agent_messages(profile_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_instagram_profile ON instagram_connections(profile_id);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -626,6 +640,46 @@ module.exports = function createDb(dbPath) {
       },
       remove(profileId) {
         sqlite.prepare('DELETE FROM telegram_connections WHERE profile_id = ?').run(profileId);
+      },
+    },
+
+    instagram: {
+      // Access token is encrypted at rest (secrets.encrypt); findByProfile
+      // decrypts on the way out. One row per profile (profile_id is UNIQUE).
+      upsert({ profileId, accessToken, tokenExpiresAt, igUserId, igUsername, pageId, accountName }) {
+        const enc = secrets.encrypt(accessToken);
+        const existing = sqlite.prepare('SELECT id FROM instagram_connections WHERE profile_id = ?').get(profileId);
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE instagram_connections SET access_token = ?, token_expires_at = ?, ig_user_id = ?,
+             ig_username = ?, page_id = ?, account_name = ?, updated_at = ? WHERE id = ?`
+          ).run(enc, tokenExpiresAt || null, igUserId || null, igUsername || null, pageId || null, accountName || null, now(), existing.id);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO instagram_connections (id, profile_id, access_token, token_expires_at, ig_user_id, ig_username, page_id, account_name, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(id(), profileId, enc, tokenExpiresAt || null, igUserId || null, igUsername || null, pageId || null, accountName || null, now());
+        }
+        return this.findByProfile(profileId);
+      },
+      findByProfile(profileId) {
+        const r = sqlite.prepare('SELECT * FROM instagram_connections WHERE profile_id = ?').get(profileId);
+        if (!r) return null;
+        let accessToken = null;
+        try {
+          accessToken = secrets.decrypt(r.access_token);
+        } catch {
+          // Encryption key changed (JWT_SECRET rotated) — connection is unusable.
+          return null;
+        }
+        return {
+          id: r.id, profileId: r.profile_id, accessToken, tokenExpiresAt: r.token_expires_at,
+          igUserId: r.ig_user_id, igUsername: r.ig_username, pageId: r.page_id, accountName: r.account_name,
+          created_at: r.created_at, updated_at: r.updated_at,
+        };
+      },
+      remove(profileId) {
+        sqlite.prepare('DELETE FROM instagram_connections WHERE profile_id = ?').run(profileId);
       },
     },
 

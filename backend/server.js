@@ -12,6 +12,7 @@ const createDb = require('./db');
 const ai = require('./ai');
 const billing = require('./billing');
 const tg = require('./telegram');
+const ig = require('./instagram');
 const places = require('./places');
 const mediagen = require('./mediagen');
 const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
@@ -623,6 +624,104 @@ app.post('/api/telegram/post', verifyToken, telegramGate, asyncRoute(async (req,
     res.status(400).json({ error: err.description || err.message });
   }
 }));
+
+// ==========================================
+// 3.4 INSTAGRAM (Meta Graph) OAUTH CONNECT
+// ------------------------------------------
+//   Owner clicks "Connect Instagram" → we mint a signed `state` and hand back
+//   Meta's auth-dialog URL; the browser goes to Meta, authorizes, and Meta
+//   redirects to our callback with ?code=&state=. The callback (a top-level
+//   browser navigation with NO auth header) recovers identity from `state`,
+//   exchanges the code for a long-lived token, and stores it encrypted.
+// ==========================================
+const instagramGate = (req, res, next) => {
+  if (!config.instagramEnabled) {
+    return res.status(503).json({
+      error: 'Instagram connection is coming soon — Meta credentials are not configured yet.',
+      comingSoon: true,
+    });
+  }
+  next();
+};
+
+// Signed, short-lived state carrying the user/profile through the OAuth round
+// trip (doubles as CSRF protection — the callback rejects anything it didn't
+// sign). Reuses the JWT machinery already used for access tokens.
+const signOauthState = (user, profile) =>
+  jwt.sign({ uid: user.id, pid: profile.id, purpose: 'ig_oauth' }, config.jwtSecret, { expiresIn: '10m' });
+
+const verifyOauthState = (state) => {
+  const payload = jwt.verify(state, config.jwtSecret);
+  if (payload.purpose !== 'ig_oauth') throw new Error('wrong token purpose');
+  return payload;
+};
+
+app.get('/api/instagram/connect', verifyToken, instagramGate, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const authUrl = ig.buildAuthUrl(signOauthState(req.user, profile));
+  res.json({ authUrl });
+});
+
+// PUBLIC (no verifyToken) — Meta redirects the browser here. Identity rides in
+// `state`. Always ends in a redirect back to the SPA; never leaks raw errors.
+app.get('/api/instagram/oauth/callback', asyncRoute(async (req, res) => {
+  const back = (params) => res.redirect(`${config.appUrl}/?${new URLSearchParams(params).toString()}`);
+
+  if (!config.instagramEnabled) return back({ instagram: 'error', reason: 'not_configured' });
+  if (req.query.error) return back({ instagram: 'error', reason: 'denied' });
+
+  const { code, state } = req.query;
+  if (!code || !state) return back({ instagram: 'error', reason: 'missing_code' });
+
+  let payload;
+  try {
+    payload = verifyOauthState(String(state));
+  } catch {
+    return back({ instagram: 'error', reason: 'bad_state' });
+  }
+
+  const profile = db.profiles.findById(payload.pid);
+  if (!profile) return back({ instagram: 'error', reason: 'no_profile' });
+
+  try {
+    const short = await ig.exchangeCodeForToken(String(code));
+    const long = await ig.exchangeForLongLivedToken(short.accessToken);
+    const account = await ig.resolveAccount(long.accessToken);
+    const tokenExpiresAt = long.expiresIn
+      ? new Date(Date.now() + long.expiresIn * 1000).toISOString()
+      : null;
+
+    db.instagram.upsert({ profileId: profile.id, accessToken: long.accessToken, tokenExpiresAt, ...account });
+    db.platforms.setConnected(profile.id, 'instagram', account.igUsername ? `@${account.igUsername}` : (account.accountName || null));
+    return back({ instagram: 'connected' });
+  } catch (err) {
+    console.warn(`Instagram callback failed: ${err.message}`);
+    return back({ instagram: 'error', reason: 'exchange_failed' });
+  }
+}));
+
+app.get('/api/instagram/status', verifyToken, (req, res) => {
+  if (!config.instagramEnabled) return res.json({ connected: false, comingSoon: true });
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ connected: false });
+  const conn = db.instagram.findByProfile(profile.id);
+  if (!conn) return res.json({ connected: false });
+  res.json({
+    connected: true,
+    username: conn.igUsername,
+    accountName: conn.accountName,
+    expiresAt: conn.tokenExpiresAt,
+  });
+});
+
+app.post('/api/instagram/disconnect', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found' });
+  db.instagram.remove(profile.id);
+  db.platforms.setConnected(profile.id, 'instagram', null, false);
+  res.json({ success: true });
+});
 
 // ==========================================
 // 3.5 DASHBOARD METRICS ROUTER
