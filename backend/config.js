@@ -117,6 +117,14 @@ config.aiEnabled = !!config.anthropicApiKey;
 // Instagram connect goes live only when both Instagram app credentials are set.
 config.instagramEnabled = !!(config.instagramAppId && config.instagramAppSecret);
 
+// Public base URL for assets Instagram must fetch (image_url for publishing) and
+// other outward links. Instagram fetches images server-side, so localhost is not
+// reachable — in dev this is the tunnel host (derived from the redirect URI's
+// origin); set PUBLIC_BASE_URL explicitly in production.
+config.publicBaseUrl = process.env.PUBLIC_BASE_URL || (() => {
+  try { return new URL(config.instagramRedirectUri).origin; } catch { return ''; }
+})();
+
 // Convenience helpers used by the auth layer.
 config.newRefreshToken = () => crypto.randomBytes(32).toString('hex');
 config.hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');

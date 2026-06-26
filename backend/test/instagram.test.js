@@ -33,6 +33,10 @@ global.fetch = async (url, opts) => {
     body = codeExchangeBody();
   } else if (parsed.host === 'graph.instagram.com' && pathname.endsWith('/access_token')) {
     body = { access_token: 'LONG_TOKEN', token_type: 'bearer', expires_in: 5183944 };
+  } else if (parsed.host === 'graph.instagram.com' && pathname.endsWith('/media_publish')) {
+    body = { id: 'MEDIA_999' };
+  } else if (parsed.host === 'graph.instagram.com' && pathname.endsWith('/media')) {
+    body = { id: 'CONTAINER_1' };
   } else if (parsed.host === 'graph.instagram.com' && pathname.endsWith('/me')) {
     body = { user_id: '17841400000000000', username: 'noir_cafe', account_type: 'BUSINESS', name: 'Noir Cafe', id: '17841400000000000' };
   } else {
@@ -173,6 +177,38 @@ test('callback without a code redirects with missing_code', async () => {
   const state = new URL(authUrl).searchParams.get('state');
   const cb = await global.fetch(`${base}/api/instagram/oauth/callback?state=${encodeURIComponent(state)}`, { redirect: 'manual' });
   assert.match(cb.headers.get('location'), /instagram=error&reason=missing_code/);
+});
+
+// --- Publishing (depends on the connection stored by the callback test above) ---
+
+test('createMediaContainer then publishMedia POST to the publishing endpoints', async () => {
+  igCalls = [];
+  const cid = await ig.createMediaContainer('TOKEN', 'IGUSER', { imageUrl: 'https://x/y.jpg', caption: 'hi' });
+  assert.strictEqual(cid, 'CONTAINER_1');
+  const mid = await ig.publishMedia('TOKEN', 'IGUSER', cid);
+  assert.strictEqual(mid, 'MEDIA_999');
+  assert.strictEqual(igCalls.find((c) => c.pathname.endsWith('/media')).method, 'POST');
+  assert.strictEqual(igCalls.find((c) => c.pathname.endsWith('/media_publish')).method, 'POST');
+});
+
+test('POST /api/instagram/post publishes an image and records it on the calendar', async () => {
+  igCalls = [];
+  const res = await post('/api/instagram/post', { caption: 'Weekend special ☕', imageUrl: 'https://example.com/pic.jpg' }, access);
+  assert.strictEqual(res.status, 200);
+  const data = await res.json();
+  assert.strictEqual(data.success, true);
+  assert.strictEqual(data.mediaId, 'MEDIA_999');
+  // container creation then publish both ran
+  assert.ok(igCalls.some((c) => c.pathname.endsWith('/media') && c.method === 'POST'));
+  assert.ok(igCalls.some((c) => c.pathname.endsWith('/media_publish') && c.method === 'POST'));
+  // recorded as a posted instagram calendar entry
+  const cal = await (await get('/api/content/calendar', access)).json();
+  assert.ok(cal.some((p) => p.platform === 'instagram' && p.status === 'posted'));
+});
+
+test('POST /api/instagram/post without an image is rejected (no text-only posts)', async () => {
+  const res = await post('/api/instagram/post', { caption: 'text only' }, access);
+  assert.strictEqual(res.status, 400);
 });
 
 test('disconnect clears the connection', async () => {

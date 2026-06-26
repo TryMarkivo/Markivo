@@ -133,10 +133,60 @@ async function resolveAccount(token) {
   };
 }
 
+// --- Content publishing (graph.instagram.com) ---
+// Two-step flow: create a media container from a PUBLIC image URL, then publish
+// it. Instagram fetches image_url server-side, so it must be reachable from the
+// internet (JPEG); there is no text-only post type.
+
+async function graphPost(pathname, params) {
+  let res;
+  try {
+    res = await fetch(`${GRAPH_BASE}/${pathname}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(params).toString(),
+    });
+  } catch (err) {
+    throw new InstagramError(`network error (${err.message})`, 0, 'network');
+  }
+  return parseJson(res, 'publish');
+}
+
+// Step 1 — create an image media container; returns its creation id.
+async function createMediaContainer(token, igUserId, { imageUrl, caption }) {
+  const data = await graphPost(`${igUserId}/media`, {
+    image_url: imageUrl,
+    ...(caption ? { caption } : {}),
+    access_token: token,
+  });
+  if (!data.id) throw new InstagramError('no container id in create-media response', 0, 'publish');
+  return data.id;
+}
+
+// Step 2 — publish a previously-created container; returns the published media id.
+async function publishMedia(token, igUserId, creationId) {
+  const data = await graphPost(`${igUserId}/media_publish`, {
+    creation_id: creationId,
+    access_token: token,
+  });
+  if (!data.id) throw new InstagramError('no media id in media-publish response', 0, 'publish');
+  return data.id;
+}
+
+// High-level: create + publish an image post for a stored connection.
+async function publishImage(conn, { imageUrl, caption }) {
+  const creationId = await createMediaContainer(conn.accessToken, conn.igUserId, { imageUrl, caption });
+  const mediaId = await publishMedia(conn.accessToken, conn.igUserId, creationId);
+  return { creationId, mediaId };
+}
+
 module.exports = {
   InstagramError,
   buildAuthUrl,
   exchangeCodeForToken,
   exchangeForLongLivedToken,
   resolveAccount,
+  createMediaContainer,
+  publishMedia,
+  publishImage,
 };

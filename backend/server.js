@@ -476,6 +476,23 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
+  // Instagram publishes for real when connected AND an image is supplied
+  // (imageUrl or mediaId) — Instagram has no text-only post type.
+  if (platform === 'instagram' && config.instagramEnabled) {
+    const conn = db.instagram.findByProfile(profile.id);
+    if (conn && conn.igUserId) {
+      const imageUrl = resolveInstagramImageUrl(profile, req.body);
+      if (imageUrl) {
+        try {
+          const result = await executeInstagramPost(profile, { imageUrl, caption: postText });
+          return res.json({ success: true, simulated: false, ...result });
+        } catch (err) {
+          return res.status(400).json({ error: err.message });
+        }
+      }
+    }
+  }
+
   const post = db.calendar.add({
     profileId: profile.id,
     platform,
@@ -722,6 +739,56 @@ app.post('/api/instagram/disconnect', verifyToken, (req, res) => {
   db.platforms.setConnected(profile.id, 'instagram', null, false);
   res.json({ success: true });
 });
+
+// Resolve a post image to a PUBLIC URL Instagram can fetch server-side. Accepts
+// an explicit imageUrl (used as-is) or a mediaId whose uploaded/rendered file we
+// expose via the public base (the dev tunnel). Returns '' when none resolvable.
+function resolveInstagramImageUrl(profile, body = {}) {
+  const explicit = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
+  if (explicit) return explicit;
+  if (body.mediaId) {
+    const m = db.media.findById(String(body.mediaId));
+    if (m && m.profileId === profile.id && m.filePath && config.publicBaseUrl) {
+      return `${config.publicBaseUrl}/${m.filePath.replace(/^\/+/, '')}`;
+    }
+  }
+  return '';
+}
+
+// Shared executor — used by the direct post route AND /api/content/post-now.
+// Publishes an image post for real via the Instagram Graph API and records it.
+async function executeInstagramPost(profile, { imageUrl, caption }) {
+  const conn = db.instagram.findByProfile(profile.id);
+  if (!conn) throw new Error('Instagram is not connected');
+  if (!conn.igUserId) throw new Error('This Instagram connection has no linked account id — reconnect Instagram');
+  if (!imageUrl) throw new Error('An image is required — Instagram does not support text-only posts');
+  const { mediaId } = await ig.publishImage(conn, { imageUrl, caption });
+  db.calendar.add({
+    profileId: profile.id,
+    platform: 'instagram',
+    postText: caption || '',
+    scheduledTime: new Date().toISOString(),
+    status: 'posted',
+  });
+  return { mediaId, username: conn.igUsername };
+}
+
+app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const caption = typeof req.body.caption === 'string' ? req.body.caption.trim() : '';
+  if (caption.length > 2200) return res.status(400).json({ error: 'Caption must be 2200 characters or fewer' });
+  const imageUrl = resolveInstagramImageUrl(profile, req.body);
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'Provide an imageUrl, or a mediaId with an uploaded image — Instagram posts require an image.' });
+  }
+  try {
+    const result = await executeInstagramPost(profile, { imageUrl, caption });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
 
 // ==========================================
 // 3.5 DASHBOARD METRICS ROUTER
