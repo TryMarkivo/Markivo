@@ -36,12 +36,15 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
   const [generatedSlogans, setGeneratedSlogans] = useState([]);
   const [generatingSlogans, setGeneratingSlogans] = useState(false);
+  // null = not yet answered; true = user already has one; false = offer AI creation.
+  const [hasOwnSlogan, setHasOwnSlogan] = useState(null);
 
   // AI logo generation (step 3)
   const [logoVariants, setLogoVariants] = useState([]);
   const [generatingLogos, setGeneratingLogos] = useState(false);
   const [logoGenError, setLogoGenError] = useState('');
   const [selectedVariantIdx, setSelectedVariantIdx] = useState(null);
+  const [hasOwnLogo, setHasOwnLogo] = useState(null);
 
   // Channels to create
   const [channels, setChannels] = useState({
@@ -355,46 +358,85 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           </div>
 
           <div className="form-group border-top-onboard pt-20">
-            <div className="flex-between align-center mb-10">
-              <label className="form-label">{t('onboarding.pathB.sloganLabel', 'Custom Brand Slogan')}</label>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handleGenerateSlogans}
-                disabled={generatingSlogans || !formData.description}
-                id="btn_generate_slogans"
-              >
-                {generatingSlogans ? t('common.generating', 'Generating...') : t('onboarding.pathB.generateSlogans', 'Generate 3 AI Slogans ✦')}
-              </button>
-            </div>
+            <label className="form-label">{t('onboarding.pathB.sloganLabel', 'Custom Brand Slogan')}</label>
 
-            {generatedSlogans.length > 0 ? (
-              <div className="slogans-list">
-                {generatedSlogans.map((slogan, idx) => (
-                  <div
-                    key={idx}
-                    className={`slogan-item glass-card ${formData.slogan === slogan ? 'active' : ''}`}
-                    onClick={() => handleInputChange('slogan', slogan)}
-                  >
-                    <p>"{slogan}"</p>
-                    {formData.slogan === slogan && <i className="fa-solid fa-check slogan-selected"></i>}
-                  </div>
-                ))}
+            {hasOwnSlogan === null && (
+              <div className="glass-card" style={{ padding: 16 }} id="slogan_question_card">
+                <p className="subtitle" style={{ margin: '0 0 12px' }}>
+                  {t('onboarding.pathB.hasSloganQuestion', 'Do you already have a slogan for your business?')}
+                </p>
+                <div className="action-buttons-wrap">
+                  <button type="button" className="btn btn-secondary" onClick={() => setHasOwnSlogan(true)} id="btn_has_slogan_yes">
+                    {t('onboarding.pathB.hasOwnYes', 'Yes, I have one')}
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={() => setHasOwnSlogan(false)} id="btn_has_slogan_no">
+                    {t('onboarding.pathB.hasOwnNo', 'No, create one for me')}
+                  </button>
+                </div>
               </div>
-            ) : (
-              <input
-                type="text"
-                className="input-field"
-                placeholder={t('onboarding.pathB.sloganPlaceholder', "Write your own slogan, or describe your cafe above and click 'Generate'")}
-                value={formData.slogan}
-                onChange={(e) => handleInputChange('slogan', e.target.value)}
-              />
+            )}
+
+            {hasOwnSlogan === true && (
+              <>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder={t('onboarding.pathB.ownSloganPlaceholder', 'Enter your existing slogan')}
+                  value={formData.slogan}
+                  onChange={(e) => handleInputChange('slogan', e.target.value)}
+                />
+                <button type="button" className="btn btn-secondary btn-sm mt-10" onClick={() => setHasOwnSlogan(null)} id="btn_change_slogan_answer">
+                  {t('onboarding.pathB.changeAnswer', 'Change answer')}
+                </button>
+              </>
+            )}
+
+            {hasOwnSlogan === false && (
+              <>
+                <div className="flex-between align-center mb-10">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleGenerateSlogans}
+                    disabled={generatingSlogans || !formData.description}
+                    id="btn_generate_slogans"
+                  >
+                    {generatingSlogans ? t('common.generating', 'Generating...') : t('onboarding.pathB.generateSlogans', 'Generate 3 AI Slogans ✦')}
+                  </button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setHasOwnSlogan(null)} id="btn_change_slogan_answer">
+                    {t('onboarding.pathB.changeAnswer', 'Change answer')}
+                  </button>
+                </div>
+
+                {generatedSlogans.length > 0 ? (
+                  <div className="slogans-list">
+                    {generatedSlogans.map((slogan, idx) => (
+                      <div
+                        key={idx}
+                        className={`slogan-item glass-card ${formData.slogan === slogan ? 'active' : ''}`}
+                        onClick={() => handleInputChange('slogan', slogan)}
+                      >
+                        <p>"{slogan}"</p>
+                        {formData.slogan === slogan && <i className="fa-solid fa-check slogan-selected"></i>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder={t('onboarding.pathB.sloganPlaceholder', "Write your own slogan, or describe your cafe above and click 'Generate'")}
+                    value={formData.slogan}
+                    onChange={(e) => handleInputChange('slogan', e.target.value)}
+                  />
+                )}
+              </>
             )}
           </div>
 
           <div className="action-buttons-wrap">
             <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step2_back">{t('common.back', 'Back')}</button>
-            <button className="btn btn-primary" onClick={handleNextStep} id="btn_step2_next">
+            <button className="btn btn-primary" onClick={handleNextStep} disabled={hasOwnSlogan === null} id="btn_step2_next">
               {t('onboarding.pathB.step2Cta', 'Design My Custom Logo')} <i className="fa-solid fa-arrow-right"></i>
             </button>
           </div>
@@ -407,48 +449,82 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           <h2>{t('onboarding.pathB.step3Title', 'Create Your Brand Icon')}</h2>
           <p className="subtitle">{t('onboarding.pathB.step3Subtitle', 'Customize your visual emblem. Our logo engine will render layouts tailored to your business theme.')}</p>
 
-          {/* AI LOGO GENERATION PANEL */}
-          <div className="logo-gen-panel glass-card">
-            <div className="flex-between logo-gen-head">
-              <p className="logo-gen-hint">{t('onboarding.logoGen.hint', '4 unique marks designed from your name, category and brand tone — pick one or customize manually below.')}</p>
-              <button
-                type="button"
-                className="btn btn-accent btn-sm"
-                onClick={handleGenerateLogos}
-                disabled={generatingLogos}
-                id="btn_generate_logos"
-              >
-                {generatingLogos
-                  ? t('common.generating', 'Generating...')
-                  : logoVariants.length > 0
-                    ? t('onboarding.logoGen.regenerate', '↻ Regenerate')
-                    : t('onboarding.logoGen.cta', '✦ Generate logo with AI')}
+          {hasOwnLogo === null && (
+            <div className="glass-card" style={{ padding: 16 }} id="logo_question_card">
+              <p className="subtitle" style={{ margin: '0 0 12px' }}>
+                {t('onboarding.pathB.hasLogoQuestion', 'Do you already have a logo for your business?')}
+              </p>
+              <div className="action-buttons-wrap">
+                <button type="button" className="btn btn-secondary" onClick={() => setHasOwnLogo(true)} id="btn_has_logo_yes">
+                  {t('onboarding.pathB.hasOwnYes', 'Yes, I have one')}
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => setHasOwnLogo(false)} id="btn_has_logo_no">
+                  {t('onboarding.pathB.hasOwnNo', 'No, create one for me')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {hasOwnLogo === true && (
+            <div className="flex-between align-center mb-10">
+              <p className="subtitle" style={{ margin: 0 }} id="own_logo_note">
+                {t('onboarding.pathB.ownLogoNote', "No problem — fine-tune the text and colors below so your dashboard preview matches your existing branding.")}
+              </p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setHasOwnLogo(null)} id="btn_change_logo_answer">
+                {t('onboarding.pathB.changeAnswer', 'Change answer')}
               </button>
             </div>
+          )}
 
-            {logoGenError && <p className="logo-gen-error">{logoGenError}</p>}
-
-            {logoVariants.length > 0 && (
-              <div className="logo-variant-grid">
-                {logoVariants.map((l, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    id={`btn_logo_variant_${idx}`}
-                    className={`logo-variant-card ${selectedVariantIdx === idx ? 'selected' : ''}`}
-                    style={{ backgroundColor: l.palette?.bg }}
-                    onClick={() => handleSelectLogoVariant(l, idx)}
-                  >
-                    <img
-                      src={'data:image/svg+xml;utf8,' + encodeURIComponent(l.svg)}
-                      alt={t('onboarding.logoGen.variantAlt', { defaultValue: 'Logo variant {{num}}', num: idx + 1 })}
-                    />
-                  </button>
-                ))}
+          {/* AI LOGO GENERATION PANEL — offered only when the user doesn't already have a logo */}
+          {hasOwnLogo === false && (
+            <div className="logo-gen-panel glass-card">
+              <div className="flex-between logo-gen-head">
+                <p className="logo-gen-hint">{t('onboarding.logoGen.hint', '4 unique marks designed from your name, category and brand tone — pick one or customize manually below.')}</p>
+                <button
+                  type="button"
+                  className="btn btn-accent btn-sm"
+                  onClick={handleGenerateLogos}
+                  disabled={generatingLogos}
+                  id="btn_generate_logos"
+                >
+                  {generatingLogos
+                    ? t('common.generating', 'Generating...')
+                    : logoVariants.length > 0
+                      ? t('onboarding.logoGen.regenerate', '↻ Regenerate')
+                      : t('onboarding.logoGen.cta', '✦ Generate logo with AI')}
+                </button>
               </div>
-            )}
-          </div>
 
+              {logoGenError && <p className="logo-gen-error">{logoGenError}</p>}
+
+              {logoVariants.length > 0 && (
+                <div className="logo-variant-grid">
+                  {logoVariants.map((l, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      id={`btn_logo_variant_${idx}`}
+                      className={`logo-variant-card ${selectedVariantIdx === idx ? 'selected' : ''}`}
+                      style={{ backgroundColor: l.palette?.bg }}
+                      onClick={() => handleSelectLogoVariant(l, idx)}
+                    >
+                      <img
+                        src={'data:image/svg+xml;utf8,' + encodeURIComponent(l.svg)}
+                        alt={t('onboarding.logoGen.variantAlt', { defaultValue: 'Logo variant {{num}}', num: idx + 1 })}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button type="button" className="btn btn-secondary btn-sm mt-10" onClick={() => setHasOwnLogo(null)} id="btn_change_logo_answer">
+                {t('onboarding.pathB.changeAnswer', 'Change answer')}
+              </button>
+            </div>
+          )}
+
+          {hasOwnLogo !== null && (
           <div className="grid-2 logo-designer-grid">
             <div className="logo-controls">
               <div className="form-group">
@@ -529,13 +605,18 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                   </>
                 )}
               </div>
-              <p className="text-muted mt-10"><i className="fa-solid fa-sparkles"></i> {t('onboarding.pathB.logoPreviewNote', 'AI generates full visual assets from these design guidelines')}</p>
+              <p className="text-muted mt-10">
+                <i className="fa-solid fa-sparkles"></i> {hasOwnLogo
+                  ? t('onboarding.pathB.logoPreviewNoteOwn', 'Match these details to your existing logo for an accurate dashboard preview')
+                  : t('onboarding.pathB.logoPreviewNote', 'AI generates full visual assets from these design guidelines')}
+              </p>
             </div>
           </div>
+          )}
 
           <div className="action-buttons-wrap">
             <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step3_back">{t('common.back', 'Back')}</button>
-            <button className="btn btn-primary" onClick={handleNextStep} id="btn_step3_next">
+            <button className="btn btn-primary" onClick={handleNextStep} disabled={hasOwnLogo === null} id="btn_step3_next">
               {t('onboarding.pathB.step3Cta', 'Select Social Channels')} <i className="fa-solid fa-arrow-right"></i>
             </button>
           </div>
