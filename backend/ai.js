@@ -259,6 +259,98 @@ const CONTENT_SCHEMA = {
 
 const LANG_NAMES = { en: 'English', uz: 'Uzbek (Latin script)', ru: 'Russian' };
 
+// Autopilot: analyze a business + its recent activity, then draft one ready-to-
+// publish ORGANIC promotional post per target platform. Keyless -> templates.
+function templateAutonomousPlan(ctx) {
+  const { platforms = ['instagram'], businessName, category, description } = ctx;
+  const list = platforms.length ? platforms : ['instagram'];
+  const posts = list.map((platform) => {
+    const c = templateContent({ platform, businessName, category, description });
+    const tags = (c.hashtags || []).join(' ');
+    return {
+      platform: String(platform).toLowerCase(),
+      topic: '',
+      text: `${c.post}${tags ? `\n\n${tags}` : ''}`.slice(0, 4000),
+    };
+  });
+  const analysis = `Drafted ${posts.length} promotional post${posts.length === 1 ? '' : 's'} for ${businessName || 'your business'} from your profile${description ? ' and description' : ''}.`;
+  return { analysis, posts };
+}
+
+const PLAN_SCHEMA = {
+  type: 'object',
+  properties: {
+    analysis: { type: 'string' },
+    posts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string' },
+          topic: { type: 'string' },
+          text: { type: 'string' },
+        },
+        required: ['platform', 'text'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['analysis', 'posts'],
+  additionalProperties: false,
+};
+
+async function analyzeAndPlan(ctx) {
+  if (!client) return templateAutonomousPlan(ctx);
+  const {
+    platforms = ['instagram'], businessName, category, description,
+    brandTone, audience, location, recentPosts = [], competitors = [],
+  } = ctx;
+  const targets = platforms.length ? platforms : ['instagram'];
+  try {
+    const msg = await client.messages.create({
+      model: config.aiContentModel,
+      max_tokens: 2000,
+      system:
+        "You are Markivo's autonomous marketing strategist for a small business. " +
+        'Briefly analyze the business and its recent activity, then write platform-native ' +
+        'promotional posts — exactly one per requested platform. Each post must match the brand ' +
+        'tone, be ready to publish as-is, include a light call to action, and avoid repeating the ' +
+        'recent posts. Respond as JSON only.',
+      messages: [{
+        role: 'user',
+        content:
+          `Business: ${businessName || 'a local business'}\n` +
+          `Category: ${category || 'general'}\n` +
+          `Description: ${description || 'n/a'}\n` +
+          `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
+          `Audience: ${audience || 'local customers'}\n` +
+          `Location: ${location || 'Tashkent'}\n` +
+          `Recent posts (do NOT repeat): ${recentPosts.slice(0, 5).map((p) => `- ${String(p).slice(0, 80)}`).join('\n') || 'none yet'}\n` +
+          `Competitor signals: ${competitors.slice(0, 5).join(', ') || 'n/a'}\n` +
+          `Target platforms: ${targets.join(', ')}\n\n` +
+          `Return a short "analysis" (2-3 sentences on what to post and why) and a "posts" array ` +
+          `with exactly one post per target platform ({platform, topic, text}).`,
+      }],
+      output_config: { format: { type: 'json_schema', schema: PLAN_SCHEMA } },
+    });
+    const parsed = JSON.parse(textOf(msg));
+    const posts = (parsed.posts || [])
+      .filter((p) => p && p.text)
+      .map((p) => ({
+        platform: String(p.platform || 'instagram').toLowerCase(),
+        topic: p.topic || '',
+        text: String(p.text).slice(0, 4000),
+      }));
+    return {
+      analysis: parsed.analysis || '',
+      posts: posts.length ? posts : templateAutonomousPlan(ctx).posts,
+    };
+  } catch (err) {
+    console.error('AI analyzeAndPlan failed, using template:', err.message);
+    return templateAutonomousPlan(ctx);
+  }
+}
+
 async function generateContent(ctx) {
   if (!client) return templateContent(ctx);
   const { platform = 'instagram', topic, businessName, category, description, brandTone, audience } = ctx;
@@ -798,6 +890,7 @@ module.exports = {
   generateContent,
   generateSlogans,
   agentAct,
+  analyzeAndPlan,
   generateMediaBrief,
   generateEditPlan,
   generateLogos,
@@ -805,6 +898,7 @@ module.exports = {
   templateContent,
   templateSlogans,
   templateAgentAct,
+  templateAutonomousPlan,
   templateMediaBrief,
   templateEditPlan,
 };

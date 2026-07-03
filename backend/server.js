@@ -15,6 +15,7 @@ const tg = require('./telegram');
 const places = require('./places');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
+const autonomous = require('./autonomous');
 const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
 
 const db = createDb(config.dbPath);
@@ -1153,6 +1154,92 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
 }));
 
 // ==========================================
+// 3.65 AUTOPILOT (autonomous marketing agent) (/api/autonomous)
+//   Per-business opt-in. When enabled, a background worker analyzes the profile
+//   and auto-generates + publishes ORGANIC promotional posts on a cadence (or
+//   queues them for one-tap approval). Paid ad campaigns are NEVER run here —
+//   money spend always goes through the deterministic approval gate above.
+// ==========================================
+const autonomousGate = (req, res, next) => {
+  if (!config.autonomousEnabled) {
+    return res.status(503).json({ error: 'Autopilot is not enabled in this deployment.', comingSoon: true });
+  }
+  next();
+};
+
+// Publisher closures injected into the Autopilot worker so it can publish
+// organic posts through the same helpers the rest of the server uses, without
+// autonomous.js reaching into Express internals.
+const autopilotPublishers = {
+  publishTelegram: (profile, text) => executeTelegramPost(profile, text),
+  publishPlatform: (profile, platform, text) => executePlatformPost(profile, platform, text),
+  telegramReady: (profile) => {
+    if (!config.telegramEnabled) return false;
+    const conn = db.telegram.findByProfile(profile.id);
+    return !!(conn && conn.chatId);
+  },
+};
+const runAutopilotTick = (opts = {}) =>
+  autonomous.runAutonomousTick({ db, ai, connectors, config, publishers: autopilotPublishers, ...opts });
+
+// Current Autopilot config + recent activity for the signed-in business.
+app.get('/api/autonomous/status', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  res.json({
+    enabled: config.autonomousEnabled,
+    config: db.autonomous.getConfig(profile.id) || { enabled: false, platforms: [], frequency: 'daily', autoPublish: true },
+    activity: db.autonomous.listActivity(profile.id, 30),
+  });
+});
+
+// Save Autopilot settings. Enabling makes the business eligible on the next tick.
+app.put('/api/autonomous/config', verifyToken, autonomousGate, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const { enabled, platforms, frequency, autoPublish } = req.body;
+  const validFreq = ['daily', 'weekly', 'test'].includes(frequency) ? frequency : 'daily';
+  const validPlatforms = Array.isArray(platforms)
+    ? [...new Set(platforms.map(String).filter((p) => connectors.has(p)))].slice(0, 8)
+    : [];
+  // Only (re)arm the timer on the disabled -> enabled transition. Saving other
+  // settings while already enabled must NOT reset the cadence or trigger an
+  // extra immediate run — preserve the existing next_run_at.
+  const prev = db.autonomous.getConfig(profile.id);
+  const nextRunAt = !enabled
+    ? null
+    : (prev && prev.enabled && prev.nextRunAt) ? prev.nextRunAt : new Date().toISOString();
+  const cfg = db.autonomous.upsertConfig({
+    profileId: profile.id,
+    enabled: !!enabled,
+    platforms: validPlatforms,
+    frequency: validFreq,
+    autoPublish: autoPublish !== false, // default true ("post by himself")
+    nextRunAt,
+  });
+  res.json({ config: cfg });
+});
+
+// Paginated Autopilot activity log.
+app.get('/api/autonomous/activity', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
+  res.json({ activity: db.autonomous.listActivity(profile.id, limit) });
+});
+
+// "Run now" — user-initiated, budget-checked. Runs one Autopilot cycle for this
+// business immediately (ignores the cadence timer).
+app.post('/api/autonomous/run', verifyToken, autonomousGate, checkAiBudget, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const cfg = db.autonomous.getConfig(profile.id);
+  if (!cfg || !cfg.enabled) return res.status(400).json({ error: 'Enable Autopilot first, then run it.' });
+  const result = await autonomous.runProfileAutopilot({ db, ai, connectors, config, publishers: autopilotPublishers, profileId: profile.id, nowMs: Date.now(), force: true });
+  res.json({ result, activity: db.autonomous.listActivity(profile.id, 30) });
+}));
+
+// ==========================================
 // 3.7 BILLING ROUTER (/api/billing)
 //   Stripe Checkout subscriptions when STRIPE_SECRET_KEY is set; simulated
 //   instant upgrades when it isn't. Payme/Click follow after merchant
@@ -1249,7 +1336,28 @@ if (require.main === module) {
   if (process.env.NODE_ENV !== 'test' && process.env.WORKER_ENABLED !== 'false') {
     setInterval(runScheduledPostsTick, 60000);
     console.log('⏱️  Scheduled-post worker running (60s tick)');
+
+    // Autopilot worker: scan for due autonomous businesses and run each. A
+    // re-entrancy guard skips a tick while the previous one is still running, so
+    // a slow batch can't stack overlapping ticks.
+    if (config.autonomousEnabled) {
+      let autopilotTicking = false;
+      setInterval(async () => {
+        if (autopilotTicking) return;
+        autopilotTicking = true;
+        try { await runAutopilotTick(); }
+        catch (e) { console.warn('Autopilot tick failed:', e.message); }
+        finally { autopilotTicking = false; }
+      }, config.autonomousTickMs);
+      console.log(`🤖 Autopilot worker running (${Math.round(config.autonomousTickMs / 60000)}m tick)`);
+    }
   }
 }
 
-module.exports = { app, db, runScheduledPostsTick };
+module.exports = {
+  app,
+  db,
+  runScheduledPostsTick,
+  // Bound to the server's db/deps + publishers so tests can drive a cycle.
+  runAutonomousTick: runAutopilotTick,
+};

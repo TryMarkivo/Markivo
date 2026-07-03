@@ -179,6 +179,28 @@ module.exports = function createDb(dbPath) {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS autonomous_config (
+      id           TEXT PRIMARY KEY,
+      profile_id   TEXT UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      enabled      INTEGER DEFAULT 0,
+      platforms    TEXT,                        -- JSON array of platform keys
+      frequency    TEXT DEFAULT 'daily',        -- 'daily' | 'weekly' | 'test'
+      auto_publish INTEGER DEFAULT 1,           -- 1 = publish organically; 0 = queue approvals
+      last_run_at  TEXT,
+      next_run_at  TEXT,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS autonomous_activity (
+      id         TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      kind       TEXT,
+      summary    TEXT,
+      payload    TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
     CREATE INDEX IF NOT EXISTS idx_ai_usage_user_time ON ai_usage(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_platforms_profile ON platforms(profile_id);
@@ -191,6 +213,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_agent_messages_profile_time ON agent_messages(profile_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_platform_connections_profile ON platform_connections(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_autonomous_activity_profile ON autonomous_activity(profile_id, created_at);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -262,6 +285,17 @@ module.exports = function createDb(dbPath) {
     id: r.id, profileId: r.profile_id, action_type: r.action_type,
     action_payload: r.action_payload ? JSON.parse(r.action_payload) : null,
     status: r.status, created_at: r.created_at, executed_at: r.executed_at,
+  };
+  const mapAutoConfig = (r) => r && {
+    id: r.id, profileId: r.profile_id, enabled: !!r.enabled,
+    platforms: r.platforms ? JSON.parse(r.platforms) : [],
+    frequency: r.frequency, autoPublish: !!r.auto_publish,
+    lastRunAt: r.last_run_at, nextRunAt: r.next_run_at,
+    created_at: r.created_at, updated_at: r.updated_at,
+  };
+  const mapAutoActivity = (r) => r && {
+    id: r.id, profileId: r.profile_id, kind: r.kind, summary: r.summary,
+    payload: r.payload ? JSON.parse(r.payload) : null, created_at: r.created_at,
   };
 
   return {
@@ -481,6 +515,10 @@ module.exports = function createDb(dbPath) {
         sqlite.prepare('UPDATE approvals SET status = ?, executed_at = ? WHERE id = ?')
           .run(status, now(), approvalId);
         return mapApproval(sqlite.prepare('SELECT * FROM approvals WHERE id = ?').get(approvalId));
+      },
+      listByProfile(profileId, limit = 30) {
+        return sqlite.prepare('SELECT * FROM approvals WHERE profile_id = ? ORDER BY created_at DESC LIMIT ?')
+          .all(profileId, limit).map(mapApproval);
       },
     },
 
@@ -734,6 +772,77 @@ module.exports = function createDb(dbPath) {
       },
       revokeAllForUser(userId) {
         sqlite.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?').run(userId);
+      },
+    },
+
+    // --- Autopilot (autonomous marketing agent) ---
+    autonomous: {
+      getConfig(profileId) {
+        return mapAutoConfig(sqlite.prepare('SELECT * FROM autonomous_config WHERE profile_id = ?').get(profileId));
+      },
+      upsertConfig({ profileId, enabled, platforms, frequency, autoPublish, nextRunAt }) {
+        const existing = sqlite.prepare('SELECT id FROM autonomous_config WHERE profile_id = ?').get(profileId);
+        const p = {
+          profile_id: profileId,
+          enabled: enabled ? 1 : 0,
+          platforms: JSON.stringify(Array.isArray(platforms) ? platforms : []),
+          frequency: frequency || 'daily',
+          auto_publish: autoPublish ? 1 : 0,
+          next_run_at: nextRunAt || null,
+          updated_at: now(),
+        };
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE autonomous_config SET enabled=@enabled, platforms=@platforms, frequency=@frequency,
+             auto_publish=@auto_publish, next_run_at=@next_run_at, updated_at=@updated_at WHERE profile_id=@profile_id`
+          ).run(p);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO autonomous_config (id, profile_id, enabled, platforms, frequency, auto_publish, next_run_at, created_at, updated_at)
+             VALUES (@id, @profile_id, @enabled, @platforms, @frequency, @auto_publish, @next_run_at, @created_at, @updated_at)`
+          ).run({ ...p, id: id(), created_at: now() });
+        }
+        return this.getConfig(profileId);
+      },
+      setRun(profileId, { lastRunAt, nextRunAt }) {
+        sqlite.prepare('UPDATE autonomous_config SET last_run_at = ?, next_run_at = ?, updated_at = ? WHERE profile_id = ?')
+          .run(lastRunAt || null, nextRunAt || null, now(), profileId);
+        return this.getConfig(profileId);
+      },
+      // Atomically claim a due run: advances next_run_at ONLY if the profile is
+      // still enabled and due as of `asOfIso`. Returns true when this caller won
+      // the claim (changes === 1), false if another runner already took it or it
+      // isn't due — the guard against concurrent double-runs.
+      claimDue(profileId, asOfIso, nextRunAt) {
+        const info = sqlite.prepare(
+          `UPDATE autonomous_config SET last_run_at = @asOf, next_run_at = @next, updated_at = @asOf
+           WHERE profile_id = @pid AND enabled = 1 AND (next_run_at IS NULL OR next_run_at <= @asOf)`
+        ).run({ pid: profileId, asOf: asOfIso, next: nextRunAt || null });
+        return info.changes === 1;
+      },
+      // Enabled profiles whose next run is due (or never scheduled). The worker's
+      // work queue — mirrors calendar.listDue for scheduled posts.
+      dueProfiles(nowIso) {
+        return sqlite.prepare(
+          `SELECT profile_id FROM autonomous_config
+           WHERE enabled = 1 AND (next_run_at IS NULL OR next_run_at <= ?)`
+        ).all(nowIso).map((r) => r.profile_id);
+      },
+      logActivity({ profileId, kind, summary, payload }) {
+        const row = {
+          id: id(), profile_id: profileId, kind: kind || null,
+          summary: summary == null ? null : String(summary),
+          payload: payload ? JSON.stringify(payload) : null, created_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO autonomous_activity (id, profile_id, kind, summary, payload, created_at)
+           VALUES (@id, @profile_id, @kind, @summary, @payload, @created_at)`
+        ).run(row);
+        return mapAutoActivity(row);
+      },
+      listActivity(profileId, limit = 30) {
+        return sqlite.prepare('SELECT * FROM autonomous_activity WHERE profile_id = ? ORDER BY created_at DESC LIMIT ?')
+          .all(profileId, limit).map(mapAutoActivity);
       },
     },
   };

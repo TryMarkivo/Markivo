@@ -449,7 +449,8 @@
       "metrics": "Ko'rsatkichlar va qidiruv",
       "content": "AI kontent dvigateli",
       "media": "Media studiya",
-      "competitors": "Raqobatchilar tahlili"
+      "competitors": "Raqobatchilar tahlili",
+      "autopilot": "Avtopilot"
     },
     "channels": {
       "google": "Google profili"
@@ -828,6 +829,47 @@
       "periodEnd": "Joriy davr {{date}} kuni tugaydi",
       "unavailable": "To'lov holati hozircha mavjud emas.",
       "loading": "Tarif yuklanmoqda…"
+    }
+  },
+  "autopilot": {
+    "title": "Avtopilot",
+    "subtitle": "Markiv biznesingizni tahlil qilib, kanallaringizga reklama kontentini o'zi joylashtirsin.",
+    "disabledNotice": "Avtopilot bu muhitda yoqilmagan.",
+    "loadError": "Avtopilotni yuklab bo'lmadi.",
+    "saveError": "Sozlamalarni saqlab bo'lmadi.",
+    "runError": "Avtopilotni ishga tushirib bo'lmadi.",
+    "saved": "Sozlamalar saqlandi.",
+    "ranNow": "Avtopilot ishladi — quyidagi faoliyatga qarang.",
+    "enableLabel": "Avtopilotni yoqish",
+    "enableHint": "Yoqilganda, Markiv jadval bo'yicha ishlaydi — tahlil qiladi, yaratadi va siz uchun joylashtiradi.",
+    "platformsLabel": "Post uchun kanallar",
+    "platformsHint": "Avtopilot siz tanlagan kanallarga joylashtiradi (ulangan kanallarga haqiqiy, boshqalari ulanmaguncha simulyatsiya qilinadi).",
+    "frequencyLabel": "Qanchalik tez-tez",
+    "freq": {
+      "daily": "Kuniga bir marta",
+      "weekly": "Haftada bir marta",
+      "test": "Har daqiqada (demo)"
+    },
+    "publishModeLabel": "Post tayyor bo'lganda",
+    "autoPublish": "Avtomatik joylashtirish",
+    "autoPublishHint": "Markiv so'ramasdan joylashtiradi.",
+    "queueMode": "Mening tasdig'im uchun",
+    "queueModeHint": "Har bir postni chiqishidan oldin siz tasdiqlaysiz.",
+    "save": "Sozlamalarni saqlash",
+    "saving": "Saqlanmoqda…",
+    "runNow": "Hozir ishga tushirish",
+    "running": "Ishlamoqda…",
+    "runNeedsSave": "Avval o'zgarishlarni saqlang",
+    "activityTitle": "Faoliyat",
+    "noActivity": "Hozircha bo'sh. Avtopilotni yoqing (yoki «Hozir ishga tushirish»ni bosing), uning harakatlari shu yerda ko'rinadi.",
+    "adSafetyNote": "Avtopilot faqat bepul organik postlar yaratadi. Pullik reklama kampaniyalari doimo sizning aniq tasdig'ingizni talab qiladi — Markiv hech qachon pulingizni o'zi sarflamaydi.",
+    "kind": {
+      "analysis": "Biznesingiz tahlil qilindi",
+      "post_published": "Post joylashtirildi",
+      "post_scheduled": "Post rejalashtirildi",
+      "approval_created": "Tasdig'ingizga yuborildi",
+      "skipped": "To'xtatildi",
+      "error": "Xato"
     }
   }
 }

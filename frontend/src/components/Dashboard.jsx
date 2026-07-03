@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import ContentEngine from './ContentEngine';
+import AutonomousAgent from './AutonomousAgent';
 import MediaStudio from './MediaStudio';
 import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
@@ -151,6 +152,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             id="btn_tab_content"
           >
             <i className="fa-solid fa-wand-magic-sparkles"></i> {t('dashboard.nav.content', 'AI Content Engine')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'autopilot' ? 'active' : ''}`}
+            onClick={() => setActiveTab('autopilot')}
+            id="btn_tab_autopilot"
+          >
+            <i className="fa-solid fa-robot"></i> {t('dashboard.nav.autopilot', 'Autopilot')}
           </button>
           <button
             className={`nav-item ${activeTab === 'media' ? 'active' : ''}`}
@@ -407,6 +415,10 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           {/* TAB 2: AI CONTENT ENGINE */}
           {activeTab === 'content' && (
             <ContentEngine token={token} activeProfile={activeProfile} />
+          )}
+
+          {activeTab === 'autopilot' && (
+            <AutonomousAgent activeProfile={activeProfile} />
           )}
 
           {/* TAB 3: MEDIA STUDIO */}

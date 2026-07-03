@@ -449,7 +449,8 @@
       "metrics": "Metrics & Search",
       "content": "AI Content Engine",
       "media": "Media Studio",
-      "competitors": "Competitor Intel"
+      "competitors": "Competitor Intel",
+      "autopilot": "Autopilot"
     },
     "channels": {
       "google": "Google Profile"
@@ -828,6 +829,47 @@
       "periodEnd": "Current period ends {{date}}",
       "unavailable": "Billing status is unavailable right now.",
       "loading": "Loading plan…"
+    }
+  },
+  "autopilot": {
+    "title": "Autopilot",
+    "subtitle": "Let Markiv analyze your business and post promotional content to your channels on its own.",
+    "disabledNotice": "Autopilot is not enabled in this deployment.",
+    "loadError": "Couldn't load Autopilot.",
+    "saveError": "Couldn't save your settings.",
+    "runError": "Couldn't run Autopilot.",
+    "saved": "Settings saved.",
+    "ranNow": "Autopilot ran — see the activity below.",
+    "enableLabel": "Enable Autopilot",
+    "enableHint": "When on, Markiv runs on a schedule — analyzing, generating, and posting for you.",
+    "platformsLabel": "Channels to post to",
+    "platformsHint": "Autopilot posts to the channels you pick (connected channels post for real; others are simulated until connected).",
+    "frequencyLabel": "How often",
+    "freq": {
+      "daily": "Once a day",
+      "weekly": "Once a week",
+      "test": "Every minute (demo)"
+    },
+    "publishModeLabel": "When a post is ready",
+    "autoPublish": "Publish it automatically",
+    "autoPublishHint": "Markiv posts without asking.",
+    "queueMode": "Queue for my approval",
+    "queueModeHint": "You approve each post before it goes out.",
+    "save": "Save settings",
+    "saving": "Saving…",
+    "runNow": "Run now",
+    "running": "Running…",
+    "runNeedsSave": "Save your changes first",
+    "activityTitle": "Activity",
+    "noActivity": "Nothing yet. Turn Autopilot on (or press “Run now”) and its actions will show up here.",
+    "adSafetyNote": "Autopilot only creates free organic posts. Paid ad campaigns always need your explicit approval — Markiv never spends your money on its own.",
+    "kind": {
+      "analysis": "Analyzed your business",
+      "post_published": "Published a post",
+      "post_scheduled": "Scheduled a post",
+      "approval_created": "Queued for your approval",
+      "skipped": "Paused",
+      "error": "Error"
     }
   }
 }
