@@ -115,7 +115,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         {/* LOGO BRIEF BLOCK */}
         <div className="active-profile-card">
           <div className="sidebar-logo-icon" style={{ backgroundColor: logoStyle.bgColor, borderColor: logoStyle.color, color: logoStyle.color }}>
-            {activeProfile.logo?.svg ? (
+            {activeProfile.logo?.image ? (
+              <img
+                src={activeProfile.logo.image}
+                alt={activeProfile.businessName}
+                style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'contain' }}
+              />
+            ) : activeProfile.logo?.svg ? (
               <img
                 src={'data:image/svg+xml;utf8,' + encodeURIComponent(activeProfile.logo.svg)}
                 alt={activeProfile.businessName}

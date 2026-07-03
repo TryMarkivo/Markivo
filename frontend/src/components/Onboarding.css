@@ -338,6 +338,102 @@
 .mt-10 { margin-top: 10px; }
 .ml-10 { margin-left: 10px; }
 .mb-10 { margin-bottom: 10px; }
+.mb-20 { margin-bottom: 20px; }
+
+/* ===== Brand-asset ownership choice (Path B steps 2 & 3) ===== */
+.brand-choice-grid {
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px 18px;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  transition: var(--transition-fast);
+}
+
+.choice-card:hover {
+  border-color: var(--accent-primary);
+}
+
+.choice-card.active {
+  border-color: var(--accent-primary);
+  background: rgba(212, 163, 115, 0.06);
+}
+
+.choice-icon {
+  font-size: 1.1rem;
+  color: var(--accent-primary);
+  margin-bottom: 2px;
+}
+
+.choice-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.choice-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* ===== Own-logo upload (Path B step 3) ===== */
+.visually-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.logo-upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 20px;
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.logo-upload-dropzone:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.logo-upload-dropzone i {
+  font-size: 1.6rem;
+}
+
+.logo-upload-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.logo-upload-empty i {
+  font-size: 1.8rem;
+}
 
 .slogans-list {
   display: flex;
