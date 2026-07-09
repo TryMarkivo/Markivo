@@ -81,6 +81,17 @@ const config = {
   // re-enable end-to-end — no code changes needed.
   telegramEnabled: process.env.TELEGRAM_ENABLED === 'true',
 
+  // --- Autopilot (autonomous marketing agent) ---
+  // Per-business opt-in agent that analyzes the profile and auto-generates +
+  // publishes ORGANIC promotional posts on a cadence. Default ON = the
+  // capability exists (owners still enable it per business). Set
+  // AUTONOMOUS_ENABLED=false to disable the feature and its background worker.
+  // SAFETY: Autopilot never runs paid ad campaigns — money spend always stays
+  // behind the deterministic human approval gate.
+  autonomousEnabled: process.env.AUTONOMOUS_ENABLED !== 'false',
+  // How often the background worker scans for due Autopilot profiles (minutes).
+  autonomousTickMs: (parseInt(process.env.AUTONOMOUS_TICK_MIN, 10) || 10) * 60 * 1000,
+
   // --- Google Places (Discovery scan) ---
   // When GOOGLE_MAPS_API_KEY is unset, the discovery scan transparently falls
   // back to deterministic mock results, so the app keeps working without it.

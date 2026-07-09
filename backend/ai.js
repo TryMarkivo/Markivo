@@ -259,6 +259,98 @@ const CONTENT_SCHEMA = {
 
 const LANG_NAMES = { en: 'English', uz: 'Uzbek (Latin script)', ru: 'Russian' };
 
+// Autopilot: analyze a business + its recent activity, then draft one ready-to-
+// publish ORGANIC promotional post per target platform. Keyless -> templates.
+function templateAutonomousPlan(ctx) {
+  const { platforms = ['instagram'], businessName, category, description } = ctx;
+  const list = platforms.length ? platforms : ['instagram'];
+  const posts = list.map((platform) => {
+    const c = templateContent({ platform, businessName, category, description });
+    const tags = (c.hashtags || []).join(' ');
+    return {
+      platform: String(platform).toLowerCase(),
+      topic: '',
+      text: `${c.post}${tags ? `\n\n${tags}` : ''}`.slice(0, 4000),
+    };
+  });
+  const analysis = `Drafted ${posts.length} promotional post${posts.length === 1 ? '' : 's'} for ${businessName || 'your business'} from your profile${description ? ' and description' : ''}.`;
+  return { analysis, posts };
+}
+
+const PLAN_SCHEMA = {
+  type: 'object',
+  properties: {
+    analysis: { type: 'string' },
+    posts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string' },
+          topic: { type: 'string' },
+          text: { type: 'string' },
+        },
+        required: ['platform', 'text'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['analysis', 'posts'],
+  additionalProperties: false,
+};
+
+async function analyzeAndPlan(ctx) {
+  if (!client) return templateAutonomousPlan(ctx);
+  const {
+    platforms = ['instagram'], businessName, category, description,
+    brandTone, audience, location, recentPosts = [], competitors = [],
+  } = ctx;
+  const targets = platforms.length ? platforms : ['instagram'];
+  try {
+    const msg = await client.messages.create({
+      model: config.aiContentModel,
+      max_tokens: 2000,
+      system:
+        "You are Markivo's autonomous marketing strategist for a small business. " +
+        'Briefly analyze the business and its recent activity, then write platform-native ' +
+        'promotional posts — exactly one per requested platform. Each post must match the brand ' +
+        'tone, be ready to publish as-is, include a light call to action, and avoid repeating the ' +
+        'recent posts. Respond as JSON only.',
+      messages: [{
+        role: 'user',
+        content:
+          `Business: ${businessName || 'a local business'}\n` +
+          `Category: ${category || 'general'}\n` +
+          `Description: ${description || 'n/a'}\n` +
+          `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
+          `Audience: ${audience || 'local customers'}\n` +
+          `Location: ${location || 'Tashkent'}\n` +
+          `Recent posts (do NOT repeat): ${recentPosts.slice(0, 5).map((p) => `- ${String(p).slice(0, 80)}`).join('\n') || 'none yet'}\n` +
+          `Competitor signals: ${competitors.slice(0, 5).join(', ') || 'n/a'}\n` +
+          `Target platforms: ${targets.join(', ')}\n\n` +
+          `Return a short "analysis" (2-3 sentences on what to post and why) and a "posts" array ` +
+          `with exactly one post per target platform ({platform, topic, text}).`,
+      }],
+      output_config: { format: { type: 'json_schema', schema: PLAN_SCHEMA } },
+    });
+    const parsed = JSON.parse(textOf(msg));
+    const posts = (parsed.posts || [])
+      .filter((p) => p && p.text)
+      .map((p) => ({
+        platform: String(p.platform || 'instagram').toLowerCase(),
+        topic: p.topic || '',
+        text: String(p.text).slice(0, 4000),
+      }));
+    return {
+      analysis: parsed.analysis || '',
+      posts: posts.length ? posts : templateAutonomousPlan(ctx).posts,
+    };
+  } catch (err) {
+    console.error('AI analyzeAndPlan failed, using template:', err.message);
+    return templateAutonomousPlan(ctx);
+  }
+}
+
 async function generateContent(ctx) {
   if (!client) return templateContent(ctx);
   const { platform = 'instagram', topic, businessName, category, description, brandTone, audience } = ctx;
@@ -355,7 +447,7 @@ const AGENT_LANG_RULE = {
  */
 async function agentAct(ctx) {
   if (!client) return templateAgentAct(ctx);
-  const { query, history = [], lang = 'en', profile, telegram, snapshot, actions = {} } = ctx;
+  const { query, history = [], lang = 'en', profile, telegram, platforms = [], snapshot, actions = {} } = ctx;
 
   const tools = [];
   if (telegram?.connected) {
@@ -374,6 +466,27 @@ async function agentAct(ctx) {
           note: { type: 'string', description: 'One short sentence to show the owner about this draft.' },
         },
         required: ['text'],
+      },
+    });
+  }
+  if (platforms && platforms.length) {
+    const names = platforms.map((p) => p.label).join(', ');
+    const keys = platforms.map((p) => p.key).join(', ');
+    tools.push({
+      name: 'publish_post',
+      description:
+        `Publish a post to one of the owner's connected platforms (${names}). ` +
+        'Call this whenever the owner asks to post, publish, announce, or share something on one of those platforms. ' +
+        'Pick the right platform key and write the final, polished, ready-to-publish text. ' +
+        'Do NOT ask the owner for confirmation first — every publish already goes through an approval screen.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string', description: `Which platform to publish to. One of: ${keys}.` },
+          text: { type: 'string', description: 'The complete, final post text, ready to publish.' },
+          note: { type: 'string', description: 'One short sentence to show the owner about this draft.' },
+        },
+        required: ['platform', 'text'],
       },
     });
   }
@@ -507,6 +620,11 @@ async function agentAct(ctx) {
       if (tgUse && tgUse.input?.text) {
         return { type: 'telegram_post', text: tgUse.input.text, note: tgUse.input.note };
       }
+      // Generic publish → route through the approval gate, never a tool_result.
+      const ppUse = toolUses.find((b) => b.name === 'publish_post');
+      if (ppUse && ppUse.input?.text && ppUse.input?.platform) {
+        return { type: 'platform_post', platform: ppUse.input.platform, text: ppUse.input.text, note: ppUse.input.note };
+      }
 
       messages.push({ role: 'assistant', content: msg.content });
       const results = [];
@@ -530,6 +648,10 @@ async function agentAct(ctx) {
     const toolUse = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'post_to_telegram');
     if (toolUse && toolUse.input?.text) {
       return { type: 'telegram_post', text: toolUse.input.text, note: toolUse.input.note };
+    }
+    const ppFinal = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'publish_post');
+    if (ppFinal && ppFinal.input?.text && ppFinal.input?.platform) {
+      return { type: 'platform_post', platform: ppFinal.input.platform, text: ppFinal.input.text, note: ppFinal.input.note };
     }
     const reply = textOf(msg);
     return reply ? { type: 'reply', reply } : templateAgentAct(ctx);
@@ -768,6 +890,7 @@ module.exports = {
   generateContent,
   generateSlogans,
   agentAct,
+  analyzeAndPlan,
   generateMediaBrief,
   generateEditPlan,
   generateLogos,
@@ -775,6 +898,7 @@ module.exports = {
   templateContent,
   templateSlogans,
   templateAgentAct,
+  templateAutonomousPlan,
   templateMediaBrief,
   templateEditPlan,
 };

@@ -1,0 +1,52 @@
+/* Connections tab — platform connector cards. Uses the shared design tokens
+   (--surface-*, --border-*, --text-*) so it inherits light/dark theming. */
+
+.connections-panel {
+  max-width: 1000px;
+}
+
+.connections-panel .panel-subtitle {
+  margin-bottom: 24px;
+}
+
+.connections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.connection-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.connection-card.connected {
+  border-color: var(--border-strong, rgba(52, 211, 153, 0.4));
+}
+
+.connection-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.connection-card-head h4 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.connection-state {
+  font-size: 12px;
+}
+
+.connection-state.on { color: var(--text-success, #34d399); }
+.connection-state.off { color: var(--text-muted, #999); }
+.connection-state.soon { color: var(--accent-secondary, #f59e0b); }
+
+.connection-handle {
+  font-size: 13px;
+  margin: 0;
+  word-break: break-all;
+}

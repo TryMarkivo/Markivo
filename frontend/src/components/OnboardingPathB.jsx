@@ -43,6 +43,12 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
   const [logoGenError, setLogoGenError] = useState('');
   const [selectedVariantIdx, setSelectedVariantIdx] = useState(null);
 
+  // Brand-asset ownership — does the user already have a slogan / logo of their
+  // own? null = not answered yet, 'yes' = provide their own, 'no' = create with AI.
+  const [hasSlogan, setHasSlogan] = useState(null);
+  const [hasLogo, setHasLogo] = useState(null);
+  const [logoUploadError, setLogoUploadError] = useState('');
+
   // Channels to create
   const [channels, setChannels] = useState({
     googleBusiness: true,
@@ -137,6 +143,81 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
     }));
   };
 
+  // Record whether the user already owns a logo. Clearing the unused asset keeps
+  // the final profile in sync with their choice (no stale AI svg / upload leaks).
+  const chooseHasLogo = (val) => {
+    setHasLogo(val);
+    setLogoUploadError('');
+    if (val === 'yes') {
+      setSelectedVariantIdx(null);
+      setLogoStyle(p => ({ ...p, svg: undefined }));
+    } else {
+      setLogoStyle(p => ({ ...p, image: undefined }));
+    }
+  };
+
+  // The whole profile (logo data URL included) is POSTed to /api/onboarding/construct,
+  // which is behind a 1MB JSON body parser. Base64 inflates bytes ~33%, so we cap the
+  // ENCODED data URL — not the raw file — at a budget that leaves room for the rest of
+  // the JSON body. Oversized uploads are rejected up front instead of silently failing
+  // the construct call (which would drop the whole onboarding on reload).
+  const MAX_LOGO_DATAURL = 700 * 1024; // ~700KB encoded
+
+  // Read an uploaded logo into a compact data URL. Raster images are downscaled
+  // (re-scaling smaller if still too large); SVGs are kept as-is when small enough
+  // (rendered inside an <img>, so scripts in the SVG cannot run).
+  const handleLogoUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // allow re-selecting the same file after an error
+    if (!file) return;
+    setLogoUploadError('');
+
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+    if (!allowed.includes(file.type)) {
+      setLogoUploadError(t('onboarding.pathB.uploadTypeError', 'Please upload a PNG, JPG, SVG, or WebP image.'));
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setLogoUploadError(t('onboarding.pathB.uploadSizeError', 'Image must be under 1MB.'));
+      return;
+    }
+
+    const tooBig = () => setLogoUploadError(t('onboarding.pathB.uploadSizeError', 'Image must be under 1MB.'));
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      // SVG: keep the vector as-is only if the encoded string fits the budget.
+      if (file.type === 'image/svg+xml') {
+        if ((reader.result || '').length > MAX_LOGO_DATAURL) return tooBig();
+        setLogoStyle(p => ({ ...p, image: reader.result, svg: undefined }));
+        setSelectedVariantIdx(null);
+        return;
+      }
+      // Raster: downscale, shrinking further if the PNG data URL is still too large.
+      const img = new Image();
+      img.onload = () => {
+        for (const maxDim of [512, 384, 256, 160]) {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const url = canvas.toDataURL('image/png');
+          if (url.length <= MAX_LOGO_DATAURL) {
+            setLogoStyle(p => ({ ...p, image: url, svg: undefined }));
+            setSelectedVariantIdx(null);
+            return;
+          }
+        }
+        tooBig();
+      };
+      img.onerror = () => setLogoUploadError(t('onboarding.pathB.uploadTypeError', 'Please upload a PNG, JPG, SVG, or WebP image.'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => setLogoUploadError(t('onboarding.pathB.uploadTypeError', 'Please upload a PNG, JPG, SVG, or WebP image.'));
+    reader.readAsDataURL(file);
+  };
+
   const triggerLogoPreset = (tone) => {
     const presets = {
       'Cozy & Warm': { color: '#D4A373', bgColor: '#1E1B18', shape: 'circle', icon: '☕' },
@@ -147,7 +228,11 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       'Luxury & Premium': { color: '#E5C158', bgColor: '#0D0D0D', shape: 'shield', icon: '👑' }
     };
     const sel = presets[tone] || presets['Cozy & Warm'];
-    setLogoStyle(sel);
+    // Preserve a user-uploaded logo across tone changes; the AI svg is
+    // tone-specific and is intentionally reset — clear the variant highlight too
+    // so a now-dropped AI logo doesn't stay visually selected.
+    setLogoStyle(prev => ({ ...sel, image: prev.image }));
+    setSelectedVariantIdx(null);
   };
 
   const handleToneChange = (tone) => {
@@ -336,7 +421,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       {step === 2 && (
         <div className="step-content animate-fade-in">
           <h2>{t('onboarding.pathB.step2Title', 'Define Your Brand Identity')}</h2>
-          <p className="subtitle">{t('onboarding.pathB.step2Subtitle', 'Pick a tone that aligns with your space, and generate a customized brand slogan.')}</p>
+          <p className="subtitle">{t('onboarding.pathB.step2Subtitle', 'Pick a tone that aligns with your space, then add your slogan — your own or AI-generated.')}</p>
 
           <div className="form-group">
             <label className="form-label">{t('onboarding.brandTone', 'Brand Tone')}</label>
@@ -355,187 +440,307 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           </div>
 
           <div className="form-group border-top-onboard pt-20">
-            <div className="flex-between align-center mb-10">
-              <label className="form-label">{t('onboarding.pathB.sloganLabel', 'Custom Brand Slogan')}</label>
+            <label className="form-label">{t('onboarding.pathB.sloganQuestion', 'Do you already have a brand slogan?')}</label>
+            <div className="brand-choice-grid grid-2 mb-10">
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handleGenerateSlogans}
-                disabled={generatingSlogans || !formData.description}
-                id="btn_generate_slogans"
+                className={`choice-card glass-card ${hasSlogan === 'yes' ? 'active' : ''}`}
+                onClick={() => setHasSlogan('yes')}
+                id="btn_has_slogan_yes"
               >
-                {generatingSlogans ? t('common.generating', 'Generating...') : t('onboarding.pathB.generateSlogans', 'Generate 3 AI Slogans ✦')}
+                <i className="fa-solid fa-circle-check choice-icon"></i>
+                <span className="choice-title">{t('onboarding.pathB.hasSloganYes', 'I already have a slogan')}</span>
+                <span className="choice-hint">{t('onboarding.pathB.hasSloganYesHint', 'Enter your existing tagline')}</span>
+              </button>
+              <button
+                type="button"
+                className={`choice-card glass-card ${hasSlogan === 'no' ? 'active' : ''}`}
+                onClick={() => setHasSlogan('no')}
+                id="btn_has_slogan_no"
+              >
+                <i className="fa-solid fa-wand-magic-sparkles choice-icon"></i>
+                <span className="choice-title">{t('onboarding.pathB.hasSloganNo', 'Create one with AI')}</span>
+                <span className="choice-hint">{t('onboarding.pathB.hasSloganNoHint', 'Generate 3 on-brand slogans')}</span>
               </button>
             </div>
 
-            {generatedSlogans.length > 0 ? (
-              <div className="slogans-list">
-                {generatedSlogans.map((slogan, idx) => (
-                  <div
-                    key={idx}
-                    className={`slogan-item glass-card ${formData.slogan === slogan ? 'active' : ''}`}
-                    onClick={() => handleInputChange('slogan', slogan)}
-                  >
-                    <p>"{slogan}"</p>
-                    {formData.slogan === slogan && <i className="fa-solid fa-check slogan-selected"></i>}
-                  </div>
-                ))}
-              </div>
-            ) : (
+            {hasSlogan === 'yes' && (
               <input
                 type="text"
                 className="input-field"
-                placeholder={t('onboarding.pathB.sloganPlaceholder', "Write your own slogan, or describe your cafe above and click 'Generate'")}
+                id="inp_own_slogan"
+                placeholder={t('onboarding.pathB.ownSloganPlaceholder', 'Enter your brand slogan')}
                 value={formData.slogan}
                 onChange={(e) => handleInputChange('slogan', e.target.value)}
               />
+            )}
+
+            {hasSlogan === 'no' && (
+              <>
+                <div className="flex-between align-center mb-10">
+                  <label className="form-label">{t('onboarding.pathB.sloganLabel', 'Custom Brand Slogan')}</label>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleGenerateSlogans}
+                    disabled={generatingSlogans || !formData.description}
+                    id="btn_generate_slogans"
+                  >
+                    {generatingSlogans ? t('common.generating', 'Generating...') : t('onboarding.pathB.generateSlogans', 'Generate 3 AI Slogans ✦')}
+                  </button>
+                </div>
+
+                {generatedSlogans.length > 0 ? (
+                  <div className="slogans-list">
+                    {generatedSlogans.map((slogan, idx) => (
+                      <div
+                        key={idx}
+                        className={`slogan-item glass-card ${formData.slogan === slogan ? 'active' : ''}`}
+                        onClick={() => handleInputChange('slogan', slogan)}
+                      >
+                        <p>"{slogan}"</p>
+                        {formData.slogan === slogan && <i className="fa-solid fa-check slogan-selected"></i>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder={t('onboarding.pathB.sloganPlaceholder', "Write your own slogan, or describe your cafe above and click 'Generate'")}
+                    value={formData.slogan}
+                    onChange={(e) => handleInputChange('slogan', e.target.value)}
+                  />
+                )}
+              </>
             )}
           </div>
 
           <div className="action-buttons-wrap">
             <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step2_back">{t('common.back', 'Back')}</button>
-            <button className="btn btn-primary" onClick={handleNextStep} id="btn_step2_next">
-              {t('onboarding.pathB.step2Cta', 'Design My Custom Logo')} <i className="fa-solid fa-arrow-right"></i>
+            <button className="btn btn-primary" onClick={handleNextStep} id="btn_step2_next" disabled={hasSlogan === null}>
+              {t('onboarding.pathB.step2Cta', 'Continue to Logo')} <i className="fa-solid fa-arrow-right"></i>
             </button>
           </div>
         </div>
       )}
 
-      {/* STEP 3: LOGO DESIGNER */}
+      {/* STEP 3: LOGO — OWN OR AI */}
       {step === 3 && (
         <div className="step-content animate-fade-in">
-          <h2>{t('onboarding.pathB.step3Title', 'Create Your Brand Icon')}</h2>
-          <p className="subtitle">{t('onboarding.pathB.step3Subtitle', 'Customize your visual emblem. Our logo engine will render layouts tailored to your business theme.')}</p>
+          <h2>{t('onboarding.pathB.step3Title', 'Set Up Your Logo')}</h2>
+          <p className="subtitle">{t('onboarding.pathB.step3Subtitle', 'Use your own logo, or let our engine design one tailored to your brand.')}</p>
 
-          {/* AI LOGO GENERATION PANEL */}
-          <div className="logo-gen-panel glass-card">
-            <div className="flex-between logo-gen-head">
-              <p className="logo-gen-hint">{t('onboarding.logoGen.hint', '4 unique marks designed from your name, category and brand tone — pick one or customize manually below.')}</p>
-              <button
-                type="button"
-                className="btn btn-accent btn-sm"
-                onClick={handleGenerateLogos}
-                disabled={generatingLogos}
-                id="btn_generate_logos"
-              >
-                {generatingLogos
-                  ? t('common.generating', 'Generating...')
-                  : logoVariants.length > 0
-                    ? t('onboarding.logoGen.regenerate', '↻ Regenerate')
-                    : t('onboarding.logoGen.cta', '✦ Generate logo with AI')}
-              </button>
-            </div>
-
-            {logoGenError && <p className="logo-gen-error">{logoGenError}</p>}
-
-            {logoVariants.length > 0 && (
-              <div className="logo-variant-grid">
-                {logoVariants.map((l, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    id={`btn_logo_variant_${idx}`}
-                    className={`logo-variant-card ${selectedVariantIdx === idx ? 'selected' : ''}`}
-                    style={{ backgroundColor: l.palette?.bg }}
-                    onClick={() => handleSelectLogoVariant(l, idx)}
-                  >
-                    <img
-                      src={'data:image/svg+xml;utf8,' + encodeURIComponent(l.svg)}
-                      alt={t('onboarding.logoGen.variantAlt', { defaultValue: 'Logo variant {{num}}', num: idx + 1 })}
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
+          <label className="form-label">{t('onboarding.pathB.logoQuestion', 'Do you already have a logo?')}</label>
+          <div className="brand-choice-grid grid-2 mb-20">
+            <button
+              type="button"
+              className={`choice-card glass-card ${hasLogo === 'yes' ? 'active' : ''}`}
+              onClick={() => chooseHasLogo('yes')}
+              id="btn_has_logo_yes"
+            >
+              <i className="fa-solid fa-circle-check choice-icon"></i>
+              <span className="choice-title">{t('onboarding.pathB.hasLogoYes', 'I already have a logo')}</span>
+              <span className="choice-hint">{t('onboarding.pathB.hasLogoYesHint', 'Upload your existing logo')}</span>
+            </button>
+            <button
+              type="button"
+              className={`choice-card glass-card ${hasLogo === 'no' ? 'active' : ''}`}
+              onClick={() => chooseHasLogo('no')}
+              id="btn_has_logo_no"
+            >
+              <i className="fa-solid fa-wand-magic-sparkles choice-icon"></i>
+              <span className="choice-title">{t('onboarding.pathB.hasLogoNo', 'Create one with AI')}</span>
+              <span className="choice-hint">{t('onboarding.pathB.hasLogoNoHint', 'Design a logo from your brand')}</span>
+            </button>
           </div>
 
-          <div className="grid-2 logo-designer-grid">
-            <div className="logo-controls">
-              <div className="form-group">
-                <label className="form-label" htmlFor="inp_logo_text">{t('onboarding.logoText', 'Logo Text')}</label>
-                <input
-                  type="text"
-                  id="inp_logo_text"
-                  className="input-field"
-                  value={formData.logoText}
-                  onChange={(e) => handleInputChange('logoText', e.target.value)}
-                />
-              </div>
+          {/* OWN LOGO: UPLOAD */}
+          {hasLogo === 'yes' && (
+            <div className="grid-2 logo-designer-grid">
+              <div className="logo-controls">
+                <div className="form-group">
+                  <label className="form-label">{t('onboarding.pathB.uploadLabel', 'Upload your logo')}</label>
+                  <label className="logo-upload-dropzone" htmlFor="inp_logo_upload">
+                    <i className="fa-solid fa-cloud-arrow-up"></i>
+                    <span>{t('onboarding.pathB.uploadCta', 'Choose an image · PNG, JPG, SVG (max 1MB)')}</span>
+                  </label>
+                  <input
+                    type="file"
+                    id="inp_logo_upload"
+                    className="visually-hidden-file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleLogoUpload}
+                  />
+                  {logoUploadError && <p className="logo-gen-error">{logoUploadError}</p>}
+                </div>
 
-              <div className="form-group">
-                <label className="form-label">{t('onboarding.pathB.shapeLabel', 'Emblem Shape')}</label>
-                <div className="flex-gap-8">
-                  {['circle', 'square', 'hexagon', 'shield'].map((shape) => (
-                    <button
-                      key={shape}
-                      type="button"
-                      className={`btn btn-secondary btn-sm shape-btn ${logoStyle.shape === shape ? 'active' : ''}`}
-                      onClick={() => setLogoStyle(p => ({ ...p, shape }))}
-                    >
-                      {t(`onboarding.shapes.${shape}`, shape)}
-                    </button>
-                  ))}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="inp_logo_text_own">{t('onboarding.logoText', 'Logo Text')}</label>
+                  <input
+                    type="text"
+                    id="inp_logo_text_own"
+                    className="input-field"
+                    value={formData.logoText}
+                    onChange={(e) => handleInputChange('logoText', e.target.value)}
+                  />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">{t('onboarding.pathB.iconLabel', 'Icon Symbol')}</label>
-                <div className="flex-gap-8">
-                  {['☕', '✦', '⚡', '🛡️', '👑', '💄', '🍕', '💼'].map((symbol) => (
-                    <button
-                      key={symbol}
-                      type="button"
-                      className={`btn btn-secondary btn-sm icon-btn ${logoStyle.icon === symbol ? 'active' : ''}`}
-                      onClick={() => setLogoStyle(p => ({ ...p, icon: symbol }))}
-                    >
-                      {symbol}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">{t('onboarding.pathB.colorLabel', 'Color Themes')}</label>
-                <div className="color-presets">
-                  {['#D4A373', '#FF7F11', '#3A86F0', '#FF007F', '#E5C158', '#06D6A0'].map((colorHex) => (
-                    <div
-                      key={colorHex}
-                      className="color-preset-circle"
-                      style={{ backgroundColor: colorHex, border: logoStyle.color === colorHex ? '3px solid #fff' : 'none' }}
-                      onClick={() => setLogoStyle(p => ({ ...p, color: colorHex }))}
-                    ></div>
-                  ))}
+              <div className="logo-preview-card glass-card text-center">
+                <span className="logo-preview-title">{t('onboarding.pathB.uploadPreviewTitle', 'Your Logo')}</span>
+                <div className="logo-canvas-wrap" style={{ backgroundColor: logoStyle.bgColor }}>
+                  {logoStyle.image ? (
+                    <img
+                      className="logo-canvas-svg"
+                      src={logoStyle.image}
+                      alt={formData.logoText || formData.businessName}
+                    />
+                  ) : (
+                    <div className="logo-upload-empty">
+                      <i className="fa-regular fa-image"></i>
+                      <small>{t('onboarding.pathB.uploadEmpty', 'Your uploaded logo will appear here')}</small>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+          )}
 
-            {/* LIVE PREVIEW OF LOGO USING SVG LAYOUTS */}
-            <div className="logo-preview-card glass-card text-center">
-              <span className="logo-preview-title">{t('onboarding.pathB.logoPreviewTitle', 'Vector SVG Blueprint')}</span>
-              <div className="logo-canvas-wrap" style={{ backgroundColor: logoStyle.bgColor }}>
-                {logoStyle.svg ? (
-                  <img
-                    className="logo-canvas-svg"
-                    src={'data:image/svg+xml;utf8,' + encodeURIComponent(logoStyle.svg)}
-                    alt={formData.logoText || formData.businessName}
-                  />
-                ) : (
-                  <>
-                    <div className={`logo-canvas-shape ${logoStyle.shape}`} style={{ borderColor: logoStyle.color, color: logoStyle.color }}>
-                      <span className="logo-canvas-icon">{logoStyle.icon}</span>
-                    </div>
-                    <h3 className="logo-canvas-text" style={{ color: logoStyle.color }}>{formData.logoText || formData.businessName}</h3>
-                    <small className="logo-canvas-slogan">{formData.slogan}</small>
-                  </>
+          {/* NO LOGO: AI GENERATION + MANUAL DESIGNER */}
+          {hasLogo === 'no' && (
+            <>
+              {/* AI LOGO GENERATION PANEL */}
+              <div className="logo-gen-panel glass-card">
+                <div className="flex-between logo-gen-head">
+                  <p className="logo-gen-hint">{t('onboarding.logoGen.hint', '4 unique marks designed from your name, category and brand tone — pick one or customize manually below.')}</p>
+                  <button
+                    type="button"
+                    className="btn btn-accent btn-sm"
+                    onClick={handleGenerateLogos}
+                    disabled={generatingLogos}
+                    id="btn_generate_logos"
+                  >
+                    {generatingLogos
+                      ? t('common.generating', 'Generating...')
+                      : logoVariants.length > 0
+                        ? t('onboarding.logoGen.regenerate', '↻ Regenerate')
+                        : t('onboarding.logoGen.cta', '✦ Generate logo with AI')}
+                  </button>
+                </div>
+
+                {logoGenError && <p className="logo-gen-error">{logoGenError}</p>}
+
+                {logoVariants.length > 0 && (
+                  <div className="logo-variant-grid">
+                    {logoVariants.map((l, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        id={`btn_logo_variant_${idx}`}
+                        className={`logo-variant-card ${selectedVariantIdx === idx ? 'selected' : ''}`}
+                        style={{ backgroundColor: l.palette?.bg }}
+                        onClick={() => handleSelectLogoVariant(l, idx)}
+                      >
+                        <img
+                          src={'data:image/svg+xml;utf8,' + encodeURIComponent(l.svg)}
+                          alt={t('onboarding.logoGen.variantAlt', { defaultValue: 'Logo variant {{num}}', num: idx + 1 })}
+                        />
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
-              <p className="text-muted mt-10"><i className="fa-solid fa-sparkles"></i> {t('onboarding.pathB.logoPreviewNote', 'AI generates full visual assets from these design guidelines')}</p>
-            </div>
-          </div>
+
+              <div className="grid-2 logo-designer-grid">
+                <div className="logo-controls">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="inp_logo_text">{t('onboarding.logoText', 'Logo Text')}</label>
+                    <input
+                      type="text"
+                      id="inp_logo_text"
+                      className="input-field"
+                      value={formData.logoText}
+                      onChange={(e) => handleInputChange('logoText', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{t('onboarding.pathB.shapeLabel', 'Emblem Shape')}</label>
+                    <div className="flex-gap-8">
+                      {['circle', 'square', 'hexagon', 'shield'].map((shape) => (
+                        <button
+                          key={shape}
+                          type="button"
+                          className={`btn btn-secondary btn-sm shape-btn ${logoStyle.shape === shape ? 'active' : ''}`}
+                          onClick={() => setLogoStyle(p => ({ ...p, shape }))}
+                        >
+                          {t(`onboarding.shapes.${shape}`, shape)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{t('onboarding.pathB.iconLabel', 'Icon Symbol')}</label>
+                    <div className="flex-gap-8">
+                      {['☕', '✦', '⚡', '🛡️', '👑', '💄', '🍕', '💼'].map((symbol) => (
+                        <button
+                          key={symbol}
+                          type="button"
+                          className={`btn btn-secondary btn-sm icon-btn ${logoStyle.icon === symbol ? 'active' : ''}`}
+                          onClick={() => setLogoStyle(p => ({ ...p, icon: symbol }))}
+                        >
+                          {symbol}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{t('onboarding.pathB.colorLabel', 'Color Themes')}</label>
+                    <div className="color-presets">
+                      {['#D4A373', '#FF7F11', '#3A86F0', '#FF007F', '#E5C158', '#06D6A0'].map((colorHex) => (
+                        <div
+                          key={colorHex}
+                          className="color-preset-circle"
+                          style={{ backgroundColor: colorHex, border: logoStyle.color === colorHex ? '3px solid #fff' : 'none' }}
+                          onClick={() => setLogoStyle(p => ({ ...p, color: colorHex }))}
+                        ></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* LIVE PREVIEW OF LOGO USING SVG LAYOUTS */}
+                <div className="logo-preview-card glass-card text-center">
+                  <span className="logo-preview-title">{t('onboarding.pathB.logoPreviewTitle', 'Vector SVG Blueprint')}</span>
+                  <div className="logo-canvas-wrap" style={{ backgroundColor: logoStyle.bgColor }}>
+                    {logoStyle.svg ? (
+                      <img
+                        className="logo-canvas-svg"
+                        src={'data:image/svg+xml;utf8,' + encodeURIComponent(logoStyle.svg)}
+                        alt={formData.logoText || formData.businessName}
+                      />
+                    ) : (
+                      <>
+                        <div className={`logo-canvas-shape ${logoStyle.shape}`} style={{ borderColor: logoStyle.color, color: logoStyle.color }}>
+                          <span className="logo-canvas-icon">{logoStyle.icon}</span>
+                        </div>
+                        <h3 className="logo-canvas-text" style={{ color: logoStyle.color }}>{formData.logoText || formData.businessName}</h3>
+                        <small className="logo-canvas-slogan">{formData.slogan}</small>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-muted mt-10"><i className="fa-solid fa-sparkles"></i> {t('onboarding.pathB.logoPreviewNote', 'AI generates full visual assets from these design guidelines')}</p>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="action-buttons-wrap">
             <button className="btn btn-secondary" onClick={handlePrevStep} id="btn_step3_back">{t('common.back', 'Back')}</button>
-            <button className="btn btn-primary" onClick={handleNextStep} id="btn_step3_next">
+            <button className="btn btn-primary" onClick={handleNextStep} id="btn_step3_next" disabled={hasLogo === null}>
               {t('onboarding.pathB.step3Cta', 'Select Social Channels')} <i className="fa-solid fa-arrow-right"></i>
             </button>
           </div>

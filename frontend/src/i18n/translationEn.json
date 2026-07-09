@@ -28,7 +28,8 @@
     "themeToLight": "Switch to light theme",
     "themeToDark": "Switch to dark theme",
     "themeToggle": "Toggle color theme",
-    "language": "Language"
+    "language": "Language",
+    "retry": "Retry"
   },
   "auth": {
     "login": "Sign In",
@@ -248,13 +249,13 @@
       "audiencePlaceholder": "e.g. Young programmers, designers, coffee enthusiasts, and remote workers",
       "step1Cta": "Choose Brand Tone & Slogan",
       "step2Title": "Define Your Brand Identity",
-      "step2Subtitle": "Pick a tone that aligns with your space, and generate a customized brand slogan.",
+      "step2Subtitle": "Pick a tone that aligns with your space, then add your slogan — your own or AI-generated.",
       "sloganLabel": "Custom Brand Slogan",
       "generateSlogans": "Generate 3 AI Slogans ✦",
       "sloganPlaceholder": "Write your own slogan, or describe your cafe above and click 'Generate'",
-      "step2Cta": "Design My Custom Logo",
-      "step3Title": "Create Your Brand Icon",
-      "step3Subtitle": "Customize your visual emblem. Our logo engine will render layouts tailored to your business theme.",
+      "step2Cta": "Continue to Logo",
+      "step3Title": "Set Up Your Logo",
+      "step3Subtitle": "Use your own logo, or let our engine design one tailored to your brand.",
       "shapeLabel": "Emblem Shape",
       "iconLabel": "Icon Symbol",
       "colorLabel": "Color Themes",
@@ -263,7 +264,24 @@
       "step3Cta": "Select Social Channels",
       "step4Title": "Select Channels to Initialize",
       "step4Subtitle": "Choose which accounts to scaffold automatically. Markivo creates draft structures verified for Central Asia.",
-      "scaffoldCta": "Scaffold My Business"
+      "scaffoldCta": "Scaffold My Business",
+      "sloganQuestion": "Do you already have a brand slogan?",
+      "hasSloganYes": "I already have a slogan",
+      "hasSloganYesHint": "Enter your existing tagline",
+      "hasSloganNo": "Create one with AI",
+      "hasSloganNoHint": "Generate 3 on-brand slogans",
+      "ownSloganPlaceholder": "Enter your brand slogan",
+      "logoQuestion": "Do you already have a logo?",
+      "hasLogoYes": "I already have a logo",
+      "hasLogoYesHint": "Upload your existing logo",
+      "hasLogoNo": "Create one with AI",
+      "hasLogoNoHint": "Design a logo from your brand",
+      "uploadLabel": "Upload your logo",
+      "uploadCta": "Choose an image · PNG, JPG, SVG (max 1MB)",
+      "uploadPreviewTitle": "Your Logo",
+      "uploadEmpty": "Your uploaded logo will appear here",
+      "uploadTypeError": "Please upload a PNG, JPG, SVG, or WebP image.",
+      "uploadSizeError": "Image must be under 1MB."
     },
     "categories": {
       "cafe": "Cafe / Coffee Shop",
@@ -432,7 +450,8 @@
       "metrics": "Metrics & Search",
       "content": "AI Content Engine",
       "media": "Media Studio",
-      "competitors": "Competitor Intel"
+      "competitors": "Competitor Intel",
+      "autopilot": "Autopilot"
     },
     "channels": {
       "google": "Google Profile"
@@ -860,6 +879,47 @@
       "periodEnd": "Current period ends {{date}}",
       "unavailable": "Billing status is unavailable right now.",
       "loading": "Loading plan…"
+    }
+  },
+  "autopilot": {
+    "title": "Autopilot",
+    "subtitle": "Let Markiv analyze your business and post promotional content to your channels on its own.",
+    "disabledNotice": "Autopilot is not enabled in this deployment.",
+    "loadError": "Couldn't load Autopilot.",
+    "saveError": "Couldn't save your settings.",
+    "runError": "Couldn't run Autopilot.",
+    "saved": "Settings saved.",
+    "ranNow": "Autopilot ran — see the activity below.",
+    "enableLabel": "Enable Autopilot",
+    "enableHint": "When on, Markiv runs on a schedule — analyzing, generating, and posting for you.",
+    "platformsLabel": "Channels to post to",
+    "platformsHint": "Autopilot posts to the channels you pick (connected channels post for real; others are simulated until connected).",
+    "frequencyLabel": "How often",
+    "freq": {
+      "daily": "Once a day",
+      "weekly": "Once a week",
+      "test": "Every minute (demo)"
+    },
+    "publishModeLabel": "When a post is ready",
+    "autoPublish": "Publish it automatically",
+    "autoPublishHint": "Markiv posts without asking.",
+    "queueMode": "Queue for my approval",
+    "queueModeHint": "You approve each post before it goes out.",
+    "save": "Save settings",
+    "saving": "Saving…",
+    "runNow": "Run now",
+    "running": "Running…",
+    "runNeedsSave": "Save your changes first",
+    "activityTitle": "Activity",
+    "noActivity": "Nothing yet. Turn Autopilot on (or press “Run now”) and its actions will show up here.",
+    "adSafetyNote": "Autopilot only creates free organic posts. Paid ad campaigns always need your explicit approval — Markiv never spends your money on its own.",
+    "kind": {
+      "analysis": "Analyzed your business",
+      "post_published": "Published a post",
+      "post_scheduled": "Scheduled a post",
+      "approval_created": "Queued for your approval",
+      "skipped": "Paused",
+      "error": "Error"
     }
   }
 }

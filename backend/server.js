@@ -15,6 +15,8 @@ const tg = require('./telegram');
 const ig = require('./instagram');
 const places = require('./places');
 const mediagen = require('./mediagen');
+const connectors = require('./connectors/registry');
+const autonomous = require('./autonomous');
 const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
 
 const db = createDb(config.dbPath);
@@ -1064,6 +1066,12 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
   };
 
   const conn = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
+  // Connected non-Telegram platforms Markiv may publish to (via the approval
+  // gate). Empty when nothing is connected — Markiv then offers only Telegram.
+  const connectedPlatforms = db.connections.listByProfile(profile.id)
+    .map((c) => connectors.get(c.platform))
+    .filter(Boolean)
+    .map((a) => ({ key: a.key, label: a.label }));
   const action = await ai.agentAct({
     query,
     history,
@@ -1072,6 +1080,7 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
     telegram: conn
       ? { connected: true, chatTitle: conn.chatTitle, chatType: conn.chatType, hasChat: !!conn.chatId }
       : { connected: false, comingSoon: !config.telegramEnabled },
+    platforms: connectedPlatforms,
     snapshot,
     actions,
   });
@@ -1109,6 +1118,31 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
       payload: approval.action_payload,
       reply,
     });
+  }
+
+  // Markiv proposed a publish to a connected platform → route through the gate.
+  if (action.type === 'platform_post') {
+    const adapter = connectors.get(action.platform);
+    if (!adapter) {
+      const reply = "I couldn't tell which platform to post to — could you name it (e.g. Instagram, TikTok)?";
+      recordAgentReply(reply);
+      return res.json({ reply });
+    }
+    const approval = db.approvals.create({
+      profileId: profile.id,
+      actionType: 'platform_post',
+      actionPayload: {
+        action: `Publish ${adapter.label} Post`,
+        cost: 'Free — organic post',
+        target: adapter.label,
+        creative: action.text,
+        text: action.text,
+        platform: adapter.key,
+      },
+    });
+    const reply = action.note || `I drafted this post for your ${adapter.label} — review and approve to publish.`;
+    recordAgentReply(reply);
+    return res.json({ triggerApproval: true, approvalId: approval.id, payload: approval.action_payload, reply });
   }
 
   recordAgentReply(action.reply);
@@ -1162,12 +1196,118 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
+  // Approved platform posts (Instagram/Facebook/TikTok/Google Business/YouTube)
+  // publish via the connector — sandbox connectors return a simulated result.
+  if (approval.action_type === 'platform_post') {
+    const platform = approval.action_payload.platform;
+    const adapter = connectors.get(platform);
+    try {
+      const result = await executePlatformPost(profile, platform, approval.action_payload.text, approval.action_payload.mediaUrl);
+      db.approvals.updateStatus(approvalId, 'approved');
+      return res.json({
+        success: true,
+        message: result.simulated
+          ? `✅ Drafted & queued for ${adapter ? adapter.label : platform} (sandbox — connect live credentials to publish for real).`
+          : `✅ Published to ${adapter ? adapter.label : platform}!`,
+      });
+    } catch (err) {
+      db.approvals.updateStatus(approvalId, 'failed');
+      return res.status(err.code || 400).json({ error: `Publishing failed: ${err.message}` });
+    }
+  }
+
   // Ad campaigns remain simulated until the Ads APIs land.
   const updated = db.approvals.updateStatus(approvalId, 'approved');
   res.json({
     success: true,
     message: `Campaign authorized! Launched localized ad campaign costing ${updated.action_payload.cost}. (Simulation — Meta Ads integration coming soon.)`,
   });
+}));
+
+// ==========================================
+// 3.65 AUTOPILOT (autonomous marketing agent) (/api/autonomous)
+//   Per-business opt-in. When enabled, a background worker analyzes the profile
+//   and auto-generates + publishes ORGANIC promotional posts on a cadence (or
+//   queues them for one-tap approval). Paid ad campaigns are NEVER run here —
+//   money spend always goes through the deterministic approval gate above.
+// ==========================================
+const autonomousGate = (req, res, next) => {
+  if (!config.autonomousEnabled) {
+    return res.status(503).json({ error: 'Autopilot is not enabled in this deployment.', comingSoon: true });
+  }
+  next();
+};
+
+// Publisher closures injected into the Autopilot worker so it can publish
+// organic posts through the same helpers the rest of the server uses, without
+// autonomous.js reaching into Express internals.
+const autopilotPublishers = {
+  publishTelegram: (profile, text) => executeTelegramPost(profile, text),
+  publishPlatform: (profile, platform, text) => executePlatformPost(profile, platform, text),
+  telegramReady: (profile) => {
+    if (!config.telegramEnabled) return false;
+    const conn = db.telegram.findByProfile(profile.id);
+    return !!(conn && conn.chatId);
+  },
+};
+const runAutopilotTick = (opts = {}) =>
+  autonomous.runAutonomousTick({ db, ai, connectors, config, publishers: autopilotPublishers, ...opts });
+
+// Current Autopilot config + recent activity for the signed-in business.
+app.get('/api/autonomous/status', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  res.json({
+    enabled: config.autonomousEnabled,
+    config: db.autonomous.getConfig(profile.id) || { enabled: false, platforms: [], frequency: 'daily', autoPublish: true },
+    activity: db.autonomous.listActivity(profile.id, 30),
+  });
+});
+
+// Save Autopilot settings. Enabling makes the business eligible on the next tick.
+app.put('/api/autonomous/config', verifyToken, autonomousGate, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const { enabled, platforms, frequency, autoPublish } = req.body;
+  const validFreq = ['daily', 'weekly', 'test'].includes(frequency) ? frequency : 'daily';
+  const validPlatforms = Array.isArray(platforms)
+    ? [...new Set(platforms.map(String).filter((p) => connectors.has(p)))].slice(0, 8)
+    : [];
+  // Only (re)arm the timer on the disabled -> enabled transition. Saving other
+  // settings while already enabled must NOT reset the cadence or trigger an
+  // extra immediate run — preserve the existing next_run_at.
+  const prev = db.autonomous.getConfig(profile.id);
+  const nextRunAt = !enabled
+    ? null
+    : (prev && prev.enabled && prev.nextRunAt) ? prev.nextRunAt : new Date().toISOString();
+  const cfg = db.autonomous.upsertConfig({
+    profileId: profile.id,
+    enabled: !!enabled,
+    platforms: validPlatforms,
+    frequency: validFreq,
+    autoPublish: autoPublish !== false, // default true ("post by himself")
+    nextRunAt,
+  });
+  res.json({ config: cfg });
+});
+
+// Paginated Autopilot activity log.
+app.get('/api/autonomous/activity', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
+  res.json({ activity: db.autonomous.listActivity(profile.id, limit) });
+});
+
+// "Run now" — user-initiated, budget-checked. Runs one Autopilot cycle for this
+// business immediately (ignores the cadence timer).
+app.post('/api/autonomous/run', verifyToken, autonomousGate, checkAiBudget, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const cfg = db.autonomous.getConfig(profile.id);
+  if (!cfg || !cfg.enabled) return res.status(400).json({ error: 'Enable Autopilot first, then run it.' });
+  const result = await autonomous.runProfileAutopilot({ db, ai, connectors, config, publishers: autopilotPublishers, profileId: profile.id, nowMs: Date.now(), force: true });
+  res.json({ result, activity: db.autonomous.listActivity(profile.id, 30) });
 }));
 
 // ==========================================
@@ -1267,7 +1407,28 @@ if (require.main === module) {
   if (process.env.NODE_ENV !== 'test' && process.env.WORKER_ENABLED !== 'false') {
     setInterval(runScheduledPostsTick, 60000);
     console.log('⏱️  Scheduled-post worker running (60s tick)');
+
+    // Autopilot worker: scan for due autonomous businesses and run each. A
+    // re-entrancy guard skips a tick while the previous one is still running, so
+    // a slow batch can't stack overlapping ticks.
+    if (config.autonomousEnabled) {
+      let autopilotTicking = false;
+      setInterval(async () => {
+        if (autopilotTicking) return;
+        autopilotTicking = true;
+        try { await runAutopilotTick(); }
+        catch (e) { console.warn('Autopilot tick failed:', e.message); }
+        finally { autopilotTicking = false; }
+      }, config.autonomousTickMs);
+      console.log(`🤖 Autopilot worker running (${Math.round(config.autonomousTickMs / 60000)}m tick)`);
+    }
   }
 }
 
-module.exports = { app, db, runScheduledPostsTick };
+module.exports = {
+  app,
+  db,
+  runScheduledPostsTick,
+  // Bound to the server's db/deps + publishers so tests can drive a cycle.
+  runAutonomousTick: runAutopilotTick,
+};

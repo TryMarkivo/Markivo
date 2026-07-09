@@ -1,0 +1,47 @@
+# Fly.io deploy config for the Markivo backend (Express + SQLite).
+# Deploy from THIS directory:  cd backend && fly deploy
+# Full runbook: ../DEPLOY.md → "Variant D — Free stack (Vercel + Fly.io)"
+
+app = "markivo-api"            # globally unique — change if the name is taken
+primary_region = "fra"         # Frankfurt: low latency to Uzbekistan. See `fly platform regions`.
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Non-secret config only. Secrets (JWT_SECRET, CORS_ORIGIN, APP_URL, API keys) are
+# set with `fly secrets set …` so they never live in this committed file.
+[env]
+  NODE_ENV = "production"
+  PORT = "5000"
+  DB_PATH = "/app/database/markivo.db"
+  TRUST_PROXY = "true"
+  TELEGRAM_ENABLED = "true"
+
+[http_service]
+  internal_port = 5000
+  force_https = true
+  # Keep one machine alive 24/7 so the in-process scheduled-post worker (60s tick)
+  # keeps publishing. Do NOT enable auto-stop or scheduled posts pause when idle.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "get"
+    path = "/api/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"
+
+# Persistent SQLite database. Create the volume once before the first deploy:
+#   fly volumes create markivo_data --size 1 --region fra
+# (Uploaded media at /app/uploads is ephemeral until a second volume or object
+#  storage is added — a later milestone; the DB is the persistence priority.)
+[mounts]
+  source = "markivo_data"
+  destination = "/app/database"
