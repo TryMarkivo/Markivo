@@ -106,29 +106,35 @@ const config = {
   scanRateLimit: parseInt(process.env.SCAN_RATE_LIMIT, 10) || 10,
   scanRateWindowMs: (parseInt(process.env.SCAN_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
 
-  // --- Platform connectors (Instagram/Facebook/TikTok/Google Business/YouTube) ---
-  // Each platform publishes through its OFFICIAL API, on the user's behalf, behind
-  // the human approval gate. When a platform's OAuth credentials are absent its
-  // adapter runs in SANDBOX mode (simulated connect + publish) so the app and the
-  // tests work fully keyless — mirroring the AI/Places/Stripe fallbacks.
-  //
-  // `redirectBase` is the PUBLIC API base used to build OAuth redirect URIs
-  // (`<redirectBase>/api/connect/<key>/callback`). It must match the redirect URI
-  // registered in each platform's developer console. Defaults to APP_URL in dev.
-  connectors: (() => {
-    const redirectBase = (process.env.OAUTH_REDIRECT_BASE || process.env.APP_URL || 'http://localhost:5000').replace(/\/$/, '');
-    const meta = { clientId: process.env.META_CLIENT_ID || '', clientSecret: process.env.META_CLIENT_SECRET || '' };
-    const tiktok = { clientKey: process.env.TIKTOK_CLIENT_KEY || '', clientSecret: process.env.TIKTOK_CLIENT_SECRET || '' };
-    // Google OAuth client is shared by the Google Business Profile and YouTube adapters.
-    const google = { clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '', clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '' };
-    meta.enabled = !!(meta.clientId && meta.clientSecret);
-    tiktok.enabled = !!(tiktok.clientKey && tiktok.clientSecret);
-    google.enabled = !!(google.clientId && google.clientSecret);
-    return { redirectBase, meta, tiktok, google };
-  })(),
+  // --- Instagram (Instagram API with Instagram Login) — "Connect Instagram" ---
+  // Uses the Instagram **Business Login** flow (instagram.com auth →
+  // api.instagram.com / graph.instagram.com), NOT Facebook Login. Credentials
+  // are the INSTAGRAM app ID/secret (found under the app's Instagram product →
+  // API setup with Instagram login) — distinct from the Facebook app's. When
+  // unset the connect routes answer 503 "coming soon" (instagramEnabled ===
+  // false). INSTAGRAM_REDIRECT_URI must match the redirect registered in the
+  // Instagram business-login settings byte-for-byte, and is reused unchanged in
+  // the token exchange.
+  instagramAppId: process.env.INSTAGRAM_APP_ID || '',
+  instagramAppSecret: process.env.INSTAGRAM_APP_SECRET || '',
+  instagramRedirectUri:
+    process.env.INSTAGRAM_REDIRECT_URI ||
+    process.env.META_REDIRECT_URI ||
+    'http://localhost:5000/api/instagram/oauth/callback',
+  instagramScopes: 'instagram_business_basic,instagram_business_content_publish',
 };
 
 config.aiEnabled = !!config.anthropicApiKey;
+// Instagram connect goes live only when both Instagram app credentials are set.
+config.instagramEnabled = !!(config.instagramAppId && config.instagramAppSecret);
+
+// Public base URL for assets Instagram must fetch (image_url for publishing) and
+// other outward links. Instagram fetches images server-side, so localhost is not
+// reachable — in dev this is the tunnel host (derived from the redirect URI's
+// origin); set PUBLIC_BASE_URL explicitly in production.
+config.publicBaseUrl = process.env.PUBLIC_BASE_URL || (() => {
+  try { return new URL(config.instagramRedirectUri).origin; } catch { return ''; }
+})();
 
 // Convenience helpers used by the auth layer.
 config.newRefreshToken = () => crypto.randomBytes(32).toString('hex');

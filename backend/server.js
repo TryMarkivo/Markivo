@@ -12,6 +12,7 @@ const createDb = require('./db');
 const ai = require('./ai');
 const billing = require('./billing');
 const tg = require('./telegram');
+const ig = require('./instagram');
 const places = require('./places');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
@@ -477,6 +478,23 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
+  // Instagram publishes for real when connected AND media is supplied (imageUrl,
+  // videoUrl, or mediaId) — Instagram has no text-only post type.
+  if (platform === 'instagram' && config.instagramEnabled) {
+    const conn = db.instagram.findByProfile(profile.id);
+    if (conn && conn.igUserId) {
+      const media = resolveInstagramMedia(profile, req.body);
+      if (media.imageUrl || media.videoUrl) {
+        try {
+          const result = await executeInstagramPost(profile, { ...media, caption: postText });
+          return res.json({ success: true, simulated: false, ...result });
+        } catch (err) {
+          return res.status(400).json({ error: err.message });
+        }
+      }
+    }
+  }
+
   const post = db.calendar.add({
     profileId: profile.id,
     platform,
@@ -627,105 +645,158 @@ app.post('/api/telegram/post', verifyToken, telegramGate, asyncRoute(async (req,
 }));
 
 // ==========================================
-// 3.46 PLATFORM CONNECTORS (/api/connect)
-//   Generic OAuth connect + publish for Instagram/Facebook/TikTok/Google
-//   Business/YouTube — all through each platform's OFFICIAL API, on the owner's
-//   behalf, behind the approval gate. Telegram keeps its dedicated
-//   /api/telegram/* routes (its adapter delegates to them). Every connector has
-//   a keyless SANDBOX fallback, so the whole surface works without any platform
-//   credentials (simulated connect + publish), mirroring the AI/Places/Stripe
-//   fallbacks.
+// 3.4 INSTAGRAM (Meta Graph) OAUTH CONNECT
+// ------------------------------------------
+//   Owner clicks "Connect Instagram" → we mint a signed `state` and hand back
+//   Meta's auth-dialog URL; the browser goes to Meta, authorizes, and Meta
+//   redirects to our callback with ?code=&state=. The callback (a top-level
+//   browser navigation with NO auth header) recovers identity from `state`,
+//   exchanges the code for a long-lived token, and stores it encrypted.
 // ==========================================
+const instagramGate = (req, res, next) => {
+  if (!config.instagramEnabled) {
+    return res.status(503).json({
+      error: 'Instagram connection is coming soon — Meta credentials are not configured yet.',
+      comingSoon: true,
+    });
+  }
+  next();
+};
 
-// Publish to a connected platform via its connector, then record the calendar
-// entry (the connector performs only the platform action). Sandbox connectors
-// return { simulated:true } and never throw; live failures throw ConnectorError.
-async function executePlatformPost(profile, platform, text, mediaUrl) {
-  const adapter = connectors.get(platform);
-  if (!adapter) throw new Error(`Unknown platform: ${platform}`);
-  const result = await adapter.publish({ db, profile, text, mediaUrl });
-  db.calendar.add({
-    profileId: profile.id, platform, postText: text,
-    scheduledTime: new Date().toISOString(), status: 'posted',
+// Signed, short-lived state carrying the user/profile through the OAuth round
+// trip (doubles as CSRF protection — the callback rejects anything it didn't
+// sign). Reuses the JWT machinery already used for access tokens.
+const signOauthState = (user, profile) =>
+  jwt.sign({ uid: user.id, pid: profile.id, purpose: 'ig_oauth' }, config.jwtSecret, { expiresIn: '10m' });
+
+const verifyOauthState = (state) => {
+  const payload = jwt.verify(state, config.jwtSecret);
+  if (payload.purpose !== 'ig_oauth') throw new Error('wrong token purpose');
+  return payload;
+};
+
+app.get('/api/instagram/connect', verifyToken, instagramGate, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const authUrl = ig.buildAuthUrl(signOauthState(req.user, profile));
+  res.json({ authUrl });
+});
+
+// PUBLIC (no verifyToken) — Meta redirects the browser here. Identity rides in
+// `state`. Always ends in a redirect back to the SPA; never leaks raw errors.
+app.get('/api/instagram/oauth/callback', asyncRoute(async (req, res) => {
+  const back = (params) => res.redirect(`${config.appUrl}/?${new URLSearchParams(params).toString()}`);
+
+  if (!config.instagramEnabled) return back({ instagram: 'error', reason: 'not_configured' });
+  if (req.query.error) return back({ instagram: 'error', reason: 'denied' });
+
+  const { code, state } = req.query;
+  if (!code || !state) return back({ instagram: 'error', reason: 'missing_code' });
+
+  let payload;
+  try {
+    payload = verifyOauthState(String(state));
+  } catch {
+    return back({ instagram: 'error', reason: 'bad_state' });
+  }
+
+  const profile = db.profiles.findById(payload.pid);
+  if (!profile) return back({ instagram: 'error', reason: 'no_profile' });
+
+  try {
+    const short = await ig.exchangeCodeForToken(String(code));
+    const long = await ig.exchangeForLongLivedToken(short.accessToken);
+    const account = await ig.resolveAccount(long.accessToken);
+    const tokenExpiresAt = long.expiresIn
+      ? new Date(Date.now() + long.expiresIn * 1000).toISOString()
+      : null;
+
+    db.instagram.upsert({ profileId: profile.id, accessToken: long.accessToken, tokenExpiresAt, ...account });
+    db.platforms.setConnected(profile.id, 'instagram', account.igUsername ? `@${account.igUsername}` : (account.accountName || null));
+    return back({ instagram: 'connected' });
+  } catch (err) {
+    console.warn(`Instagram callback failed: ${err.message}`);
+    return back({ instagram: 'error', reason: 'exchange_failed' });
+  }
+}));
+
+app.get('/api/instagram/status', verifyToken, (req, res) => {
+  if (!config.instagramEnabled) return res.json({ connected: false, comingSoon: true });
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ connected: false });
+  const conn = db.instagram.findByProfile(profile.id);
+  if (!conn) return res.json({ connected: false });
+  res.json({
+    connected: true,
+    username: conn.igUsername,
+    accountName: conn.accountName,
+    expiresAt: conn.tokenExpiresAt,
   });
-  return result;
+});
+
+app.post('/api/instagram/disconnect', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found' });
+  db.instagram.remove(profile.id);
+  db.platforms.setConnected(profile.id, 'instagram', null, false);
+  res.json({ success: true });
+});
+
+// Resolve post media to a PUBLIC URL Instagram can fetch server-side. Accepts an
+// explicit imageUrl/videoUrl (used as-is) or a mediaId whose uploaded/rendered
+// file we expose via the public base (the dev tunnel). The media row's `kind`
+// decides image vs video. Returns { imageUrl, videoUrl, mediaType } — all '' when
+// nothing is resolvable.
+function resolveInstagramMedia(profile, body = {}) {
+  const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
+  const videoUrl = typeof body.videoUrl === 'string' ? body.videoUrl.trim() : '';
+  if (imageUrl) return { imageUrl, videoUrl: '', mediaType: '' };
+  if (videoUrl) return { imageUrl: '', videoUrl, mediaType: 'REELS' };
+  if (body.mediaId) {
+    const m = db.media.findById(String(body.mediaId));
+    if (m && m.profileId === profile.id && m.filePath && config.publicBaseUrl) {
+      const url = `${config.publicBaseUrl}/${m.filePath.replace(/^\/+/, '')}`;
+      if (m.kind === 'video') return { imageUrl: '', videoUrl: url, mediaType: 'REELS' };
+      return { imageUrl: url, videoUrl: '', mediaType: '' };
+    }
+  }
+  return { imageUrl: '', videoUrl: '', mediaType: '' };
 }
 
-// Connection status for every platform (dashboard connect screen).
-app.get('/api/connect/status', verifyToken, asyncRoute(async (req, res) => {
-  const profile = requireProfile(req, res);
-  if (!profile) return;
-  res.json({ catalogue: connectors.catalogue(), status: await connectors.statusAll({ db, profile }) });
-}));
+// Shared executor — used by the direct post route AND /api/content/post-now.
+// Publishes an image OR video (Reels) post for real and records it. Video
+// containers are polled to FINISHED inside ig.publishMediaPost before publishing.
+async function executeInstagramPost(profile, { imageUrl, videoUrl, mediaType, caption }) {
+  const conn = db.instagram.findByProfile(profile.id);
+  if (!conn) throw new Error('Instagram is not connected');
+  if (!conn.igUserId) throw new Error('This Instagram connection has no linked account id — reconnect Instagram');
+  if (!imageUrl && !videoUrl) throw new Error('An image or video is required — Instagram does not support text-only posts');
+  const { mediaId, permalink } = await ig.publishMediaPost(conn, { imageUrl, videoUrl, mediaType, caption });
+  db.calendar.add({
+    profileId: profile.id,
+    platform: 'instagram',
+    postText: caption || '',
+    scheduledTime: new Date().toISOString(),
+    status: 'posted',
+  });
+  return { mediaId, permalink, username: conn.igUsername };
+}
 
-// Begin connecting a platform. LIVE → returns the OAuth consent URL to open.
-// SANDBOX (no platform credentials) → records a simulated connection so the
-// dashboard shows "connected (sandbox)" and the publish flow is exercisable
-// keyless. Telegram is redirected to its dedicated card.
-app.post('/api/connect/:key/start', verifyToken, asyncRoute(async (req, res) => {
+app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
-  const adapter = connectors.get(req.params.key);
-  if (!adapter) return res.status(404).json({ error: 'Unknown platform' });
-  if (adapter.key === 'telegram') {
-    return res.status(409).json({ error: 'Connect Telegram from the Telegram card (BotFather token).' });
+  const caption = typeof req.body.caption === 'string' ? req.body.caption.trim() : '';
+  if (caption.length > 2200) return res.status(400).json({ error: 'Caption must be 2200 characters or fewer' });
+  const media = resolveInstagramMedia(profile, req.body);
+  if (!media.imageUrl && !media.videoUrl) {
+    return res.status(400).json({ error: 'Provide an imageUrl, videoUrl, or a mediaId with an uploaded file — Instagram posts require an image or video.' });
   }
-  // Signed state ties the OAuth callback back to this profile + platform.
-  const state = jwt.sign({ pid: profile.id, key: adapter.key }, config.jwtSecret, { expiresIn: '15m' });
-  const url = adapter.getAuthUrl({ profile, state });
-  if (url) return res.json({ mode: 'oauth', url });
-  // Sandbox: simulate a connection so the rest of the flow works keyless.
-  db.connections.upsert({ profileId: profile.id, platform: adapter.key, status: 'sandbox', accountHandle: `@sandbox_${adapter.key}` });
-  db.platforms.setConnected(profile.id, adapter.key, `@sandbox_${adapter.key}`, true);
-  res.json({ mode: 'sandbox', status: await adapter.status({ db, profile }) });
-}));
-
-// OAuth redirect target. Stateless — the signed `state` carries the profile id,
-// so this route needs no bearer token (the user is mid-redirect at the platform).
-app.get('/api/connect/:key/callback', asyncRoute(async (req, res) => {
-  const adapter = connectors.get(req.params.key);
-  if (!adapter) return res.status(404).send('Unknown platform');
-  let claims;
-  try { claims = jwt.verify(String(req.query.state || ''), config.jwtSecret); }
-  catch { return res.status(400).send('This connection link has expired — please start the connection again.'); }
-  const profile = db.profiles.findById(claims.pid);
-  if (!profile || claims.key !== adapter.key) return res.status(400).send('Invalid connection state.');
   try {
-    await adapter.handleCallback({ db, profile, query: req.query });
-    db.platforms.setConnected(profile.id, adapter.key, null, true);
-    return res.redirect(`${config.appUrl}/?connected=${adapter.key}`);
-  } catch (err) {
-    console.error(`Connect callback for ${adapter.key} failed:`, err.message);
-    return res.redirect(`${config.appUrl}/?connect_error=${encodeURIComponent(adapter.label)}`);
-  }
-}));
-
-// Direct publish to a connected platform (dashboard "post now"). Mirrors
-// /api/telegram/post; sandbox connectors record a simulated posted entry.
-app.post('/api/connect/:key/post', verifyToken, asyncRoute(async (req, res) => {
-  const profile = requireProfile(req, res);
-  if (!profile) return;
-  const adapter = connectors.get(req.params.key);
-  if (!adapter || adapter.key === 'telegram') return res.status(404).json({ error: 'Unknown platform' });
-  const text = String(req.body.text || '').trim();
-  if (!text) return res.status(400).json({ error: 'Post text is required' });
-  if (text.length > 4000) return res.status(400).json({ error: 'Post text must be 4000 characters or fewer' });
-  try {
-    const result = await executePlatformPost(profile, adapter.key, text, req.body.mediaUrl);
+    const result = await executeInstagramPost(profile, { ...media, caption });
     res.json({ success: true, ...result });
   } catch (err) {
-    res.status(err.code || 400).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
-}));
-
-app.post('/api/connect/:key/disconnect', verifyToken, asyncRoute(async (req, res) => {
-  const profile = requireProfile(req, res);
-  if (!profile) return;
-  const adapter = connectors.get(req.params.key);
-  if (!adapter) return res.status(404).json({ error: 'Unknown platform' });
-  await adapter.disconnect({ db, profile });
-  db.platforms.setConnected(profile.id, adapter.key, null, false);
-  res.json({ success: true });
 }));
 
 // ==========================================

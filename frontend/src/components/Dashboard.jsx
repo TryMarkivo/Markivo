@@ -6,7 +6,8 @@ import MediaStudio from './MediaStudio';
 import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
-import ConnectionsPanel from './ConnectionsPanel';
+import InstagramConnect from './InstagramConnect';
+import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
 import ThemeToggle from './ThemeToggle';
 import api from '../lib/api';
@@ -28,6 +29,20 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
+  const [igStatus, setIgStatus] = useState(null);
+  const [igModalOpen, setIgModalOpen] = useState(false);
+  const [igComposerOpen, setIgComposerOpen] = useState(false);
+  // Derive the OAuth round-trip notice once, from the URL the callback set us to
+  // (?instagram=connected|error&reason=…). A lazy initializer reads this external
+  // state during the first render; the effect below only handles side effects.
+  const [igNotice, setIgNotice] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('instagram');
+    if (!result) return '';
+    if (result === 'connected') return t('instagram.noticeConnected', 'Instagram connected ✓');
+    const reason = params.get('reason') || 'unknown';
+    return t(`instagram.errors.${reason}`, t('instagram.noticeError', 'Could not connect Instagram — please try again.'));
+  });
   const [usage, setUsage] = useState(null);
   const [statsOffline, setStatsOffline] = useState(false);
 
@@ -37,6 +52,29 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       .catch(() => setTgStatus({ connected: false }));
   };
   useEffect(refreshTelegramStatus, [activeProfile]);
+
+  const refreshInstagramStatus = () => {
+    api.get('/api/instagram/status')
+      .then(setIgStatus)
+      .catch(() => setIgStatus({ connected: false }));
+  };
+  useEffect(refreshInstagramStatus, [activeProfile]);
+
+  // Side effects for the OAuth return: refresh status on success, strip the
+  // query params, and auto-dismiss the notice. (The notice text itself is
+  // derived above, so nothing is set synchronously in this effect body.)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('instagram');
+    if (!result) return;
+    if (result === 'connected') refreshInstagramStatus();
+    params.delete('instagram');
+    params.delete('reason');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    const timer = setTimeout(() => setIgNotice(''), 6000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     api.get('/api/usage').then(setUsage).catch(() => setUsage(null));
@@ -245,13 +283,35 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               {/* CONNECTED PLATFORMS */}
               <div className="channels-status-row">
                 <h3>{t('dashboard.activeInfrastructure', 'Your Active Infrastructure')}</h3>
+                {igNotice && (
+                  <div className="badge badge-success mb-10" style={{ display: 'block', padding: 8 }} role="status">{igNotice}</div>
+                )}
                 <div className="channels-grid">
                   <div className={`channel-pill ${activeProfile.platforms.googleBusiness ? 'connected' : 'inactive'}`}>
                     <i className="fa-brands fa-google"></i> {t('dashboard.channels.google', 'Google Profile')}
                     <span className="dot"></span>
                   </div>
-                  <div className={`channel-pill ${activeProfile.platforms.instagram ? 'connected' : 'inactive'}`}>
-                    <i className="fa-brands fa-instagram"></i> Instagram
+                  <div
+                    className={`channel-pill ${igStatus?.connected ? 'connected' : 'inactive'}`}
+                    onClick={igStatus?.comingSoon ? undefined : () => setIgModalOpen(true)}
+                    style={{ cursor: igStatus?.comingSoon ? 'default' : 'pointer' }}
+                    title={
+                      igStatus?.comingSoon
+                        ? t('instagram.pillTitleSoon', 'Instagram connection is coming soon')
+                        : igStatus?.connected
+                          ? t('instagram.pillTitleConnected', { defaultValue: 'Connected as @{{username}}', username: igStatus.username || igStatus.accountName || '' })
+                          : t('instagram.pillTitleConnect', 'Click to connect Instagram')
+                    }
+                    id="btn_instagram_pill"
+                  >
+                    <i className="fa-brands fa-instagram"></i>{' '}
+                    {igStatus?.comingSoon
+                      ? t('instagram.pillSoon', 'Instagram · soon')
+                      : igStatus?.connected
+                        ? (igStatus.username
+                            ? t('instagram.pillConnected', { defaultValue: 'Instagram · @{{username}}', username: igStatus.username })
+                            : t('instagram.pillConnectedGeneric', 'Instagram · connected'))
+                        : t('instagram.pillConnect', 'Instagram · connect')}
                     <span className="dot"></span>
                   </div>
                   <div
@@ -456,6 +516,25 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           status={tgStatus}
           onStatusChange={refreshTelegramStatus}
           onClose={() => setTgModalOpen(false)}
+        />
+      )}
+
+      {/* --- INSTAGRAM CONNECT MODAL --- */}
+      {igModalOpen && (
+        <InstagramConnect
+          status={igStatus}
+          onStatusChange={refreshInstagramStatus}
+          onClose={() => setIgModalOpen(false)}
+          onCompose={() => { setIgModalOpen(false); setIgComposerOpen(true); }}
+        />
+      )}
+
+      {/* --- INSTAGRAM COMPOSER MODAL --- */}
+      {igComposerOpen && (
+        <InstagramComposer
+          status={igStatus}
+          onPosted={refreshInstagramStatus}
+          onClose={() => setIgComposerOpen(false)}
         />
       )}
 
