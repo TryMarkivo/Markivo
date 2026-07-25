@@ -20,6 +20,9 @@ services:
       APP_URL: ${APP_URL:-http://localhost:8080}
       # --- Integrations (all optional; features fall back gracefully) ---
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Model overrides (config defaults: haiku for content, opus for the agent).
+      AI_CONTENT_MODEL: ${AI_CONTENT_MODEL:-}
+      AI_AGENT_MODEL: ${AI_AGENT_MODEL:-}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}
       MEDIA_API_KEY: ${MEDIA_API_KEY:-}
@@ -28,6 +31,16 @@ services:
       # Monthly subscription prices in USD (billing config defaults: 20 / 50).
       TIER_PRICE_PRO: ${TIER_PRICE_PRO:-}
       TIER_PRICE_ULTIMATE: ${TIER_PRICE_ULTIMATE:-}
+      # --- Instagram (Instagram Login) — connect goes live only when both the
+      # app id and secret are set. INSTAGRAM_REDIRECT_URI must match the redirect
+      # registered in the Instagram business-login settings byte-for-byte.
+      INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID:-}
+      INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:-}
+      INSTAGRAM_REDIRECT_URI: ${INSTAGRAM_REDIRECT_URI:-}
+      # Public https base URL of this API — Instagram fetches post images
+      # server-side, so this must be publicly reachable (never localhost) for
+      # publishing to work. Defaults to the redirect URI's origin if unset.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
     volumes:
       - markivo-db:/app/database
       - markivo-uploads:/app/uploads

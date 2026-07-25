@@ -1,0 +1,13 @@
+# Caddy reverse proxy — automatic HTTPS (Let's Encrypt) for trymarkivo.com.
+# Terminates TLS and forwards to the frontend nginx container, which serves the
+# React UI and proxies /api + /uploads to the backend. Certs auto-renew.
+{
+	# ACME account email (cert-expiry notices) + pin to LE production so the
+	# issued certificate is browser-trusted (not the staging CA).
+	email elshod2607k@gmail.com
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+trymarkivo.com, www.trymarkivo.com {
+	encode gzip
+	reverse_proxy frontend:80
+}
