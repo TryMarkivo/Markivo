@@ -137,8 +137,9 @@ async function resolveAccount(token) {
 // Two-step flow: create a media container from a PUBLIC media URL, then publish
 // it. Instagram fetches the URL server-side, so it must be reachable from the
 // internet (JPEG for images, MP4/MOV for video). There is no text-only post
-// type. Video (Reels) containers process asynchronously, so we poll the
-// container's status_code until FINISHED before publishing.
+// type. Containers process asynchronously (video/Reels slowly, images fast), so
+// we poll the container's status_code until FINISHED before publishing — calling
+// media_publish too early returns Instagram's opaque "Media ID is not available".
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -233,12 +234,18 @@ async function getPermalink(token, mediaId) {
   }
 }
 
-// High-level: create + (poll, for video) + publish a post for a stored
+// High-level: create + poll-to-FINISHED + publish a post for a stored
 // connection. Accepts { imageUrl } or { videoUrl, mediaType }. Returns ids +
-// permalink. `opts` is forwarded to the video poll (test injection).
+// permalink. `opts` is forwarded to the status poll (test injection).
 async function publishMediaPost(conn, { imageUrl, videoUrl, mediaType, caption }, opts = {}) {
   const creationId = await createMediaContainer(conn.accessToken, conn.igUserId, { imageUrl, videoUrl, mediaType, caption });
-  if (videoUrl) await waitForContainerReady(conn.accessToken, creationId, opts);
+  // Poll the container to FINISHED before publishing. Video (Reels) needs a long
+  // window; images finish in seconds but STILL must be polled — Instagram fetches
+  // the image URL server-side, and publishing before the container is FINISHED
+  // returns the opaque "Media ID is not available". An unreachable URL now
+  // surfaces as a clear "media processing ERROR" instead.
+  const pollOpts = videoUrl ? opts : { attempts: 15, delayMs: 3000, ...opts };
+  await waitForContainerReady(conn.accessToken, creationId, pollOpts);
   const mediaId = await publishMedia(conn.accessToken, conn.igUserId, creationId);
   const permalink = await getPermalink(conn.accessToken, mediaId);
   return { creationId, mediaId, permalink };

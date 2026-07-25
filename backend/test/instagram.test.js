@@ -260,9 +260,10 @@ test('POST /api/instagram/post resolves an uploaded mediaId to a public image UR
   assert.strictEqual(res.status, 200);
   const data = await res.json();
   assert.strictEqual(data.mediaId, 'MEDIA_999');
-  // the container was created from the public /uploads URL (image path, no poll)
+  // the container was created from the public /uploads URL, then polled to
+  // FINISHED before publishing (prevents Instagram's "Media ID is not available")
   assert.ok(igCalls.some((c) => c.pathname.endsWith('/media') && c.method === 'POST'));
-  assert.ok(!igCalls.some((c) => c.q.fields === 'status_code'), 'image post should not poll video status');
+  assert.ok(igCalls.some((c) => c.q.fields === 'status_code'), 'image post polls the container to FINISHED before publishing');
 });
 
 test('disconnect clears the connection', async () => {
