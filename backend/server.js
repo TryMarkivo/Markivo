@@ -782,6 +782,26 @@ async function executeInstagramPost(profile, { imageUrl, videoUrl, mediaType, ca
   return { mediaId, permalink, username: conn.igUsername };
 }
 
+// Generic connector executor — used by the approval gate AND Autopilot to
+// publish a post to ANY registered platform (Instagram/Facebook/TikTok/Google
+// Business/YouTube) through its adapter. Adapters with no live credentials
+// return a simulated result; either way the post is recorded as a posted
+// calendar row so the dashboard reflects the activity (mirrors
+// executeInstagramPost). mediaUrl is optional — some platforms require it.
+async function executePlatformPost(profile, platform, text, mediaUrl) {
+  const adapter = connectors.get(platform);
+  if (!adapter) throw new Error(`Unknown platform "${platform}"`);
+  const result = await adapter.publish({ db, profile, text, mediaUrl });
+  db.calendar.add({
+    profileId: profile.id,
+    platform,
+    postText: text || '',
+    scheduledTime: new Date().toISOString(),
+    status: 'posted',
+  });
+  return result;
+}
+
 app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;

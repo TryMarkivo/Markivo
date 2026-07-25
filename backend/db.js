@@ -135,6 +135,25 @@ module.exports = function createDb(dbPath) {
       updated_at       TEXT
     );
 
+    -- Generic connector framework store (Meta/Facebook/TikTok/Google/YouTube).
+    -- One row per (profile, platform). access_token is encrypted at rest; meta
+    -- holds platform-specific ids (pageId/igUserId) as JSON. Separate from the
+    -- dedicated instagram_connections table used by the Instagram Login flow.
+    CREATE TABLE IF NOT EXISTS platform_connections (
+      id             TEXT PRIMARY KEY,
+      profile_id     TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform       TEXT NOT NULL,
+      status         TEXT,
+      account_handle TEXT,
+      account_id     TEXT,
+      access_token   TEXT,
+      scopes         TEXT,
+      meta           TEXT,
+      created_at     TEXT NOT NULL,
+      updated_at     TEXT,
+      UNIQUE(profile_id, platform)
+    );
+
     CREATE TABLE IF NOT EXISTS media (
       id            TEXT PRIMARY KEY,
       profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -717,6 +736,58 @@ module.exports = function createDb(dbPath) {
       },
       remove(profileId) {
         sqlite.prepare('DELETE FROM instagram_connections WHERE profile_id = ?').run(profileId);
+      },
+    },
+
+    // Generic connector-framework store (connectors/*). One row per (profile,
+    // platform), keyed by the connector registry key (e.g. 'meta_instagram').
+    // access_token is encrypted at rest; meta holds platform ids as JSON. With
+    // no rows, adapters fall back to sandbox (simulated) publishing.
+    connections: {
+      upsert({ profileId, platform, status, accountHandle, accountId, accessToken, scopes, meta }) {
+        const enc = accessToken ? secrets.encrypt(accessToken) : null;
+        const scopesJson = scopes ? JSON.stringify(scopes) : null;
+        const metaJson = meta ? JSON.stringify(meta) : null;
+        const existing = sqlite.prepare('SELECT id FROM platform_connections WHERE profile_id = ? AND platform = ?').get(profileId, platform);
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE platform_connections SET status = ?, account_handle = ?, account_id = ?,
+             access_token = ?, scopes = ?, meta = ?, updated_at = ? WHERE id = ?`
+          ).run(status || null, accountHandle || null, accountId || null, enc, scopesJson, metaJson, now(), existing.id);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO platform_connections (id, profile_id, platform, status, account_handle, account_id, access_token, scopes, meta, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(id(), profileId, platform, status || null, accountHandle || null, accountId || null, enc, scopesJson, metaJson, now());
+        }
+        return this.findByProfile(profileId, platform);
+      },
+      findByProfile(profileId, platform) {
+        const r = sqlite.prepare('SELECT * FROM platform_connections WHERE profile_id = ? AND platform = ?').get(profileId, platform);
+        if (!r) return null;
+        let accessToken = null;
+        if (r.access_token) {
+          try {
+            accessToken = secrets.decrypt(r.access_token);
+          } catch {
+            // Encryption key rotated (JWT_SECRET changed) — connection unusable.
+            return null;
+          }
+        }
+        return {
+          id: r.id, profileId: r.profile_id, platform: r.platform, status: r.status,
+          accountHandle: r.account_handle, accountId: r.account_id, accessToken,
+          scopes: r.scopes ? JSON.parse(r.scopes) : [], meta: r.meta ? JSON.parse(r.meta) : null,
+          created_at: r.created_at, updated_at: r.updated_at,
+        };
+      },
+      // Connected platform keys for a profile — { platform } rows, as the
+      // autopilot and agent expect.
+      listByProfile(profileId) {
+        return sqlite.prepare('SELECT platform FROM platform_connections WHERE profile_id = ?').all(profileId).map((r) => ({ platform: r.platform }));
+      },
+      remove(profileId, platform) {
+        sqlite.prepare('DELETE FROM platform_connections WHERE profile_id = ? AND platform = ?').run(profileId, platform);
       },
     },
 

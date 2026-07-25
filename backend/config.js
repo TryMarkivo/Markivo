@@ -122,7 +122,42 @@ const config = {
     process.env.META_REDIRECT_URI ||
     'http://localhost:5000/api/instagram/oauth/callback',
   instagramScopes: 'instagram_business_basic,instagram_business_content_publish',
+
+  // --- Platform connector framework (connectors/*) ---
+  // Meta (Facebook/Instagram), TikTok, and Google (Google Business/YouTube)
+  // OAuth adapters. Each platform goes LIVE only when its client credentials
+  // are present; otherwise isLive() is false and the adapter runs in sandbox
+  // mode (simulated publishes) — so Autopilot and the agent work fully keyless.
+  // `redirectBase` is the public origin the /api/connect/* callbacks live under.
+  // `enabled` flags are computed below from the credentials.
+  connectors: {
+    redirectBase:
+      process.env.CONNECTORS_REDIRECT_BASE ||
+      process.env.PUBLIC_BASE_URL ||
+      'http://localhost:5000',
+    meta: {
+      clientId: process.env.META_CLIENT_ID || '',
+      clientSecret: process.env.META_CLIENT_SECRET || '',
+      enabled: false,
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      enabled: false,
+    },
+    tiktok: {
+      clientKey: process.env.TIKTOK_CLIENT_KEY || '',
+      clientSecret: process.env.TIKTOK_CLIENT_SECRET || '',
+      enabled: false,
+    },
+  },
 };
+
+// A connector is live only when BOTH halves of its OAuth client are configured.
+// Until then the adapter stays in sandbox mode (simulated publishing).
+config.connectors.meta.enabled = !!(config.connectors.meta.clientId && config.connectors.meta.clientSecret);
+config.connectors.google.enabled = !!(config.connectors.google.clientId && config.connectors.google.clientSecret);
+config.connectors.tiktok.enabled = !!(config.connectors.tiktok.clientKey && config.connectors.tiktok.clientSecret);
 
 config.aiEnabled = !!config.anthropicApiKey;
 // Instagram connect goes live only when both Instagram app credentials are set.

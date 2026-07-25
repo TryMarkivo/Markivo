@@ -7,6 +7,7 @@ import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
 import InstagramConnect from './InstagramConnect';
+import ConnectionsPanel from './ConnectionsPanel';
 import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
 import ThemeToggle from './ThemeToggle';
