@@ -73,9 +73,6 @@ export default function ContentEngine({ activeProfile }) {
   const isTelegram = platformKey === 'telegram';
   const telegramReady = !!(tgStatus?.connected && tgStatus?.chat);
 
-  // Before-After slider state
-  const [sliderPosition, setSliderPosition] = useState(50);
-
   const fmtDateInput = (d) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const todayStr = fmtDateInput(new Date());
@@ -160,13 +157,6 @@ export default function ContentEngine({ activeProfile }) {
       mediaTip: t('templates.fromTemplateTip', 'Filled from one of your saved templates — review it, then post or schedule.'),
     });
     setMode('compose');
-  };
-
-  const handleSliderMove = (e) => {
-    const containerRect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - containerRect.left;
-    const percentage = Math.max(0, Math.min(100, (x / containerRect.width) * 100));
-    setSliderPosition(percentage);
   };
 
   // Opens the inline two-step picker (date -> time) instead of instantly scheduling.
@@ -531,41 +521,10 @@ export default function ContentEngine({ activeProfile }) {
           )}
         </div>
 
-        {/* --- PHOTO / VIDEO WORKFLOW PANEL --- */}
+        {/* --- PHOTO / VIDEO WORKFLOW PANEL ---
+             AI Photo Enhancement used to live here; it belongs with the shoot
+             itself, so it now sits in Media Studio → Guided shoot. */}
         <div className="media-panel">
-
-          {/* BEFORE AFTER COMPARISON */}
-          <div className="enhancer-box glass-card mb-20">
-            <h3>{t('content.enhancer.title', 'AI Photo Enhancement')}</h3>
-            <p className="panel-subtitle">{t('content.enhancer.subtitle', 'Upload smartphone photos and let our AI optimize brightness, textures & contrast')}</p>
-
-            <div
-              className="before-after-container"
-              onMouseMove={handleSliderMove}
-              onTouchMove={(e) => { if (e.touches[0]) handleSliderMove(e.touches[0]); }}
-            >
-              {/* After Image (Enhanced) */}
-              <div className="image-after" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=500&auto=format&fit=crop')` }}>
-                <span className="image-label label-after">{t('content.enhancer.afterLabel', 'Enhanced AI Frame')}</span>
-              </div>
-
-              {/* Before Image (Raw) */}
-              <div className="image-before" style={{
-                backgroundImage: `url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=500&auto=format&fit=crop')`,
-                clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)`
-              }}>
-                <span className="image-label label-before">{t('content.enhancer.beforeLabel', 'Raw Phone Photo')}</span>
-              </div>
-
-              {/* Slider Line Divider */}
-              <div className="slider-divider" style={{ left: `${sliderPosition}%` }}>
-                <div className="slider-handle">
-                  <i className="fa-solid fa-arrows-left-right"></i>
-                </div>
-              </div>
-            </div>
-            <p className="text-center text-muted mt-10"><i className="fa-solid fa-circle-info"></i> {t('content.enhancer.hint', 'Hover or drag across the frame to preview raw smartphone vs. AI optimized results')}</p>
-          </div>
 
           {/* PHOTOGRAPHY GUIDES */}
           <div className="tutorials-box glass-card">

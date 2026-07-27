@@ -20,6 +20,10 @@
   z-index: 10;
   transition: transform var(--transition-normal);
   border-radius: 0;
+  /* Pinned to the viewport, so a nav taller than the screen scrolls inside the
+     rail rather than clipping Settings and the logout button off the bottom. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .dashboard-sidebar.closed {
@@ -111,6 +115,13 @@
   margin-right: 320px; /* Leave space for AI Chat sidebar */
   padding: 30px;
   min-width: 0; /* Enable shrinking */
+  transition: margin-right var(--transition-normal);
+}
+
+/* Markiv AI collapsed: the panel slides out to a 44px stub, so the main column
+   reclaims the rest instead of leaving a dead 320px gutter. */
+.dashboard-main-content.agent-collapsed {
+  margin-right: 56px;
 }
 
 /* Header */
@@ -396,8 +407,9 @@
 
 /* Responsive adjustments */
 @media (max-width: 1200px) {
-  .dashboard-main-content {
-    margin-right: 0; /* Chat sits below on smaller viewports */
+  .dashboard-main-content,
+  .dashboard-main-content.agent-collapsed {
+    margin-right: 0; /* Chat overlays instead of reserving a column */
   }
 }
 

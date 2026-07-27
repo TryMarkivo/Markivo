@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import './TemplateStudio.css';
 
-// Mirrors the backend placeholder format (backend/gemini.js) so the preview and
-// the variable chips update as you type, with no round trip.
+// Mirrors the backend placeholder format (backend/gemini.js) so the inline view
+// and the chips update as you type, with no round trip.
 const placeholderRe = () => /\{\{\s*([a-z0-9_]+)\s*\}\}/gi;
 
 const extractKeys = (text) => {
@@ -28,11 +28,130 @@ const toKey = (raw, fallback) =>
   String(raw || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 32) || fallback;
 
 /**
+ * Split the template into the pieces the inline view renders: literal runs and
+ * variables, each literal tagged with its absolute offset so a text selection
+ * inside it can be mapped straight back to an index in the template string.
+ */
+const toSegments = (text) => {
+  const src = String(text || '');
+  const out = [];
+  let last = 0;
+  for (const m of src.matchAll(placeholderRe())) {
+    if (m.index > last) out.push({ type: 'text', value: src.slice(last, m.index), start: last });
+    out.push({ type: 'var', key: m[1].toLowerCase(), start: m.index });
+    last = m.index + m[0].length;
+  }
+  if (last < src.length) out.push({ type: 'text', value: src.slice(last), start: last });
+  return out;
+};
+
+/**
+ * The message itself, with every variable highlighted in place. This is the
+ * whole editor surface: you read the post exactly as it will go out, and the
+ * variables are things you can see and click rather than a separate list of
+ * form fields sitting somewhere below the text.
+ *
+ * mode 'edit' — chips show the value with an × to drop the variable.
+ * mode 'fill' — chips ARE the inputs, so the post updates as you type in them.
+ */
+function InlineTemplate({ mode, text, values, meta, onSelect, onRemove, onEditVar, onValueChange, activeKey }) {
+  const { t } = useTranslation();
+  const ref = useRef(null);
+
+  // Map a DOM selection back to character offsets in the template string. Only
+  // a selection living inside ONE literal run counts — anything wider has a
+  // variable in the middle of it and can't become a single new variable.
+  const readSelection = () => {
+    if (!onSelect) return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return onSelect(null);
+    const range = sel.getRangeAt(0);
+    if (!ref.current || !ref.current.contains(range.commonAncestorContainer)) return onSelect(null);
+
+    const runOf = (node) => {
+      let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+      while (el && el.dataset?.start === undefined) el = el.parentElement;
+      return el;
+    };
+    const startRun = runOf(range.startContainer);
+    const endRun = runOf(range.endContainer);
+    if (!startRun || startRun !== endRun) return onSelect(null);
+
+    // Offsets are character positions when the boundary sits in the text node,
+    // but child indexes when the whole run is selected — normalise to chars.
+    const charOffset = (container, offset) =>
+      container.nodeType === Node.TEXT_NODE ? offset : (offset === 0 ? 0 : startRun.textContent.length);
+
+    const base = Number(startRun.dataset.start);
+    const start = base + charOffset(range.startContainer, range.startOffset);
+    const end = base + charOffset(range.endContainer, range.endOffset);
+    return onSelect(end > start ? { start, end } : null);
+  };
+
+  return (
+    <div
+      ref={ref}
+      className={`tpl-canvas tpl-canvas-${mode}`}
+      onMouseUp={readSelection}
+      onKeyUp={readSelection}
+    >
+      {toSegments(text).map((seg, i) => {
+        if (seg.type === 'text') {
+          return (
+            <span key={i} className="tpl-literal" data-start={seg.start}>{seg.value}</span>
+          );
+        }
+        const info = meta(seg.key);
+        const value = values[seg.key];
+
+        if (mode === 'fill') {
+          return (
+            <input
+              key={i}
+              className="tpl-chip-input"
+              value={value || ''}
+              placeholder={info.example || humanize(seg.key)}
+              title={info.label || humanize(seg.key)}
+              aria-label={info.label || humanize(seg.key)}
+              style={{ width: `${Math.max(6, (value || info.example || seg.key).length + 2)}ch` }}
+              onChange={(e) => onValueChange(seg.key, e.target.value)}
+            />
+          );
+        }
+
+        return (
+          <span key={i} className={`tpl-chip ${activeKey === seg.key ? 'active' : ''}`}>
+            <button
+              type="button"
+              className="tpl-chip-body"
+              onClick={() => onEditVar(seg.key)}
+              title={t('templates.editVariable', 'Rename this variable or change its example')}
+            >
+              <span className="tpl-chip-name">{info.label || humanize(seg.key)}</span>
+              <span className="tpl-chip-value">{info.example || '____'}</span>
+            </button>
+            <button
+              type="button"
+              className="tpl-chip-remove"
+              onClick={() => onRemove(seg.key)}
+              aria-label={t('templates.removeVariable', { defaultValue: 'Remove variable {{key}}', key: seg.key })}
+              title={t('templates.removeVariable', { defaultValue: 'Remove variable {{key}}', key: seg.key })}
+            >
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * Per-platform message templates. The owner pastes a message they already send
  * ("Stadium No:141, 9 spots left ✅"); Gemini returns it with the changing parts
- * turned into {{variables}}. Extraction is a SUGGESTION, not a verdict — the
- * template text stays fully editable and variables can be added from a
- * selection or removed with one click, so a bad guess is never a dead end.
+ * turned into {{variables}}. Extraction is a SUGGESTION, not a verdict — every
+ * variable can be dropped with one ×, any missed one can be created by
+ * selecting it in the text, and a saved template can be reopened and edited.
  */
 export default function TemplateStudio({ platformKey, platformLabel, onUseTemplate }) {
   const { t } = useTranslation();
@@ -41,17 +160,22 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
   const [saved, setSaved] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
 
-  // Draft being built (from an analysis, or edited by hand).
+  // Draft being built. `id` is set when editing a template that already exists.
   const [sample, setSample] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
-  const [draft, setDraft] = useState(null); // { name, templateText, varMeta, source }
+  const [draft, setDraft] = useState(null); // { id, name, templateText, varMeta, source }
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Current text selection inside the inline view, and the chip being renamed.
+  const [selection, setSelection] = useState(null);
+  const [activeVar, setActiveVar] = useState(null);
+  const [rawMode, setRawMode] = useState(false);
 
   // Fill-and-use state for a saved template: { id, values }
   const [filling, setFilling] = useState(null);
 
-  const templateRef = useRef(null);
+  const editorRef = useRef(null);
 
   // Bumped after a save/delete to re-run the list fetch below.
   const [reloadToken, setReloadToken] = useState(0);
@@ -70,8 +194,20 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
 
   const draftKeys = draft ? extractKeys(draft.templateText) : [];
   const metaFor = (key) => (draft && draft.varMeta[key]) || { label: humanize(key), example: '' };
+  const exampleValues = () => {
+    const values = {};
+    draftKeys.forEach((key) => { values[key] = metaFor(key).example; });
+    return values;
+  };
 
   const patchDraft = (patch) => setDraft((d) => (d ? { ...d, ...patch } : d));
+
+  const openDraft = (next) => {
+    setDraft(next);
+    setSelection(null);
+    setActiveVar(null);
+    setRawMode(false);
+  };
 
   const handleAnalyze = async () => {
     if (!sample.trim() || analyzing) return;
@@ -81,7 +217,13 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
       const data = await api.post('/api/templates/analyze', { sample, platform: platformKey });
       const varMeta = {};
       (data.variables || []).forEach((v) => { varMeta[v.key] = { label: v.label, example: v.example }; });
-      setDraft({ name: data.name || '', templateText: data.templateText || '', varMeta, source: data.source || 'manual' });
+      openDraft({
+        id: null,
+        name: data.name || '',
+        templateText: data.templateText || '',
+        varMeta,
+        source: data.source || 'manual',
+      });
     } catch (err) {
       setError(err.message || t('common.somethingWentWrong', 'Something went wrong'));
     }
@@ -89,27 +231,38 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
   };
 
   // Start a template by hand — the same editor, seeded with the raw message and
-  // no variables, for when there is nothing numeric for the parser to find.
+  // no variables, for when there is nothing for the parser to find.
   const handleStartBlank = () => {
     setError('');
-    setDraft({ name: '', templateText: sample, varMeta: {}, source: 'manual' });
+    openDraft({ id: null, name: '', templateText: sample, varMeta: {}, source: 'manual' });
   };
 
-  // Turn the currently selected text in the editor into a variable. This is the
-  // escape hatch for anything the analysis missed (a name, a district, a dish).
+  // Reopen a saved template in the editor. Same surface as a fresh draft, so
+  // there is nothing new to learn — it just saves over the original.
+  const handleEditSaved = (tpl) => {
+    const varMeta = {};
+    (tpl.variables || []).forEach((v) => { varMeta[v.key] = { label: v.label, example: v.example }; });
+    setError('');
+    setFilling(null);
+    setSample(tpl.sampleText || '');
+    openDraft({
+      id: tpl.id,
+      name: tpl.name || '',
+      templateText: tpl.templateText || '',
+      varMeta,
+      source: tpl.source || 'manual',
+    });
+    editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Turn the current selection into a variable. This is the escape hatch for
+  // anything the analysis missed — a name, a district, a dish.
   const handleMakeVariable = () => {
-    const el = templateRef.current;
-    if (!el || !draft) return;
-    const { selectionStart: start, selectionEnd: end } = el;
-    if (start === end) {
-      setError(t('templates.selectFirst', 'Select the part of the message that changes, then press “Make variable”.'));
-      return;
-    }
+    if (!draft || !selection) return;
+    const { start, end } = selection;
     const selected = draft.templateText.slice(start, end);
-    if (selected.includes('{{')) {
-      setError(t('templates.alreadyVariable', 'That selection already contains a variable.'));
-      return;
-    }
+    if (!selected.trim()) return;
+
     // Name it after the words just before the selection, the way the offline
     // parser does ("Stadium No:" -> stadium_no); fall back to value_N.
     const before = draft.templateText.slice(0, start).match(/[\p{L}]+/gu) || [];
@@ -121,21 +274,29 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
       key = `${key}_${n}`;
     }
     setError('');
+    setSelection(null);
+    window.getSelection()?.removeAllRanges();
     patchDraft({
       templateText: `${draft.templateText.slice(0, start)}{{${key}}}${draft.templateText.slice(end)}`,
-      varMeta: { ...draft.varMeta, [key]: { label: humanize(key), example: selected } },
+      varMeta: { ...draft.varMeta, [key]: { label: humanize(key), example: selected.trim() } },
     });
+    setActiveVar(key);
   };
 
   // Removing a variable puts its example value back into the text, so the
-  // message reads correctly again instead of leaving a hole.
+  // message still reads correctly instead of being left with a hole.
   const handleRemoveVariable = (key) => {
     const meta = metaFor(key);
-    const replaced = draft.templateText.replace(
-      new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'),
-      meta.example || humanize(key)
-    );
-    patchDraft({ templateText: replaced });
+    const varMeta = { ...draft.varMeta };
+    delete varMeta[key];
+    if (activeVar === key) setActiveVar(null);
+    patchDraft({
+      templateText: draft.templateText.replace(
+        new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'),
+        meta.example || humanize(key)
+      ),
+      varMeta,
+    });
   };
 
   // Renaming rewrites the placeholder in the text — the text stays the source
@@ -150,6 +311,7 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
       templateText: draft.templateText.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'), `{{${next}}}`),
       varMeta,
     });
+    setActiveVar(next);
   };
 
   const handleExampleChange = (key, example) =>
@@ -159,15 +321,17 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
     if (!draft || !draft.templateText.trim() || saving) return;
     setSaving(true);
     setError('');
+    const body = {
+      platform: platformKey,
+      name: draft.name || draft.templateText.slice(0, 40),
+      sampleText: sample,
+      templateText: draft.templateText,
+      variables: draftKeys.map((key) => ({ key, ...metaFor(key) })),
+      source: draft.source,
+    };
     try {
-      await api.post('/api/templates', {
-        platform: platformKey,
-        name: draft.name || draft.templateText.slice(0, 40),
-        sampleText: sample,
-        templateText: draft.templateText,
-        variables: draftKeys.map((key) => ({ key, ...metaFor(key) })),
-        source: draft.source,
-      });
+      if (draft.id) await api.put(`/api/templates/${draft.id}`, body);
+      else await api.post('/api/templates', body);
       setDraft(null);
       setSample('');
       refresh();
@@ -181,6 +345,7 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
     try {
       await api.del(`/api/templates/${id}`);
       if (filling && filling.id === id) setFilling(null);
+      if (draft && draft.id === id) setDraft(null);
       refresh();
     } catch (err) {
       setError(err.message || t('common.somethingWentWrong', 'Something went wrong'));
@@ -246,97 +411,111 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
         {engine && <span className="template-engine-badge">{engineBadge}</span>}
       </div>
 
-      {/* --- STEP 2: review, edit, save --- */}
+      {/* --- STEP 2: the message, with its variables highlighted in place --- */}
       {draft && (
-        <div className="template-draft animate-fade-in">
-          <div className="form-group">
-            <label className="form-label" htmlFor={`inp_template_name_${platformKey}`}>
-              {t('templates.nameLabel', 'Template name')}
-            </label>
+        <div className="template-draft animate-fade-in" ref={editorRef}>
+          <div className="template-draft-head">
+            <span className="template-draft-mode">
+              {draft.id
+                ? t('templates.editingBadge', 'Editing saved template')
+                : t('templates.newBadge', 'New template')}
+            </span>
             <input
-              id={`inp_template_name_${platformKey}`}
-              className="input-field"
+              className="input-field template-name-input"
               value={draft.name}
               onChange={(e) => patchDraft({ name: e.target.value })}
               placeholder={t('templates.namePlaceholder', 'e.g. Spots left update')}
+              aria-label={t('templates.nameLabel', 'Template name')}
             />
           </div>
 
-          <div className="form-group">
-            <div className="flex-between">
-              <label className="form-label" htmlFor={`inp_template_text_${platformKey}`}>
-                {t('templates.templateLabel', 'Template')}
-              </label>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handleMakeVariable}
-                id={`btn_make_variable_${platformKey}`}
-              >
-                <i className="fa-solid fa-wand-magic-sparkles"></i> {t('templates.makeVariable', 'Make variable')}
-              </button>
-            </div>
+          <div className="tpl-toolbar">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleMakeVariable}
+              disabled={!selection}
+              id={`btn_make_variable_${platformKey}`}
+            >
+              <i className="fa-solid fa-wand-magic-sparkles"></i>{' '}
+              {selection
+                ? t('templates.makeVariableFrom', {
+                  defaultValue: 'Make “{{text}}” a variable',
+                  text: draft.templateText.slice(selection.start, selection.end).trim().slice(0, 24),
+                })
+                : t('templates.makeVariable', 'Make variable')}
+            </button>
+            <button
+              type="button"
+              className={`btn btn-secondary btn-sm ${rawMode ? 'active' : ''}`}
+              onClick={() => { setRawMode((v) => !v); setSelection(null); }}
+            >
+              <i className="fa-solid fa-pen"></i>{' '}
+              {rawMode ? t('templates.doneEditingText', 'Done editing text') : t('templates.editText', 'Edit wording')}
+            </button>
+          </div>
+
+          {rawMode ? (
             <textarea
-              ref={templateRef}
-              id={`inp_template_text_${platformKey}`}
               className="input-field text-area template-text-input"
               rows="4"
               value={draft.templateText}
               onChange={(e) => patchDraft({ templateText: e.target.value })}
+              aria-label={t('templates.templateLabel', 'Template')}
             ></textarea>
-            <p className="template-hint text-muted">
-              {t('templates.editHint', 'Select any text above and press “Make variable”, or delete a variable below to put its value back.')}
-            </p>
-          </div>
+          ) : (
+            <InlineTemplate
+              mode="edit"
+              text={draft.templateText}
+              values={exampleValues()}
+              meta={metaFor}
+              activeKey={activeVar}
+              onSelect={setSelection}
+              onRemove={handleRemoveVariable}
+              onEditVar={(key) => setActiveVar((k) => (k === key ? null : key))}
+            />
+          )}
 
-          <div className="form-group">
-            <label className="form-label">
-              {t('templates.variablesLabel', { defaultValue: 'Variables ({{count}})', count: draftKeys.length })}
-            </label>
-            {draftKeys.length === 0 ? (
-              <p className="text-muted template-hint">
-                {t('templates.noVariables', 'No variables yet — select the part of the message that changes and press “Make variable”.')}
-              </p>
-            ) : (
-              <div className="variable-list">
-                {draftKeys.map((key) => (
-                  <div key={key} className="variable-row">
-                    <input
-                      className="input-field variable-key-input"
-                      defaultValue={key}
-                      onBlur={(e) => handleRenameVariable(key, e.target.value)}
-                      aria-label={t('templates.variableName', 'Variable name')}
-                    />
-                    <input
-                      className="input-field variable-example-input"
-                      value={metaFor(key).example}
-                      onChange={(e) => handleExampleChange(key, e.target.value)}
-                      placeholder={t('templates.examplePlaceholder', 'Example value')}
-                      aria-label={t('templates.examplePlaceholder', 'Example value')}
-                    />
-                    <button
-                      type="button"
-                      className="btn-close variable-remove"
-                      onClick={() => handleRemoveVariable(key)}
-                      aria-label={t('templates.removeVariable', { defaultValue: 'Remove variable {{key}}', key })}
-                      title={t('templates.removeVariable', { defaultValue: 'Remove variable {{key}}', key })}
-                    >
-                      <i className="fa-solid fa-xmark"></i>
-                    </button>
-                  </div>
-                ))}
+          <p className="template-hint text-muted">
+            {draftKeys.length === 0
+              ? t('templates.noVariables', 'No variables yet — select the part of the message that changes and press “Make variable”.')
+              : t('templates.inlineHint', 'Highlight any text to turn it into a variable, click a variable to rename it, or press × to turn it back into plain text.')}
+          </p>
+
+          {/* Rename / example editor for the chip you clicked. */}
+          {activeVar && draftKeys.includes(activeVar) && (
+            <div className="tpl-var-editor animate-fade-in">
+              <div className="form-group">
+                <label className="form-label" htmlFor={`inp_var_name_${activeVar}`}>
+                  {t('templates.variableName', 'Variable name')}
+                </label>
+                <input
+                  id={`inp_var_name_${activeVar}`}
+                  className="input-field"
+                  defaultValue={activeVar}
+                  onBlur={(e) => handleRenameVariable(activeVar, e.target.value)}
+                />
               </div>
-            )}
-          </div>
-
-          <div className="template-preview">
-            <span className="template-preview-label">{t('templates.preview', 'Preview')}</span>
-            <pre className="copy-text-area">{renderTemplate(draft.templateText)}</pre>
-          </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor={`inp_var_example_${activeVar}`}>
+                  {t('templates.examplePlaceholder', 'Example value')}
+                </label>
+                <input
+                  id={`inp_var_example_${activeVar}`}
+                  className="input-field"
+                  value={metaFor(activeVar).example}
+                  onChange={(e) => handleExampleChange(activeVar, e.target.value)}
+                />
+              </div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setActiveVar(null)}>
+                {t('common.done', 'Done')}
+              </button>
+            </div>
+          )}
 
           <div className="template-actions">
             <button className="btn btn-secondary" onClick={() => setDraft(null)}>
-              {t('common.discard', 'Discard')}
+              {t('common.cancel', 'Cancel')}
             </button>
             <button
               className="btn btn-primary"
@@ -344,7 +523,11 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
               disabled={saving || !draft.templateText.trim()}
               id={`btn_save_template_${platformKey}`}
             >
-              {saving ? t('templates.saving', 'Saving…') : t('templates.saveCta', 'Save template')}
+              {saving
+                ? t('templates.saving', 'Saving…')
+                : draft.id
+                  ? t('templates.saveChanges', 'Save changes')
+                  : t('templates.saveCta', 'Save template')}
             </button>
           </div>
         </div>
@@ -364,12 +547,13 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
         ) : (
           saved.map((tpl) => {
             const open = filling && filling.id === tpl.id;
+            const meta = (key) => (tpl.variables || []).find((v) => v.key === key) || { label: humanize(key), example: '' };
             return (
               <div key={tpl.id} className="saved-template-card">
                 <div className="flex-between">
                   <div>
                     <strong>{tpl.name || t('templates.untitled', 'Untitled template')}</strong>
-                    <p className="template-hint text-muted">{renderTemplate(tpl.templateText)}</p>
+                    <p className="template-hint text-muted">{renderTemplate(tpl.templateText, Object.fromEntries((tpl.variables || []).map((v) => [v.key, v.example])))}</p>
                   </div>
                   <div className="flex-gap-8">
                     <button
@@ -378,6 +562,13 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
                       id={`btn_fill_template_${tpl.id}`}
                     >
                       {open ? t('common.close', 'Close') : t('templates.useCta', 'Use')}
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleEditSaved(tpl)}
+                      id={`btn_edit_template_${tpl.id}`}
+                    >
+                      <i className="fa-solid fa-pen-to-square"></i> {t('common.edit', 'Edit')}
                     </button>
                     <button
                       className="btn-close"
@@ -390,6 +581,8 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
                   </div>
                 </div>
 
+                {/* Filling happens IN the message: type in the highlighted spots
+                    and you are reading the finished post as you go. */}
                 {open && (
                   <div className="template-fill animate-fade-in">
                     {(tpl.variables || []).length === 0 ? (
@@ -397,20 +590,15 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
                         {t('templates.fixedTemplate', 'This template has no variables — it sends exactly as written.')}
                       </p>
                     ) : (
-                      tpl.variables.map((v) => (
-                        <div className="form-group" key={v.key}>
-                          <label className="form-label" htmlFor={`inp_fill_${tpl.id}_${v.key}`}>{v.label || v.key}</label>
-                          <input
-                            id={`inp_fill_${tpl.id}_${v.key}`}
-                            className="input-field"
-                            value={filling.values[v.key] || ''}
-                            placeholder={v.example}
-                            onChange={(e) => setFilling((f) => ({ ...f, values: { ...f.values, [v.key]: e.target.value } }))}
-                          />
-                        </div>
-                      ))
+                      <InlineTemplate
+                        mode="fill"
+                        text={tpl.templateText}
+                        values={filling.values}
+                        meta={meta}
+                        onValueChange={(key, value) =>
+                          setFilling((f) => ({ ...f, values: { ...f.values, [key]: value } }))}
+                      />
                     )}
-                    <pre className="copy-text-area">{renderTemplate(tpl.templateText, filling.values)}</pre>
                     <div className="template-actions">
                       <button
                         className="btn btn-primary"

@@ -56,6 +56,15 @@ export default function MediaStudio({ activeProfile }) {
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
 
+  // AI photo enhancement before/after wiper. It lives with the shoot rather
+  // than the copywriter, so it moved here from the AI content engine.
+  const [sliderPosition, setSliderPosition] = useState(50);
+
+  const handleSliderMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSliderPosition(Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)));
+  };
+
   const loadLibrary = useCallback(() => {
     api.get('/api/media')
       .then((data) => setItems(data.items || []))
@@ -176,6 +185,12 @@ export default function MediaStudio({ activeProfile }) {
   const toAbsolute = (url) => (url?.startsWith('http') ? url : api.base + url);
 
   const mediaUrl = uploaded ? toAbsolute(uploaded.url) : null;
+
+  // The wiper previews YOUR photo once one is uploaded; the sample frame is
+  // only there so the control means something before you have shot anything.
+  const enhancerImage = uploaded && !uploaded.isVideo
+    ? mediaUrl
+    : 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=500&auto=format&fit=crop';
 
   const statusLabels = {
     brief: t('media.status.brief', 'Brief'),
@@ -685,6 +700,49 @@ export default function MediaStudio({ activeProfile }) {
                 <p>{t('media.edit.locked', 'Upload media to unlock AI edit planning.')}</p>
               </div>
             )}
+          </div>
+
+          {/* AI PHOTO ENHANCEMENT — what the footage looks like after the AI pass. */}
+          <div className="enhancer-box glass-card">
+            <h3>{t('content.enhancer.title', 'AI Photo Enhancement')}</h3>
+            <p className="media-panel-subtitle">
+              {t('content.enhancer.subtitle', 'Upload smartphone photos and let our AI optimize brightness, textures & contrast')}
+            </p>
+
+            <div
+              className="before-after-container"
+              onMouseMove={handleSliderMove}
+              onTouchMove={(e) => { if (e.touches[0]) handleSliderMove(e.touches[0]); }}
+            >
+              {/* Enhanced frame underneath */}
+              <div
+                className="image-after"
+                style={{ backgroundImage: `url('${enhancerImage}')` }}
+              >
+                <span className="image-label label-after">{t('content.enhancer.afterLabel', 'Enhanced AI Frame')}</span>
+              </div>
+
+              {/* Raw frame clipped to the wiper position */}
+              <div
+                className="image-before"
+                style={{
+                  backgroundImage: `url('${enhancerImage}')`,
+                  clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)`,
+                }}
+              >
+                <span className="image-label label-before">{t('content.enhancer.beforeLabel', 'Raw Phone Photo')}</span>
+              </div>
+
+              <div className="slider-divider" style={{ left: `${sliderPosition}%` }}>
+                <div className="slider-handle">
+                  <i className="fa-solid fa-arrows-left-right"></i>
+                </div>
+              </div>
+            </div>
+            <p className="text-center text-muted mt-10">
+              <i className="fa-solid fa-circle-info"></i>{' '}
+              {t('content.enhancer.hint', 'Hover or drag across the frame to preview raw smartphone vs. AI optimized results')}
+            </p>
           </div>
         </>
       )}

@@ -28,6 +28,9 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Markiv AI lives here rather than inside the panel: collapsing it has to give
+  // the main column back the 320px it was reserving.
+  const [agentOpen, setAgentOpen] = useState(true);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [igStatus, setIgStatus] = useState(null);
@@ -141,8 +144,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
     'Very High': t('dashboard.seo.volume.veryHigh', 'Very High')
   };
 
+  // NOTE: the shell deliberately carries no fade animation. `fadeIn` runs with
+  // `animation-fill-mode: forwards`, which leaves `transform: translateY(0)`
+  // applied for good — and a transformed ancestor makes `position: fixed`
+  // children resolve against IT instead of the viewport, so both side panels
+  // would scroll away with the page.
   return (
-    <div className="dashboard-shell animate-fade-in">
+    <div className="dashboard-shell">
       {/* --- SIDEBAR --- */}
       <aside className={`dashboard-sidebar glass-card ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
@@ -252,7 +260,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       </aside>
 
       {/* --- MAIN MAIN WRAPPER --- */}
-      <main className="dashboard-main-content">
+      <main className={`dashboard-main-content ${agentOpen ? '' : 'agent-collapsed'}`}>
         {/* TOP BAR */}
         <header className="main-header glass-card">
           <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
@@ -540,7 +548,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       )}
 
       {/* --- PERSISTENT RIGHT-FLOATING AI AGENT PANEL --- */}
-      <AIAgentSidebar token={token} activeProfile={activeProfile} telegramStatus={tgStatus} />
+      <AIAgentSidebar
+        token={token}
+        activeProfile={activeProfile}
+        telegramStatus={tgStatus}
+        isOpen={agentOpen}
+        onToggle={() => setAgentOpen((open) => !open)}
+      />
     </div>
   );
 }

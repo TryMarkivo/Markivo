@@ -61,7 +61,10 @@ const config = {
   // gemini.js — so a blank key never breaks the app or the tests.
   // Key: https://aistudio.google.com/apikey
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash',
+  // `gemini-flash-latest` is an alias that tracks the current Flash model, and
+  // it carries its own free-tier quota bucket — the pinned `gemini-2.5-flash`
+  // name is far more likely to be exhausted on a free project.
+  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-flash-latest',
   geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 20000,
 
   // Monthly AI generation allowance per pricing tier (content + slogans +

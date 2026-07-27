@@ -22,9 +22,10 @@ const CATEGORY_KEYS = {
   'Professional Tech Agency': 'tech'
 };
 
-export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
+// `isOpen` is owned by the Dashboard: collapsing the panel has to reflow the
+// main column into the freed space, and only the shell can do that.
+export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, onToggle }) {
   const { t, i18n } = useTranslation();
-  const [isOpen, setIsOpen] = useState(true);
   const greetingMessage = () => ({
     sender: 'agent',
     text: t('agent.greeting', { defaultValue: "Hi! I'm Markiv 🤖 — your marketing agent. I can draft content, analyse competitors, and post straight to your Telegram channel when you ask.\n\nWhat shall we work on today?" }),
@@ -211,7 +212,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus }) {
                 <i className="fa-solid fa-trash-can"></i>
               </button>
             )}
-            <button className="agent-toggle-btn" onClick={() => setIsOpen(!isOpen)} id="btn_toggle_agent" aria-label={t(isOpen ? 'agent.collapse' : 'agent.expand', isOpen ? 'Collapse panel' : 'Expand panel')}>
+            <button className="agent-toggle-btn" onClick={onToggle} id="btn_toggle_agent" aria-label={t(isOpen ? 'agent.collapse' : 'agent.expand', isOpen ? 'Collapse panel' : 'Expand panel')}>
               {isOpen ? <i className="fa-solid fa-angles-right"></i> : <i className="fa-solid fa-angles-left"></i>}
             </button>
           </div>

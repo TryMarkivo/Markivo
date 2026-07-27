@@ -39,47 +39,162 @@
   margin-top: 6px;
 }
 
-/* Variable rows: name · example · remove */
-.variable-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.variable-row {
+/* ===== Draft header: which template you are editing, and its name ===== */
+.template-draft-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
-.variable-key-input {
-  flex: 1 1 40%;
+.template-draft-mode {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  white-space: nowrap;
+}
+
+.template-name-input {
+  flex: 1 1 200px;
   min-width: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.82rem;
+}
+
+.tpl-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* ===== The message itself, with variables highlighted in place =====
+   This IS the editor. The post reads exactly as it will go out, and the
+   variables are objects in the sentence rather than a list of form fields
+   sitting somewhere underneath it. */
+.tpl-canvas {
+  min-height: 90px;
+  padding: 14px 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 2.1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tpl-canvas-edit {
+  cursor: text;
+}
+
+.tpl-literal {
+  white-space: pre-wrap;
+}
+
+/* A variable in edit mode: its label, its example value, and the × that
+   turns it back into ordinary text. */
+.tpl-chip {
+  display: inline-flex;
+  align-items: stretch;
+  vertical-align: baseline;
+  margin: 0 2px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  overflow: hidden;
+  user-select: none;
+}
+
+.tpl-chip.active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 45%, transparent);
+}
+
+.tpl-chip-body {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.tpl-chip-body:hover {
+  background: color-mix(in srgb, var(--accent-primary) 24%, transparent);
+}
+
+.tpl-chip-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--accent-primary);
 }
 
-.variable-example-input {
-  flex: 1 1 60%;
-  min-width: 0;
-  font-size: 0.82rem;
+.tpl-chip-value {
+  font-weight: 600;
 }
 
-.variable-remove {
-  flex: 0 0 auto;
-}
-
-.template-preview {
-  margin-top: 4px;
-}
-
-.template-preview-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+.tpl-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  cursor: pointer;
   color: var(--text-secondary);
+  border-left: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  font-size: 0.75rem;
+}
+
+.tpl-chip-remove:hover {
+  background: var(--accent-danger);
+  color: #fff;
+}
+
+/* Fill mode: the chip IS the input, so the post updates under your cursor. */
+.tpl-chip-input {
+  display: inline-block;
+  vertical-align: baseline;
+  margin: 0 2px;
+  padding: 1px 8px;
+  min-width: 6ch;
+  max-width: 100%;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  border: 1px solid var(--accent-primary);
+  border-radius: 8px;
+}
+
+.tpl-chip-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 45%, transparent);
+}
+
+/* Rename / example panel for the chip you clicked. */
+.tpl-var-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.tpl-var-editor .form-group {
+  flex: 1 1 180px;
+  min-width: 0;
+  margin-bottom: 0;
 }
 
 /* Saved templates */
@@ -112,12 +227,11 @@
 }
 
 @media (max-width: 600px) {
-  .variable-row {
-    flex-wrap: wrap;
+  .tpl-var-editor .form-group {
+    flex: 1 1 100%;
   }
 
-  .variable-key-input,
-  .variable-example-input {
-    flex: 1 1 100%;
+  .template-draft-head {
+    align-items: stretch;
   }
 }
