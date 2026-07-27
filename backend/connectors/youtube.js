@@ -46,6 +46,20 @@ const redirectUri = (key) => `${config.connectors.redirectBase}/api/connect/${ke
 const adapter = {
   key: 'youtube',
   label: 'YouTube',
+
+  authType: 'oauth',
+  docsUrl: 'https://developers.google.com/youtube/v3/docs/videos/insert',
+  requirements: [
+    'A YouTube channel on the Google account you sign in with',
+    'A video file for every post — YouTube publishes video only',
+  ],
+  howToConnect: [
+    'Create your channel at youtube.com/create_channel if you have not already.',
+    'Press Connect and sign in with that Google account.',
+    'Approve the YouTube upload permission on Google’s consent screen.',
+    'Google sends you back here and the channel shows as connected.',
+  ],
+
   // Shares the Google OAuth client (and thus the dashboard "Google" grouping)
   // with the Google Business Profile adapter.
   group: 'google',

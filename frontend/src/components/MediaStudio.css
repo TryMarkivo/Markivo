@@ -670,3 +670,160 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ----- Guided shoot: ask row ----- */
+.guided-ask-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.guided-ask-row .input-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.guided-send-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* Echo of what was asked for, above the production brief. */
+.brief-topic-echo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.brief-topic-echo i {
+  color: var(--accent-primary);
+}
+
+/* ----- Timed script ----- */
+.script-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.script-line {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border-left: 3px solid var(--accent-secondary);
+}
+
+.script-time {
+  flex: 0 0 74px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding-top: 2px;
+}
+
+.script-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.script-spoken {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.script-onscreen {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.script-onscreen i {
+  color: var(--accent-secondary);
+  margin-right: 4px;
+}
+
+/* ----- Shot list with framing / angle / movement / duration ----- */
+.shot-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shot-row {
+  padding-left: 4px;
+}
+
+.shot-name {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--accent-primary);
+  margin-bottom: 4px;
+}
+
+.shot-specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.shot-spec {
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.shot-spec em {
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.64rem;
+  margin-right: 4px;
+  color: var(--text-muted);
+}
+
+.shot-direction {
+  display: block;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .guided-ask-row {
+    flex-direction: column;
+  }
+
+  .guided-send-label {
+    display: inline;
+  }
+
+  .script-line {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

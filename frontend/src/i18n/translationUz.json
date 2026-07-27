@@ -508,7 +508,8 @@
       "topicPlaceholder": "masalan, Shu hafta oxiri har bir dabl espressoga bepul asal torti bo'lagi!",
       "topicPlaceholderByCategory": "Masalan: {{category}} mijozlaringizga yoqadigan dam olish kunlari uchun maxsus taklif!",
       "generating": "Mahalliylashtirilgan qoralamalar tayyorlanmoqda...",
-      "generateCta": "Platforma qoralamalarini yaratish ✦"
+      "generateCta": "Platforma qoralamalarini yaratish ✦",
+      "subtitleForPlatform": "{{platform}} uchun yozyapmiz — shu kanal kutgan formatda."
     },
     "output": {
       "toneOptimized": "Platforma ohangiga moslangan",
@@ -579,7 +580,10 @@
     "fallback": {
       "post": "✨ #{{businessName}}dan maxsus taklif! ✨\n\nAjoyib maskan izlayapsizmi? {{topic}}\n\n📍 Bugun Toshkentda bizga tashrif buyuring!\n\n#localbusiness #tashkent #vibe",
       "mediaTip": "📸 Maslahat: shom payti, derazalardan iliq ichki yorug'lik taralayotganda do'koningiz old tomonini gorizontal suratga oling."
-    }
+    },
+    "platformTabsLabel": "Platforma",
+    "modeCompose": "Post yozish",
+    "modeTemplates": "Shablonlar"
   },
   "media": {
     "title": "Media studiya",
@@ -921,5 +925,72 @@
       "skipped": "To'xtatildi",
       "error": "Xato"
     }
+  },
+  "templates": {
+    "title": "Xabar shablonlari",
+    "subtitle": "{{platform}} da doim yuboradigan xabaringizni joylashtiring — o‘zgaruvchi qismlarni bir necha soniyada to‘ldiriladigan o‘zgaruvchilarga aylantiramiz.",
+    "sampleLabel": "Tez-tez yuboradigan xabaringiz",
+    "samplePlaceholder": "masalan: Stadion No:141, 9 ta joy qoldi✅",
+    "analyzeCta": "Tahlil qilib shablon yasash ✦",
+    "analyzing": "O‘zgaruvchi qismlar qidirilmoqda…",
+    "startManual": "O‘zgaruvchilarni o‘zim belgilayman",
+    "engineGemini": "Gemini",
+    "engineOffline": "Oflayn tahlil",
+    "nameLabel": "Shablon nomi",
+    "namePlaceholder": "masalan: Qolgan joylar",
+    "templateLabel": "Shablon",
+    "makeVariable": "O‘zgaruvchi qilish",
+    "editHint": "Yuqoridagi istalgan matnni belgilab «O‘zgaruvchi qilish» tugmasini bosing yoki quyidagi o‘zgaruvchini o‘chirib, qiymatini qaytaring.",
+    "variablesLabel": "O‘zgaruvchilar ({{count}})",
+    "noVariables": "Hozircha o‘zgaruvchi yo‘q — xabarning o‘zgaradigan qismini belgilab «O‘zgaruvchi qilish» tugmasini bosing.",
+    "variableName": "O‘zgaruvchi nomi",
+    "examplePlaceholder": "Namuna qiymat",
+    "removeVariable": "{{key}} o‘zgaruvchisini o‘chirish",
+    "selectFirst": "Avval xabarning o‘zgaradigan qismini belgilang, so‘ng «O‘zgaruvchi qilish» tugmasini bosing.",
+    "alreadyVariable": "Belgilangan qismda allaqachon o‘zgaruvchi bor.",
+    "preview": "Ko‘rinishi",
+    "saveCta": "Shablonni saqlash",
+    "saving": "Saqlanmoqda…",
+    "savedTitle": "{{platform}} uchun saqlanganlar",
+    "savedEmpty": "Bu platforma uchun hali shablon yo‘q.",
+    "untitled": "Nomsiz shablon",
+    "useCta": "Ishlatish",
+    "deleteTemplate": "Shablonni o‘chirish",
+    "fixedTemplate": "Bu shablonda o‘zgaruvchi yo‘q — qanday yozilgan bo‘lsa, shundayligicha yuboriladi.",
+    "sendToComposer": "Muharrirga yuborish",
+    "fromTemplateTip": "Saqlangan shablonlaringizdan biri to‘ldirildi — tekshiring, so‘ng joylang yoki rejalashtiring."
+  },
+  "connections": {
+    "title": "Platforma ulanishlari",
+    "subtitle": "Markiv siz nomingizdan post joylay oladigan platformalarni ulang — har bir platformaning rasmiy API’si orqali va faqat siz tasdiqlaganingizdan keyin.",
+    "connectedToast": "Ulandi ✓",
+    "errorToast": "{{label}} ulanmadi — qaytadan urinib ko‘ring.",
+    "connect": "Ulash",
+    "manage": "Boshqarish",
+    "howToCta": "Qanday ulanadi",
+    "state": {
+      "connected": "Ulangan",
+      "sandbox": "Ulangan · sinov rejimi",
+      "ready": "Ulashga tayyor",
+      "sandboxReady": "Sinov rejimi mavjud",
+      "soon": "Tez orada"
+    },
+    "setupTitle": "{{label}} ni ulash",
+    "howItWorks": "Markivo {{label}} ga siz nomingizdan rasmiy API orqali post joylaydi va har bir post avval sizning tasdiqingizdan o‘tadi — hisobingizga hech qachon kirmaydi.",
+    "requirementsTitle": "Avval nima kerak",
+    "howToTitle": "Qanday ulanadi",
+    "officialDocs": "Rasmiy hujjatlar",
+    "comingSoonNote": "{{label}} hali yoqilmagan — yoqilganda quyidagi qadamlar kerak bo‘ladi.",
+    "sandboxNote": "Sinov rejimi — bu platforma uchun hali haqiqiy kalitlar sozlanmagan, shuning uchun ulanish taqlid qilinadi (haqiqiy post ketmaydi). Ishga tushirish uchun platformaning API kalitlarini qo‘shing.",
+    "connecting": "Ulanmoqda…",
+    "connectLiveCta": "{{label}} ni ulash →",
+    "connectSandboxCta": "{{label}} ni ulash (sinov)",
+    "sandboxConnected": "{{label}} sinov rejimida ulandi ✓",
+    "disconnected": "{{label}} uzildi",
+    "statusConnected": "Ulangan",
+    "statusSandbox": "Ulangan (sinov rejimi)",
+    "connectedHint": "Chat panelida Markiv’dan {{label}} ga post joylashni so‘rang — siz tasdiqlaysiz, u joylaydi.",
+    "disconnectCta": "Uzish",
+    "working": "Bajarilmoqda…"
   }
 }

@@ -5,11 +5,15 @@ const path = require('path');
 const fs = require('fs');
 
 // Isolate the test DB + secret BEFORE requiring the app (config reads env at load).
-// No ANTHROPIC_API_KEY → media briefs, edit plans, and logos run keyless.
+// Both text-engine keys are pinned to '' here so dotenv cannot fill them from a
+// .env on disk → media briefs, edit plans, and logos always run keyless and the
+// assertions below describe the deterministic templates, not a live model.
 const TMP_DB = path.join(os.tmpdir(), `markivo-media-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
+process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 
 const { app } = require('../server');
 
@@ -61,17 +65,66 @@ after(() => {
 
 let guidedId;
 
-test('guided media brief returns a script, shot list, and tips', async () => {
+test('guided VIDEO brief is a full production plan', async () => {
   const res = await post('/api/media/brief', { kind: 'video', mode: 'guided', topic: 'screen replacement before and after' });
   assert.strictEqual(res.status, 200);
   const data = await res.json();
   assert.ok(data.id);
   guidedId = data.id;
-  assert.strictEqual(data.brief.mode, 'guided');
-  assert.strictEqual(data.brief.kind, 'video');
-  assert.ok(typeof data.brief.script === 'string' && data.brief.script.length > 0);
-  assert.ok(Array.isArray(data.brief.shotList) && data.brief.shotList.length >= 5);
-  assert.ok(Array.isArray(data.brief.tips) && data.brief.tips.length >= 1);
+  const b = data.brief;
+  assert.strictEqual(b.mode, 'guided');
+  assert.strictEqual(b.kind, 'video');
+
+  // The video-only half: story, flow, and a timed spoken script.
+  assert.ok(typeof b.scenario === 'string' && b.scenario.length > 0);
+  assert.ok(typeof b.flow === 'string' && b.flow.length > 0);
+  assert.ok(Array.isArray(b.script) && b.script.length >= 2);
+  for (const line of b.script) {
+    assert.ok(typeof line.time === 'string' && line.time.length > 0);
+  }
+
+  // Staging + camera, the way a videographer would specify them.
+  assert.ok(Array.isArray(b.setup) && b.setup.length >= 3);
+  for (const field of ['device', 'lens', 'settings', 'whiteBalance', 'stabilisation']) {
+    assert.ok(typeof b.camera[field] === 'string' && b.camera[field].length > 0, `camera.${field}`);
+  }
+
+  // Every shot names its framing, angle, MOVEMENT and duration.
+  assert.ok(Array.isArray(b.shotList) && b.shotList.length >= 5);
+  for (const shot of b.shotList) {
+    for (const field of ['name', 'framing', 'angle', 'movement', 'duration', 'direction']) {
+      assert.ok(typeof shot[field] === 'string' && shot[field].length > 0, `shot.${field}`);
+    }
+  }
+
+  assert.ok(Array.isArray(b.bRoll) && b.bRoll.length >= 1);
+  assert.ok(Array.isArray(b.transitions) && b.transitions.length >= 1);
+  assert.ok(typeof b.audio === 'string' && b.audio.length > 0);
+  assert.ok(typeof b.postProcessing === 'string' && b.postProcessing.length > 0);
+  assert.ok(Array.isArray(b.tips) && b.tips.length >= 1);
+});
+
+test('guided PHOTO brief drops the video-only sections', async () => {
+  const res = await post('/api/media/brief', { kind: 'image', mode: 'guided', topic: 'our new seasonal latte' });
+  assert.strictEqual(res.status, 200);
+  const b = (await res.json()).brief;
+  assert.strictEqual(b.kind, 'image');
+
+  // A photo shoot has no scenario, script, or camera movement.
+  assert.strictEqual(b.scenario, undefined);
+  assert.strictEqual(b.script, undefined);
+  assert.strictEqual(b.shotList[0].movement, undefined);
+
+  // But it still carries the photographer's setup, camera, and framing.
+  assert.ok(typeof b.scene === 'string' && b.scene.length > 0);
+  assert.ok(Array.isArray(b.setup) && b.setup.length >= 3);
+  assert.ok(typeof b.composition === 'string' && b.composition.length > 0);
+  assert.ok(typeof b.camera.lens === 'string' && b.camera.lens.length > 0);
+  for (const shot of b.shotList) {
+    for (const field of ['name', 'framing', 'angle', 'direction']) {
+      assert.ok(typeof shot[field] === 'string' && shot[field].length > 0, `shot.${field}`);
+    }
+  }
 });
 
 test('full media brief reports the engine as awaiting a media API key', async () => {

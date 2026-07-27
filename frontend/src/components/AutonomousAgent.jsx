@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import AutomationCalendar from './AutomationCalendar';
 import './AutonomousAgent.css';
 
 // Icon + label per activity kind logged by the Autopilot worker.
@@ -248,6 +249,11 @@ export default function AutonomousAgent({ activeProfile }) {
           <i className="fa-solid fa-shield-halved"></i>{' '}
           {t('autopilot.adSafetyNote', 'Autopilot only creates free organic posts. Paid ad campaigns always need your explicit approval — Markiv never spends your money on its own.')}
         </p>
+      </div>
+
+      {/* SCHEDULE — everything queued or already done, on one timeline */}
+      <div className="glass-card ap-section">
+        <AutomationCalendar activeProfile={activeProfile} />
       </div>
 
       {/* ACTIVITY LOG */}

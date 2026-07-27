@@ -1,0 +1,123 @@
+.template-studio {
+  padding: 24px;
+  text-align: left;
+}
+
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.template-engine-badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.template-draft {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.template-text-input {
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+.template-hint {
+  font-size: 0.78rem;
+  margin-top: 6px;
+}
+
+/* Variable rows: name · example · remove */
+.variable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.variable-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.variable-key-input {
+  flex: 1 1 40%;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  color: var(--accent-primary);
+}
+
+.variable-example-input {
+  flex: 1 1 60%;
+  min-width: 0;
+  font-size: 0.82rem;
+}
+
+.variable-remove {
+  flex: 0 0 auto;
+}
+
+.template-preview {
+  margin-top: 4px;
+}
+
+.template-preview-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Saved templates */
+.saved-templates {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.saved-templates h4 {
+  margin-bottom: 12px;
+}
+
+.saved-template-card {
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  margin-bottom: 10px;
+}
+
+.saved-template-card .template-hint {
+  word-break: break-word;
+}
+
+.template-fill {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+@media (max-width: 600px) {
+  .variable-row {
+    flex-wrap: wrap;
+  }
+
+  .variable-key-input,
+  .variable-example-input {
+    flex: 1 1 100%;
+  }
+}

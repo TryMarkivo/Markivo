@@ -37,6 +37,19 @@ const adapter = {
   label: 'TikTok',
   group: 'tiktok',
 
+  authType: 'oauth',
+  docsUrl: 'https://developers.tiktok.com/doc/login-kit-web',
+  requirements: [
+    'A TikTok account',
+    'A video for every post — TikTok has no text-only or image post',
+  ],
+  howToConnect: [
+    'Press Connect — we send you to TikTok’s official login screen.',
+    'Sign in and approve the video upload permission.',
+    'TikTok sends you back here and the account shows as connected.',
+    'Until TikTok audits the app, posts land in your TikTok drafts for a final tap.',
+  ],
+
   // "Live" only when real Login Kit credentials are configured.
   isLive: () => config.connectors.tiktok.enabled,
 

@@ -154,6 +154,23 @@ module.exports = function createDb(dbPath) {
       UNIQUE(profile_id, platform)
     );
 
+    -- Reusable message templates, one row per (profile, platform). Built by
+    -- pasting a real message the owner already sends; the changing parts become
+    -- {{variables}} in template_text. The variables column is a JSON array of
+    -- { key, label, example } decorating the placeholders found in the text.
+    CREATE TABLE IF NOT EXISTS content_templates (
+      id            TEXT PRIMARY KEY,
+      profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform      TEXT NOT NULL,
+      name          TEXT,
+      sample_text   TEXT,
+      template_text TEXT NOT NULL,
+      variables     TEXT,
+      source        TEXT,                        -- 'gemini' | 'heuristic' | 'manual'
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS media (
       id            TEXT PRIMARY KEY,
       profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -228,6 +245,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_agent_messages_profile_time ON agent_messages(profile_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_instagram_profile ON instagram_connections(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_templates_profile_platform ON content_templates(profile_id, platform);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -288,6 +306,12 @@ module.exports = function createDb(dbPath) {
   };
   const mapAgentMessage = (r) => r && {
     id: r.id, profileId: r.profile_id, sender: r.sender, text: r.text, created_at: r.created_at,
+  };
+  const mapTemplate = (r) => r && {
+    id: r.id, profileId: r.profile_id, platform: r.platform, name: r.name,
+    sampleText: r.sample_text, templateText: r.template_text,
+    variables: r.variables ? JSON.parse(r.variables) : [],
+    source: r.source, created_at: r.created_at, updated_at: r.updated_at,
   };
   const mapSubscription = (r) => r && {
     id: r.id, userId: r.user_id, tier: r.tier, status: r.status,
@@ -506,6 +530,17 @@ module.exports = function createDb(dbPath) {
       setStatus(postId, status) {
         sqlite.prepare('UPDATE calendar SET status = ? WHERE id = ?').run(status, postId);
         return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
+      findById(postId) {
+        return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
+      // Drag-to-reschedule from the calendar view.
+      setScheduledTime(postId, scheduledTime) {
+        sqlite.prepare('UPDATE calendar SET scheduled_time = ? WHERE id = ?').run(scheduledTime, postId);
+        return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
+      remove(postId) {
+        sqlite.prepare('DELETE FROM calendar WHERE id = ?').run(postId);
       },
     },
 
@@ -788,6 +823,68 @@ module.exports = function createDb(dbPath) {
       },
       remove(profileId, platform) {
         sqlite.prepare('DELETE FROM platform_connections WHERE profile_id = ? AND platform = ?').run(profileId, platform);
+      },
+    },
+
+    // Reusable message templates per (profile, platform). The template TEXT is
+    // the source of truth for which {{variables}} exist; the stored `variables`
+    // array only carries their labels and example values.
+    templates: {
+      create({ profileId, platform, name, sampleText, templateText, variables, source }) {
+        const row = {
+          id: id(),
+          profile_id: profileId,
+          platform: String(platform || 'instagram').toLowerCase(),
+          name: name || null,
+          sample_text: sampleText || null,
+          template_text: templateText,
+          variables: JSON.stringify(variables || []),
+          source: source || 'manual',
+          created_at: now(),
+          updated_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO content_templates (id, profile_id, platform, name, sample_text, template_text, variables, source, created_at, updated_at)
+           VALUES (@id, @profile_id, @platform, @name, @sample_text, @template_text, @variables, @source, @created_at, @updated_at)`
+        ).run(row);
+        return mapTemplate(row);
+      },
+      findById(templateId) {
+        return mapTemplate(sqlite.prepare('SELECT * FROM content_templates WHERE id = ?').get(templateId));
+      },
+      // All templates for a profile, newest first; optionally one platform only.
+      listByProfile(profileId, platform) {
+        const rows = platform
+          ? sqlite.prepare('SELECT * FROM content_templates WHERE profile_id = ? AND platform = ? ORDER BY created_at DESC').all(profileId, String(platform).toLowerCase())
+          : sqlite.prepare('SELECT * FROM content_templates WHERE profile_id = ? ORDER BY created_at DESC').all(profileId);
+        return rows.map(mapTemplate);
+      },
+      update(templateId, fields = {}) {
+        const colFor = {
+          name: 'name',
+          platform: 'platform',
+          sampleText: 'sample_text',
+          templateText: 'template_text',
+          source: 'source',
+        };
+        const sets = [];
+        const params = { id: templateId, updated_at: now() };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          sets.push(`${col} = @${col}`);
+          params[col] = key === 'platform' ? String(fields[key]).toLowerCase() : fields[key];
+        }
+        if (fields.variables !== undefined) {
+          sets.push('variables = @variables');
+          params.variables = JSON.stringify(fields.variables || []);
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE content_templates SET ${sets.join(', ')}, updated_at = @updated_at WHERE id = @id`).run(params);
+        }
+        return this.findById(templateId);
+      },
+      remove(templateId) {
+        sqlite.prepare('DELETE FROM content_templates WHERE id = ?').run(templateId);
       },
     },
 

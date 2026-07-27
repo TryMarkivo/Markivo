@@ -10,6 +10,7 @@ const path = require('path');
 const config = require('./config');
 const createDb = require('./db');
 const ai = require('./ai');
+const gemini = require('./gemini');
 const billing = require('./billing');
 const tg = require('./telegram');
 const ig = require('./instagram');
@@ -506,6 +507,258 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
 }));
 
 // ==========================================
+// 3.41 AUTOMATIONS CALENDAR (/api/calendar)
+//   Everything Markivo has scheduled or done for a business, on one timeline:
+//   scheduled + published posts and Autopilot runs.
+//
+//   The payload deliberately COPIES the Google Calendar Events resource shape
+//   (kind/items/summary/start.dateTime/status/extendedProperties) rather than
+//   inventing a private one. That buys a well-understood contract for free, and
+//   means swapping in — or syncing out to — a real Google Calendar later is a
+//   transport change, not a rewrite of the UI.
+//   Reference: https://developers.google.com/calendar/api/v3/reference/events
+// ==========================================
+
+// Markivo ids are namespaced so one flat event list can carry two record types
+// and the mutation routes can tell an editable post from read-only history.
+const EVENT_PREFIX = { post: 'post_', autopilot: 'auto_' };
+
+// Calendar status vocabulary is Google's: confirmed | tentative | cancelled.
+const POST_STATUS_TO_EVENT = {
+  scheduled: 'confirmed',
+  posted: 'confirmed',
+  failed: 'cancelled',
+  cancelled: 'cancelled',
+};
+
+const postToEvent = (post) => {
+  const start = post.scheduled_time;
+  // Posts are points in time, not spans; give them a nominal 30-minute block so
+  // week/day grids in any calendar client have something to lay out.
+  const end = new Date(new Date(start).getTime() + 30 * 60000).toISOString();
+  const text = post.post_text || '';
+  return {
+    kind: 'calendar#event',
+    id: `${EVENT_PREFIX.post}${post.id}`,
+    status: POST_STATUS_TO_EVENT[post.status] || 'tentative',
+    summary: `${post.platform || 'post'} · ${text.slice(0, 60)}${text.length > 60 ? '…' : ''}`,
+    description: text,
+    start: { dateTime: start },
+    end: { dateTime: end },
+    extendedProperties: {
+      private: { source: 'scheduled_post', platform: post.platform || '', markivoStatus: post.status },
+    },
+  };
+};
+
+const activityToEvent = (a) => ({
+  kind: 'calendar#event',
+  id: `${EVENT_PREFIX.autopilot}${a.id}`,
+  status: a.kind === 'error' ? 'cancelled' : 'confirmed',
+  summary: `Autopilot · ${a.kind}`,
+  description: a.summary || '',
+  start: { dateTime: a.created_at },
+  end: { dateTime: a.created_at },
+  // Autopilot history is a record of what happened — never editable.
+  extendedProperties: { private: { source: 'autopilot', activityKind: a.kind, readOnly: 'true' } },
+});
+
+// GET /api/calendar/events?timeMin=&timeMax=  (Google's parameter names)
+app.get('/api/calendar/events', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ kind: 'calendar#events', items: [] });
+
+  const parseBound = (v) => {
+    const d = v ? new Date(String(v)) : null;
+    return d && !Number.isNaN(d.getTime()) ? d.getTime() : null;
+  };
+  const min = parseBound(req.query.timeMin);
+  const max = parseBound(req.query.timeMax);
+  const inWindow = (iso) => {
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return false;
+    return (min === null || t >= min) && (max === null || t <= max);
+  };
+
+  const items = [
+    ...db.calendar.listByProfile(profile.id).filter((p) => inWindow(p.scheduled_time)).map(postToEvent),
+    ...db.autonomous.listActivity(profile.id, 200).filter((a) => inWindow(a.created_at)).map(activityToEvent),
+  ].sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime));
+
+  res.json({
+    kind: 'calendar#events',
+    summary: `Markivo — ${profile.businessName || 'your business'}`,
+    timeZone: 'UTC',
+    updated: new Date().toISOString(),
+    items,
+  });
+});
+
+// Resolve an event id back to an editable scheduled post owned by the caller.
+const ownedPostEvent = (req, res) => {
+  const id = String(req.params.id || '');
+  if (!id.startsWith(EVENT_PREFIX.post)) {
+    res.status(400).json({ error: 'Only scheduled posts can be changed — Autopilot history is read-only.' });
+    return null;
+  }
+  const profile = db.profiles.findByUserId(req.user.id);
+  const post = profile ? db.calendar.findById(id.slice(EVENT_PREFIX.post.length)) : null;
+  if (!post || post.profileId !== profile.id) {
+    res.status(404).json({ error: 'Event not found' });
+    return null;
+  }
+  return post;
+};
+
+// PATCH — reschedule (Google's "move an event" is a start.dateTime change).
+app.patch('/api/calendar/events/:id', verifyToken, (req, res) => {
+  const post = ownedPostEvent(req, res);
+  if (!post) return;
+  if (post.status !== 'scheduled') {
+    return res.status(400).json({ error: 'This post has already gone out — it can no longer be moved.' });
+  }
+  const when = req.body.start && req.body.start.dateTime;
+  const d = when ? new Date(String(when)) : null;
+  if (!d || Number.isNaN(d.getTime())) return res.status(400).json({ error: 'start.dateTime must be a valid date' });
+  res.json(postToEvent(db.calendar.setScheduledTime(post.id, d.toISOString())));
+});
+
+// DELETE — cancel a post that has not gone out yet.
+app.delete('/api/calendar/events/:id', verifyToken, (req, res) => {
+  const post = ownedPostEvent(req, res);
+  if (!post) return;
+  if (post.status !== 'scheduled') {
+    return res.status(400).json({ error: 'This post has already gone out — it can no longer be cancelled.' });
+  }
+  db.calendar.remove(post.id);
+  res.json({ success: true });
+});
+
+// ==========================================
+// 3.42 MESSAGE TEMPLATES (/api/templates)
+//   Businesses re-send the same message shape all day ("Stadium No:141, 9
+//   spots left ✅"). Gemini reads one real example and returns it with the
+//   changing parts turned into {{variables}}; the owner can then add or remove
+//   variables by hand, because the extraction is a suggestion, not a verdict.
+//   Keyless, the heuristic parser in gemini.js does the same job offline.
+// ==========================================
+
+// Which text engine is actually answering — surfaced so the UI can label a
+// result "Gemini" vs "Offline parser" honestly instead of guessing.
+app.get('/api/templates/engine', verifyToken, (req, res) => {
+  res.json({
+    engine: config.textEngine,
+    gemini: config.geminiEnabled,
+    model: config.geminiEnabled ? config.geminiTextModel : null,
+  });
+});
+
+// Analyze a sample message. Returns a DRAFT template — nothing is saved until
+// the owner reviews the variables and posts to /api/templates.
+app.post('/api/templates/analyze', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const sample = typeof req.body.sample === 'string' ? req.body.sample.trim() : '';
+  if (!sample) return res.status(400).json({ error: 'Paste a message to turn into a template' });
+  if (sample.length > 2000) return res.status(400).json({ error: 'Message must be 2000 characters or fewer' });
+
+  const draft = await gemini.analyzeTemplate({
+    sample,
+    platform: String(req.body.platform || 'instagram').toLowerCase(),
+    businessName: profile.businessName,
+    category: profile.category,
+  });
+  db.usage.record({ userId: req.user.id, kind: 'template' });
+
+  res.json({
+    ...draft,
+    sampleText: sample,
+    // Variables reconciled against the text so the UI never shows a chip for a
+    // placeholder that isn't there (or miss one that is).
+    variables: gemini.reconcileVariables(draft.templateText, draft.variables),
+    preview: gemini.blankPreview(draft.templateText),
+  });
+}));
+
+app.get('/api/templates', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json([]);
+  const platform = req.query.platform ? String(req.query.platform) : null;
+  res.json(db.templates.listByProfile(profile.id, platform));
+});
+
+// Save a template. The TEXT is authoritative: whatever {{placeholders}} the
+// owner left in it define the variables, so hand-added and hand-removed
+// variables are honoured exactly as edited.
+app.post('/api/templates', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const templateText = typeof req.body.templateText === 'string' ? req.body.templateText.trim() : '';
+  if (!templateText) return res.status(400).json({ error: 'Template text is required' });
+  if (templateText.length > 4000) return res.status(400).json({ error: 'Template must be 4000 characters or fewer' });
+
+  const saved = db.templates.create({
+    profileId: profile.id,
+    platform: String(req.body.platform || 'instagram').toLowerCase(),
+    name: typeof req.body.name === 'string' ? req.body.name.trim().slice(0, 60) : '',
+    sampleText: typeof req.body.sampleText === 'string' ? req.body.sampleText.slice(0, 2000) : '',
+    templateText,
+    variables: gemini.reconcileVariables(templateText, req.body.variables),
+    source: ['gemini', 'heuristic', 'manual'].includes(req.body.source) ? req.body.source : 'manual',
+  });
+  res.json(saved);
+});
+
+// Load a template owned by the caller's profile, or answer 404. Shared by the
+// update / delete / render routes so ownership is checked in exactly one place.
+const ownedTemplate = (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  const tpl = profile ? db.templates.findById(req.params.id) : null;
+  if (!tpl || tpl.profileId !== profile.id) {
+    res.status(404).json({ error: 'Template not found' });
+    return null;
+  }
+  return tpl;
+};
+
+app.put('/api/templates/:id', verifyToken, (req, res) => {
+  const tpl = ownedTemplate(req, res);
+  if (!tpl) return;
+
+  const fields = {};
+  if (typeof req.body.name === 'string') fields.name = req.body.name.trim().slice(0, 60);
+  if (typeof req.body.platform === 'string') fields.platform = req.body.platform;
+  if (typeof req.body.templateText === 'string') {
+    const text = req.body.templateText.trim();
+    if (!text) return res.status(400).json({ error: 'Template text is required' });
+    if (text.length > 4000) return res.status(400).json({ error: 'Template must be 4000 characters or fewer' });
+    fields.templateText = text;
+  }
+  // Variables always follow the text they belong to (new text if it changed).
+  const text = fields.templateText || tpl.templateText;
+  fields.variables = gemini.reconcileVariables(text, req.body.variables || tpl.variables);
+  res.json(db.templates.update(tpl.id, fields));
+});
+
+app.delete('/api/templates/:id', verifyToken, (req, res) => {
+  const tpl = ownedTemplate(req, res);
+  if (!tpl) return;
+  db.templates.remove(tpl.id);
+  res.json({ success: true });
+});
+
+// Fill a template with the owner's values. Deterministic string substitution —
+// no model involved, so it costs nothing and never surprises.
+app.post('/api/templates/:id/render', verifyToken, (req, res) => {
+  const tpl = ownedTemplate(req, res);
+  if (!tpl) return;
+  const values = req.body.values && typeof req.body.values === 'object' ? req.body.values : {};
+  res.json({ text: gemini.renderTemplate(tpl.templateText, values), platform: tpl.platform });
+});
+
+// ==========================================
 // 3.45 TELEGRAM INTEGRATION (/api/telegram)
 //   Real Bot API integration. Telegram has no API to create bots, so the
 //   owner creates one via @BotFather (guided, ~60s) and pastes the token;
@@ -801,6 +1054,105 @@ async function executePlatformPost(profile, platform, text, mediaUrl) {
   });
   return result;
 }
+
+// ==========================================
+// 3.55 PLATFORM CONNECTORS (/api/connect)
+//   The generic connect surface every adapter in connectors/* was built
+//   against: one catalogue endpoint the Connections screen renders from, and
+//   start/callback/disconnect that work identically for Facebook, Instagram,
+//   TikTok, Google Business, and YouTube. Adapters with no live credentials
+//   return a null auth URL, so `start` connects them in sandbox instead —
+//   keyless still gets a working, honest flow.
+// ==========================================
+
+// Same signed-state trick as the Instagram flow (see signOauthState), plus the
+// connector key so a state minted for one platform cannot finish another's
+// callback.
+const signConnectState = (user, profile, key) =>
+  jwt.sign({ uid: user.id, pid: profile.id, key, purpose: 'connect_oauth' }, config.jwtSecret, { expiresIn: '10m' });
+
+const verifyConnectState = (state) => {
+  const payload = jwt.verify(state, config.jwtSecret);
+  if (payload.purpose !== 'connect_oauth') throw new Error('wrong token purpose');
+  return payload;
+};
+
+// Every platform Markivo knows about, plus this business's status for each.
+// Always returns the FULL catalogue — the dashboard shows unconnected
+// platforms too (dimmed), so the owner can see what is available.
+app.get('/api/connect/status', verifyToken, asyncRoute(async (req, res) => {
+  const catalogue = connectors.catalogue();
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ catalogue, status: {} });
+  res.json({ catalogue, status: await connectors.statusAll({ db, profile }) });
+}));
+
+app.post('/api/connect/:key/start', verifyToken, asyncRoute(async (req, res) => {
+  const adapter = connectors.get(req.params.key);
+  if (!adapter) return res.status(404).json({ error: `Unknown platform "${req.params.key}"` });
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  if (adapter.authType === 'token') {
+    return res.status(400).json({
+      error: `${adapter.label} connects with its own setup card, not OAuth.`,
+      authType: 'token',
+      howToConnect: adapter.howToConnect || [],
+    });
+  }
+
+  const url = adapter.getAuthUrl({ profile, state: signConnectState(req.user, profile, adapter.key) });
+  if (url) return res.json({ mode: 'oauth', url });
+
+  // No live credentials for this platform — connect in sandbox so the rest of
+  // the product (agent, Autopilot, approvals) is exercisable end to end.
+  db.connections.upsert({
+    profileId: profile.id,
+    platform: adapter.key,
+    status: 'sandbox',
+    accountHandle: `${adapter.label} (sandbox)`,
+  });
+  res.json({ mode: 'sandbox', status: await adapter.status({ db, profile }) });
+}));
+
+// PUBLIC (no verifyToken) — the platform redirects the browser here. Identity
+// rides in the signed `state`. Always ends in a redirect back to the SPA with
+// ?connected=<key> or ?connect_error=<label>; never leaks raw errors.
+app.get('/api/connect/:key/callback', asyncRoute(async (req, res) => {
+  const back = (params) => res.redirect(`${config.appUrl}/?${new URLSearchParams(params).toString()}`);
+  const adapter = connectors.get(req.params.key);
+  if (!adapter) return back({ connect_error: req.params.key });
+  if (req.query.error) return back({ connect_error: adapter.label });
+
+  let payload;
+  try {
+    payload = verifyConnectState(String(req.query.state || ''));
+  } catch {
+    return back({ connect_error: adapter.label });
+  }
+  // A state signed for Instagram must not be replayed against TikTok.
+  if (payload.key !== adapter.key) return back({ connect_error: adapter.label });
+
+  const profile = db.profiles.findById(payload.pid);
+  if (!profile) return back({ connect_error: adapter.label });
+
+  try {
+    await adapter.handleCallback({ db, profile, query: req.query });
+    return back({ connected: adapter.key });
+  } catch (err) {
+    console.warn(`Connector ${adapter.key} callback failed: ${err.message}`);
+    return back({ connect_error: adapter.label });
+  }
+}));
+
+app.post('/api/connect/:key/disconnect', verifyToken, asyncRoute(async (req, res) => {
+  const adapter = connectors.get(req.params.key);
+  if (!adapter) return res.status(404).json({ error: `Unknown platform "${req.params.key}"` });
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  await adapter.disconnect({ db, profile });
+  res.json({ success: true, status: await adapter.status({ db, profile }) });
+}));
 
 app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);

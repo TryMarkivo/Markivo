@@ -3,26 +3,15 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import ConnectCard from './ConnectCard';
 import TelegramConnect from './TelegramConnect';
+import { metaFor } from '../lib/platforms';
 import './Connections.css';
 
-// Visual meta per platform key (icon + brand colour). The SERVER is the source
-// of truth for which platforms exist (via /api/connect/status); this map only
-// styles the ones it returns, with a generic fallback for anything new.
-const META = {
-  telegram: { icon: 'fa-brands fa-telegram', color: 'var(--tg-blue, #229ED9)' },
-  meta_instagram: { icon: 'fa-brands fa-instagram', color: '#E1306C' },
-  meta_facebook: { icon: 'fa-brands fa-facebook', color: '#1877F2' },
-  tiktok: { icon: 'fa-brands fa-tiktok', color: 'var(--text-primary, #111)' },
-  google_business: { icon: 'fa-brands fa-google', color: '#4285F4' },
-  youtube: { icon: 'fa-brands fa-youtube', color: '#FF0000' },
-};
-const FALLBACK_META = { icon: 'fa-solid fa-share-nodes', color: 'var(--accent-primary)' };
-
 /**
- * Dashboard "Connections" tab. Lists every platform the connector framework
- * exposes with its live/sandbox/connected state, and opens the right connect
- * flow — Telegram keeps its dedicated guided modal; everything else uses the
- * generic ConnectCard (OAuth when live, simulated when sandbox).
+ * Dashboard "Connections" tab. Lists EVERY platform the connector framework
+ * exposes — connected ones at full strength, the rest dimmed — so the owner can
+ * see the whole menu at a glance and tap any card to learn how to connect it.
+ * Telegram keeps its dedicated guided modal; everything else uses the generic
+ * ConnectCard (OAuth when live, simulated when sandbox).
  */
 export default function ConnectionsPanel({ activeProfile }) {
   const { t } = useTranslation();
@@ -76,13 +65,25 @@ export default function ConnectionsPanel({ activeProfile }) {
 
       <div className="connections-grid">
         {data.catalogue.map((p) => {
-          const m = META[p.key] || FALLBACK_META;
+          const m = metaFor(p.key);
           const s = statusFor(p.key);
           const isConnected = !!s.connected;
           const isSandbox = !!s.sandbox && isConnected;
           const comingSoon = !!s.comingSoon;
+          // Telegram opens its guided BotFather modal — unless it is gated off,
+          // in which case the generic card explains what it will need.
+          const openCard = () => ((p.key === 'telegram' && !comingSoon) ? setTgOpen(true) : setOpenKey(p.key));
           return (
-            <div key={p.key} className={`connection-card glass-card ${isConnected ? 'connected' : ''}`}>
+            // Unconnected platforms render dimmed but stay fully interactive —
+            // tapping one opens its card with the step-by-step instructions.
+            <div
+              key={p.key}
+              className={`connection-card glass-card ${isConnected ? 'connected' : 'not-connected'}`}
+              onClick={openCard}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(); } }}
+            >
               <div className="connection-card-head">
                 <i className={m.icon} style={{ color: m.color, fontSize: 26 }}></i>
                 <div>
@@ -99,14 +100,13 @@ export default function ConnectionsPanel({ activeProfile }) {
               {s.accountHandle && <p className="connection-handle text-muted">{s.accountHandle}</p>}
               <button
                 className={`btn ${isConnected ? 'btn-secondary' : 'btn-primary'} w-full`}
-                disabled={comingSoon}
-                onClick={() => (p.key === 'telegram' ? setTgOpen(true) : setOpenKey(p.key))}
+                onClick={(e) => { e.stopPropagation(); openCard(); }}
                 id={`btn_conn_${p.key}`}
               >
-                {comingSoon
-                  ? t('connections.state.soon', 'Coming soon')
-                  : isConnected
-                    ? t('connections.manage', 'Manage')
+                {isConnected
+                  ? t('connections.manage', 'Manage')
+                  : comingSoon
+                    ? t('connections.howToCta', 'How to connect')
                     : t('connections.connect', 'Connect')}
               </button>
             </div>
@@ -118,7 +118,7 @@ export default function ConnectionsPanel({ activeProfile }) {
         <ConnectCard
           platform={openPlatform}
           status={data.status[openKey] || { connected: false }}
-          meta={META[openKey] || FALLBACK_META}
+          meta={metaFor(openKey)}
           onChanged={refresh}
           onClose={() => setOpenKey(null)}
         />

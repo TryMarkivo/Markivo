@@ -1,5 +1,6 @@
 const config = require('./config');
 const logogen = require('./logogen');
+const gemini = require('./gemini');
 
 // Lazily construct the Anthropic client only when a key is present, so the app
 // runs with zero AI config (every function falls back to a smart template).
@@ -160,39 +161,101 @@ function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile })
   const tone = profile?.brandTone || 'Cozy & Warm';
   const subject = (topic && topic.trim()) || `your ${category}`;
 
+  // Guided = the owner is holding the camera, so the fallback still has to be a
+  // real production brief. Shape matches the Gemini guided schemas exactly
+  // (gemini.js), so the UI renders identically with or without a key.
   if (mode === 'guided') {
+    const camera = {
+      device: 'Any modern smartphone works — a mirrorless camera only pays off if you already own one.',
+      lens: kind === 'video'
+        ? 'Main (1x) lens for everything; switch to 0.5x only for the wide establishing shot.'
+        : 'Main (1x) lens for hero frames, 2x for detail shots — avoid digital zoom beyond that.',
+      settings: kind === 'video'
+        ? '4K at 30fps, exposure and focus LOCKED before each take (long-press to lock), gridlines on.'
+        : 'HDR on, gridlines on, tap-to-focus on the subject then lock, burst mode for any movement.',
+      whiteBalance: 'Lock white balance to your main light so colour does not shift between shots.',
+      stabilisation: kind === 'video'
+        ? 'Brace both elbows against your ribs; slide your whole body rather than twisting your wrists.'
+        : 'Brace against a wall or table edge; use the volume button or a 2s timer to avoid shake.',
+    };
+    const setup = [
+      `Clear everything from the frame that is not ${subject} or part of the ${category} story.`,
+      `Position ${subject} about 60-80cm from the lens with a clean, uncluttered background behind it.`,
+      'Put your largest window at 45° to the subject — side light gives shape, front light flattens it.',
+      `Add one small ${tone.toLowerCase()} prop from your own space so the frame reads as ${name}, not a stock photo.`,
+      'Wipe the lens, then shoot one test frame and check the edges for clutter before the real takes.',
+    ];
+    const tips = [
+      'Wipe the lens first — it is the cheapest quality upgrade there is.',
+      `Shoot 3 takes of every shot so you can pick the best ${subject} moment.`,
+      'Never shoot into the light source — put it beside or behind you.',
+      `Stay consistent with your "${tone}" brand tone: colours, pace, and framing should all match it.`,
+    ];
+
+    if (kind === 'video') {
+      return {
+        mode,
+        kind,
+        scenario:
+          `A 20-30 second look at ${subject} at ${name}: someone arrives, discovers it, and reacts. ` +
+          `One person, one place, one payoff — no narration needed if the visuals carry it.`,
+        flow:
+          'Hook in the first 1.5 seconds with the strongest frame, hold attention with movement and ' +
+          'detail through the middle, then land the brand and a single call to action at the end.',
+        scene: `The real ${category} setting at ${name}, with ${subject} as the hero of every frame.`,
+        setup,
+        camera,
+        lighting: 'Shoot near a window or outdoors within 2 hours of sunrise/sunset; avoid mixed overhead lighting and never shoot against the light source.',
+        composition: `Vertical 9:16. Keep ${subject} on a rule-of-thirds line with headroom above for platform UI.`,
+        // The subject is whatever the owner typed, so it only ever appears as a
+        // standalone line — never inlined into a sentence that assumes a noun.
+        script: [
+          { time: '0:00-0:02', spoken: '', onScreenText: `${subject} — at ${name}` },
+          { time: '0:02-0:08', spoken: 'Here is how we do it.', onScreenText: '' },
+          { time: '0:08-0:18', spoken: 'Let the visuals carry it — no voice needed here.', onScreenText: 'Made fresh, right here' },
+          { time: '0:18-0:25', spoken: 'Come see for yourself.', onScreenText: `${name} — open today` },
+        ],
+        shotList: [
+          { name: 'Establishing', framing: 'Wide', angle: 'Eye level', movement: 'Slow push in', duration: '3s', direction: `Start at the door of ${name} and walk one step forward.` },
+          { name: 'Hero reveal', framing: 'Medium', angle: 'Slightly high', movement: 'Static', duration: '3s', direction: `Center ${subject} and hold completely still.` },
+          { name: 'Detail pass', framing: 'Macro', angle: '45° down', movement: 'Slow slide left to right', duration: '4s', direction: 'Move the phone, not the subject; keep focus locked.' },
+          { name: 'Hands in frame', framing: 'Close', angle: 'Over the shoulder', movement: 'Follow the hands', duration: '4s', direction: `Film someone actually handling ${subject}.` },
+          { name: 'Reaction', framing: 'Medium close', angle: 'Eye level', movement: 'Static', duration: '3s', direction: 'A real customer or team member responding — genuine, not posed.' },
+          { name: 'Brand out', framing: 'Medium', angle: 'Eye level', movement: 'Slow pull back', duration: '3s', direction: `End with ${subject} and the ${name} signage both in frame.` },
+        ],
+        bRoll: [
+          `Ambient shot of the ${category} space filling up`,
+          'Hands preparing or arranging something, no faces',
+          `Texture close-up of ${subject} with shallow depth`,
+        ],
+        transitions: [
+          'Hard cut on movement — cut while the hand or camera is still moving',
+          'Match cut from the detail pass into the hands-in-frame shot',
+          'Cut on the beat if you add music',
+        ],
+        audio: 'Capture clean ambient sound close to the subject; add trending or licensed music in the platform editor afterwards, and duck it under any spoken line.',
+        postProcessing: 'Trim every clip to its strongest 2-4 seconds, lift shadows slightly, add burned-in captions, export vertical 9:16 at 1080x1920.',
+        tips: [...tips, 'Keep each clip under 5 seconds; fast cuts hold attention.'],
+      };
+    }
+
     return {
       mode,
       kind,
-      script:
-        `Open with ${subject} front and centre — it is the hero of this ${kind}. ` +
-        `Show the real ${category} setting at ${name} so viewers instantly recognise where they are. ` +
-        `Keep the energy ${tone.toLowerCase()} throughout: let people, hands, and details do the talking. ` +
-        `Close on your strongest frame of ${subject} and hold it for two seconds so the brand lands.`,
-      shotList: [
-        `Wide establishing shot of ${name} (2-3s) to set the scene`,
-        `Medium shot introducing ${subject} in its natural spot`,
-        `Slow close-up detail pass over ${subject} — texture and colour`,
-        `Hands-in-frame action shot: someone interacting with ${subject}`,
-        `Reaction shot: a real customer or team member responding to ${subject}`,
-        `Final hero frame of ${subject} with the ${name} branding visible`,
-      ],
-      camera: {
-        device: 'any modern smartphone',
-        settings: kind === 'video'
-          ? '4K at 30fps, exposure locked, gridlines on, hold or stabilise each shot for 3-5 seconds'
-          : 'main lens (1x), HDR on, tap-to-focus on the subject, burst mode for action moments',
-      },
+      scene: `${subject}, styled in the real ${category} setting at ${name} so it reads as your place, not a stock shot.`,
+      setup,
+      camera,
       lighting: 'Shoot near a window or outdoors within 2 hours of sunrise/sunset; avoid mixed overhead lighting and never shoot against the light source.',
-      audio: kind === 'video'
-        ? 'Capture clean ambient sound close to the subject; add trending or licensed music in the platform editor afterwards.'
-        : 'Not applicable for photos — put the effort into light instead.',
-      tips: [
-        'Wipe the lens first — it is the cheapest quality upgrade there is.',
-        `Shoot 3 takes of every shot so you can pick the best ${subject} moment.`,
-        'Keep each clip under 5 seconds; fast cuts hold attention.',
-        `Stay consistent with your "${tone}" brand tone — colours, pace, and framing should all match it.`,
+      composition: `Rule-of-thirds with ${subject} on an intersection and clean negative space left for a text overlay.`,
+      shotList: [
+        { name: 'Hero frame', framing: 'Medium close', angle: 'Eye level', direction: `Center ${subject}, background 1-2m behind it so it falls out of focus.` },
+        { name: 'Overhead flat lay', framing: 'Wide', angle: '90° straight down', direction: 'Stand directly above; keep the phone parallel to the surface using the level guide.' },
+        { name: 'Detail macro', framing: 'Macro', angle: '45°', direction: `Fill the frame with the texture of ${subject}; tap to focus on the nearest edge.` },
+        { name: 'In context', framing: 'Wide', angle: 'Eye level', direction: `Show ${subject} in the room so the viewer sees where it lives.` },
+        { name: 'Human element', framing: 'Close', angle: 'Over the shoulder', direction: 'Hands reaching for or holding it — movement makes a still photo feel alive.' },
       ],
+      postProcessing: 'Straighten, crop to 4:5 for feed, lift shadows and add a touch of warmth; keep the edit consistent across every photo in the set.',
+      tips,
     };
   }
 
@@ -351,7 +414,12 @@ async function analyzeAndPlan(ctx) {
   }
 }
 
+// Social post copy, in provider order: Gemini -> Claude -> smart template.
+// Gemini is preferred for social copy; it returns null (never throws) when it
+// is unconfigured or the call fails, so the chain below degrades quietly.
 async function generateContent(ctx) {
+  const viaGemini = await gemini.generateContent(ctx);
+  if (viaGemini) return viaGemini;
   if (!client) return templateContent(ctx);
   const { platform = 'instagram', topic, businessName, category, description, brandTone, audience } = ctx;
   const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => LANG_NAMES[l]);
@@ -664,22 +732,99 @@ async function agentAct(ctx) {
 // ===========================================================================
 // MEDIA STUDIO (briefs + edit plans) and LOGO GENERATION
 // ===========================================================================
-const MEDIA_BRIEF_GUIDED_SCHEMA = {
+// Guided briefs mirror the Gemini schemas in gemini.js so the Media Studio
+// renders the same document whichever engine answered (or neither).
+const CAMERA_SCHEMA = {
   type: 'object',
   properties: {
-    script: { type: 'string' },
-    shotList: { type: 'array', items: { type: 'string' } },
-    camera: {
-      type: 'object',
-      properties: { device: { type: 'string' }, settings: { type: 'string' } },
-      required: ['device', 'settings'],
-      additionalProperties: false,
-    },
+    device: { type: 'string' },
+    lens: { type: 'string' },
+    settings: { type: 'string' },
+    whiteBalance: { type: 'string' },
+    stabilisation: { type: 'string' },
+  },
+  required: ['device', 'lens', 'settings', 'whiteBalance', 'stabilisation'],
+  additionalProperties: false,
+};
+
+const MEDIA_BRIEF_GUIDED_PHOTO_SCHEMA = {
+  type: 'object',
+  properties: {
+    scene: { type: 'string' },
+    setup: { type: 'array', items: { type: 'string' } },
+    camera: CAMERA_SCHEMA,
     lighting: { type: 'string' },
-    audio: { type: 'string' },
+    composition: { type: 'string' },
+    shotList: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          framing: { type: 'string' },
+          angle: { type: 'string' },
+          direction: { type: 'string' },
+        },
+        required: ['name', 'framing', 'angle', 'direction'],
+        additionalProperties: false,
+      },
+    },
+    postProcessing: { type: 'string' },
     tips: { type: 'array', items: { type: 'string' } },
   },
-  required: ['script', 'shotList', 'camera', 'lighting', 'audio', 'tips'],
+  required: ['scene', 'setup', 'camera', 'lighting', 'composition', 'shotList', 'postProcessing', 'tips'],
+  additionalProperties: false,
+};
+
+const MEDIA_BRIEF_GUIDED_VIDEO_SCHEMA = {
+  type: 'object',
+  properties: {
+    scenario: { type: 'string' },
+    flow: { type: 'string' },
+    scene: { type: 'string' },
+    setup: { type: 'array', items: { type: 'string' } },
+    camera: CAMERA_SCHEMA,
+    lighting: { type: 'string' },
+    composition: { type: 'string' },
+    script: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          time: { type: 'string' },
+          spoken: { type: 'string' },
+          onScreenText: { type: 'string' },
+        },
+        required: ['time', 'spoken', 'onScreenText'],
+        additionalProperties: false,
+      },
+    },
+    shotList: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          framing: { type: 'string' },
+          angle: { type: 'string' },
+          movement: { type: 'string' },
+          duration: { type: 'string' },
+          direction: { type: 'string' },
+        },
+        required: ['name', 'framing', 'angle', 'movement', 'duration', 'direction'],
+        additionalProperties: false,
+      },
+    },
+    bRoll: { type: 'array', items: { type: 'string' } },
+    transitions: { type: 'array', items: { type: 'string' } },
+    audio: { type: 'string' },
+    postProcessing: { type: 'string' },
+    tips: { type: 'array', items: { type: 'string' } },
+  },
+  required: [
+    'scenario', 'flow', 'scene', 'setup', 'camera', 'lighting', 'composition',
+    'script', 'shotList', 'bRoll', 'transitions', 'audio', 'postProcessing', 'tips',
+  ],
   additionalProperties: false,
 };
 
@@ -706,39 +851,60 @@ const profileLines = (profile) =>
   `Target audience: ${profile?.targetAudience || 'local customers'}\n` +
   `Brand tone: ${profile?.brandTone || 'Cozy & Warm'}\n`;
 
+// Media briefs, in provider order: Gemini -> Claude -> deterministic template.
+// Gemini leads here because the guided brief is a big structured document
+// (staging, camera, script, movements) and its schema support handles it well.
 async function generateMediaBrief(ctx) {
-  if (!client) return templateMediaBrief(ctx);
   const { kind, mode, topic, profile } = ctx;
   const guided = mode === 'guided';
+  // Full-mode briefs carry the render-engine status whichever engine wrote
+  // them, so the Media Studio's render section behaves identically.
+  const withEngineStatus = (brief) => (guided ? brief : {
+    ...brief,
+    engineStatus: 'awaiting_media_api',
+    note: 'Rendering activates once a media-generation API key is configured.',
+  });
+
+  const viaGemini = await gemini.generateMediaBrief(ctx);
+  if (viaGemini) return withEngineStatus(viaGemini);
+  if (!client) return templateMediaBrief(ctx);
   try {
     const msg = await client.messages.create({
       model: config.aiContentModel,
-      max_tokens: 1500,
+      max_tokens: 4000,
       system: guided
-        ? "You are Markivo's media production coach for small business owners filming on their own phones. " +
-          'Produce a practical, concrete filming brief: a short script (3-5 sentences), 6 specific shots, ' +
-          'smartphone camera settings, lighting, audio, and 4 tips. Respond as JSON only.'
+        ? (kind === 'video'
+          ? 'You are a professional videographer directing a small-business owner who is filming this ' +
+            'themselves. Deliver the brief a real director would hand over on the day: the scenario, how ' +
+            'the finished video flows start to finish, how to stage the scene, exact camera setup, a ' +
+            'timed spoken script with on-screen text, and a shot list where EVERY shot names its framing, ' +
+            'angle, camera MOVEMENT, and duration. Be concrete and physical: real distances, real angles, ' +
+            'real seconds. No vague advice. Respond as JSON only.'
+          : 'You are a professional photographer directing a small-business owner shooting this ' +
+            'themselves. Deliver the brief a real photographer would work from: how to stage and style ' +
+            'the scene, exact camera setup, lighting, composition, and a shot list where EVERY shot ' +
+            'names its framing, angle, and direction to the person holding the camera. Be concrete and ' +
+            'physical: real distances, real angles. No vague advice. Respond as JSON only.')
         : "You are Markivo's creative director. Produce a generation-ready creative brief for an AI media engine: " +
           'a concept, a caption that includes hashtags derived from the business name and category, ' +
           'and a visual spec. Respond as JSON only.',
       messages: [
         {
           role: 'user',
-          content: profileLines(profile) + `Media kind: ${kind}\nTopic: ${topic}`,
+          content: profileLines(profile) + `Media kind: ${kind}\nWhat they want to shoot: ${topic}`,
         },
       ],
-      output_config: { format: { type: 'json_schema', schema: guided ? MEDIA_BRIEF_GUIDED_SCHEMA : MEDIA_BRIEF_FULL_SCHEMA } },
+      output_config: {
+        format: {
+          type: 'json_schema',
+          schema: guided
+            ? (kind === 'video' ? MEDIA_BRIEF_GUIDED_VIDEO_SCHEMA : MEDIA_BRIEF_GUIDED_PHOTO_SCHEMA)
+            : MEDIA_BRIEF_FULL_SCHEMA,
+        },
+      },
     });
     const parsed = JSON.parse(textOf(msg));
-    return guided
-      ? { mode, kind, ...parsed }
-      : {
-          mode,
-          kind,
-          ...parsed,
-          engineStatus: 'awaiting_media_api',
-          note: 'Rendering activates once a media-generation API key is configured.',
-        };
+    return withEngineStatus({ mode, kind, ...parsed });
   } catch (err) {
     console.error('AI generateMediaBrief failed, using template:', err.message);
     return templateMediaBrief(ctx);

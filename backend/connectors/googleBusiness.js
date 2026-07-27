@@ -42,6 +42,20 @@ const adapter = {
   label: 'Google Business Profile',
   group: 'google',
 
+  authType: 'oauth',
+  docsUrl: 'https://developers.google.com/my-business/content/posts-data',
+  requirements: [
+    'A Google Business Profile listing for your business',
+    'The listing VERIFIED by Google (postcard, phone, or email)',
+    'Owner or manager access on the Google account you sign in with',
+  ],
+  howToConnect: [
+    'Claim your listing at business.google.com if you have not already.',
+    'Finish Google’s verification — unverified listings cannot receive posts.',
+    'Press Connect and sign in with the Google account that owns the listing.',
+    'Approve the Business Profile permission, then pick the location to post to.',
+  ],
+
   // Live when the SHARED Google OAuth client is configured (clientId + secret).
   isLive: () => config.connectors.google.enabled,
 

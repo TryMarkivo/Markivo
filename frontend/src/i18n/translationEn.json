@@ -508,7 +508,8 @@
       "topicPlaceholder": "e.g. Free honeycomb cake slices with every double espresso this weekend!",
       "topicPlaceholderByCategory": "e.g. A weekend special offer your {{category}} customers will love!",
       "generating": "Crafting localized drafts...",
-      "generateCta": "Generate Platform Drafts ✦"
+      "generateCta": "Generate Platform Drafts ✦",
+      "subtitleForPlatform": "Writing for {{platform}} — formatted the way that channel expects."
     },
     "output": {
       "toneOptimized": "Platform Tone-Optimized",
@@ -579,7 +580,12 @@
     "fallback": {
       "post": "✨ Special offer from #{{businessName}}! ✨\n\nLooking for the perfect spot? {{topic}}\n\n📍 Visit us today in Tashkent!\n\n#localbusiness #tashkent #vibe",
       "mediaTip": "📸 Tip: Snap a landscape photo of your storefront at dusk with warm interior lighting glowing through the windows."
-    }
+    },
+    "platformTabsLabel": "Platform",
+    "modeCompose": "Compose",
+    "modeTemplates": "Templates",
+    "yourChannels": "Your channels",
+    "noConnections": "No channels connected yet — connect one in Connections to publish for real."
   },
   "media": {
     "title": "Media Studio",
@@ -612,7 +618,15 @@
       "captionTitle": "Ready caption",
       "copy": "Copy",
       "copied": "Copied!",
-      "visualSpecTitle": "Visual spec"
+      "visualSpecTitle": "Visual spec",
+      "scenarioTitle": "Scenario",
+      "flowTitle": "How it flows",
+      "sceneTitle": "The scene",
+      "setupTitle": "Set it up",
+      "compositionTitle": "Composition",
+      "bRollTitle": "B-roll to grab",
+      "transitionsTitle": "Transitions",
+      "postTitle": "After the shoot"
     },
     "spec": {
       "composition": "Composition",
@@ -664,6 +678,35 @@
       "success": "Image rendered — ready to use in your posts.",
       "resultAlt": "Rendered image",
       "resultAltNamed": "Rendered image: {{topic}}"
+    },
+    "full": {
+      "title": "Describe what you want",
+      "explainer": "Write it like you would describe it to a designer: the subject, the feeling, and where it will be posted. One or two sentences is enough — the AI fills in the rest.",
+      "promptLabel": "Your prompt",
+      "promptPlaceholder": "e.g. A warm overhead shot of our new seasonal latte on a wooden table, morning light, cozy and inviting",
+      "generateCta": "Generate",
+      "generating": "Generating..."
+    },
+    "guided": {
+      "title": "What do you want to shoot?",
+      "explainer": "Tell us what you are filming or photographing and press send. You get back the full production plan — how to set the scene, exact camera setup, and every shot to take.",
+      "placeholderPhoto": "e.g. Our new seasonal latte on the counter",
+      "placeholderVideo": "e.g. A short reel showing how we make our signature latte",
+      "sendCta": "Send",
+      "thinking": "Planning your shoot..."
+    },
+    "camera": {
+      "device": "Device",
+      "lens": "Lens",
+      "settings": "Settings",
+      "whiteBalance": "White balance",
+      "stabilisation": "Stabilisation"
+    },
+    "shot": {
+      "framing": "Framing",
+      "angle": "Angle",
+      "movement": "Movement",
+      "duration": "Duration"
     }
   },
   "competitors": {
@@ -921,5 +964,82 @@
       "skipped": "Paused",
       "error": "Error"
     }
+  },
+  "templates": {
+    "title": "Message Templates",
+    "subtitle": "Paste a message you already send on {{platform}} — we turn the changing parts into variables you can refill in seconds.",
+    "sampleLabel": "A message you send often",
+    "samplePlaceholder": "e.g. Stadium No:141, 9 spots left✅",
+    "analyzeCta": "Analyze & build template ✦",
+    "analyzing": "Finding the variable parts…",
+    "startManual": "Mark variables myself",
+    "engineGemini": "Gemini",
+    "engineOffline": "Offline parser",
+    "nameLabel": "Template name",
+    "namePlaceholder": "e.g. Spots left update",
+    "templateLabel": "Template",
+    "makeVariable": "Make variable",
+    "editHint": "Select any text above and press “Make variable”, or delete a variable below to put its value back.",
+    "variablesLabel": "Variables ({{count}})",
+    "noVariables": "No variables yet — select the part of the message that changes and press “Make variable”.",
+    "variableName": "Variable name",
+    "examplePlaceholder": "Example value",
+    "removeVariable": "Remove variable {{key}}",
+    "selectFirst": "Select the part of the message that changes, then press “Make variable”.",
+    "alreadyVariable": "That selection already contains a variable.",
+    "preview": "Preview",
+    "saveCta": "Save template",
+    "saving": "Saving…",
+    "savedTitle": "Saved for {{platform}}",
+    "savedEmpty": "No templates yet for this platform.",
+    "untitled": "Untitled template",
+    "useCta": "Use",
+    "deleteTemplate": "Delete template",
+    "fixedTemplate": "This template has no variables — it sends exactly as written.",
+    "sendToComposer": "Send to composer",
+    "fromTemplateTip": "Filled from one of your saved templates — review it, then post or schedule."
+  },
+  "connections": {
+    "title": "Platform Connections",
+    "subtitle": "Connect the platforms Markiv can publish to on your behalf — through each platform’s official API, behind your approval.",
+    "connectedToast": "Connected ✓",
+    "errorToast": "Could not connect {{label}} — please try again.",
+    "connect": "Connect",
+    "manage": "Manage",
+    "howToCta": "How to connect",
+    "state": {
+      "connected": "Connected",
+      "sandbox": "Connected · sandbox",
+      "ready": "Ready to connect",
+      "sandboxReady": "Sandbox available",
+      "soon": "Coming soon"
+    },
+    "setupTitle": "Connect {{label}}",
+    "howItWorks": "Markivo publishes to {{label}} on your behalf through its official API, and every post goes through your approval first — it never logs into your account.",
+    "requirementsTitle": "What you need first",
+    "howToTitle": "How to connect",
+    "officialDocs": "Official documentation",
+    "comingSoonNote": "{{label}} is not switched on yet — these are the steps for when it is.",
+    "sandboxNote": "Sandbox mode — no live credentials are configured for this platform yet, so connecting simulates the flow (no real posts go out). Add the platform’s API keys to switch this to live.",
+    "connecting": "Connecting…",
+    "connectLiveCta": "Connect {{label}} →",
+    "connectSandboxCta": "Connect {{label}} (sandbox)",
+    "sandboxConnected": "{{label}} connected in sandbox mode ✓",
+    "disconnected": "{{label}} disconnected",
+    "statusConnected": "Connected",
+    "statusSandbox": "Connected (sandbox)",
+    "connectedHint": "Ask Markiv in the chat panel to post to {{label}} — you approve, it publishes.",
+    "disconnectCta": "Disconnect",
+    "working": "Working…"
+  },
+  "calendar": {
+    "title": "Schedule",
+    "subtitle": "Everything Markivo has scheduled or already done, on one timeline.",
+    "today": "Today",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "emptyDay": "Nothing scheduled for this day.",
+    "cancelEvent": "Cancel this post",
+    "dragHint": "Drag a scheduled post onto another day to move it. Autopilot history cannot be changed."
   }
 }

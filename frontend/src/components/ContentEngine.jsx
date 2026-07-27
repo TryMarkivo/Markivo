@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import api from '../lib/api';
+import TemplateStudio from './TemplateStudio';
+import { metaFor, FALLBACK_CATALOGUE } from '../lib/platforms';
 import './ContentEngine.css';
 
 export default function ContentEngine({ activeProfile }) {
   const { t, i18n } = useTranslation();
-  const [platform, setPlatform] = useState('Instagram');
+
+  // --- Platform tabs -------------------------------------------------------
+  // One tab per platform the connector registry exposes, so each channel gets
+  // its own room (composer + its own templates) instead of sharing one form.
+  const [catalogue, setCatalogue] = useState(null);
+  const [connectStatus, setConnectStatus] = useState({});
+  const [hasConnections, setHasConnections] = useState(true);
+  const [platformKey, setPlatformKey] = useState(null);
+  const [mode, setMode] = useState('compose'); // 'compose' | 'templates'
+
   const [topic, setTopic] = useState('');
   const [langMode, setLangMode] = useState('en'); // 'en' | 'multi'
   const [loadingCopy, setLoadingCopy] = useState(false);
@@ -32,20 +43,35 @@ export default function ContentEngine({ activeProfile }) {
     api.get('/api/telegram/status').then(setTgStatus).catch(() => setTgStatus(null));
   }, [activeProfile]);
 
-  const telegramReady = !!(tgStatus?.connected && tgStatus?.chat);
+  useEffect(() => {
+    api.get('/api/connect/status')
+      .then((data) => {
+        const all = data.catalogue && data.catalogue.length ? data.catalogue : FALLBACK_CATALOGUE;
+        const status = data.status || {};
+        // The menu lists only CONNECTED platforms — every social network works
+        // differently, and there is no point offering a composer for a channel
+        // that cannot receive the post. Nothing connected yet falls back to the
+        // full list so the engine is still explorable.
+        const connected = all.filter((p) => status[p.key] && status[p.key].connected);
+        const menu = connected.length ? connected : all;
+        setCatalogue(menu);
+        setConnectStatus(status);
+        setHasConnections(connected.length > 0);
+        setPlatformKey((current) => current || menu[0].key);
+      })
+      .catch(() => {
+        setCatalogue(FALLBACK_CATALOGUE);
+        setPlatformKey((current) => current || FALLBACK_CATALOGUE[0].key);
+      });
+  }, [activeProfile]);
 
-  const handlePostToTelegram = async () => {
-    if (!generatedCopy || tgPosting) return;
-    setTgPosting(true);
-    setTgPostResult(null);
-    try {
-      await api.post('/api/telegram/post', { text: generatedCopy.post });
-      setTgPostResult('ok');
-    } catch (err) {
-      setTgPostResult(err.message || t('content.telegram.postFailed', 'Posting failed'));
-    }
-    setTgPosting(false);
-  };
+  const platform = catalogue && platformKey ? catalogue.find((p) => p.key === platformKey) : null;
+  const platformMeta = platformKey ? metaFor(platformKey) : null;
+  // The name /api/content/* speaks ('instagram'), not the connector key
+  // ('meta_instagram').
+  const generationKey = platformMeta ? platformMeta.generationKey : 'instagram';
+  const isTelegram = platformKey === 'telegram';
+  const telegramReady = !!(tgStatus?.connected && tgStatus?.chat);
 
   // Before-After slider state
   const [sliderPosition, setSliderPosition] = useState(50);
@@ -70,6 +96,29 @@ export default function ContentEngine({ activeProfile }) {
     setPostNowError(null);
   };
 
+  // Switching platform tabs clears the draft — copy written for TikTok should
+  // never silently ship to Google Business.
+  const handleSelectPlatform = (key) => {
+    if (key === platformKey) return;
+    setPlatformKey(key);
+    setGeneratedCopy(null);
+    setTgPostResult(null);
+    resetPostFlows();
+  };
+
+  const handlePostToTelegram = async () => {
+    if (!generatedCopy || tgPosting) return;
+    setTgPosting(true);
+    setTgPostResult(null);
+    try {
+      await api.post('/api/telegram/post', { text: generatedCopy.post });
+      setTgPostResult('ok');
+    } catch (err) {
+      setTgPostResult(err.message || t('content.telegram.postFailed', 'Posting failed'));
+    }
+    setTgPosting(false);
+  };
+
   const handleGenerateCopy = async (e) => {
     e.preventDefault();
     if (!topic.trim()) return;
@@ -79,7 +128,7 @@ export default function ContentEngine({ activeProfile }) {
     setTgPostResult(null);
     try {
       const data = await api.post('/api/content/copywrite', {
-        platform,
+        platform: generationKey,
         topic,
         languages: langMode === 'multi' ? ['en', 'uz', 'ru'] : ['en'],
         tone: activeProfile.brandTone || activeProfile.tone,
@@ -99,6 +148,18 @@ export default function ContentEngine({ activeProfile }) {
       });
     }
     setLoadingCopy(false);
+  };
+
+  // A filled template drops straight into the composer output, ready to post or
+  // schedule through the same approval path as generated copy.
+  const handleUseTemplate = (text) => {
+    resetPostFlows();
+    setTgPostResult(null);
+    setGeneratedCopy({
+      post: text,
+      mediaTip: t('templates.fromTemplateTip', 'Filled from one of your saved templates — review it, then post or schedule.'),
+    });
+    setMode('compose');
   };
 
   const handleSliderMove = (e) => {
@@ -123,7 +184,7 @@ export default function ContentEngine({ activeProfile }) {
     try {
       const when = new Date(`${pickedDate}T${pickedTime}`);
       await api.post('/api/content/schedule', {
-        platform,
+        platform: generationKey,
         postText: generatedCopy.post,
         scheduledTime: when.toISOString(),
       });
@@ -141,7 +202,7 @@ export default function ContentEngine({ activeProfile }) {
     setPostNowError(null);
     try {
       const response = await api.post('/api/content/post-now', {
-        platform,
+        platform: generationKey,
         postText: generatedCopy.post,
       });
       setPostedMsg(
@@ -208,37 +269,96 @@ export default function ContentEngine({ activeProfile }) {
 
   const tutorials = categoryTutorials[activeProfile.category] || genericTutorials;
 
+  if (!catalogue || !platform) {
+    return <div className="text-center" style={{ padding: 40 }}><i className="fa-solid fa-spinner fa-spin fa-2x text-accent"></i></div>;
+  }
+
   return (
-    <div className="content-engine-container animate-fade-in">
+    <div className="content-engine-layout animate-fade-in">
+
+      {/* --- PLATFORM MENU (vertical, connected channels only) --- */}
+      <nav className="platform-menu" aria-label={t('content.platformTabsLabel', 'Platform')}>
+        <span className="platform-menu-label">{t('content.yourChannels', 'Your channels')}</span>
+        <div className="platform-menu-items" role="tablist">
+          {catalogue.map((p) => {
+            const m = metaFor(p.key);
+            const isConnected = !!(connectStatus[p.key] && connectStatus[p.key].connected);
+            return (
+              <button
+                key={p.key}
+                role="tab"
+                aria-selected={p.key === platformKey}
+                className={`platform-menu-item ${p.key === platformKey ? 'active' : ''}`}
+                onClick={() => handleSelectPlatform(p.key)}
+                id={`btn_platform_tab_${p.key}`}
+              >
+                <i className={`${m.icon} platform-menu-icon`} style={{ color: m.color }}></i>
+                <span className="platform-menu-name">{p.label}</span>
+                {isConnected && (
+                  <span
+                    className="platform-menu-dot"
+                    title={t('connections.state.connected', 'Connected')}
+                    aria-label={t('connections.state.connected', 'Connected')}
+                  ></span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {!hasConnections && (
+          <p className="platform-menu-empty text-muted">
+            <i className="fa-solid fa-circle-info"></i>{' '}
+            {t('content.noConnections', 'No channels connected yet — connect one in Connections to publish for real.')}
+          </p>
+        )}
+      </nav>
+
+      <div className="content-engine-container">
+        {/* --- COMPOSE / TEMPLATES SWITCH --- */}
+        <div className="engine-mode-tabs">
+          <button
+            className={`picker-chip ${mode === 'compose' ? 'active' : ''}`}
+            onClick={() => setMode('compose')}
+            id="btn_engine_mode_compose"
+          >
+            <i className="fa-solid fa-pen-nib"></i> {t('content.modeCompose', 'Compose')}
+          </button>
+          <button
+            className={`picker-chip ${mode === 'templates' ? 'active' : ''}`}
+            onClick={() => setMode('templates')}
+            id="btn_engine_mode_templates"
+          >
+            <i className="fa-solid fa-shapes"></i> {t('content.modeTemplates', 'Templates')}
+          </button>
+        </div>
+
+      {mode === 'templates' ? (
+        <TemplateStudio
+          key={platformKey}
+          platformKey={platformKey}
+          platformLabel={platform.label}
+          onUseTemplate={handleUseTemplate}
+        />
+      ) : (
       <div className="grid-2 main-content-grids">
-        
+
         {/* --- AI COPYWRITER PANEL --- */}
         <div className="copywriter-panel glass-card">
           <div className="panel-title-wrap">
             <i className="fa-solid fa-pen-nib text-accent icon-header"></i>
             <div>
               <h3>{t('content.copywriter.title', 'Multilingual AI Copywriter')}</h3>
-              <p className="text-muted">{t('content.copywriter.subtitle', 'Generate scheduled posts formatted specifically per channel')}</p>
+              <p className="text-muted">
+                {t('content.copywriter.subtitleForPlatform', {
+                  defaultValue: 'Writing for {{platform}} — formatted the way that channel expects.',
+                  platform: platform.label,
+                })}
+              </p>
             </div>
           </div>
 
           <form onSubmit={handleGenerateCopy} className="mt-20">
-            <div className="form-group">
-              <label className="form-label">{t('content.copywriter.platformLabel', 'Destination Platform')}</label>
-              <div className="platform-radio-group">
-                {['Instagram', 'Telegram', 'TikTok'].map((plat) => (
-                  <button
-                    key={plat}
-                    type="button"
-                    className={`platform-select-btn ${platform === plat ? 'active' : ''}`}
-                    onClick={() => setPlatform(plat)}
-                  >
-                    <i className={`fa-brands fa-${plat.toLowerCase()}`}></i> {plat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="form-group">
               <label className="form-label">{t('content.copywriter.languageLabel', 'Post Language')}</label>
               <div className="platform-radio-group">
@@ -286,13 +406,13 @@ export default function ContentEngine({ activeProfile }) {
           {generatedCopy && (
             <div className="generated-output-box glass-card mt-20 animate-fade-in">
               <div className="output-header flex-between">
-                <span className="badge badge-primary"><i className="fa-solid fa-code-merge"></i> {t('content.output.toneOptimized', 'Platform Tone-Optimized')}</span>
+                <span className="badge badge-primary"><i className="fa-solid fa-code-merge"></i> {platform.label}</span>
                 <small className="text-muted">{langMode === 'multi' ? t('content.output.langMulti', 'English + Uzbek + Russian') : t('content.output.langEn', 'English')}</small>
               </div>
               <div className="output-content">
                 <pre className="copy-text-area">{generatedCopy.post}</pre>
               </div>
-              
+
               <div className="output-tips-card">
                 <h5><i className="fa-solid fa-lightbulb text-accent"></i> {t('content.output.mediaTipTitle', 'Recommended Photography Frame')}</h5>
                 <p>{generatedCopy.mediaTip}</p>
@@ -301,7 +421,7 @@ export default function ContentEngine({ activeProfile }) {
               <div className="output-actions flex-between mt-20">
                 <button className="btn btn-secondary btn-sm" onClick={() => { setGeneratedCopy(null); resetPostFlows(); }} id="btn_discard_post">{t('common.discard', 'Discard')}</button>
                 <div className="flex-gap-8">
-                  {platform === 'Telegram' && telegramReady && tgPostResult !== 'ok' && (
+                  {isTelegram && telegramReady && tgPostResult !== 'ok' && (
                     <button className="btn btn-primary btn-sm" onClick={handlePostToTelegram} disabled={tgPosting} id="btn_post_telegram_now">
                       <i className="fa-brands fa-telegram"></i> {tgPosting ? t('content.telegram.publishing', 'Publishing…') : t('content.telegram.postNow', { defaultValue: 'Post to {{chatTitle}} now', chatTitle: tgStatus.chat.chatTitle })}
                     </button>
@@ -413,14 +533,14 @@ export default function ContentEngine({ activeProfile }) {
 
         {/* --- PHOTO / VIDEO WORKFLOW PANEL --- */}
         <div className="media-panel">
-          
+
           {/* BEFORE AFTER COMPARISON */}
           <div className="enhancer-box glass-card mb-20">
             <h3>{t('content.enhancer.title', 'AI Photo Enhancement')}</h3>
             <p className="panel-subtitle">{t('content.enhancer.subtitle', 'Upload smartphone photos and let our AI optimize brightness, textures & contrast')}</p>
 
-            <div 
-              className="before-after-container" 
+            <div
+              className="before-after-container"
               onMouseMove={handleSliderMove}
               onTouchMove={(e) => { if (e.touches[0]) handleSliderMove(e.touches[0]); }}
             >
@@ -428,11 +548,11 @@ export default function ContentEngine({ activeProfile }) {
               <div className="image-after" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=500&auto=format&fit=crop')` }}>
                 <span className="image-label label-after">{t('content.enhancer.afterLabel', 'Enhanced AI Frame')}</span>
               </div>
-              
+
               {/* Before Image (Raw) */}
-              <div className="image-before" style={{ 
+              <div className="image-before" style={{
                 backgroundImage: `url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=500&auto=format&fit=crop')`,
-                clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)` 
+                clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)`
               }}>
                 <span className="image-label label-before">{t('content.enhancer.beforeLabel', 'Raw Phone Photo')}</span>
               </div>
@@ -471,6 +591,8 @@ export default function ContentEngine({ activeProfile }) {
 
         </div>
 
+      </div>
+      )}
       </div>
     </div>
   );

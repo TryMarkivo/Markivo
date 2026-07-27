@@ -52,6 +52,18 @@ const config = {
   aiContentModel: process.env.AI_CONTENT_MODEL || 'claude-haiku-4-5',
   aiAgentModel: process.env.AI_AGENT_MODEL || 'claude-opus-4-8',
 
+  // --- AI (Google Gemini) — social copy + message templates ---
+  // Gemini is the PREFERRED engine for social post copy and for turning a real
+  // message an owner sends ("Stadium No:141, 9 spots left ✅") into a reusable
+  // template with editable variables. When GEMINI_API_KEY is unset the copy
+  // path falls through to Anthropic and then to the smart templates, and the
+  // template path falls back to the deterministic heuristic parser in
+  // gemini.js — so a blank key never breaks the app or the tests.
+  // Key: https://aistudio.google.com/apikey
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash',
+  geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 20000,
+
   // Monthly AI generation allowance per pricing tier (content + slogans +
   // agent queries all count). Numbers are provisional until pricing is final.
   aiTierLimits: {
@@ -159,7 +171,12 @@ config.connectors.meta.enabled = !!(config.connectors.meta.clientId && config.co
 config.connectors.google.enabled = !!(config.connectors.google.clientId && config.connectors.google.clientSecret);
 config.connectors.tiktok.enabled = !!(config.connectors.tiktok.clientKey && config.connectors.tiktok.clientSecret);
 
+config.geminiEnabled = !!config.geminiApiKey;
+// "AI is on" means at least one text engine is reachable. aiEnabled stays tied
+// to Anthropic because ai.js builds its Anthropic client (and the agent's tool
+// loop) off it; geminiEnabled gates the Gemini copy + template paths.
 config.aiEnabled = !!config.anthropicApiKey;
+config.textEngine = config.geminiEnabled ? 'gemini' : (config.aiEnabled ? 'anthropic' : 'template');
 // Instagram connect goes live only when both Instagram app credentials are set.
 config.instagramEnabled = !!(config.instagramAppId && config.instagramAppSecret);
 

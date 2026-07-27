@@ -21,12 +21,18 @@ const get = (key) => byKey.get(key) || null;
 const has = (key) => byKey.has(key);
 const list = () => ADAPTERS.slice();
 
-// Public, non-secret descriptor for the dashboard / API.
+// Public, non-secret descriptor for the dashboard / API. Includes the adapter's
+// owner-facing connect guidance so the Connections screen can explain HOW to
+// connect any platform without the frontend hardcoding per-platform copy.
 const describe = (a) => ({
   key: a.key,
   label: a.label,
   group: a.group || a.key,
   live: a.isLive(),
+  authType: a.authType || 'oauth',
+  docsUrl: a.docsUrl || null,
+  requirements: a.requirements || [],
+  howToConnect: a.howToConnect || [],
 });
 const catalogue = () => ADAPTERS.map(describe);
 
