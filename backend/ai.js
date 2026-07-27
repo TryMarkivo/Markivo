@@ -21,32 +21,35 @@ const cleanTag = (name) => `#${(name || 'business').toLowerCase().replace(/[^a-z
 
 // ===========================================================================
 // FALLBACK TEMPLATES (used when no API key, or if a live call fails)
-// English-first; Uzbek/Russian lines are appended only when requested.
+// The language blocks come out in the ORDER the owner selected — the same
+// contract the live engines follow (gemini.langInstructionFor).
 // ===========================================================================
 function templateContent({ platform, topic, businessName, category, description, languages }) {
   const name = businessName || 'Our Spot';
-  const langs = languages && languages.length ? languages : ['en'];
-  const multi = langs.includes('uz') || langs.includes('ru');
+  const langs = gemini.normalizeLanguages(languages);
 
   // No topic? Lead with the owner's own business description so the fallback
   // is personalised to ANY business, not a generic (or cafe-flavoured) line.
-  const enLine = topic
-    ? `${topic}`
-    : (description && description.trim()
-      ? description.trim().slice(0, 180)
-      : `We've prepared something special for you. Come by, relax, and enjoy real local quality.`);
-  const uzLine = `\n\n🇺🇿 ${topic || "Sizlar uchun maxsus taklif tayyorladik. Keling, dam oling va sifatli xizmatdan bahra oling."}`;
-  const ruLine = `\n\n🇷🇺 ${topic || 'Мы приготовили для вас нечто особенное. Приходите и насладитесь качеством.'}`;
-  const extras = multi ? `${langs.includes('uz') ? uzLine : ''}${langs.includes('ru') ? ruLine : ''}` : '';
+  const lines = {
+    en: topic
+      ? `${topic}`
+      : (description && description.trim()
+        ? description.trim().slice(0, 180)
+        : `We've prepared something special for you. Come by, relax, and enjoy real local quality.`),
+    uz: `🇺🇿 ${topic || "Sizlar uchun maxsus taklif tayyorladik. Keling, dam oling va sifatli xizmatdan bahra oling."}`,
+    ru: `🇷🇺 ${topic || 'Мы приготовили для вас нечто особенное. Приходите и насладитесь качеством.'}`,
+  };
+  // One message, the selected languages stacked in the selected order.
+  const body = langs.map((l) => lines[l]).join('\n\n');
 
   const mocks = {
     instagram: {
-      post: `✨ Something special at ${name}! ✨\n\n${enLine}${extras}\n\n📍 Visit us — link in bio.`,
+      post: `✨ Something special at ${name}! ✨\n\n${body}\n\n📍 Visit us — link in bio.`,
       mediaTip: '📸 Close-up of your signature item in warm natural window light.',
       hashtags: ['#SupportLocal', '#Tashkent', cleanTag(name)],
     },
     telegram: {
-      post: `📢 ${name}\n\n${enLine}${extras}\n\n👉 Follow this channel for updates!`,
+      post: `📢 ${name}\n\n${body}\n\n👉 Follow this channel for updates!`,
       mediaTip: '📱 Square image with minimal text overlay for chat readability.',
       hashtags: ['#Tashkent', cleanTag(name)],
     },
@@ -320,8 +323,6 @@ const CONTENT_SCHEMA = {
   additionalProperties: false,
 };
 
-const LANG_NAMES = { en: 'English', uz: 'Uzbek (Latin script)', ru: 'Russian' };
-
 // Autopilot: analyze a business + its recent activity, then draft one ready-to-
 // publish ORGANIC promotional post per target platform. Keyless -> templates.
 function templateAutonomousPlan(ctx) {
@@ -422,11 +423,9 @@ async function generateContent(ctx) {
   if (viaGemini) return viaGemini;
   if (!client) return templateContent(ctx);
   const { platform = 'instagram', topic, businessName, category, description, brandTone, audience } = ctx;
-  const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => LANG_NAMES[l]);
-  const langInstruction =
-    langs.length <= 1
-      ? 'Write the post in English only.'
-      : `Write the same message in each of these languages, English first, clearly separated: ${langs.map((l) => LANG_NAMES[l]).join(', ')}.`;
+  // Shared with the Gemini path so both engines honour the owner's chosen
+  // language ORDER identically.
+  const langInstruction = gemini.langInstructionFor(ctx.languages);
   try {
     const msg = await client.messages.create({
       model: config.aiContentModel,

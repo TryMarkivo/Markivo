@@ -82,6 +82,11 @@ export const api = {
   patch: (path, body, opts) => request(path, { ...opts, method: 'PATCH', body }),
   del: (path, opts) => request(path, { ...opts, method: 'DELETE' }),
 
+  // Uploaded media is served by the API, not the Vite dev server, so a bare
+  // "/uploads/x.jpg" has to be resolved against the API origin. Absolute URLs
+  // (already-public render results) pass through untouched.
+  mediaUrl: (url) => (!url ? '' : url.startsWith('http') ? url : API_BASE + (url.startsWith('/') ? url : `/${url}`)),
+
   async register(payload) {
     const data = await request('/api/auth/register', { method: 'POST', body: payload, auth: false });
     tokens.set(data);

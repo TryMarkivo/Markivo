@@ -449,6 +449,9 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
     profileId: profile.id,
     platform: (platform || 'instagram').toLowerCase(),
     postText,
+    // Carried so the scheduled-post worker can publish the same photo/video the
+    // owner attached in the composer, hours later.
+    mediaId: typeof req.body.mediaId === 'string' ? req.body.mediaId : null,
     scheduledTime: scheduledTime || new Date(Date.now() + 86400000).toISOString(),
     status: 'scheduled',
   });
@@ -471,7 +474,7 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
     const conn = db.telegram.findByProfile(profile.id);
     if (conn && conn.chatId) {
       try {
-        const result = await executeTelegramPost(profile, postText);
+        const result = await executeTelegramPost(profile, postText, req.body.mediaId);
         return res.json({ success: true, simulated: false, ...result });
       } catch (err) {
         return res.status(400).json({ error: err.description || err.message });
@@ -493,6 +496,19 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
           return res.status(400).json({ error: err.message });
         }
       }
+      // Connected but unpublishable. Silently filing this as a "posted" calendar
+      // row is how the composer used to look broken — the owner pressed Post and
+      // nothing ever reached Instagram. Say exactly what is missing instead.
+      if (!config.publicBaseUrl) {
+        return res.status(400).json({
+          error: 'Instagram fetches post media from a public URL, and PUBLIC_BASE_URL is not configured on the server, so publishing is unavailable.',
+          reason: 'no_public_base_url',
+        });
+      }
+      return res.status(400).json({
+        error: 'Instagram posts must include a photo or video — attach one and post again.',
+        reason: 'media_required',
+      });
     }
   }
 
@@ -500,6 +516,7 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
     profileId: profile.id,
     platform,
     postText,
+    mediaId: typeof req.body.mediaId === 'string' ? req.body.mediaId : null,
     scheduledTime: new Date().toISOString(),
     status: 'posted',
   });
@@ -681,11 +698,23 @@ app.post('/api/templates/analyze', verifyToken, checkAiBudget, asyncRoute(async 
   });
 }));
 
+// A stored mediaId is only an id; the UI needs a URL and the kind to render a
+// thumbnail. Decorating here keeps that lookup out of every client.
+const withMedia = (tpl) => {
+  if (!tpl) return tpl;
+  const m = tpl.mediaId ? db.media.findById(tpl.mediaId) : null;
+  return {
+    ...tpl,
+    mediaUrl: m && m.filePath ? `/${m.filePath.replace(/^\/+/, '')}` : null,
+    mediaKind: m ? m.kind : null,
+  };
+};
+
 app.get('/api/templates', verifyToken, (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.json([]);
   const platform = req.query.platform ? String(req.query.platform) : null;
-  res.json(db.templates.listByProfile(profile.id, platform));
+  res.json(db.templates.listByProfile(profile.id, platform).map(withMedia));
 });
 
 // Save a template. The TEXT is authoritative: whatever {{placeholders}} the
@@ -707,8 +736,10 @@ app.post('/api/templates', verifyToken, (req, res) => {
     templateText,
     variables: gemini.reconcileVariables(templateText, req.body.variables),
     source: ['gemini', 'heuristic', 'manual'].includes(req.body.source) ? req.body.source : 'manual',
+    // Optional photo/video that ships with every post made from this template.
+    mediaId: typeof req.body.mediaId === 'string' && req.body.mediaId ? req.body.mediaId : null,
   });
-  res.json(saved);
+  res.json(withMedia(saved));
 });
 
 // Load a template owned by the caller's profile, or answer 404. Shared by the
@@ -736,10 +767,12 @@ app.put('/api/templates/:id', verifyToken, (req, res) => {
     if (text.length > 4000) return res.status(400).json({ error: 'Template must be 4000 characters or fewer' });
     fields.templateText = text;
   }
+  // An explicit null/'' detaches the attached photo/video.
+  if (req.body.mediaId !== undefined) fields.mediaId = req.body.mediaId || null;
   // Variables always follow the text they belong to (new text if it changed).
   const text = fields.templateText || tpl.templateText;
   fields.variables = gemini.reconcileVariables(text, req.body.variables || tpl.variables);
-  res.json(db.templates.update(tpl.id, fields));
+  res.json(withMedia(db.templates.update(tpl.id, fields)));
 });
 
 app.delete('/api/templates/:id', verifyToken, (req, res) => {
@@ -755,7 +788,16 @@ app.post('/api/templates/:id/render', verifyToken, (req, res) => {
   const tpl = ownedTemplate(req, res);
   if (!tpl) return;
   const values = req.body.values && typeof req.body.values === 'object' ? req.body.values : {};
-  res.json({ text: gemini.renderTemplate(tpl.templateText, values), platform: tpl.platform });
+  const decorated = withMedia(tpl);
+  res.json({
+    text: gemini.renderTemplate(tpl.templateText, values),
+    platform: tpl.platform,
+    // The attached media rides along so "use this template" lands in the
+    // composer with its photo/video already set.
+    mediaId: decorated.mediaId || null,
+    mediaUrl: decorated.mediaUrl,
+    mediaKind: decorated.mediaKind,
+  });
 });
 
 // ==========================================
@@ -867,16 +909,28 @@ app.get('/api/telegram/status', verifyToken, (req, res) => {
   });
 });
 
+// A stored mediaId -> the public URL Telegram/Instagram must fetch it from.
+// Returns null when the media is missing, not ours, or unreachable publicly.
+function resolvePublicMedia(profile, mediaId) {
+  if (!mediaId) return null;
+  const m = db.media.findById(String(mediaId));
+  if (!m || m.profileId !== profile.id || !m.filePath || !config.publicBaseUrl) return null;
+  return { url: `${config.publicBaseUrl}/${m.filePath.replace(/^\/+/, '')}`, kind: m.kind };
+}
+
 // Shared executor — used by the direct post route AND the agent approval gate.
-async function executeTelegramPost(profile, text) {
+// Media is optional: Telegram, unlike Instagram, publishes text on its own.
+async function executeTelegramPost(profile, text, mediaId) {
   const conn = db.telegram.findByProfile(profile.id);
   if (!conn) throw new Error('Telegram is not connected');
   if (!conn.chatId) throw new Error('No channel or group linked yet — finish the Telegram setup on your dashboard');
-  const sent = await tg.sendMessage(conn.botToken, conn.chatId, text);
+  const media = resolvePublicMedia(profile, mediaId);
+  const sent = await tg.sendPost(conn.botToken, conn.chatId, text, media);
   db.calendar.add({
     profileId: profile.id,
     platform: 'telegram',
     postText: text,
+    mediaId: mediaId || null,
     scheduledTime: new Date().toISOString(),
     status: 'posted',
   });
@@ -890,7 +944,7 @@ app.post('/api/telegram/post', verifyToken, telegramGate, asyncRoute(async (req,
   if (!text) return res.status(400).json({ error: 'Post text is required' });
 
   try {
-    const result = await executeTelegramPost(profile, text);
+    const result = await executeTelegramPost(profile, text, req.body.mediaId);
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(400).json({ error: err.description || err.message });
@@ -1196,14 +1250,26 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
+  const metrics = {
+    googleViews: { current: 4320, change: 12.4 },
+    googleCalls: { current: 148, change: 8.2 },
+    instagramFollowers: { current: 1542, change: 15.6 },
+    telegramSubscribers,
+    tiktokFollowers: { current: 0, change: 0 },
+  };
+
+  // Record today's reading, then hand back the recorded series so the dashboard
+  // sparklines plot REAL movement. Metrics whose integrations have not landed
+  // yet are still fixed demo numbers, so their series is honestly flat — the UI
+  // says "collecting data" rather than drawing an invented curve.
+  const day = new Date().toISOString().slice(0, 10);
+  for (const [key, m] of Object.entries(metrics)) {
+    db.metricHistory.record({ profileId: profile.id, metric: key, day, value: m.current });
+    m.history = db.metricHistory.series(profile.id, key, 30);
+  }
+
   res.json({
-    metrics: {
-      googleViews: { current: 4320, change: 12.4 },
-      googleCalls: { current: 148, change: 8.2 },
-      instagramFollowers: { current: 1542, change: 15.6 },
-      telegramSubscribers,
-      tiktokFollowers: { current: 0, change: 0 },
-    },
+    metrics,
     competitors: (competitors.length ? competitors : [
       { competitor_name: 'District Roasters B', platforms_detected: ['google', 'instagram', 'telegram', 'tiktok'], posts_per_week: 8, rating: 4.6, followers_count: 4100 },
     ]).map((c) => ({
@@ -1734,7 +1800,32 @@ async function runScheduledPostsTick() {
   let failed = 0;
 
   for (const row of due) {
-    // Non-telegram platforms: integrations pending — leave the row untouched.
+    // Instagram: publish for real when connected AND the row carries the media
+    // the owner attached in the composer. Instagram has no text-only post type,
+    // so a row without media can never publish — leave it scheduled rather than
+    // flipping it to 'failed', since attaching media later makes it valid.
+    if (row.platform === 'instagram') {
+      if (!config.instagramEnabled || !row.mediaId) continue;
+      const profile = db.profiles.findById(row.profileId);
+      const conn = profile ? db.instagram.findByProfile(profile.id) : null;
+      if (!profile || !conn || !conn.igUserId) continue;
+      const media = resolveInstagramMedia(profile, { mediaId: row.mediaId });
+      if (!media.imageUrl && !media.videoUrl) continue;
+      try {
+        // ig.publishMediaPost directly, NOT executeInstagramPost — that helper
+        // inserts a NEW calendar row; here the row exists and just flips status.
+        await ig.publishMediaPost(conn, { ...media, caption: row.post_text });
+        db.calendar.setStatus(row.id, 'posted');
+        posted += 1;
+      } catch (err) {
+        db.calendar.setStatus(row.id, 'failed');
+        console.warn(`Scheduled instagram post ${row.id} failed:`, err.message);
+        failed += 1;
+      }
+      continue;
+    }
+
+    // Other non-telegram platforms: integrations pending — leave the row alone.
     if (row.platform !== 'telegram') continue;
     // Flag off, or the profile hasn't linked a chat yet: leave it scheduled so
     // it publishes automatically once the setup completes.
@@ -1745,7 +1836,9 @@ async function runScheduledPostsTick() {
     // Send directly (NOT executeTelegramPost — that helper adds a NEW calendar
     // row for ad-hoc posts; here the row already exists and just flips status).
     try {
-      await tg.sendMessage(conn.botToken, conn.chatId, row.post_text);
+      const profile = row.mediaId ? db.profiles.findById(row.profileId) : null;
+      const media = profile ? resolvePublicMedia(profile, row.mediaId) : null;
+      await tg.sendPost(conn.botToken, conn.chatId, row.post_text, media);
       db.calendar.setStatus(row.id, 'posted');
       posted += 1;
     } catch (err) {

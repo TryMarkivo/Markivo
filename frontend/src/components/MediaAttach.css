@@ -1,0 +1,48 @@
+/* Attach one photo/video to a post or template. Shared by the Content Engine
+   composer and the Template Studio. */
+
+.media-attach {
+  margin-top: 4px;
+}
+
+.media-attach-cta {
+  border-style: dashed;
+}
+
+.media-attach-hint {
+  font-size: 0.75rem;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.media-attach-preview {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--surface-1);
+}
+
+.media-attach-thumb {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+}
+
+.media-attach-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.media-attach-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}

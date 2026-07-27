@@ -910,3 +910,55 @@
   font-size: 0.8rem;
   box-shadow: var(--shadow-md);
 }
+
+/* --- POST BAR ---------------------------------------------------------- */
+/* End-of-page call to action: everything above produces the media, this ships
+   it. Only rendered when there is a finished photo/video with a media id. */
+.media-post-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+  border-color: var(--accent-primary);
+  background: rgba(212, 163, 115, 0.06);
+}
+
+.media-post-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.media-post-bar-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.media-post-bar-icon {
+  font-size: 1.6rem;
+  color: var(--accent-primary);
+  width: 56px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.media-post-bar-info p {
+  font-size: 0.82rem;
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .media-post-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

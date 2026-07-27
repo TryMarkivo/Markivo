@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import MediaAttach from './MediaAttach';
 import './TemplateStudio.css';
 
 // Mirrors the backend placeholder format (backend/gemini.js) so the inline view
@@ -223,6 +224,7 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
         templateText: data.templateText || '',
         varMeta,
         source: data.source || 'manual',
+        media: null,
       });
     } catch (err) {
       setError(err.message || t('common.somethingWentWrong', 'Something went wrong'));
@@ -234,7 +236,7 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
   // no variables, for when there is nothing for the parser to find.
   const handleStartBlank = () => {
     setError('');
-    openDraft({ id: null, name: '', templateText: sample, varMeta: {}, source: 'manual' });
+    openDraft({ id: null, name: '', templateText: sample, varMeta: {}, source: 'manual', media: null });
   };
 
   // Reopen a saved template in the editor. Same surface as a fresh draft, so
@@ -251,6 +253,7 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
       templateText: tpl.templateText || '',
       varMeta,
       source: tpl.source || 'manual',
+      media: tpl.mediaId ? { id: tpl.mediaId, url: tpl.mediaUrl, kind: tpl.mediaKind || 'image' } : null,
     });
     editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -328,6 +331,8 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
       templateText: draft.templateText,
       variables: draftKeys.map((key) => ({ key, ...metaFor(key) })),
       source: draft.source,
+      // Explicit null detaches on edit — omitting the field would keep the old one.
+      mediaId: draft.media?.id || null,
     };
     try {
       if (draft.id) await api.put(`/api/templates/${draft.id}`, body);
@@ -513,6 +518,18 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
             </div>
           )}
 
+          {/* Media saved WITH the template: an Instagram template is useless
+              without it, since Instagram has no text-only post type. */}
+          <div className="form-group tpl-media">
+            <label className="form-label">{t('templates.mediaLabel', 'Photo or video for this template')}</label>
+            <MediaAttach
+              value={draft.media}
+              onChange={(media) => patchDraft({ media })}
+              disabled={saving}
+              hint={t('templates.mediaHint', 'Optional. Every post made from this template goes out with this media attached.')}
+            />
+          </div>
+
           <div className="template-actions">
             <button className="btn btn-secondary" onClick={() => setDraft(null)}>
               {t('common.cancel', 'Cancel')}
@@ -553,6 +570,11 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
                 <div className="flex-between">
                   <div>
                     <strong>{tpl.name || t('templates.untitled', 'Untitled template')}</strong>
+                    {tpl.mediaId && (
+                      <span className="tpl-media-badge" title={t('templates.hasMedia', 'Has attached media')}>
+                        <i className={`fa-solid ${tpl.mediaKind === 'video' ? 'fa-video' : 'fa-image'}`}></i>
+                      </span>
+                    )}
                     <p className="template-hint text-muted">{renderTemplate(tpl.templateText, Object.fromEntries((tpl.variables || []).map((v) => [v.key, v.example])))}</p>
                   </div>
                   <div className="flex-gap-8">
@@ -603,7 +625,10 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
                       <button
                         className="btn btn-primary"
                         onClick={() => {
-                          onUseTemplate?.(renderTemplate(tpl.templateText, filling.values));
+                          onUseTemplate?.(
+                            renderTemplate(tpl.templateText, filling.values),
+                            tpl.mediaId ? { id: tpl.mediaId, url: tpl.mediaUrl, kind: tpl.mediaKind || 'image' } : null
+                          );
                           setFilling(null);
                         }}
                         id={`btn_use_template_${tpl.id}`}

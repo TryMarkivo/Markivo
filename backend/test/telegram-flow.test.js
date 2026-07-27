@@ -12,6 +12,9 @@ process.env.NODE_ENV = 'test';
 // Telegram is feature-flagged off by default (post-MVP); this suite tests the
 // full integration, so turn it on for this process.
 process.env.TELEGRAM_ENABLED = 'true';
+// Telegram fetches attached media from a public URL, so posts with media are
+// only resolvable when the server knows its own public origin.
+process.env.PUBLIC_BASE_URL = 'https://public.example.com';
 
 // Selective fetch stub: fake api.telegram.org, pass localhost through.
 const realFetch = global.fetch;
@@ -34,6 +37,8 @@ global.fetch = async (url, opts) => {
     getChatMember: { ok: true, result: { status: 'administrator', can_post_messages: true } },
     getChatMemberCount: { ok: true, result: 1234 },
     sendMessage: { ok: true, result: { message_id: 1001 } },
+    sendPhoto: { ok: true, result: { message_id: 1002 } },
+    sendVideo: { ok: true, result: { message_id: 1003 } },
     getUpdates: {
       ok: true,
       result: [{
@@ -149,6 +154,51 @@ test('direct /api/telegram/post publishes immediately', async () => {
   const data = await res.json();
   assert.strictEqual(data.success, true);
   assert.strictEqual(data.chatTitle, 'Noir News');
+});
+
+// A 1x1 PNG — the smallest thing /api/media/upload accepts.
+const PNG_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+const uploadPng = async () => {
+  const res = await post('/api/media/upload', { filename: 'shot.png', dataUrl: PNG_DATA_URL }, access);
+  assert.strictEqual(res.status, 200);
+  return (await res.json()).id;
+};
+
+test('a telegram post with an attached photo goes out as sendPhoto with a caption', async () => {
+  tgCalls.length = 0;
+  const mediaId = await uploadPng();
+  const res = await post('/api/telegram/post', { text: 'Look at this ☕', mediaId }, access);
+  assert.strictEqual(res.status, 200);
+
+  const photo = tgCalls.find((c) => c.method === 'sendPhoto');
+  assert.ok(photo, 'sendPhoto should have been called instead of sendMessage');
+  assert.match(photo.params.photo, /^https:\/\/public\.example\.com\/uploads\//);
+  assert.strictEqual(photo.params.caption, 'Look at this ☕');
+  // The text rode along as the caption — no second message needed.
+  assert.strictEqual(tgCalls.filter((c) => c.method === 'sendMessage').length, 0);
+});
+
+test('a post longer than the caption limit sends the media, then the full text', async () => {
+  tgCalls.length = 0;
+  const mediaId = await uploadPng();
+  const longText = 'x'.repeat(1200);
+  const res = await post('/api/telegram/post', { text: longText, mediaId }, access);
+  assert.strictEqual(res.status, 200);
+
+  // Captions cap at 1024, so truncating would silently eat the owner's copy.
+  const photo = tgCalls.find((c) => c.method === 'sendPhoto');
+  assert.strictEqual(photo.params.caption, '');
+  const msg = tgCalls.find((c) => c.method === 'sendMessage');
+  assert.strictEqual(msg.params.text.length, 1200);
+});
+
+test('a telegram post with no media still uses plain sendMessage', async () => {
+  tgCalls.length = 0;
+  await post('/api/telegram/post', { text: 'Text only' }, access);
+  assert.ok(tgCalls.some((c) => c.method === 'sendMessage'));
+  assert.ok(!tgCalls.some((c) => c.method === 'sendPhoto'));
 });
 
 test('dashboard stats report the LIVE subscriber count once a chat is linked', async () => {

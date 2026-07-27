@@ -226,6 +226,19 @@
   border-top: 1px dashed var(--border-subtle);
 }
 
+/* Media attached to the template being edited. */
+.tpl-media {
+  margin-top: 18px;
+}
+
+/* Marks a saved template that carries a photo/video, so the list makes the
+   difference visible without opening each one. */
+.tpl-media-badge {
+  margin-left: 8px;
+  color: var(--accent-primary);
+  font-size: 0.8rem;
+}
+
 @media (max-width: 600px) {
   .tpl-var-editor .form-group {
     flex: 1 1 100%;

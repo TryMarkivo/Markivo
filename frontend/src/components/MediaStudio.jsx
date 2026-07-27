@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import PublishModal from './PublishModal';
 import './MediaStudio.css';
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB client-side cap
@@ -55,6 +56,9 @@ export default function MediaStudio({ activeProfile }) {
   // Library + errors
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
+
+  // Publish flow — opens once a photo/video is actually finished.
+  const [publishOpen, setPublishOpen] = useState(false);
 
   // AI photo enhancement before/after wiper. It lives with the shoot rather
   // than the copywriter, so it moved here from the AI content engine.
@@ -191,6 +195,21 @@ export default function MediaStudio({ activeProfile }) {
   const enhancerImage = uploaded && !uploaded.isVideo
     ? mediaUrl
     : 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=500&auto=format&fit=crop';
+
+  // The finished photo/video this page can post right now. A rendered AI image
+  // and an uploaded file are both real files on the server with a media id, so
+  // either is publishable; the current mode decides which one is "the" result.
+  const renderedUrl = briefId ? renders[briefId]?.url : null;
+  const uploadedMedia = uploaded
+    ? { id: uploaded.id, url: uploaded.url, kind: uploaded.isVideo ? 'video' : 'image' }
+    : null;
+  const renderedMedia = renderedUrl ? { id: briefId, url: renderedUrl, kind: 'image' } : null;
+  const postable = mode === 'guided'
+    ? (uploadedMedia || renderedMedia)
+    : (renderedMedia || uploadedMedia);
+
+  // Seed the caption from the brief the AI already wrote for this shot.
+  const postCaption = asText(brief?.caption) || '';
 
   const statusLabels = {
     brief: t('media.status.brief', 'Brief'),
@@ -792,6 +811,39 @@ export default function MediaStudio({ activeProfile }) {
           </div>
         )}
       </div>
+
+      {/* POST — the end of the page, once there is a finished photo/video to
+          send. Everything above this point produces the media; this ships it. */}
+      {postable && (
+        <div className="media-post-bar glass-card animate-fade-in">
+          <div className="media-post-bar-info">
+            {postable.kind === 'video'
+              ? <i className="fa-solid fa-film media-post-bar-icon"></i>
+              : <img src={toAbsolute(postable.url)} alt="" className="media-post-bar-thumb" />}
+            <div>
+              <strong>{t('media.post.ready', 'Your media is ready')}</strong>
+              <p className="text-muted">{t('media.post.readyHint', 'Send it to your connected channels — now or on a schedule.')}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => setPublishOpen(true)}
+            id="btn_media_post"
+          >
+            <i className="fa-solid fa-paper-plane"></i> {t('media.post.cta', 'Post')}
+          </button>
+        </div>
+      )}
+
+      {publishOpen && postable && (
+        <PublishModal
+          media={postable}
+          defaultCaption={postCaption}
+          onClose={() => setPublishOpen(false)}
+          onPosted={loadLibrary}
+        />
+      )}
     </div>
   );
 }

@@ -1,21 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import CalendarGrid, { CalendarNav } from './CalendarGrid';
+import { DAY_MS, monthGrid, ymd } from '../lib/calendar';
 import './AutomationCalendar.css';
-
-const DAY_MS = 86400000;
-
-// Month grid always starts on Monday and covers whole weeks, so every month
-// renders as a stable 6x7 block that never reflows as you page through.
-function monthGrid(year, month) {
-  const first = new Date(year, month, 1);
-  const offset = (first.getDay() + 6) % 7; // 0 = Monday
-  const start = new Date(year, month, 1 - offset);
-  return Array.from({ length: 42 }, (_, i) => new Date(start.getTime() + i * DAY_MS));
-}
-
-const ymd = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const sourceOf = (ev) => (ev.extendedProperties?.private?.source) || 'scheduled_post';
 const isReadOnly = (ev) => ev.extendedProperties?.private?.readOnly === 'true';
@@ -62,14 +50,6 @@ export default function AutomationCalendar({ activeProfile }) {
     return map;
   }, [events]);
 
-  const monthLabel = cursor.toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' });
-  const weekdays = useMemo(() => {
-    // Monday-first weekday initials in the user's locale.
-    const base = new Date(2024, 0, 1); // a Monday
-    return Array.from({ length: 7 }, (_, i) =>
-      new Date(base.getTime() + i * DAY_MS).toLocaleDateString(i18n.language, { weekday: 'short' }));
-  }, [i18n.language]);
-
   const step = (delta) => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1));
   const goToday = () => {
     const now = new Date();
@@ -106,7 +86,6 @@ export default function AutomationCalendar({ activeProfile }) {
   };
 
   const selectedEvents = byDay[selected] || [];
-  const todayKey = ymd(new Date());
 
   return (
     <div className="automation-calendar">
@@ -117,16 +96,7 @@ export default function AutomationCalendar({ activeProfile }) {
             {t('calendar.subtitle', 'Everything Markivo has scheduled or already done, on one timeline.')}
           </p>
         </div>
-        <div className="cal-nav">
-          <button className="btn btn-secondary btn-sm" onClick={() => step(-1)} aria-label={t('calendar.prevMonth', 'Previous month')} id="btn_cal_prev">
-            <i className="fa-solid fa-chevron-left"></i>
-          </button>
-          <span className="cal-month-label">{monthLabel}</span>
-          <button className="btn btn-secondary btn-sm" onClick={() => step(1)} aria-label={t('calendar.nextMonth', 'Next month')} id="btn_cal_next">
-            <i className="fa-solid fa-chevron-right"></i>
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={goToday} id="btn_cal_today">{t('calendar.today', 'Today')}</button>
-        </div>
+        <CalendarNav cursor={cursor} onStep={step} onToday={goToday} />
       </div>
 
       {error && <div className="auth-error-box" role="alert">{error}</div>}
@@ -135,39 +105,27 @@ export default function AutomationCalendar({ activeProfile }) {
         <div className="text-center" style={{ padding: 40 }}><i className="fa-solid fa-spinner fa-spin fa-2x text-accent"></i></div>
       ) : (
         <>
-          <div className="cal-grid" role="grid">
-            {weekdays.map((w) => <div key={w} className="cal-weekday">{w}</div>)}
-
-            {days.map((d) => {
-              const key = ymd(d);
+          <CalendarGrid
+            cursor={cursor}
+            selected={selected}
+            onSelect={setSelected}
+            onDayDrop={(key, e) => {
+              const id = e.dataTransfer.getData('text/plain');
+              const ev = events.find((x) => x.id === id);
+              if (ev && !isReadOnly(ev)) moveEvent(ev, key);
+            }}
+            dayContent={(key) => {
               const dayEvents = byDay[key] || [];
-              const outside = d.getMonth() !== cursor.getMonth();
               return (
-                <button
-                  key={key}
-                  type="button"
-                  role="gridcell"
-                  className={`cal-day ${outside ? 'outside' : ''} ${key === todayKey ? 'is-today' : ''} ${key === selected ? 'is-selected' : ''}`}
-                  onClick={() => setSelected(key)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const id = e.dataTransfer.getData('text/plain');
-                    const ev = events.find((x) => x.id === id);
-                    if (ev && !isReadOnly(ev)) moveEvent(ev, key);
-                  }}
-                >
-                  <span className="cal-day-num">{d.getDate()}</span>
-                  <span className="cal-day-dots">
-                    {dayEvents.slice(0, 4).map((ev) => (
-                      <span key={ev.id} className={`cal-dot ${sourceOf(ev)} ${ev.status}`}></span>
-                    ))}
-                    {dayEvents.length > 4 && <span className="cal-more">+{dayEvents.length - 4}</span>}
-                  </span>
-                </button>
+                <span className="cal-day-dots">
+                  {dayEvents.slice(0, 4).map((ev) => (
+                    <span key={ev.id} className={`cal-dot ${sourceOf(ev)} ${ev.status}`}></span>
+                  ))}
+                  {dayEvents.length > 4 && <span className="cal-more">+{dayEvents.length - 4}</span>}
+                </span>
               );
-            })}
-          </div>
+            }}
+          />
 
           <div className="cal-agenda">
             <h4>{new Date(`${selected}T00:00:00`).toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'long' })}</h4>

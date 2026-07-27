@@ -10,6 +10,7 @@ import InstagramConnect from './InstagramConnect';
 import ConnectionsPanel from './ConnectionsPanel';
 import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
+import Sparkline from './Sparkline';
 import ThemeToggle from './ThemeToggle';
 import api from '../lib/api';
 import logoUrl from '../assets/markivo-logo.png';
@@ -191,7 +192,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             onClick={() => setActiveTab('analytics')}
             id="btn_tab_analytics"
           >
-            <i className="fa-solid fa-chart-pie"></i> {t('dashboard.nav.metrics', 'Metrics & Search')}
+            <i className="fa-solid fa-chart-pie"></i> {t('dashboard.nav.metrics', 'Dashboard')}
           </button>
           <button
             className={`nav-item ${activeTab === 'content' ? 'active' : ''}`}
@@ -367,10 +368,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                     <span className="text-muted">{t('dashboard.stats.past30Days', 'past 30 days')}</span>
                   </div>
                   <div className="stat-chart-svg">
-                    {/* SVG Sparkline drawing */}
-                    <svg viewBox="0 0 100 30" className="sparkline">
-                      <path d="M 0 25 Q 15 20, 30 18 T 60 12 T 90 2 Q 95 1, 100 0" fill="none" stroke="var(--accent-primary)" strokeWidth="2" />
-                    </svg>
+                    <Sparkline
+                      history={stats.metrics.googleViews.history}
+                      color="var(--accent-primary)"
+                      label={t('dashboard.stats.googleViews', 'Google Maps Search Views')}
+                    />
                   </div>
                 </div>
 
@@ -385,9 +387,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                     <span className="text-muted">@{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
                   </div>
                   <div className="stat-chart-svg">
-                    <svg viewBox="0 0 100 30" className="sparkline">
-                      <path d="M 0 28 Q 20 25, 40 18 T 70 8 T 100 2" fill="none" stroke="var(--accent-purple)" strokeWidth="2" />
-                    </svg>
+                    <Sparkline
+                      history={stats.metrics.instagramFollowers.history}
+                      color="var(--accent-purple)"
+                      label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
+                    />
                   </div>
                 </div>
 
@@ -402,9 +406,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                     <span className="text-muted">t.me/{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
                   </div>
                   <div className="stat-chart-svg">
-                    <svg viewBox="0 0 100 30" className="sparkline">
-                      <path d="M 0 24 Q 25 18, 50 15 T 75 8 T 100 3" fill="none" stroke="var(--accent-secondary)" strokeWidth="2" />
-                    </svg>
+                    <Sparkline
+                      history={stats.metrics.telegramSubscribers.history}
+                      color="var(--accent-secondary)"
+                      label={t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}
+                    />
                   </div>
                 </div>
               </div>
@@ -483,7 +489,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
           {/* TAB 2: AI CONTENT ENGINE */}
           {activeTab === 'content' && (
-            <ContentEngine token={token} activeProfile={activeProfile} />
+            <ContentEngine
+              token={token}
+              activeProfile={activeProfile}
+              onGoToConnections={() => setActiveTab('connections')}
+            />
           )}
 
           {activeTab === 'autopilot' && (

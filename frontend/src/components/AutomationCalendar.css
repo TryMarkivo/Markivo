@@ -83,6 +83,21 @@
   border-color: var(--accent-primary);
 }
 
+/* Past days in the schedule picker — a post cannot be scheduled backwards. */
+.cal-day.is-disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.cal-day.is-disabled:hover {
+  background: var(--surface-1);
+}
+
+/* The schedule picker has no agenda under it, so the cells can be shorter. */
+.publish-card .cal-day {
+  min-height: 44px;
+}
+
 .cal-day-num {
   font-size: 0.82rem;
   font-weight: 600;

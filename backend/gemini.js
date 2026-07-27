@@ -273,16 +273,35 @@ const CONTENT_SCHEMA = {
 
 const LANG_NAMES = { en: 'English', uz: 'Uzbek (Latin script)', ru: 'Russian' };
 
+// The caller's language ORDER is meaningful: the owner picks it in the UI and
+// expects the finished post to read in exactly that sequence (a Tashkent
+// business often wants Uzbek first, then Russian, then English). So the order
+// is preserved verbatim and never re-sorted to put English first.
+function normalizeLanguages(languages) {
+  const seen = new Set();
+  const langs = (Array.isArray(languages) ? languages : [])
+    .map((l) => String(l).toLowerCase())
+    .filter((l) => LANG_NAMES[l] && !seen.has(l) && seen.add(l));
+  return langs.length ? langs : ['en'];
+}
+
+function langInstructionFor(languages) {
+  const langs = normalizeLanguages(languages);
+  if (langs.length === 1) return `Write the post in ${LANG_NAMES[langs[0]]} only.`;
+  return (
+    'Write ONE post that carries the same message in each of these languages, ' +
+    `in exactly this order: ${langs.map((l, i) => `${i + 1}. ${LANG_NAMES[l]}`).join(', ')}. ` +
+    'Separate the language blocks with a blank line so they are easy to read in a single message. ' +
+    'Do not reorder the languages and do not add any language that is not listed.'
+  );
+}
+
 // Social post copy. Returns null (never throws) when Gemini is unavailable or
 // the call fails, so ai.generateContent can fall through to its next provider.
 async function generateContent(ctx) {
   if (!config.geminiEnabled) return null;
   const { platform = 'instagram', topic, businessName, category, description, brandTone, audience } = ctx;
-  const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => LANG_NAMES[l]);
-  const langInstruction =
-    langs.length <= 1
-      ? 'Write the post in English only.'
-      : `Write the same message in each of these languages, English first, clearly separated: ${langs.map((l) => LANG_NAMES[l]).join(', ')}.`;
+  const langInstruction = langInstructionFor(ctx.languages);
 
   try {
     const parsed = await callGemini({
@@ -509,6 +528,8 @@ module.exports = {
   generateMediaBrief,
   analyzeTemplate,
   // Deterministic helpers — used by the routes and exercised directly by tests.
+  normalizeLanguages,
+  langInstructionFor,
   heuristicTemplate,
   extractVariables,
   reconcileVariables,

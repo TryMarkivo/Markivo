@@ -147,14 +147,25 @@
   margin-bottom: 20px;
 }
 
-/* Radio Platform Group */
-.platform-radio-group {
-  display: flex;
-  gap: 10px;
+/* The composer is one column now that the photography guide lives in Media
+   Studio; cap the measure so the copy stays readable on a wide screen. */
+.compose-column {
+  max-width: 780px;
 }
 
-.platform-select-btn {
+/* Ordered language picker. The badge is the whole point of the control: it
+   shows the position each language will take inside the single published post,
+   so the owner can see "Uzbek first, then Russian" without generating first. */
+.lang-chip-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lang-chip {
+  position: relative;
   flex: 1;
+  min-width: 120px;
   padding: 12px;
   border-radius: var(--radius-sm);
   background: var(--input-bg);
@@ -169,15 +180,46 @@
   transition: var(--transition-fast);
 }
 
-.platform-select-btn:hover {
+.lang-chip:hover {
   background: var(--surface-2);
   color: var(--text-primary);
 }
 
-.platform-select-btn.active {
+.lang-chip.active {
   background: rgba(212, 163, 115, 0.1);
   border-color: var(--accent-primary);
   color: var(--accent-primary);
+}
+
+.lang-chip-order {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lang-chip-flag {
+  font-size: 1.05rem;
+}
+
+.lang-order-preview {
+  font-size: 0.78rem;
+  margin-top: 10px;
+}
+
+.form-hint {
+  font-size: 0.78rem;
+  margin: -4px 0 10px;
+  line-height: 1.5;
 }
 
 /* Text output preview */
@@ -202,53 +244,29 @@
   line-height: 1.5;
 }
 
-.output-tips-card {
-  padding: 16px;
-  background: rgba(58, 134, 240, 0.05);
-  border: 1px solid rgba(58, 134, 240, 0.1);
+/* Attached photo/video shown with the draft, so the owner reviews exactly what
+   will publish — caption AND media together. */
+.output-media {
+  margin-bottom: 20px;
+}
+
+.output-media-thumb {
+  max-width: 100%;
+  max-height: 260px;
   border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  display: block;
 }
 
-.output-tips-card h5 {
-  font-size: 0.85rem;
-  color: var(--accent-secondary);
-  margin-bottom: 6px;
-}
-
-.output-tips-card p {
-  font-size: 0.8rem;
+.output-media-warning {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(240, 173, 78, 0.08);
+  border: 1px solid rgba(240, 173, 78, 0.25);
   color: var(--text-secondary);
-}
-
-/* Photography guides */
-.tutorials-box {
-  padding: 24px;
-}
-
-.tutorials-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-top: 10px;
-}
-
-.tutorial-step-item {
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--glass-border);
-}
-
-.tutorial-step-item:last-child {
-  border-bottom: none;
-}
-
-.tutorial-step-item h4 {
-  font-size: 0.95rem;
-  margin-bottom: 4px;
-  color: var(--accent-primary);
-}
-
-.tutorial-step-item p {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  margin-bottom: 16px;
+  line-height: 1.5;
 }
 
 /* Inline two-step schedule picker */

@@ -171,6 +171,19 @@ module.exports = function createDb(dbPath) {
       updated_at    TEXT
     );
 
+    -- Daily snapshot of each dashboard metric, so the sparklines plot REAL
+    -- recorded movement instead of a decorative fixed curve. One row per
+    -- (profile, metric, day); the day is a local YYYY-MM-DD key.
+    CREATE TABLE IF NOT EXISTS metric_history (
+      id         TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      metric     TEXT NOT NULL,
+      day        TEXT NOT NULL,
+      value      REAL NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(profile_id, metric, day)
+    );
+
     CREATE TABLE IF NOT EXISTS media (
       id            TEXT PRIMARY KEY,
       profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -246,6 +259,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_instagram_profile ON instagram_connections(profile_id);
     CREATE INDEX IF NOT EXISTS idx_templates_profile_platform ON content_templates(profile_id, platform);
+    CREATE INDEX IF NOT EXISTS idx_metric_history_lookup ON metric_history(profile_id, metric, day);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -260,6 +274,10 @@ module.exports = function createDb(dbPath) {
   addColumn('profiles', 'google_place_id TEXT');
   addColumn('profiles', 'google_rating REAL');
   addColumn('profiles', 'google_reviews_count INTEGER');
+  // Photo/video attached to a post or template. Instagram has no text-only post
+  // type, so a scheduled post without this can only ever publish as simulated.
+  addColumn('calendar', 'media_id TEXT');
+  addColumn('content_templates', 'media_id TEXT');
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -296,7 +314,7 @@ module.exports = function createDb(dbPath) {
   };
   const mapCalendar = (r) => r && {
     id: r.id, profileId: r.profile_id, platform: r.platform, post_text: r.post_text,
-    scheduled_time: r.scheduled_time, status: r.status,
+    scheduled_time: r.scheduled_time, status: r.status, mediaId: r.media_id || null,
   };
   const mapMedia = (r) => r && {
     id: r.id, profileId: r.profile_id, kind: r.kind, mode: r.mode, topic: r.topic,
@@ -311,7 +329,8 @@ module.exports = function createDb(dbPath) {
     id: r.id, profileId: r.profile_id, platform: r.platform, name: r.name,
     sampleText: r.sample_text, templateText: r.template_text,
     variables: r.variables ? JSON.parse(r.variables) : [],
-    source: r.source, created_at: r.created_at, updated_at: r.updated_at,
+    source: r.source, mediaId: r.media_id || null,
+    created_at: r.created_at, updated_at: r.updated_at,
   };
   const mapSubscription = (r) => r && {
     id: r.id, userId: r.user_id, tier: r.tier, status: r.status,
@@ -510,10 +529,11 @@ module.exports = function createDb(dbPath) {
         const row = {
           id: id(), profile_id: post.profileId, platform: post.platform,
           post_text: post.postText, scheduled_time: post.scheduledTime, status: post.status || 'scheduled',
+          media_id: post.mediaId || null,
         };
         sqlite.prepare(
-          `INSERT INTO calendar (id, profile_id, platform, post_text, scheduled_time, status)
-           VALUES (@id, @profile_id, @platform, @post_text, @scheduled_time, @status)`
+          `INSERT INTO calendar (id, profile_id, platform, post_text, scheduled_time, status, media_id)
+           VALUES (@id, @profile_id, @platform, @post_text, @scheduled_time, @status, @media_id)`
         ).run(row);
         return mapCalendar(row);
       },
@@ -830,7 +850,7 @@ module.exports = function createDb(dbPath) {
     // the source of truth for which {{variables}} exist; the stored `variables`
     // array only carries their labels and example values.
     templates: {
-      create({ profileId, platform, name, sampleText, templateText, variables, source }) {
+      create({ profileId, platform, name, sampleText, templateText, variables, source, mediaId }) {
         const row = {
           id: id(),
           profile_id: profileId,
@@ -840,12 +860,13 @@ module.exports = function createDb(dbPath) {
           template_text: templateText,
           variables: JSON.stringify(variables || []),
           source: source || 'manual',
+          media_id: mediaId || null,
           created_at: now(),
           updated_at: now(),
         };
         sqlite.prepare(
-          `INSERT INTO content_templates (id, profile_id, platform, name, sample_text, template_text, variables, source, created_at, updated_at)
-           VALUES (@id, @profile_id, @platform, @name, @sample_text, @template_text, @variables, @source, @created_at, @updated_at)`
+          `INSERT INTO content_templates (id, profile_id, platform, name, sample_text, template_text, variables, source, media_id, created_at, updated_at)
+           VALUES (@id, @profile_id, @platform, @name, @sample_text, @template_text, @variables, @source, @media_id, @created_at, @updated_at)`
         ).run(row);
         return mapTemplate(row);
       },
@@ -866,6 +887,8 @@ module.exports = function createDb(dbPath) {
           sampleText: 'sample_text',
           templateText: 'template_text',
           source: 'source',
+          // Pass null to detach the photo/video from a saved template.
+          mediaId: 'media_id',
         };
         const sets = [];
         const params = { id: templateId, updated_at: now() };
@@ -885,6 +908,28 @@ module.exports = function createDb(dbPath) {
       },
       remove(templateId) {
         sqlite.prepare('DELETE FROM content_templates WHERE id = ?').run(templateId);
+      },
+    },
+
+    // Recorded metric history — what the dashboard sparklines actually plot.
+    metricHistory: {
+      // Idempotent per day: the dashboard is fetched many times a day, and only
+      // the latest reading for a day should survive.
+      record({ profileId, metric, day, value }) {
+        sqlite.prepare(
+          `INSERT INTO metric_history (id, profile_id, metric, day, value, created_at)
+           VALUES (@id, @profile_id, @metric, @day, @value, @created_at)
+           ON CONFLICT(profile_id, metric, day) DO UPDATE SET value = @value, created_at = @created_at`
+        ).run({
+          id: id(), profile_id: profileId, metric, day, value, created_at: now(),
+        });
+      },
+      // Oldest-first so the caller can plot straight through the array.
+      series(profileId, metric, limit = 30) {
+        const rows = sqlite.prepare(
+          'SELECT day, value FROM metric_history WHERE profile_id = ? AND metric = ? ORDER BY day DESC LIMIT ?'
+        ).all(profileId, metric, limit);
+        return rows.reverse().map((r) => ({ day: r.day, value: r.value }));
       },
     },
 

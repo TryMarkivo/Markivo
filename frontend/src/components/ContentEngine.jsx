@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import TemplateStudio from './TemplateStudio';
+import MediaAttach from './MediaAttach';
 import { metaFor, FALLBACK_CATALOGUE } from '../lib/platforms';
 import './ContentEngine.css';
 
-export default function ContentEngine({ activeProfile }) {
+// Language chips, in the order they are OFFERED. What the owner actually gets
+// is their own click order (see `langs` state) — a Tashkent business usually
+// wants Uzbek first, then Russian, then English, and the post has to read that
+// way in the single message it publishes.
+const LANGUAGES = [
+  { code: 'uz', flag: '🇺🇿', label: 'Uzbek' },
+  { code: 'ru', flag: '🇷🇺', label: 'Russian' },
+  { code: 'en', flag: '🇬🇧', label: 'English' },
+];
+
+export default function ContentEngine({ activeProfile, onGoToConnections }) {
   const { t, i18n } = useTranslation();
 
   // --- Platform tabs -------------------------------------------------------
@@ -18,9 +29,12 @@ export default function ContentEngine({ activeProfile }) {
   const [mode, setMode] = useState('compose'); // 'compose' | 'templates'
 
   const [topic, setTopic] = useState('');
-  const [langMode, setLangMode] = useState('en'); // 'en' | 'multi'
+  // Ordered list of language codes — the array ORDER is the output order.
+  const [langs, setLangs] = useState(['en']);
   const [loadingCopy, setLoadingCopy] = useState(false);
   const [generatedCopy, setGeneratedCopy] = useState(null);
+  // Photo/video that ships with the post. Instagram cannot publish without it.
+  const [media, setMedia] = useState(null);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgPosting, setTgPosting] = useState(false);
   const [tgPostResult, setTgPostResult] = useState(null); // null | 'ok' | error string
@@ -72,6 +86,9 @@ export default function ContentEngine({ activeProfile }) {
   const generationKey = platformMeta ? platformMeta.generationKey : 'instagram';
   const isTelegram = platformKey === 'telegram';
   const telegramReady = !!(tgStatus?.connected && tgStatus?.chat);
+  // Instagram has no text-only post type: without media the backend can only
+  // record a simulated post, which is what made "Post Now" look broken here.
+  const needsMedia = generationKey === 'instagram';
 
   const fmtDateInput = (d) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -96,9 +113,17 @@ export default function ContentEngine({ activeProfile }) {
   // Switching platform tabs clears the draft — copy written for TikTok should
   // never silently ship to Google Business.
   const handleSelectPlatform = (key) => {
+    // Nothing connected yet: the menu is only showing the full catalogue so the
+    // engine is explorable. Writing a post here would go nowhere, so send the
+    // owner to Connections to finish setting the channel up instead.
+    if (!hasConnections && onGoToConnections) {
+      onGoToConnections();
+      return;
+    }
     if (key === platformKey) return;
     setPlatformKey(key);
     setGeneratedCopy(null);
+    setMedia(null);
     setTgPostResult(null);
     resetPostFlows();
   };
@@ -108,12 +133,23 @@ export default function ContentEngine({ activeProfile }) {
     setTgPosting(true);
     setTgPostResult(null);
     try {
-      await api.post('/api/telegram/post', { text: generatedCopy.post });
+      await api.post('/api/telegram/post', { text: generatedCopy.post, mediaId: media?.id || null });
       setTgPostResult('ok');
     } catch (err) {
       setTgPostResult(err.message || t('content.telegram.postFailed', 'Posting failed'));
     }
     setTgPosting(false);
+  };
+
+  // Toggling appends to the END of the list, so the order the owner clicks in is
+  // the order the languages appear in the finished post. Removing the last one
+  // is refused — a post has to be in some language.
+  const toggleLang = (code) => {
+    setLangs((current) => {
+      if (!current.includes(code)) return [...current, code];
+      if (current.length === 1) return current;
+      return current.filter((c) => c !== code);
+    });
   };
 
   const handleGenerateCopy = async (e) => {
@@ -127,7 +163,7 @@ export default function ContentEngine({ activeProfile }) {
       const data = await api.post('/api/content/copywrite', {
         platform: generationKey,
         topic,
-        languages: langMode === 'multi' ? ['en', 'uz', 'ru'] : ['en'],
+        languages: langs,
         tone: activeProfile.brandTone || activeProfile.tone,
         businessName: activeProfile.businessName,
       });
@@ -141,21 +177,20 @@ export default function ContentEngine({ activeProfile }) {
           businessName: activeProfile.businessName,
           topic,
         }),
-        mediaTip: t('content.fallback.mediaTip', '📸 Tip: Snap a landscape photo of your storefront at dusk with warm interior lighting glowing through the windows.')
       });
     }
     setLoadingCopy(false);
   };
 
   // A filled template drops straight into the composer output, ready to post or
-  // schedule through the same approval path as generated copy.
-  const handleUseTemplate = (text) => {
+  // schedule through the same approval path as generated copy. Any photo/video
+  // saved with the template comes along, so an Instagram template is publishable
+  // the moment it lands here.
+  const handleUseTemplate = (text, templateMedia) => {
     resetPostFlows();
     setTgPostResult(null);
-    setGeneratedCopy({
-      post: text,
-      mediaTip: t('templates.fromTemplateTip', 'Filled from one of your saved templates — review it, then post or schedule.'),
-    });
+    setGeneratedCopy({ post: text });
+    if (templateMedia?.id) setMedia(templateMedia);
     setMode('compose');
   };
 
@@ -176,6 +211,7 @@ export default function ContentEngine({ activeProfile }) {
       await api.post('/api/content/schedule', {
         platform: generationKey,
         postText: generatedCopy.post,
+        mediaId: media?.id || null,
         scheduledTime: when.toISOString(),
       });
       setScheduledAt(when.toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }));
@@ -194,6 +230,7 @@ export default function ContentEngine({ activeProfile }) {
       const response = await api.post('/api/content/post-now', {
         platform: generationKey,
         postText: generatedCopy.post,
+        mediaId: media?.id || null,
       });
       setPostedMsg(
         response.simulated
@@ -219,45 +256,9 @@ export default function ContentEngine({ activeProfile }) {
     ? t(`onboarding.categories.${categoryKeyMap[activeProfile.category]}`, activeProfile.category)
     : activeProfile.category;
 
-  // Photography tutorials customized to business category
-  const categoryTutorials = {
-    'Cafe / Coffee Shop': [
-      { step: t('content.tutorials.cafe.step1Title', '1. The Perfect Steam Pour'), tip: t('content.tutorials.cafe.step1Tip', 'Use a slow panning motion holding your phone at a 45-degree angle. Zoom 2x to isolate the cup detail against a soft-focus background.') },
-      { step: t('content.tutorials.cafe.step2Title', '2. Golden Hour Lighting'), tip: t('content.tutorials.cafe.step2Tip', 'Shoot near your main windows between 4:00 PM and 5:30 PM. Let the natural local light trace the edge of coffee cups or pastries.') },
-      { step: t('content.tutorials.cafe.step3Title', '3. Cozy Booth Workspace Vibe'), tip: t('content.tutorials.cafe.step3Tip', 'Stand at the corner of a booth. Place a laptop showing active code or designs next to a freshly served cappuccino to simulate standard workspaces.') }
-    ],
-    'Beauty Salon / Spa': [
-      { step: t('content.tutorials.beauty.step1Title', '1. Crisp Close-up Texture'), tip: t('content.tutorials.beauty.step1Tip', 'Use ring-light setups directly facing the client. Focus on clean hair cutlines or macro shot lashes at 3x zoom.') },
-      { step: t('content.tutorials.beauty.step2Title', '2. Before / After Frames'), tip: t('content.tutorials.beauty.step2Tip', 'Position the client in the exact same chair, maintaining the head alignment to ensure clean side-by-side post comparisons.') }
-    ]
-  };
-
-  // Category-aware generic fallback so non-cafe businesses never see cafe-specific tips
-  const genericTutorials = [
-    {
-      step: t('content.tutorials.generic.step1Title', '1. Signature Detail Close-up'),
-      tip: t('content.tutorials.generic.step1Tip', {
-        defaultValue: 'Get close to the detail customers love most about your {{category}}. Use 2x zoom, keep the subject sharp and let the background blur softly.',
-        category: categoryLabel,
-      }),
-    },
-    {
-      step: t('content.tutorials.generic.step2Title', '2. Golden Hour Lighting'),
-      tip: t('content.tutorials.generic.step2Tip', {
-        defaultValue: 'Shoot near your largest window between 4:00 PM and 5:30 PM so warm natural light traces the edges of your {{category}} space.',
-        category: categoryLabel,
-      }),
-    },
-    {
-      step: t('content.tutorials.generic.step3Title', '3. People in the Frame'),
-      tip: t('content.tutorials.generic.step3Tip', {
-        defaultValue: 'Capture a candid moment of a customer or team member enjoying your {{category}} — faces and movement outperform empty-room shots.',
-        category: categoryLabel,
-      }),
-    },
-  ];
-
-  const tutorials = categoryTutorials[activeProfile.category] || genericTutorials;
+  // NOTE: the phone-photography guide and the per-post "Recommended Photography
+  // Frame" tip used to live here. Shooting advice belongs with the shoot — it is
+  // all in Media Studio → Guided shoot now.
 
   if (!catalogue || !platform) {
     return <div className="text-center" style={{ padding: 40 }}><i className="fa-solid fa-spinner fa-spin fa-2x text-accent"></i></div>;
@@ -297,10 +298,22 @@ export default function ContentEngine({ activeProfile }) {
         </div>
 
         {!hasConnections && (
-          <p className="platform-menu-empty text-muted">
-            <i className="fa-solid fa-circle-info"></i>{' '}
-            {t('content.noConnections', 'No channels connected yet — connect one in Connections to publish for real.')}
-          </p>
+          <div className="platform-menu-empty text-muted">
+            <p>
+              <i className="fa-solid fa-circle-info"></i>{' '}
+              {t('content.noConnections', 'No channels connected yet — connect one in Connections to publish for real.')}
+            </p>
+            {onGoToConnections && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm w-full mt-10"
+                onClick={onGoToConnections}
+                id="btn_goto_connections"
+              >
+                <i className="fa-solid fa-plug"></i> {t('content.goToConnections', 'Go to Connections')}
+              </button>
+            )}
+          </div>
         )}
       </nav>
 
@@ -331,7 +344,8 @@ export default function ContentEngine({ activeProfile }) {
           onUseTemplate={handleUseTemplate}
         />
       ) : (
-      <div className="grid-2 main-content-grids">
+      // Single column since the photography guide moved to Media Studio.
+      <div className="compose-column">
 
         {/* --- AI COPYWRITER PANEL --- */}
         <div className="copywriter-panel glass-card">
@@ -351,24 +365,33 @@ export default function ContentEngine({ activeProfile }) {
           <form onSubmit={handleGenerateCopy} className="mt-20">
             <div className="form-group">
               <label className="form-label">{t('content.copywriter.languageLabel', 'Post Language')}</label>
-              <div className="platform-radio-group">
-                <button
-                  type="button"
-                  className={`platform-select-btn ${langMode === 'en' ? 'active' : ''}`}
-                  onClick={() => setLangMode('en')}
-                  id="btn_lang_en"
-                >
-                  {t('content.copywriter.langEn', '🇬🇧 English')}
-                </button>
-                <button
-                  type="button"
-                  className={`platform-select-btn ${langMode === 'multi' ? 'active' : ''}`}
-                  onClick={() => setLangMode('multi')}
-                  id="btn_lang_multi"
-                >
-                  {t('content.copywriter.langMulti', '🌐 EN + UZ + RU')}
-                </button>
+              <p className="form-hint text-muted">
+                {t('content.copywriter.languageHint', 'Tap the languages you want. They appear in the post in the order you tap them — all in one message.')}
+              </p>
+              <div className="lang-chip-row">
+                {LANGUAGES.map((lang) => {
+                  const position = langs.indexOf(lang.code);
+                  const selected = position !== -1;
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      className={`lang-chip ${selected ? 'active' : ''}`}
+                      onClick={() => toggleLang(lang.code)}
+                      aria-pressed={selected}
+                      id={`btn_lang_${lang.code}`}
+                    >
+                      {selected && <span className="lang-chip-order">{position + 1}</span>}
+                      <span className="lang-chip-flag">{lang.flag}</span>
+                      <span>{t(`content.copywriter.lang.${lang.code}`, lang.label)}</span>
+                    </button>
+                  );
+                })}
               </div>
+              <p className="lang-order-preview text-muted">
+                {t('content.copywriter.languageOrder', 'Order:')}{' '}
+                <strong>{langs.map((c) => LANGUAGES.find((l) => l.code === c)?.label).join(' → ')}</strong>
+              </p>
             </div>
 
             <div className="form-group">
@@ -387,6 +410,20 @@ export default function ContentEngine({ activeProfile }) {
               ></textarea>
             </div>
 
+            <div className="form-group">
+              <label className="form-label">{t('content.copywriter.mediaLabel', 'Photo or video')}</label>
+              <MediaAttach
+                value={media}
+                onChange={setMedia}
+                disabled={loadingCopy}
+                hint={
+                  needsMedia
+                    ? t('content.copywriter.mediaRequired', 'Instagram cannot publish a text-only post — attach a photo or video to post for real.')
+                    : t('content.copywriter.mediaOptional', 'Optional. Attach the image or video that should go out with this post.')
+                }
+              />
+            </div>
+
             <button type="submit" className="btn btn-primary w-full" disabled={loadingCopy || !topic} id="btn_generate_copy">
               {loadingCopy ? t('content.copywriter.generating', 'Crafting localized drafts...') : t('content.copywriter.generateCta', 'Generate Platform Drafts ✦')}
             </button>
@@ -397,16 +434,25 @@ export default function ContentEngine({ activeProfile }) {
             <div className="generated-output-box glass-card mt-20 animate-fade-in">
               <div className="output-header flex-between">
                 <span className="badge badge-primary"><i className="fa-solid fa-code-merge"></i> {platform.label}</span>
-                <small className="text-muted">{langMode === 'multi' ? t('content.output.langMulti', 'English + Uzbek + Russian') : t('content.output.langEn', 'English')}</small>
+                <small className="text-muted">{langs.map((c) => LANGUAGES.find((l) => l.code === c)?.label).join(' + ')}</small>
               </div>
               <div className="output-content">
                 <pre className="copy-text-area">{generatedCopy.post}</pre>
+                {media && (
+                  <div className="output-media">
+                    {media.kind === 'video'
+                      ? <video src={api.mediaUrl(media.url)} controls className="output-media-thumb" />
+                      : <img src={api.mediaUrl(media.url)} alt={t('media.attach.previewAlt', 'Attached media')} className="output-media-thumb" />}
+                  </div>
+                )}
               </div>
 
-              <div className="output-tips-card">
-                <h5><i className="fa-solid fa-lightbulb text-accent"></i> {t('content.output.mediaTipTitle', 'Recommended Photography Frame')}</h5>
-                <p>{generatedCopy.mediaTip}</p>
-              </div>
+              {needsMedia && !media && (
+                <div className="output-media-warning">
+                  <i className="fa-solid fa-triangle-exclamation"></i>{' '}
+                  {t('content.output.instagramNeedsMedia', 'Instagram needs a photo or video. Attach one above, or this will only be logged as a draft.')}
+                </div>
+              )}
 
               <div className="output-actions flex-between mt-20">
                 <button className="btn btn-secondary btn-sm" onClick={() => { setGeneratedCopy(null); resetPostFlows(); }} id="btn_discard_post">{t('common.discard', 'Discard')}</button>
@@ -519,35 +565,6 @@ export default function ContentEngine({ activeProfile }) {
               )}
             </div>
           )}
-        </div>
-
-        {/* --- PHOTO / VIDEO WORKFLOW PANEL ---
-             AI Photo Enhancement used to live here; it belongs with the shoot
-             itself, so it now sits in Media Studio → Guided shoot. */}
-        <div className="media-panel">
-
-          {/* PHOTOGRAPHY GUIDES */}
-          <div className="tutorials-box glass-card">
-            <h3>{t('content.tutorials.title', 'Dynamic Phone Photography Guide')}</h3>
-            <p className="panel-subtitle">
-              <Trans
-                i18nKey="content.tutorials.subtitle"
-                defaults="Step-by-step creative angles customized to <1>{{category}}</1> spaces"
-                values={{ category: categoryLabel }}
-                components={{ 1: <strong /> }}
-              />
-            </p>
-
-            <div className="tutorials-list">
-              {tutorials.map((tut, index) => (
-                <div key={index} className="tutorial-step-item">
-                  <h4>{tut.step}</h4>
-                  <p className="text-secondary">{tut.tip}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
 
       </div>
