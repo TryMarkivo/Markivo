@@ -23,6 +23,13 @@ services:
       # Model overrides (config defaults: haiku for content, opus for the agent).
       AI_CONTENT_MODEL: ${AI_CONTENT_MODEL:-}
       AI_AGENT_MODEL: ${AI_AGENT_MODEL:-}
+      # Gemini is the primary text engine when set (post copy + message
+      # templates); blank falls back to Anthropic, then to offline templates.
+      # This list is explicit, so a key missing HERE never reaches the container
+      # no matter what .env says.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_TEXT_MODEL: ${GEMINI_TEXT_MODEL:-}
+      GEMINI_TIMEOUT_MS: ${GEMINI_TIMEOUT_MS:-}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}
       MEDIA_API_KEY: ${MEDIA_API_KEY:-}
