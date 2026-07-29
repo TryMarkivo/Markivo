@@ -11,6 +11,7 @@ import ConnectionsPanel from './ConnectionsPanel';
 import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
 import Sparkline from './Sparkline';
+import PlatformDetail from './PlatformDetail';
 import ThemeToggle from './ThemeToggle';
 import api from '../lib/api';
 import logoUrl from '../assets/markivo-logo.png';
@@ -50,6 +51,8 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   });
   const [usage, setUsage] = useState(null);
   const [statsOffline, setStatsOffline] = useState(false);
+  // Which platform's drill-down is open, opened by clicking a metric's chart.
+  const [detailPlatform, setDetailPlatform] = useState(null);
 
   const refreshTelegramStatus = () => {
     api.get('/api/telegram/status')
@@ -367,13 +370,21 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                     <h2>{stats.metrics.googleViews.current.toLocaleString()}</h2>
                     <span className="text-muted">{t('dashboard.stats.past30Days', 'past 30 days')}</span>
                   </div>
-                  <div className="stat-chart-svg">
+                  {/* The chart is the handle for the drill-down. A real button
+                      so it is reachable by keyboard, not a click-on-div. */}
+                  <button
+                    className="stat-chart-svg stat-chart-btn"
+                    onClick={() => setDetailPlatform('google')}
+                    id="btn_drill_google"
+                    aria-label={t('dashboard.stats.drillDown', 'Show detailed {{platform}} statistics', { platform: 'Google Business' })}
+                  >
                     <Sparkline
                       history={stats.metrics.googleViews.history}
                       color="var(--accent-primary)"
                       label={t('dashboard.stats.googleViews', 'Google Maps Search Views')}
                     />
-                  </div>
+                    <span className="stat-chart-cue"><i className="fa-solid fa-up-right-and-down-left-from-center"></i></span>
+                  </button>
                 </div>
 
                 {/* INSTAGRAM FOLLOWERS */}
@@ -386,13 +397,19 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                     <h2>{stats.metrics.instagramFollowers.current.toLocaleString()}</h2>
                     <span className="text-muted">@{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
                   </div>
-                  <div className="stat-chart-svg">
+                  <button
+                    className="stat-chart-svg stat-chart-btn"
+                    onClick={() => setDetailPlatform('instagram')}
+                    id="btn_drill_instagram"
+                    aria-label={t('dashboard.stats.drillDown', 'Show detailed {{platform}} statistics', { platform: 'Instagram' })}
+                  >
                     <Sparkline
                       history={stats.metrics.instagramFollowers.history}
                       color="var(--accent-purple)"
                       label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
                     />
-                  </div>
+                    <span className="stat-chart-cue"><i className="fa-solid fa-up-right-and-down-left-from-center"></i></span>
+                  </button>
                 </div>
 
                 {/* TELEGRAM ACTIVE MEMBERS */}
@@ -405,13 +422,19 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                     <h2>{stats.metrics.telegramSubscribers.current.toLocaleString()}</h2>
                     <span className="text-muted">t.me/{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
                   </div>
-                  <div className="stat-chart-svg">
+                  <button
+                    className="stat-chart-svg stat-chart-btn"
+                    onClick={() => setDetailPlatform('telegram')}
+                    id="btn_drill_telegram"
+                    aria-label={t('dashboard.stats.drillDown', 'Show detailed {{platform}} statistics', { platform: 'Telegram' })}
+                  >
                     <Sparkline
                       history={stats.metrics.telegramSubscribers.history}
                       color="var(--accent-secondary)"
                       label={t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}
                     />
-                  </div>
+                    <span className="stat-chart-cue"><i className="fa-solid fa-up-right-and-down-left-from-center"></i></span>
+                  </button>
                 </div>
               </div>
 
@@ -565,6 +588,16 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         isOpen={agentOpen}
         onToggle={() => setAgentOpen((open) => !open)}
       />
+
+      {/* --- PLATFORM DRILL-DOWN --- */}
+      {detailPlatform && (
+        <PlatformDetail
+          key={detailPlatform}
+          platform={detailPlatform}
+          onClose={() => setDetailPlatform(null)}
+          onGoToConnections={() => setActiveTab('connections')}
+        />
+      )}
     </div>
   );
 }

@@ -461,7 +461,8 @@
       "instagramFollowers": "Instagram Followers",
       "telegramMembers": "Telegram Channel Members",
       "past30Days": "past 30 days",
-      "changePositive": "+{{change}}%"
+      "changePositive": "+{{change}}%",
+      "drillDown": "Show detailed {{platform}} statistics"
     },
     "seo": {
       "title": "Local SEO Rankings",
@@ -1041,5 +1042,44 @@
     "emptyDay": "Nothing scheduled for this day.",
     "cancelEvent": "Cancel this post",
     "dragHint": "Drag a scheduled post onto another day to move it. Autopilot history cannot be changed."
+  },
+  "platformDetail": {
+    "subtitle": "Channel statistics",
+    "sourceLive": "Live from {{platform}}",
+    "sourceLocal": "Markivo records only",
+    "connect": "Connect",
+    "accountStats": "Account",
+    "trend": "Recorded trend",
+    "trendHint": "One reading per day, recorded each time the dashboard is opened.",
+    "recentPosts": "Recent posts on {{platform}}",
+    "fromMarkivo": "Scheduled by Markivo",
+    "countPosted": "published",
+    "countScheduled": "queued",
+    "countFailed": "failed",
+    "noneScheduled": "Nothing scheduled for this channel yet.",
+    "noCaption": "(no caption)",
+    "open": "Open",
+    "notReported": "not reported",
+    "engagementUnavailable": "engagement not reported",
+    "hasMedia": "Has media",
+    "engagementNote": "Per-post likes and comments are only available for connected Instagram Business or Creator accounts. This channel does not report them.",
+    "stat": {
+      "followers": "Followers",
+      "following": "Following",
+      "posts": "Posts",
+      "members": "Members"
+    },
+    "status": {
+      "posted": "published",
+      "scheduled": "queued",
+      "failed": "failed"
+    },
+    "notice": {
+      "connectInstagram": "Connect Instagram to see followers and per-post likes and comments.",
+      "instagramError": "Instagram did not answer ({{error}}). Reconnect the account to refresh these numbers.",
+      "linkTelegram": "Link a Telegram channel to see live member counts.",
+      "telegramError": "Telegram did not answer ({{error}}).",
+      "noIntegration": "This channel has no live integration yet, so only what Markivo scheduled for it is shown."
+    }
   }
 }

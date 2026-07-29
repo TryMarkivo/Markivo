@@ -278,6 +278,40 @@
   border-bottom-right-radius: inherit;
 }
 
+/* The chart doubles as the handle for the platform drill-down. It has to look
+   pressable without adding chrome that competes with the number above it, so
+   the affordance is a corner cue that only surfaces on hover/focus. */
+.stat-chart-btn {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.stat-chart-btn:hover,
+.stat-chart-btn:focus-visible {
+  background: rgba(212, 163, 115, 0.06);
+}
+
+.stat-chart-cue {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: var(--transition-fast);
+  pointer-events: none;
+}
+
+.stat-chart-btn:hover .stat-chart-cue,
+.stat-chart-btn:focus-visible .stat-chart-cue {
+  opacity: 1;
+  color: var(--accent-primary);
+}
+
 .sparkline {
   width: 100%;
   height: 100%;

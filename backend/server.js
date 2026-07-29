@@ -1286,6 +1286,130 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   });
 }));
 
+// ------------------------------------------------------------------
+// Per-platform drill-down, opened by clicking a metric's chart.
+//
+// Two independent sources are merged and kept distinguishable:
+//   • the PLATFORM's own numbers (real, only where an integration exists)
+//   • what MARKIVO scheduled/published for it (always real — our own rows)
+//
+// Every block carries `live`. Nothing is invented to fill a gap: a figure the
+// platform does not report comes back null and the UI says so, and
+// `unavailable` names what this channel structurally cannot provide.
+//
+// `notice` is a CODE plus params, never a sentence — the interface ships in
+// three languages and a hardcoded English string here would surface untranslated
+// inside an Uzbek panel.
+// ------------------------------------------------------------------
+const PLATFORM_METRIC = {
+  instagram: 'instagramFollowers',
+  telegram: 'telegramSubscribers',
+  google: 'googleViews',
+  tiktok: 'tiktokFollowers',
+};
+
+app.get('/api/dashboard/platform/:key', verifyToken, asyncRoute(async (req, res) => {
+  const key = String(req.params.key || '').toLowerCase();
+  if (!PLATFORM_METRIC[key]) return res.status(404).json({ error: 'Unknown platform' });
+
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Active profile not found' });
+
+  // Our own record of this channel — always real, whatever the integration does.
+  const ours = db.calendar.listByProfile(profile.id)
+    .filter((r) => String(r.platform || '').toLowerCase() === key)
+    .sort((a, b) => new Date(b.scheduled_time) - new Date(a.scheduled_time));
+
+  const counts = ours.reduce((acc, r) => {
+    const s = r.status === 'posted' ? 'posted' : r.status === 'failed' ? 'failed' : 'scheduled';
+    acc[s] += 1;
+    return acc;
+  }, { posted: 0, scheduled: 0, failed: 0 });
+
+  const payload = {
+    platform: key,
+    connected: false,
+    live: false,
+    account: null,
+    headline: [],
+    history: db.metricHistory.series(profile.id, PLATFORM_METRIC[key], 30),
+    posts: [],
+    ourPosts: ours.slice(0, 25).map((r) => ({
+      id: r.id,
+      text: r.post_text || '',
+      when: r.scheduled_time,
+      status: r.status,
+      hasMedia: !!r.mediaId,
+    })),
+    counts,
+    unavailable: [],
+    notice: null,
+  };
+
+  if (key === 'instagram') {
+    const conn = config.instagramEnabled ? db.instagram.findByProfile(profile.id) : null;
+    if (!conn || !conn.accessToken) {
+      payload.notice = { code: 'connectInstagram' };
+      payload.unavailable = ['followers', 'engagement'];
+    } else {
+      payload.connected = true;
+      try {
+        const [acct, media] = await Promise.all([
+          ig.getAccountStats(conn.accessToken),
+          ig.getRecentMedia(conn.accessToken, 12),
+        ]);
+        payload.live = true;
+        payload.account = {
+          name: acct.accountName || conn.accountName,
+          handle: acct.username || conn.igUsername,
+          url: acct.username ? `https://instagram.com/${acct.username}` : null,
+          type: acct.accountType,
+        };
+        payload.headline = [
+          { key: 'followers', value: acct.followers },
+          { key: 'following', value: acct.following },
+          { key: 'posts', value: acct.mediaCount },
+        ];
+        payload.posts = media;
+        // Personal accounts do not report these; say which, do not zero them.
+        const missing = payload.headline.filter((h) => h.value === null).map((h) => h.key);
+        if (missing.length) payload.unavailable = missing;
+        if (media.some((m) => m.likes === null)) payload.unavailable.push('engagement');
+      } catch (err) {
+        // A dead/expired token must not blank the panel — our own rows still show.
+        payload.notice = { code: 'instagramError', error: err.message };
+        payload.unavailable = ['followers', 'engagement'];
+      }
+    }
+  } else if (key === 'telegram') {
+    const conn = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
+    if (!conn || !conn.chatId) {
+      payload.notice = { code: 'linkTelegram' };
+      payload.unavailable = ['engagement'];
+    } else {
+      payload.connected = true;
+      payload.account = { name: conn.chatTitle, handle: conn.botUsername ? `@${conn.botUsername}` : null, url: null };
+      try {
+        const members = await tg.getChatMemberCount(conn.botToken, conn.chatId);
+        payload.live = true;
+        payload.headline = [{ key: 'members', value: members }];
+      } catch (err) {
+        payload.notice = { code: 'telegramError', error: err.message };
+      }
+      // The Bot API cannot read a channel's history or its per-post reactions,
+      // so engagement is structurally unavailable here — not merely unwired.
+      payload.unavailable = ['engagement', 'postHistory'];
+    }
+  } else {
+    // Google Business and TikTok have no integration yet. Our own queue rows are
+    // the only real thing about them, and the response says exactly that.
+    payload.notice = { code: 'noIntegration' };
+    payload.unavailable = ['followers', 'engagement', 'postHistory'];
+  }
+
+  res.json(payload);
+}));
+
 // ==========================================
 // 3.55 MEDIA STUDIO ROUTER (/api/media)
 //   AI filming briefs, uploads, and edit plans today; actual image/video

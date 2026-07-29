@@ -461,7 +461,8 @@
       "instagramFollowers": "Instagram obunachilari",
       "telegramMembers": "Telegram kanal a'zolari",
       "past30Days": "so'nggi 30 kun",
-      "changePositive": "+{{change}}%"
+      "changePositive": "+{{change}}%",
+      "drillDown": "{{platform}} boʻyicha batafsil statistikani koʻrsatish"
     },
     "seo": {
       "title": "Mahalliy SEO reytinglari",
@@ -992,5 +993,44 @@
     "connectedHint": "Chat panelida Markiv’dan {{label}} ga post joylashni so‘rang — siz tasdiqlaysiz, u joylaydi.",
     "disconnectCta": "Uzish",
     "working": "Bajarilmoqda…"
+  },
+  "platformDetail": {
+    "subtitle": "Kanal statistikasi",
+    "sourceLive": "{{platform}}dan jonli",
+    "sourceLocal": "Faqat Markivo yozuvlari",
+    "connect": "Ulash",
+    "accountStats": "Akkaunt",
+    "trend": "Qayd etilgan dinamika",
+    "trendHint": "Kuniga bitta oʻlchov — dashboard har ochilganda yoziladi.",
+    "recentPosts": "{{platform}}dagi soʻnggi postlar",
+    "fromMarkivo": "Markivo rejalashtirgan",
+    "countPosted": "joylandi",
+    "countScheduled": "navbatda",
+    "countFailed": "xato",
+    "noneScheduled": "Bu kanal uchun hali hech narsa rejalashtirilmagan.",
+    "noCaption": "(matnsiz)",
+    "open": "Ochish",
+    "notReported": "maʼlumot yoʻq",
+    "engagementUnavailable": "faollik maʼlumoti yoʻq",
+    "hasMedia": "Media bor",
+    "engagementNote": "Har bir post uchun layk va izohlar faqat ulangan Instagram Business yoki Creator akkauntlarida mavjud. Bu kanal ularni bermaydi.",
+    "stat": {
+      "followers": "Obunachilar",
+      "following": "Obunalar",
+      "posts": "Postlar",
+      "members": "Aʼzolar"
+    },
+    "status": {
+      "posted": "joylandi",
+      "scheduled": "navbatda",
+      "failed": "xato"
+    },
+    "notice": {
+      "connectInstagram": "Obunachilar va har bir post uchun layk va izohlarni koʻrish uchun Instagramni ulang.",
+      "instagramError": "Instagram javob bermadi ({{error}}). Raqamlarni yangilash uchun akkauntni qayta ulang.",
+      "linkTelegram": "Aʼzolar sonini jonli koʻrish uchun Telegram kanalini bogʻlang.",
+      "telegramError": "Telegram javob bermadi ({{error}}).",
+      "noIntegration": "Bu kanalda hali jonli integratsiya yoʻq, shuning uchun faqat Markivo rejalashtirgan narsalar koʻrsatiladi."
+    }
   }
 }

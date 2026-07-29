@@ -465,7 +465,8 @@
       "instagramFollowers": "Подписчики Instagram",
       "telegramMembers": "Участники Telegram-канала",
       "past30Days": "за 30 дней",
-      "changePositive": "+{{change}}%"
+      "changePositive": "+{{change}}%",
+      "drillDown": "Показать подробную статистику {{platform}}"
     },
     "seo": {
       "title": "Локальные SEO-позиции",
@@ -998,5 +999,44 @@
     "connectedHint": "Попросите Markiv в чате опубликовать в {{label}} — вы одобряете, он публикует.",
     "disconnectCta": "Отключить",
     "working": "Обрабатываем…"
+  },
+  "platformDetail": {
+    "subtitle": "Статистика канала",
+    "sourceLive": "Живые данные {{platform}}",
+    "sourceLocal": "Только записи Markivo",
+    "connect": "Подключить",
+    "accountStats": "Аккаунт",
+    "trend": "Записанная динамика",
+    "trendHint": "Одно измерение в день — записывается при каждом открытии дашборда.",
+    "recentPosts": "Последние посты в {{platform}}",
+    "fromMarkivo": "Запланировано Markivo",
+    "countPosted": "опубликовано",
+    "countScheduled": "в очереди",
+    "countFailed": "ошибок",
+    "noneScheduled": "Для этого канала пока ничего не запланировано.",
+    "noCaption": "(без текста)",
+    "open": "Открыть",
+    "notReported": "нет данных",
+    "engagementUnavailable": "нет данных о вовлечённости",
+    "hasMedia": "Есть медиа",
+    "engagementNote": "Лайки и комментарии по каждому посту доступны только для подключённых аккаунтов Instagram Business или Creator. Этот канал их не предоставляет.",
+    "stat": {
+      "followers": "Подписчики",
+      "following": "Подписки",
+      "posts": "Посты",
+      "members": "Участники"
+    },
+    "status": {
+      "posted": "опубликовано",
+      "scheduled": "в очереди",
+      "failed": "ошибка"
+    },
+    "notice": {
+      "connectInstagram": "Подключите Instagram, чтобы видеть подписчиков, лайки и комментарии по каждому посту.",
+      "instagramError": "Instagram не ответил ({{error}}). Переподключите аккаунт, чтобы обновить данные.",
+      "linkTelegram": "Привяжите канал Telegram, чтобы видеть количество участников в реальном времени.",
+      "telegramError": "Telegram не ответил ({{error}}).",
+      "noIntegration": "У этого канала пока нет живой интеграции, поэтому показано только то, что запланировал Markivo."
+    }
   }
 }

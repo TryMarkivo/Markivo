@@ -133,6 +133,56 @@ async function resolveAccount(token) {
   };
 }
 
+/**
+ * Account-level numbers for the platform drill-down. `followers_count` and
+ * `media_count` are only returned for Business/Creator accounts; a personal
+ * account answers without them, so every field is optional by design and the
+ * caller reports what it actually got rather than filling blanks with zeros.
+ */
+async function getAccountStats(token) {
+  const url = new URL(`${GRAPH_BASE}/me`);
+  url.searchParams.set('fields', 'user_id,username,account_type,name,followers_count,follows_count,media_count');
+  url.searchParams.set('access_token', token);
+  const me = await graphGet(url.toString());
+  return {
+    username: me.username || null,
+    accountName: me.name || me.username || null,
+    accountType: me.account_type || null,
+    followers: Number.isFinite(me.followers_count) ? me.followers_count : null,
+    following: Number.isFinite(me.follows_count) ? me.follows_count : null,
+    mediaCount: Number.isFinite(me.media_count) ? me.media_count : null,
+  };
+}
+
+/**
+ * The account's own recent posts WITH engagement. This is the only place in the
+ * product where real per-post interaction numbers exist — like_count and
+ * comments_count come straight from the Graph API. Anything the API omits stays
+ * null so the UI can say "not reported" instead of showing a fabricated 0.
+ */
+async function getRecentMedia(token, limit = 12) {
+  const url = new URL(`${GRAPH_BASE}/me/media`);
+  url.searchParams.set(
+    'fields',
+    'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count'
+  );
+  url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), 25)));
+  url.searchParams.set('access_token', token);
+  const data = await graphGet(url.toString());
+  const items = Array.isArray(data.data) ? data.data : [];
+  return items.map((m) => ({
+    id: String(m.id),
+    caption: m.caption || '',
+    mediaType: m.media_type || null,
+    // Videos expose a still under thumbnail_url; media_url is the MP4.
+    thumbnail: m.thumbnail_url || m.media_url || null,
+    permalink: m.permalink || null,
+    timestamp: m.timestamp || null,
+    likes: Number.isFinite(m.like_count) ? m.like_count : null,
+    comments: Number.isFinite(m.comments_count) ? m.comments_count : null,
+  }));
+}
+
 // --- Content publishing (graph.instagram.com) ---
 // Two-step flow: create a media container from a PUBLIC media URL, then publish
 // it. Instagram fetches the URL server-side, so it must be reachable from the
@@ -262,6 +312,8 @@ module.exports = {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
   resolveAccount,
+  getAccountStats,
+  getRecentMedia,
   createMediaContainer,
   publishMedia,
   getContainerStatus,
