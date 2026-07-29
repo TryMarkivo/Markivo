@@ -1,35 +1,35 @@
-/* Shell-level layout only; the visual system lives in index.css. */
-
+/* Styles are managed centrally in index.css and specific component sheets */
 .app-container {
   min-height: 100vh;
   position: relative;
 }
 
-/* Dedicated auth page (login.markivo.io). The ground is the darker gutter so
-   the card reads as a panel laid on the bolt rather than floating in space. */
+/* Dedicated auth page (login.markivo.io) — reuses the .auth-card styling. */
 .auth-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--s5);
-  background: var(--ground-deep);
+  padding: 24px;
 }
 
+/* Full-screen loader shown on the dashboard subdomain before the profile loads. */
 .app-loading {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--s4);
-  padding: var(--s5);
-  text-align: center;
-  color: var(--ink-2);
-  font-size: var(--t-body);
+  gap: 14px;
+  color: var(--text-secondary);
+  font-size: 1rem;
 }
 
 .app-loading i {
-  font-size: 1.25rem;
-  color: var(--madder);
+  font-size: 1.8rem;
+  color: var(--accent-primary);
 }

@@ -1,60 +1,55 @@
-/* ============================================================================
-   COMPETITOR INTEL
-   A comparison ledger. The owner's own row is the one dyed band in the table.
-   ========================================================================= */
+.competitor-intel-container {
+  text-align: left;
+}
 
-.competitor-intel-container { text-align: left; }
+.benchmark-table-box, .frequency-chart-box {
+  padding: 24px;
+}
 
-.benchmark-table-box,
-.frequency-chart-box { padding: var(--s5); }
-
-.competitor-list { display: flex; flex-direction: column; }
-
-.comp-header,
-.comp-row {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) 1fr 1fr 1fr;
-  gap: var(--s3);
-  align-items: center;
+/* Benchmarks table list */
+.competitor-list {
+  display: flex;
+  flex-direction: column;
 }
 
 .comp-header {
-  padding-bottom: var(--s3);
-  border-bottom: 1px solid var(--seam);
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 0.7rem;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
 
 .comp-row {
-  padding: var(--s4) 0;
-  border-bottom: 1px solid var(--seam);
-  font-size: var(--t-body);
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  align-items: center;
+  font-size: 0.85rem;
 }
 
-.comp-row:last-child { border-bottom: none; }
+.comp-row:last-child {
+  border-bottom: none;
+}
 
-/* The owner's row: a madder selvedge on the field, not a tinted box. */
 .active-brand {
-  margin: 0 calc(var(--s3) * -1);
-  padding: var(--s4) var(--s3);
-  border-left: 3px solid var(--madder);
-  background: var(--madder-field);
-  font-weight: 600;
+  background: rgba(212, 163, 115, 0.04);
+  padding: 16px 12px;
+  margin: 4px -12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(212, 163, 115, 0.15);
 }
 
-.comp-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.comp-name i {
+  margin-right: 6px;
 }
 
-.comp-name i { margin-right: var(--s2); }
-
+/* SVG Chart Container */
 .svg-chart-container {
   display: flex;
   align-items: center;
@@ -67,53 +62,45 @@
   height: 180px;
 }
 
-/* --- Gap recommendations ------------------------------------------------ */
-.gaps-grid { gap: var(--s5); }
+/* Gap recommendation cards */
+.gaps-grid {
+  gap: 20px;
+}
 
 .gap-card {
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
-  padding: var(--s5);
-  border-left: 3px solid var(--saffron);
+  gap: 12px;
 }
 
 .gap-header {
   display: flex;
   align-items: center;
-  gap: var(--s3);
+  gap: 10px;
 }
 
-.gap-icon { font-size: var(--t-lg); color: var(--saffron); }
+.gap-icon {
+  font-size: 1.15rem;
+}
 
-.gap-header h4 { font-size: var(--t-base); font-weight: 700; }
+.text-danger { color: var(--accent-danger); }
 
-.gap-desc { font-size: var(--t-body); color: var(--ink-2); }
+.gap-header h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.gap-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
 
 .gap-recommendation {
-  padding: var(--s3);
-  border: 1px solid var(--seam);
-  border-radius: var(--r-sm);
-  background: var(--panel-sunken);
-  font-size: var(--t-body);
-  line-height: 1.6;
-  color: var(--ink);
-}
-
-@media (max-width: 900px) {
-  .comp-header,
-  .comp-row { grid-template-columns: minmax(0, 1.6fr) 1fr 1fr; }
-  .comp-header > :nth-child(4),
-  .comp-row > :nth-child(4) { display: none; }
-}
-
-@media (max-width: 700px) {
-  .benchmark-table-box,
-  .frequency-chart-box,
-  .gap-card { padding: var(--s4); }
-
-  .comp-header,
-  .comp-row { grid-template-columns: minmax(0, 1fr) auto; }
-  .comp-header > :nth-child(3),
-  .comp-row > :nth-child(3) { display: none; }
+  font-size: 0.8rem;
+  padding: 12px;
+  background: var(--surface-1);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
 }

@@ -1250,16 +1250,12 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
-  // `simulated` is part of the contract, not a debug field: the dashboard draws
-  // a frayed ikat edge on every simulated value and a hard edge on measured
-  // ones, so a number whose integration has not landed can never be mistaken
-  // for a real reading. Anything that is not a live API response is simulated.
   const metrics = {
-    googleViews: { current: 4320, change: 12.4, simulated: true },
-    googleCalls: { current: 148, change: 8.2, simulated: true },
-    instagramFollowers: { current: 1542, change: 15.6, simulated: true },
-    telegramSubscribers: { ...telegramSubscribers, simulated: !telegramSubscribers.live },
-    tiktokFollowers: { current: 0, change: 0, simulated: true },
+    googleViews: { current: 4320, change: 12.4 },
+    googleCalls: { current: 148, change: 8.2 },
+    instagramFollowers: { current: 1542, change: 15.6 },
+    telegramSubscribers,
+    tiktokFollowers: { current: 0, change: 0 },
   };
 
   // Record today's reading, then hand back the recorded series so the dashboard
@@ -1287,15 +1283,6 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
       { keyword_phrase: `best ${cat} in tashkent`, avg_position: 8, volume: 'High' },
     ],
     aiPresence: { perplexityScore: 78, chatgptRank: 'Top 5', sourcesCitedCount: 4 },
-    // Panel-level truth flags, same contract as `metric.simulated` above.
-    // Keywords and competitors are written once at onboarding and never
-    // re-measured, so they are estimates even when rows exist; the discovery
-    // scan is only live with a Places key.
-    simulated: {
-      seoKeywords: true,
-      competitors: !config.placesApiKey || competitors.length === 0,
-      aiPresence: true,
-    },
   });
 }));
 
@@ -1597,10 +1584,7 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
   }
 
   recordAgentReply(action.reply);
-  // `engine` is part of the contract: Markiv falls back to canned keyword
-  // replies without an Anthropic key, and the panel must say so rather than
-  // letting a template answer pass as a model answer.
-  res.json({ reply: action.reply, engine: config.aiEnabled ? 'model' : 'template' });
+  res.json({ reply: action.reply });
 }));
 
 // Markiv's conversation memory for the signed-in user's profile.

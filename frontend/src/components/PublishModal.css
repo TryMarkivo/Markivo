@@ -1,126 +1,126 @@
 /* "Post this media" modal — platform picker, then Post Now or Schedule. */
 
 .publish-card {
-  width: 100%;
   max-width: 560px;
-  max-height: calc(100vh - var(--s8));
-  overflow-y: auto;
+  width: 100%;
 }
 
 .publish-preview {
-  margin-bottom: var(--s5);
   text-align: center;
+  margin-bottom: 20px;
 }
 
 .publish-thumb {
-  display: inline-block;
   max-width: 100%;
   max-height: 220px;
-  border: 1px solid var(--seam);
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
 }
 
 .publish-platform-list {
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
-  margin-top: var(--s2);
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .publish-platform {
   display: flex;
   align-items: center;
-  gap: var(--s3);
-  padding: var(--s3);
-  border: 1px solid var(--seam-strong);
-  border-left: 2px solid transparent;
-  border-radius: var(--r-sm);
-  background: var(--panel-sunken);
-  color: var(--ink-2);
-  font-size: var(--t-body);
-  font-weight: 600;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
   cursor: pointer;
-  transition: background var(--fast), border-color var(--fast), color var(--fast);
+  transition: var(--transition-fast);
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
-.publish-platform:hover { background: var(--panel-raised); color: var(--ink); }
+.publish-platform:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
 
 .publish-platform.checked {
-  border-color: var(--madder);
-  border-left-color: var(--madder);
-  background: var(--madder-field);
-  color: var(--ink);
+  border-color: var(--accent-primary);
+  background: rgba(212, 163, 115, 0.1);
+  color: var(--text-primary);
 }
 
 .publish-platform input[type='checkbox'] {
-  width: 15px;
-  height: 15px;
-  accent-color: var(--madder);
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
   cursor: pointer;
 }
 
 .publish-empty {
-  padding: var(--s3) 0;
-  font-size: var(--t-body);
-  line-height: 1.55;
-  color: var(--ink-3);
+  font-size: 0.85rem;
+  padding: 12px 0;
+  line-height: 1.5;
 }
 
 /* Both primary actions sit bottom-right of the card. */
 .publish-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
   flex-wrap: wrap;
-  gap: var(--s2);
-  margin-top: var(--s5);
 }
 
 /* --- Schedule steps --- */
+
 .publish-cal-head {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: var(--s3);
+  margin-bottom: 12px;
 }
 
 .publish-picked-date {
-  margin-bottom: var(--s3);
   font-weight: 600;
-  text-transform: capitalize;
+  margin-bottom: 14px;
 }
 
-.publish-time-input { width: 100%; }
+.publish-time-input {
+  width: 100%;
+}
 
 .publish-time-presets {
   display: flex;
+  gap: 8px;
   flex-wrap: wrap;
-  gap: var(--s2);
-  margin-top: var(--s3);
+  margin-top: 12px;
 }
 
 /* --- Per-platform outcome --- */
+
 .publish-results {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--s2);
+  gap: 10px;
 }
 
 .publish-results li {
   display: flex;
   align-items: flex-start;
-  gap: var(--s3);
-  padding: var(--s3);
-  border: 1px solid var(--seam);
-  border-left: 3px solid var(--band, var(--ink-3));
-  border-radius: var(--r-sm);
-  background: var(--panel-sunken);
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
 }
 
-.publish-results li.ok { --band: var(--jade); }
-.publish-results li.failed { --band: var(--pomegranate); }
+.publish-results li.ok i {
+  color: var(--accent-success, #2ecc71);
+}
 
-.publish-results li.ok i { color: var(--jade); }
-.publish-results li.failed i { color: var(--pomegranate); }
+.publish-results li.failed i {
+  color: var(--accent-danger, #e74c3c);
+}
 
 .publish-results li div {
   display: flex;
@@ -129,15 +129,8 @@
   min-width: 0;
 }
 
-.publish-results li strong { font-size: var(--t-body); }
-
 .publish-results li span {
-  font-size: var(--t-small);
-  color: var(--ink-2);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
   line-height: 1.5;
-}
-
-@media (max-width: 560px) {
-  .publish-actions { flex-direction: column-reverse; }
-  .publish-actions .btn { width: 100%; }
 }

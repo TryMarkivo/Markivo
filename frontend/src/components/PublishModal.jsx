@@ -122,7 +122,7 @@ export default function PublishModal({ media, defaultCaption = '', onClose, onPo
       id="publish_modal"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose?.(); }}
     >
-      <div className="auth-card panel text-left publish-card" role="dialog" aria-modal="true" aria-labelledby="publish_modal_title">
+      <div className="auth-card glass-card glass-card-glow text-left publish-card" role="dialog" aria-modal="true" aria-labelledby="publish_modal_title">
         <div className="auth-header flex-between mb-20">
           <h3 id="publish_modal_title">
             {step === 'date'

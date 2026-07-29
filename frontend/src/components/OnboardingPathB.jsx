@@ -28,7 +28,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
   });
 
   const [logoStyle, setLogoStyle] = useState({
-    color: '#E8E2D6',
+    color: '#D4A373',
     bgColor: '#1A1816',
     shape: 'circle',
     icon: '☕'
@@ -165,7 +165,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
   // Read an uploaded logo into a compact data URL. Raster images are downscaled
   // (re-scaling smaller if still too large); SVGs are kept as-is when small enough
-  // — they render as an image element, so scripts inside the SVG cannot run.
+  // (rendered inside an <img>, so scripts in the SVG cannot run).
   const handleLogoUpload = (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = ''; // allow re-selecting the same file after an error
@@ -220,7 +220,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
   const triggerLogoPreset = (tone) => {
     const presets = {
-      'Cozy & Warm': { color: '#C89B5A', bgColor: '#1E1B18', shape: 'circle', icon: '☕' },
+      'Cozy & Warm': { color: '#D4A373', bgColor: '#1E1B18', shape: 'circle', icon: '☕' },
       'Modern & Minimalist': { color: '#ffffff', bgColor: '#0f0f10', shape: 'square', icon: '✦' },
       'Energetic & Fast-paced': { color: '#FF7F11', bgColor: '#0B0D1B', shape: 'hexagon', icon: '⚡' },
       'Professional & Trustworthy': { color: '#3A86F0', bgColor: '#0E1726', shape: 'shield', icon: '🛡️' },
@@ -300,7 +300,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
   };
 
   return (
-    <div className="onboarding-card panel animate-fade-in" id="onboarding_path_b_container">
+    <div className="onboarding-card glass-card animate-fade-in" id="onboarding_path_b_container">
       {/* HEADER */}
       <div className="onboarding-header">
         {step < 5 && (
@@ -429,7 +429,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               {['Cozy & Warm', 'Modern & Minimalist', 'Energetic & Fast-paced', 'Professional & Trustworthy', 'Playful & Fun', 'Luxury & Premium'].map((tone) => (
                 <div
                   key={tone}
-                  className={`tone-card panel ${formData.tone === tone ? 'active' : ''}`}
+                  className={`tone-card glass-card ${formData.tone === tone ? 'active' : ''}`}
                   onClick={() => handleToneChange(tone)}
                 >
                   <span className="tone-bullet"></span>
@@ -444,7 +444,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
             <div className="brand-choice-grid grid-2 mb-10">
               <button
                 type="button"
-                className={`choice-card panel ${hasSlogan === 'yes' ? 'active' : ''}`}
+                className={`choice-card glass-card ${hasSlogan === 'yes' ? 'active' : ''}`}
                 onClick={() => setHasSlogan('yes')}
                 id="btn_has_slogan_yes"
               >
@@ -454,7 +454,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               </button>
               <button
                 type="button"
-                className={`choice-card panel ${hasSlogan === 'no' ? 'active' : ''}`}
+                className={`choice-card glass-card ${hasSlogan === 'no' ? 'active' : ''}`}
                 onClick={() => setHasSlogan('no')}
                 id="btn_has_slogan_no"
               >
@@ -495,7 +495,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                     {generatedSlogans.map((slogan, idx) => (
                       <div
                         key={idx}
-                        className={`slogan-item panel ${formData.slogan === slogan ? 'active' : ''}`}
+                        className={`slogan-item glass-card ${formData.slogan === slogan ? 'active' : ''}`}
                         onClick={() => handleInputChange('slogan', slogan)}
                       >
                         <p>"{slogan}"</p>
@@ -535,7 +535,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           <div className="brand-choice-grid grid-2 mb-20">
             <button
               type="button"
-              className={`choice-card panel ${hasLogo === 'yes' ? 'active' : ''}`}
+              className={`choice-card glass-card ${hasLogo === 'yes' ? 'active' : ''}`}
               onClick={() => chooseHasLogo('yes')}
               id="btn_has_logo_yes"
             >
@@ -545,7 +545,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
             </button>
             <button
               type="button"
-              className={`choice-card panel ${hasLogo === 'no' ? 'active' : ''}`}
+              className={`choice-card glass-card ${hasLogo === 'no' ? 'active' : ''}`}
               onClick={() => chooseHasLogo('no')}
               id="btn_has_logo_no"
             >
@@ -587,7 +587,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                 </div>
               </div>
 
-              <div className="logo-preview-card panel text-center">
+              <div className="logo-preview-card glass-card text-center">
                 <span className="logo-preview-title">{t('onboarding.pathB.uploadPreviewTitle', 'Your Logo')}</span>
                 <div className="logo-canvas-wrap" style={{ backgroundColor: logoStyle.bgColor }}>
                   {logoStyle.image ? (
@@ -611,7 +611,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           {hasLogo === 'no' && (
             <>
               {/* AI LOGO GENERATION PANEL */}
-              <div className="logo-gen-panel panel">
+              <div className="logo-gen-panel glass-card">
                 <div className="flex-between logo-gen-head">
                   <p className="logo-gen-hint">{t('onboarding.logoGen.hint', '4 unique marks designed from your name, category and brand tone — pick one or customize manually below.')}</p>
                   <button
@@ -700,7 +700,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                   <div className="form-group">
                     <label className="form-label">{t('onboarding.pathB.colorLabel', 'Color Themes')}</label>
                     <div className="color-presets">
-                      {['#C89B5A', '#FF7F11', '#3A86F0', '#FF007F', '#E5C158', '#06D6A0'].map((colorHex) => (
+                      {['#D4A373', '#FF7F11', '#3A86F0', '#FF007F', '#E5C158', '#06D6A0'].map((colorHex) => (
                         <div
                           key={colorHex}
                           className="color-preset-circle"
@@ -713,7 +713,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                 </div>
 
                 {/* LIVE PREVIEW OF LOGO USING SVG LAYOUTS */}
-                <div className="logo-preview-card panel text-center">
+                <div className="logo-preview-card glass-card text-center">
                   <span className="logo-preview-title">{t('onboarding.pathB.logoPreviewTitle', 'Vector SVG Blueprint')}</span>
                   <div className="logo-canvas-wrap" style={{ backgroundColor: logoStyle.bgColor }}>
                     {logoStyle.svg ? (
@@ -755,7 +755,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
           <div className="results-grid">
             {/* GOOGLE BUSINESS */}
-            <div className={`result-item panel ${channels.googleBusiness ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, googleBusiness: !p.googleBusiness }))} id="btn_select_google">
+            <div className={`result-item glass-card ${channels.googleBusiness ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, googleBusiness: !p.googleBusiness }))} id="btn_select_google">
               <div className="result-status">
                 <span className="platform-icon google"><i className="fa-brands fa-google"></i></span>
                 <div>
@@ -769,7 +769,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
             </div>
 
             {/* INSTAGRAM */}
-            <div className={`result-item panel ${channels.instagram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, instagram: !p.instagram }))} id="btn_select_instagram">
+            <div className={`result-item glass-card ${channels.instagram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, instagram: !p.instagram }))} id="btn_select_instagram">
               <div className="result-status">
                 <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
                 <div>
@@ -783,7 +783,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
             </div>
 
             {/* TELEGRAM */}
-            <div className={`result-item panel ${channels.telegram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, telegram: !p.telegram }))} id="btn_select_telegram">
+            <div className={`result-item glass-card ${channels.telegram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, telegram: !p.telegram }))} id="btn_select_telegram">
               <div className="result-status">
                 <span className="platform-icon telegram"><i className="fa-brands fa-telegram"></i></span>
                 <div>
@@ -812,7 +812,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           <h2>{t('onboarding.pipeline.title', 'Constructing Your Digital Infrastructure')}</h2>
           <p className="subtitle">{t('onboarding.pipeline.subtitle', "Please wait while Markivo's AI engine creates and registers your digital profiles.")}</p>
 
-          <div className="pipeline-console panel text-left">
+          <div className="pipeline-console glass-card text-left">
             <div className="console-header">
               <span className="console-dot dot-red"></span>
               <span className="console-dot dot-yellow"></span>
@@ -838,7 +838,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           </div>
 
           <div className="progress-bar-outer mt-30">
-            <div className="progress-bar-inner" style={{ transform: `scaleX(${Math.min(1, completedLogs.length / Math.max(1, actionLogs.length))})` }}></div>
+            <div className="progress-bar-inner" style={{ width: `${Math.min(100, Math.floor((completedLogs.length / actionLogs.length) * 100))}%` }}></div>
           </div>
         </div>
       )}

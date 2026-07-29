@@ -57,7 +57,7 @@ export default function InstagramConnect({ status, onStatusChange, onClose, onCo
       id="instagram_connect_modal"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
-      <div className="auth-card panel text-left" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-labelledby="instagram_modal_title">
+      <div className="auth-card glass-card glass-card-glow text-left" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-labelledby="instagram_modal_title">
         <div className="auth-header flex-between mb-20">
           <h3 id="instagram_modal_title">
             <i className="fa-brands fa-instagram" style={{ color: '#E1306C' }}></i> {t('instagram.setupTitle', 'Connect Instagram')}

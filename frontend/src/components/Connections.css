@@ -1,106 +1,94 @@
-/* ============================================================================
-   CONNECTIONS
-   Each connector is a swatch. Its dye is its state, and a connector that only
-   simulates publishing frays — it must never read as live.
-   ========================================================================= */
+/* Connections tab — platform connector cards. Uses the shared design tokens
+   (--surface-*, --border-*, --text-*) so it inherits light/dark theming. */
 
-.connections-panel { max-width: 1040px; }
+.connections-panel {
+  max-width: 1000px;
+}
 
 .connections-panel .panel-subtitle {
-  margin-bottom: var(--s5);
-  font-size: var(--t-body);
-  color: var(--ink-2);
-  max-width: 68ch;
+  margin-bottom: 24px;
 }
 
 .connections-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
-  gap: var(--s4);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .connection-card {
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
-  padding: var(--s4);
-  border: 1px solid var(--seam);
-  border-top: 3px solid var(--band, var(--seam-strong));
-  border-radius: var(--r-md);
-  background: var(--panel);
-  text-align: left;
-  transition: background var(--fast), border-color var(--fast);
+  gap: 12px;
+  cursor: pointer;
+  transition: var(--transition-fast);
 }
 
-.connection-card:hover { background: var(--panel-raised); }
+.connection-card.connected {
+  border-color: var(--border-strong, rgba(52, 211, 153, 0.4));
+}
 
-.connection-card.connected { --band: var(--jade); }
-.connection-card.simulated { --band: var(--saffron); --fray: var(--saffron); }
-
-/* An unconnected channel recedes by losing its dye and dropping to the sunken
-   field — NOT by going translucent. Opacity dimming made the whole tab look
-   disabled on a new account, where every card is unconnected. */
+/* Platforms that are not connected yet read as available-but-inactive: dimmed
+   to 25% so the connected ones stand out, and back to full strength on hover
+   or keyboard focus so they never become unreadable. */
 .connection-card.not-connected {
-  background: var(--panel-sunken);
-  --band: var(--seam);
+  opacity: 0.25;
 }
 
-.connection-card.not-connected:hover { background: var(--panel); }
+.connection-card.not-connected:hover,
+.connection-card.not-connected:focus-visible,
+.connection-card.not-connected:focus-within {
+  opacity: 1;
+}
 
 .connection-card-head {
   display: flex;
   align-items: center;
-  gap: var(--s3);
+  gap: 12px;
 }
-
-.connection-card-head i { font-size: var(--t-lg); }
 
 .connection-card-head h4 {
   margin: 0;
-  font-size: var(--t-base);
   line-height: 1.2;
 }
 
 .connection-state {
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 12px;
 }
 
-.connection-state.on { color: var(--jade); }
-.connection-state.off { color: var(--ink-3); }
-.connection-state.soon { color: var(--saffron); }
+.connection-state.on { color: var(--text-success, #34d399); }
+.connection-state.off { color: var(--text-muted, #999); }
+.connection-state.soon { color: var(--accent-secondary, #f59e0b); }
 
 .connection-handle {
+  font-size: 13px;
   margin: 0;
-  font-size: var(--t-small);
-  color: var(--ink-2);
   word-break: break-all;
 }
 
-/* --- Connect modal ------------------------------------------------------ */
+/* "What you need" + "How to connect" inside the connect modal */
 .connect-requirements,
-.connect-steps { margin-bottom: var(--s5); }
+.connect-steps {
+  margin-bottom: 20px;
+}
 
 .connect-requirements h5,
 .connect-steps h5 {
-  margin-bottom: var(--s2);
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--text-secondary);
+  margin-bottom: 8px;
 }
 
 .connect-requirements ul,
 .connect-steps ol {
   margin: 0;
-  padding-left: var(--s5);
-  font-size: var(--t-body);
-  color: var(--ink-2);
-  line-height: 1.65;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 
 .connect-requirements ul {
@@ -109,23 +97,22 @@
 }
 
 .connect-requirements li i {
-  margin-right: var(--s2);
-  color: var(--jade);
+  color: var(--accent-success, #06d6a0);
+  margin-right: 6px;
 }
 
-.connect-steps li { margin-bottom: var(--s1); }
+.connect-steps li {
+  margin-bottom: 4px;
+}
 
 .connect-docs-link {
   display: inline-block;
-  margin-top: var(--s2);
-  font-size: var(--t-small);
-  font-weight: 600;
-  color: var(--madder);
-  border-bottom: 1px solid transparent;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--accent-secondary);
+  text-decoration: none;
 }
 
-.connect-docs-link:hover { border-bottom-color: currentColor; }
-
-@media (max-width: 700px) {
-  .connections-grid { grid-template-columns: 1fr; }
+.connect-docs-link:hover {
+  text-decoration: underline;
 }

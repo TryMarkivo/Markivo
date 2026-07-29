@@ -368,7 +368,7 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
     : t('templates.engineOffline', 'Offline parser');
 
   return (
-    <div className="template-studio panel">
+    <div className="template-studio glass-card">
       <div className="panel-title-wrap">
         <i className="fa-solid fa-shapes text-accent icon-header"></i>
         <div>

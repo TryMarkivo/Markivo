@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-/* Compact switcher: UZ · RU · EN.
-   No flag emoji — Windows ships no glyphs for regional-indicator pairs, so
-   they render as the raw letters and the control reads "uzUZ", "gbEN". */
+/* Compact pill switcher: 🇺🇿 UZ · 🇷🇺 RU · 🇬🇧 EN */
 const LanguageSelector = ({ onChange }) => {
   const { t, i18n } = useTranslation();
 
@@ -22,9 +20,9 @@ const LanguageSelector = ({ onChange }) => {
   }, [i18n]);
 
   const languageOptions = [
-    { code: 'uz', label: 'UZ', name: "O'zbek" },
-    { code: 'ru', label: 'RU', name: 'Русский' },
-    { code: 'en', label: 'EN', name: 'English' },
+    { code: 'uz', label: 'UZ', name: "O'zbek", flag: '🇺🇿' },
+    { code: 'ru', label: 'RU', name: 'Русский', flag: '🇷🇺' },
+    { code: 'en', label: 'EN', name: 'English', flag: '🇬🇧' },
   ];
 
   return (
@@ -39,6 +37,7 @@ const LanguageSelector = ({ onChange }) => {
           aria-pressed={i18n.language === lang.code}
           id={`btn_lang_${lang.code}`}
         >
+          <span>{lang.flag}</span>
           {lang.label}
         </button>
       ))}

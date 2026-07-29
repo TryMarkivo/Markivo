@@ -141,7 +141,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       platforms: connections,
       logo: {
         text: `☕ ${businessName}`,
-        color: '#E8E2D6',
+        color: '#D4A373',
         bgColor: '#131016',
         shape: 'rounded'
       },
@@ -163,7 +163,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
   const g = scanResults?.googleBusiness;
 
   return (
-    <div className="onboarding-card panel animate-fade-in" id="onboarding_path_a_container">
+    <div className="onboarding-card glass-card animate-fade-in" id="onboarding_path_a_container">
       {/* HEADER */}
       <div className="onboarding-header">
         <button className="btn-back" onClick={onCancel} id="btn_back_onboard_a">
@@ -226,7 +226,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
           <h2>{t('onboarding.scan.title', 'Scanning Digital Footprint')}</h2>
           <p className="status-label">{scanStatus}</p>
           <div className="progress-bar-outer">
-            <div className="progress-bar-inner" style={{ transform: `scaleX(${scanProgress / 100})` }}></div>
+            <div className="progress-bar-inner" style={{ width: `${scanProgress}%` }}></div>
           </div>
           <span className="progress-percentage">{t('onboarding.scan.progress', { defaultValue: '{{percent}}% completed', percent: scanProgress })}</span>
         </div>
@@ -267,7 +267,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
           <div className="results-grid">
             {/* GOOGLE BUSINESS */}
             {g?.found ? (
-              <div className={`result-item panel ${connections.googleBusiness ? 'active' : ''}`} onClick={() => handleConnectionToggle('googleBusiness')} id="btn_verify_google">
+              <div className={`result-item glass-card ${connections.googleBusiness ? 'active' : ''}`} onClick={() => handleConnectionToggle('googleBusiness')} id="btn_verify_google">
                 <div className="result-status">
                   <span className="platform-icon google"><i className="fa-brands fa-google"></i></span>
                   <div>
@@ -297,7 +297,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                 </div>
               </div>
             ) : (
-              <div className="result-item panel disabled" id="card_google_notfound">
+              <div className="result-item glass-card disabled" id="card_google_notfound">
                 <div className="result-status">
                   <span className="platform-icon google"><i className="fa-brands fa-google"></i></span>
                   <div>
@@ -316,7 +316,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                   <div
                     key={a.placeId}
                     id={`btn_alt_${index}`}
-                    className="result-item panel"
+                    className="result-item glass-card"
                     style={{ padding: '12px 16px', marginTop: 8 }}
                     role="button"
                     tabIndex={0}
@@ -354,7 +354,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
 
             {/* INSTAGRAM */}
             {scanResults.instagram?.found ? (
-              <div className={`result-item panel ${connections.instagram ? 'active' : ''}`} onClick={() => handleConnectionToggle('instagram')} id="btn_verify_instagram">
+              <div className={`result-item glass-card ${connections.instagram ? 'active' : ''}`} onClick={() => handleConnectionToggle('instagram')} id="btn_verify_instagram">
                 <div className="result-status">
                   <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
                   <div>
@@ -380,7 +380,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                 </div>
               </div>
             ) : (
-              <div className="result-item panel disabled" id="card_instagram_notfound">
+              <div className="result-item glass-card disabled" id="card_instagram_notfound">
                 <div className="result-status">
                   <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
                   <div>
@@ -394,7 +394,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
             {/* TELEGRAM */}
             {scanResults.telegram?.found && scanResults.telegram?.comingSoon ? (
               // Channel detected, but the integration is still gated — informational, not toggleable.
-              <div className="result-item panel disabled" id="card_telegram_soon">
+              <div className="result-item glass-card disabled" id="card_telegram_soon">
                 <div className="result-status">
                   <span className="platform-icon telegram"><i className="fa-brands fa-telegram"></i></span>
                   <div>
@@ -412,7 +412,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                 </div>
               </div>
             ) : scanResults.telegram?.found ? (
-              <div className={`result-item panel ${connections.telegram ? 'active' : ''}`} onClick={() => handleConnectionToggle('telegram')} id="btn_verify_telegram">
+              <div className={`result-item glass-card ${connections.telegram ? 'active' : ''}`} onClick={() => handleConnectionToggle('telegram')} id="btn_verify_telegram">
                 <div className="result-status">
                   <span className="platform-icon telegram"><i className="fa-brands fa-telegram"></i></span>
                   <div>
@@ -429,7 +429,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                 </div>
               </div>
             ) : (
-              <div className="result-item panel disabled" id="card_telegram_soon">
+              <div className="result-item glass-card disabled" id="card_telegram_soon">
                 <div className="result-status">
                   <span className="platform-icon telegram"><i className="fa-brands fa-telegram"></i></span>
                   <div>
@@ -443,7 +443,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
           </div>
 
           {/* AI SUMMARY BOX */}
-          <div className="ai-summary-card panel">
+          <div className="ai-summary-card glass-card">
             <div className="ai-summary-title">
               <i className="fa-solid fa-wand-magic-sparkles text-accent"></i>
               <h4>{t('onboarding.results.insightTitle', 'AI Local Discovery Scan Insight')}</h4>

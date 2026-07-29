@@ -8,7 +8,7 @@ export default function AuthCard({ mode, error, form, onChange, loading, onSubmi
   const isRegister = mode === 'register';
 
   return (
-    <div className="auth-card panel text-left" role={onClose ? 'dialog' : undefined} aria-modal={onClose ? 'true' : undefined} aria-labelledby="auth_modal_title">
+    <div className="auth-card glass-card glass-card-glow text-left" role={onClose ? 'dialog' : undefined} aria-modal={onClose ? 'true' : undefined} aria-labelledby="auth_modal_title">
       <div className="auth-header flex-between mb-20">
         <h3 id="auth_modal_title">{isRegister ? t('auth.createAccountTitle', 'Create Your Account') : t('auth.welcomeBack', 'Welcome Back')}</h3>
         {onClose && (

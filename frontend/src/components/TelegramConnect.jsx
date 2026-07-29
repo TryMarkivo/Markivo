@@ -71,7 +71,7 @@ export default function TelegramConnect({ status, onStatusChange, onClose }) {
       id="telegram_connect_modal"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
-      <div className="auth-card panel text-left" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-labelledby="telegram_modal_title">
+      <div className="auth-card glass-card glass-card-glow text-left" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-labelledby="telegram_modal_title">
         <div className="auth-header flex-between mb-20">
           <h3 id="telegram_modal_title"><i className="fa-brands fa-telegram" style={{ color: 'var(--tg-blue)' }}></i> {t('telegram.setupTitle', 'Telegram Setup')}</h3>
           <button className="btn-close" onClick={onClose} id="btn_close_telegram" aria-label={t('common.close', 'Close')}>

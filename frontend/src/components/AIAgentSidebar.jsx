@@ -28,16 +28,12 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
   const { t, i18n } = useTranslation();
   const greetingMessage = () => ({
     sender: 'agent',
-    text: t('agent.greeting', { defaultValue: "I'm Markiv. I draft posts, read your competitors, and publish to your connected channels when you ask.\n\nWhat are we working on?" }),
+    text: t('agent.greeting', { defaultValue: "Hi! I'm Markiv 🤖 — your marketing agent. I can draft content, analyse competitors, and post straight to your Telegram channel when you ask.\n\nWhat shall we work on today?" }),
     time: t('agent.justNow', 'Just now')
   });
   const [messages, setMessages] = useState(() => [greetingMessage()]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  // 'model' when a real model answered, 'template' when the keyless fallback
-  // did. Drives the frayed edge on the panel — a canned reply must never read
-  // as a model reply.
-  const [engine, setEngine] = useState(null);
   const [showApprovalGate, setShowApprovalGate] = useState(false);
   const [approvalDetails, setApprovalDetails] = useState(null);
   const [approvalId, setApprovalId] = useState(null);
@@ -88,7 +84,6 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
       const data = await api.post('/api/agent/query', { query: text, lang: i18n.language });
       setIsTyping(false);
       setOffline(false);
-      if (data.engine) setEngine(data.engine);
 
       if (data.triggerApproval) {
         setApprovalId(data.approvalId);
@@ -106,7 +101,6 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
     } catch {
       // Server unreachable — fall back to a clearly-flagged local simulation.
       setOffline(true);
-      setEngine('template');
       setTimeout(() => {
         let agentReply = '';
         const lowercaseText = text.toLowerCase();
@@ -165,7 +159,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
       cost: t('agent.approval.mockCost', '$5.00 / day'),
       target: t('agent.approval.mockTarget', 'Tashkent, remote workers (2-5km radius)'),
       creative: t('agent.approval.mockCreative', {
-        defaultValue: 'Preview: "Experience the ultimate {{category}} vibe at #{{businessName}}! High-speed Wi-Fi, handcrafted coffee, and quiet study booths ready for you."',
+        defaultValue: '🎯 Preview: "Experience the ultimate {{category}} vibe at #{{businessName}}! High-speed Wi-Fi, handcrafted coffee, and quiet study booths ready for you."',
         category: categoryLabel.toLowerCase(),
         businessName: activeProfile.businessName
       })
@@ -181,13 +175,13 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
     try {
       if (approvalId) {
         const data = await api.post('/api/agent/approve', { approvalId });
-        resultText = data.message || t('agent.approval.executed', 'Approved and executed.');
+        resultText = data.message || t('agent.approval.executed', '✅ Action approved and executed!');
       } else {
         // Offline simulation path (no server-side approval record).
-        resultText = t('agent.approval.simulated', 'Approved — simulated only, the server is offline.');
+        resultText = t('agent.approval.simulated', '✅ Action approved! (Simulated — server offline.)');
       }
     } catch (err) {
-      resultText = err.message || t('agent.approval.error', 'The action could not be executed. Please try again.');
+      resultText = `⚠️ ${err.message || t('agent.approval.error', 'The action could not be executed. Please try again.')}`;
     }
 
     setShowApprovalGate(false);
@@ -196,20 +190,20 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
 
   return (
     <>
-      <div className={`band ${isOpen ? 'open' : 'closed'}`} id="agent_sidebar_container">
+      <div className={`agent-sidebar-container glass-card ${isOpen ? 'open' : 'closed'}`} id="agent_sidebar_container">
         {/* HEADER */}
-        <div className="band-head">
-          {isOpen && (
-            <div className="band-title">
+        <div className="agent-header flex-between">
+          <div className="agent-title-wrap">
+            <span className="agent-avatar-icon">🤖</span>
+            <div>
               <h4>Markiv</h4>
-              <small>{t('agent.subtitle', 'Marketing agent')}</small>
+              <small>{t('agent.subtitle', 'Your AI marketing agent')}</small>
             </div>
-          )}
-          {!isOpen && <span className="band-stub-label">Markiv</span>}
-          <div className="band-actions">
+          </div>
+          <div className="agent-header-actions">
             {isOpen && (
               <button
-                className="btn-close"
+                className="agent-clear-btn"
                 onClick={handleClearChat}
                 id="btn_clear_chat"
                 title={t('agent.clearChat', 'Clear conversation')}
@@ -218,24 +212,14 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
                 <i className="fa-solid fa-trash-can"></i>
               </button>
             )}
-            <button className="btn-close" onClick={onToggle} id="btn_toggle_agent" aria-label={t(isOpen ? 'agent.collapse' : 'agent.expand', isOpen ? 'Collapse panel' : 'Expand panel')}>
-              <i className={`fa-solid ${isOpen ? 'fa-angles-right' : 'fa-angles-left'}`}></i>
+            <button className="agent-toggle-btn" onClick={onToggle} id="btn_toggle_agent" aria-label={t(isOpen ? 'agent.collapse' : 'agent.expand', isOpen ? 'Collapse panel' : 'Expand panel')}>
+              {isOpen ? <i className="fa-solid fa-angles-right"></i> : <i className="fa-solid fa-angles-left"></i>}
             </button>
           </div>
         </div>
 
         {isOpen && (
           <>
-            {/* Markiv answers from canned patterns without a model key. Saying so
-                once, at the top of the thread, is the honest version of this
-                panel — the alternative is a template passing as intelligence. */}
-            {engine === 'template' && !offline && (
-              <div className="band-note frayed" style={{ '--fray': 'var(--saffron)' }} role="status">
-                <span className="frayed-note">{t('truth.canned', 'Canned replies')}</span>
-                <p>{t('agent.templateNote', 'No model key is configured, so Markiv is answering from fixed patterns rather than reasoning about your business.')}</p>
-              </div>
-            )}
-
             {/* CHAT THREAD */}
             <div className="chat-thread-container" ref={threadRef}>
               {offline && (
@@ -267,7 +251,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
             {/* SUGGESTION BARS */}
             <div className="chat-suggestions">
               <button
-                className="chip"
+                className="suggestion-pill"
                 onClick={() => handleSendMessage(
                   telegramStatus?.comingSoon
                     ? t('agent.prompts.draftAnnouncement', 'Draft a short announcement post for our business')
@@ -277,16 +261,16 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
                 )}
                 id="btn_sug_telegram"
               >
-                {telegramStatus?.comingSoon ? t('agent.suggestions.draftAnnouncement', 'Draft announcement') : t('agent.suggestions.postTelegram', 'Post to Telegram')}
+                {telegramStatus?.comingSoon ? t('agent.suggestions.draftAnnouncement', '📣 Draft announcement') : t('agent.suggestions.postTelegram', '📣 Post to Telegram')}
               </button>
-              <button className="chip" onClick={() => handleSendMessage(t('agent.prompts.instagramCopy', 'Generate Instagram post copy'))} id="btn_sug_insta">
-                {t('agent.suggestions.instagram', 'Draft Instagram post')}
+              <button className="suggestion-pill" onClick={() => handleSendMessage(t('agent.prompts.instagramCopy', 'Generate Instagram post copy'))} id="btn_sug_insta">
+                {t('agent.suggestions.instagram', '✍️ Draft Instagram post')}
               </button>
-              <button className="chip" onClick={() => handleSendMessage(t('agent.prompts.competitorGaps', 'Check competitor gaps'))} id="btn_sug_gaps">
-                {t('agent.suggestions.gaps', 'Competitor gaps')}
+              <button className="suggestion-pill" onClick={() => handleSendMessage(t('agent.prompts.competitorGaps', 'Check competitor gaps'))} id="btn_sug_gaps">
+                {t('agent.suggestions.gaps', '📊 Check competitor gaps')}
               </button>
-              <button className="chip" onClick={() => handleSendMessage(t('agent.prompts.createAd', 'Create ad campaign'))} id="btn_sug_ad">
-                {t('agent.suggestions.ad', 'Create ad campaign')}
+              <button className="suggestion-pill" onClick={() => handleSendMessage(t('agent.prompts.createAd', 'Create ad campaign'))} id="btn_sug_ad">
+                {t('agent.suggestions.ad', '🚀 Create ad campaign')}
               </button>
             </div>
 
@@ -294,7 +278,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
             <div className="chat-input-panel">
               <input
                 type="text"
-                placeholder={t('agent.inputPlaceholder', 'Ask Markiv to do something…')}
+                placeholder={t('agent.inputPlaceholder', 'Ask AI Agent to execute...')}
                 className="input-field chat-field"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
@@ -302,7 +286,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
                 id="inp_agent_chat"
               />
               <button className="btn btn-primary btn-send" onClick={() => handleSendMessage()} disabled={isTyping} id="btn_send_agent" aria-label={t('agent.send', 'Send')}>
-                <i className="fa-solid fa-arrow-up"></i>
+                <i className="fa-solid fa-paper-plane"></i>
               </button>
             </div>
           </>
@@ -311,42 +295,46 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
 
       {/* --- APPROVAL GATE MODAL OVERLAY --- */}
       {showApprovalGate && approvalDetails && (
-        <div className="auth-overlay" id="approval_gate_modal">
-          <div className="auth-card gate-card text-left" role="dialog" aria-modal="true" aria-labelledby="gate_title">
-            <div className="gate-head">
-              <span className="stamp stamp-action">{t('agent.approval.badge', 'Approval required')}</span>
-              <h3 id="gate_title">{approvalDetails.action || t('agent.approval.defaultAction', 'Action')}</h3>
-              <p className="small text-secondary">{t('agent.approval.subtitle', 'Markiv cannot run this without you.')}</p>
+        <div className="approval-gate-overlay animate-fade-in" id="approval_gate_modal">
+          <div className="approval-gate-card glass-card glass-card-glow text-left">
+            <div className="approval-gate-header">
+              <i className="fa-solid fa-shield-halved text-accent shield-icon"></i>
+              <div>
+                <h3>{t('agent.approval.titleSuffix', { defaultValue: '{{action}} — APPROVAL REQUIRED', action: approvalDetails.action || t('agent.approval.defaultAction', 'Action') })}</h3>
+                <small className="text-muted">{t('agent.approval.subtitle', 'Requires direct human confirmation')}</small>
+              </div>
             </div>
 
-            <dl className="gate-facts">
+            <div className="approval-gate-details mt-20">
+              <div className="gate-detail-row">
+                <span>{t('agent.approval.actionLabel', 'Action:')}</span>
+                <strong>{approvalDetails.action}</strong>
+              </div>
               {approvalDetails.cost && (
-                <div>
-                  <dt className="label">{t('agent.approval.costLabel', 'Cost')}</dt>
-                  <dd className="text-accent">{approvalDetails.cost}</dd>
+                <div className="gate-detail-row">
+                  <span>{t('agent.approval.costLabel', 'Cost:')}</span>
+                  <strong className="text-accent">{approvalDetails.cost}</strong>
                 </div>
               )}
               {approvalDetails.target && (
-                <div>
-                  <dt className="label">{t('agent.approval.destinationLabel', 'Destination')}</dt>
-                  <dd>{approvalDetails.target}</dd>
+                <div className="gate-detail-row">
+                  <span>{t('agent.approval.destinationLabel', 'Destination:')}</span>
+                  <strong>{approvalDetails.target}</strong>
                 </div>
               )}
-            </dl>
-
-            <div className="gate-creative">
-              <span className="label">{t('agent.approval.creativeLabel', 'What will be published')}</span>
-              <pre>{approvalDetails.creative}</pre>
+              <div className="gate-creative-box mt-10">
+                <pre>{approvalDetails.creative}</pre>
+              </div>
             </div>
 
-            <div className="gate-actions">
+            <div className="approval-gate-actions flex-between mt-30">
               <button
                 className="btn btn-secondary"
                 onClick={() => setShowApprovalGate(false)}
                 disabled={approvalSuccess}
                 id="btn_reject_ad"
               >
-                {t('agent.approval.reject', 'Cancel')}
+                <i className="fa-solid fa-circle-xmark text-danger"></i> {t('agent.approval.reject', 'Disapprove & Cancel')}
               </button>
 
               <button
@@ -357,10 +345,12 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
               >
                 {approvalSuccess ? (
                   <>
-                    <i className="fa-solid fa-spinner fa-spin"></i> {t('agent.approval.executing', 'Executing…')}
+                    <i className="fa-solid fa-spinner fa-spin"></i> {t('agent.approval.executing', 'Executing...')}
                   </>
                 ) : (
-                  t('agent.approval.approve', 'Approve and run')
+                  <>
+                    <i className="fa-solid fa-circle-check text-success"></i> {t('agent.approval.approve', 'Approve & Execute')}
+                  </>
                 )}
               </button>
             </div>

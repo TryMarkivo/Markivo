@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import ContentEngine from './ContentEngine';
 import AutonomousAgent from './AutonomousAgent';
 import MediaStudio from './MediaStudio';
@@ -16,38 +16,22 @@ import api from '../lib/api';
 import logoUrl from '../assets/markivo-logo.png';
 import './Dashboard.css';
 
-const NAV = [
-  { key: 'analytics', icon: 'fa-chart-simple', i18n: 'dashboard.nav.metrics', fallback: 'Dashboard' },
-  { key: 'content', icon: 'fa-pen-nib', i18n: 'dashboard.nav.content', fallback: 'AI Content Engine' },
-  { key: 'autopilot', icon: 'fa-robot', i18n: 'dashboard.nav.autopilot', fallback: 'Autopilot' },
-  { key: 'media', icon: 'fa-clapperboard', i18n: 'dashboard.nav.media', fallback: 'Media Studio' },
-  { key: 'competitors', icon: 'fa-users-viewfinder', i18n: 'dashboard.nav.competitors', fallback: 'Competitor Intel' },
-  { key: 'connections', icon: 'fa-plug', i18n: 'dashboard.nav.connections', fallback: 'Connections' },
-  { key: 'settings', icon: 'fa-sliders', i18n: 'dashboard.settingsTab', fallback: 'Settings' },
-];
-
-const hhmm = (iso, lang) =>
-  new Date(iso).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', hour12: false });
-
 export default function Dashboard({ token, activeProfile, onLogout, onProfileUpdate, theme, onToggleTheme, onLanguageChange }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   // Tab state. After an OAuth connect redirect (…/?connected=key or
   // ?connect_error=Label) open the Connections tab so the owner sees the result
   // — computed lazily from the URL to avoid a setState-in-effect cascade.
   const [activeTab, setActiveTab] = useState(() => {
     const p = new URLSearchParams(window.location.search);
     return (p.get('connected') || p.get('connect_error')) ? 'connections' : 'analytics';
-  });
+  }); // 'analytics' | 'content' | 'media' | 'competitors' | 'connections' | 'settings'
 
   const [stats, setStats] = useState(null);
-  const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [railOpen, setRailOpen] = useState(false); // mobile drawer only
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   // Markiv AI lives here rather than inside the panel: collapsing it has to give
-  // the main column back the space it was reserving. It starts CLOSED on narrow
-  // screens — open, the band covers the whole viewport, which would bury the
-  // queue behind a chat panel nobody asked for.
-  const [agentOpen, setAgentOpen] = useState(() => window.innerWidth > 1280);
+  // the main column back the 320px it was reserving.
+  const [agentOpen, setAgentOpen] = useState(true);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [igStatus, setIgStatus] = useState(null);
@@ -60,7 +44,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
     const params = new URLSearchParams(window.location.search);
     const result = params.get('instagram');
     if (!result) return '';
-    if (result === 'connected') return t('instagram.noticeConnected', 'Instagram connected');
+    if (result === 'connected') return t('instagram.noticeConnected', 'Instagram connected ✓');
     const reason = params.get('reason') || 'unknown';
     return t(`instagram.errors.${reason}`, t('instagram.noticeError', 'Could not connect Instagram — please try again.'));
   });
@@ -81,13 +65,9 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   };
   useEffect(refreshInstagramStatus, [activeProfile]);
 
-  const refreshQueue = () => {
-    api.get('/api/content/calendar').then((rows) => setQueue(rows || [])).catch(() => setQueue([]));
-  };
-  useEffect(refreshQueue, [activeProfile, activeTab]);
-
   // Side effects for the OAuth return: refresh status on success, strip the
-  // query params, and auto-dismiss the notice.
+  // query params, and auto-dismiss the notice. (The notice text itself is
+  // derived above, so nothing is set synchronously in this effect body.)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const result = params.get('instagram');
@@ -103,7 +83,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
   useEffect(() => {
     api.get('/api/usage').then(setUsage).catch(() => setUsage(null));
-  }, [activeProfile, activeTab]);
+  }, [activeProfile, activeTab]); // refresh when switching tabs (post-generation)
 
   useEffect(() => {
     async function fetchStats() {
@@ -113,29 +93,32 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         setStats(data);
         setStatsOffline(false);
       } catch {
-        // Server unreachable — show clearly-flagged offline preset data. Every
-        // metric is marked simulated so the whole board frays, not just some.
+        // Server unreachable — show clearly-flagged offline preset data.
         setStatsOffline(true);
+        // Fallback static data customized to category
         setStats({
           metrics: {
-            googleViews: { current: 3840, change: 10.2, simulated: true },
-            googleCalls: { current: 112, change: 5.6, simulated: true },
-            instagramFollowers: { current: 1240, change: 12.8, simulated: true },
-            telegramSubscribers: { current: 890, change: 9.4, simulated: true },
-            tiktokFollowers: { current: 0, change: 0, simulated: true },
+            googleViews: { current: 3840, change: 10.2 },
+            googleCalls: { current: 112, change: 5.6 },
+            instagramFollowers: { current: 1240, change: 12.8 },
+            telegramSubscribers: { current: 890, change: 9.4 },
+            tiktokFollowers: { current: 0, change: 0 }
           },
           competitors: [
             { name: 'District Cafe & Bakery', platformCount: 3, postsPerWeek: 6, rating: 4.4, followers: 2300 },
             { name: 'Coffee House Central', platformCount: 4, postsPerWeek: 10, rating: 4.6, followers: 4100 },
-            { name: 'Local Roasters', platformCount: 2, postsPerWeek: 4, rating: 4.2, followers: 980 },
+            { name: 'Local Roasters', platformCount: 2, postsPerWeek: 4, rating: 4.2, followers: 980 }
           ],
           seoKeywords: [
             { keyword_phrase: `best ${cat} in tashkent`, avg_position: 7, volume: 'High' },
             { keyword_phrase: `${cat} workspace`, avg_position: 11, volume: 'Medium' },
-            { keyword_phrase: `${cat} near me`, avg_position: 15, volume: 'Very High' },
+            { keyword_phrase: `${cat} near me`, avg_position: 15, volume: 'Very High' }
           ],
-          aiPresence: { perplexityScore: 72, chatgptRank: 'Top 10', sourcesCitedCount: 3 },
-          simulated: { seoKeywords: true, competitors: true, aiPresence: true },
+          aiPresence: {
+            perplexityScore: 72,
+            chatgptRank: 'Top 10',
+            sourcesCitedCount: 3
+          }
         });
       }
       setLoading(false);
@@ -143,425 +126,368 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
     fetchStats();
   }, [activeProfile, token]);
 
-  // The channel warp band. Each stripe is a dyed band whose state is its
-  // colour, and whose edge is hard when the connection publishes for real.
-  const channels = useMemo(() => [
-    {
-      key: 'instagram',
-      label: 'Instagram',
-      icon: 'fa-brands fa-instagram',
-      state: igStatus?.comingSoon ? 'off' : igStatus?.connected ? 'live' : 'off',
-      detail: igStatus?.comingSoon
-        ? t('instagram.pillSoon', 'Coming soon')
-        : igStatus?.connected
-          ? (igStatus.username ? `@${igStatus.username}` : t('instagram.pillConnectedGeneric', 'Connected'))
-          : t('dashboard.warp.notConnected', 'Not connected'),
-      onClick: igStatus?.comingSoon ? null : () => setIgModalOpen(true),
-    },
-    {
-      key: 'telegram',
-      label: 'Telegram',
-      icon: 'fa-brands fa-telegram',
-      state: tgStatus?.comingSoon ? 'off' : (tgStatus?.connected && tgStatus?.chat) ? 'live' : 'off',
-      detail: tgStatus?.comingSoon
-        ? t('telegram.pillSoon', 'Coming soon')
-        : tgStatus?.connected && tgStatus?.chat
-          ? tgStatus.chat.chatTitle
-          : tgStatus?.connected
-            ? t('telegram.pillFinishSetup', 'Finish setup')
-            : t('dashboard.warp.notConnected', 'Not connected'),
-      onClick: tgStatus?.comingSoon ? null : () => setTgModalOpen(true),
-    },
-    {
-      key: 'google',
-      label: t('dashboard.channels.google', 'Google Profile'),
-      icon: 'fa-brands fa-google',
-      // Connected in the profile, but publishing is simulated until the
-      // integration lands — so it frays rather than claiming to be live.
-      state: activeProfile.platforms?.googleBusiness ? 'sim' : 'off',
-      detail: activeProfile.platforms?.googleBusiness
-        ? t('dashboard.warp.simulated', 'Simulated publishing')
-        : t('dashboard.warp.notConnected', 'Not connected'),
-      onClick: () => setActiveTab('connections'),
-    },
-    {
-      key: 'tiktok',
-      label: 'TikTok',
-      icon: 'fa-brands fa-tiktok',
-      state: activeProfile.platforms?.tiktok ? 'sim' : 'off',
-      detail: activeProfile.platforms?.tiktok
-        ? t('dashboard.warp.simulated', 'Simulated publishing')
-        : t('dashboard.warp.notConnected', 'Not connected'),
-      onClick: () => setActiveTab('connections'),
-    },
-  ], [igStatus, tgStatus, activeProfile, t]);
-
-  // Today first, then the next few days. Past posts stay in the list only for
-  // today, because "what already went out today" is the thing being checked.
-  const upcoming = useMemo(() => {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    return [...queue]
-      .filter((r) => new Date(r.scheduled_time) >= startOfToday)
-      .sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time))
-      .slice(0, 8);
-  }, [queue]);
-
   if (loading || !stats) {
     return (
-      <div className="app-loading">
-        <i className="fa-solid fa-spinner fa-spin"></i>
-        <span>{t('dashboard.loading', 'Loading your workroom…')}</span>
+      <div className="dashboard-loading text-center">
+        <i className="fa-solid fa-spinner fa-spin fa-3x text-accent"></i>
+        <h3 className="mt-20">{t('dashboard.loading', 'Loading Command Center...')}</h3>
       </div>
     );
   }
 
-  const logoStyle = activeProfile.logo || { text: activeProfile.businessName, color: '#d81f3c', bgColor: '#1c1c3a', shape: 'square', icon: '·' };
+  // Helper to render logo symbol
+  const logoStyle = activeProfile.logo || { text: activeProfile.businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' };
 
+  // Label maps for raw API/mock data values (fall back to raw value for unknown codes)
   const volumeLabels = {
     'High': t('dashboard.seo.volume.high', 'High'),
     'Medium': t('dashboard.seo.volume.medium', 'Medium'),
-    'Very High': t('dashboard.seo.volume.veryHigh', 'Very High'),
+    'Very High': t('dashboard.seo.volume.veryHigh', 'Very High')
   };
 
-  const simFlags = stats.simulated || {};
-
-  const metricPanels = [
-    {
-      key: 'telegramSubscribers',
-      label: t('dashboard.stats.telegramMembers', 'Telegram members'),
-      sub: `t.me/${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`,
-      color: 'var(--jade)',
-    },
-    {
-      key: 'instagramFollowers',
-      label: t('dashboard.stats.instagramFollowers', 'Instagram followers'),
-      sub: `@${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`,
-      color: 'var(--madder)',
-    },
-    {
-      key: 'googleViews',
-      label: t('dashboard.stats.googleViews', 'Google Maps views'),
-      sub: t('dashboard.stats.past30Days', 'past 30 days'),
-      color: 'var(--saffron)',
-    },
-  ];
-
+  // NOTE: the shell deliberately carries no fade animation. `fadeIn` runs with
+  // `animation-fill-mode: forwards`, which leaves `transform: translateY(0)`
+  // applied for good — and a transformed ancestor makes `position: fixed`
+  // children resolve against IT instead of the viewport, so both side panels
+  // would scroll away with the page.
   return (
-    <div className="shell">
-      {/* --- SELVEDGE: the bound edge of the cloth --- */}
-      <aside className={`selvedge ${railOpen ? 'open' : ''}`} id="selvedge">
-        <div className="selvedge-brand">
-          <img src={logoUrl} alt="Markivo" className="selvedge-logo" />
-          <span>Markivo</span>
+    <div className="dashboard-shell">
+      {/* --- SIDEBAR --- */}
+      <aside className={`dashboard-sidebar glass-card ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-header">
+          <div className="logo-text">
+            <img src={logoUrl} alt="Markivo" className="logo-img" />
+            Markivo
+          </div>
         </div>
 
-        <button className="selvedge-profile" onClick={() => setActiveTab('settings')} id="btn_active_profile">
-          <span className="selvedge-mark" style={{ background: logoStyle.bgColor, color: logoStyle.color }}>
+        {/* LOGO BRIEF BLOCK */}
+        <div className="active-profile-card">
+          <div className="sidebar-logo-icon" style={{ backgroundColor: logoStyle.bgColor, borderColor: logoStyle.color, color: logoStyle.color }}>
             {activeProfile.logo?.image ? (
-              <img src={activeProfile.logo.image} alt="" />
+              <img
+                src={activeProfile.logo.image}
+                alt={activeProfile.businessName}
+                style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'contain' }}
+              />
             ) : activeProfile.logo?.svg ? (
-              <img src={'data:image/svg+xml;utf8,' + encodeURIComponent(activeProfile.logo.svg)} alt="" />
+              <img
+                src={'data:image/svg+xml;utf8,' + encodeURIComponent(activeProfile.logo.svg)}
+                alt={activeProfile.businessName}
+                style={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
+              />
             ) : (
-              (activeProfile.businessName || '?').charAt(0).toUpperCase()
+              logoStyle.icon || '☕'
             )}
-          </span>
-          <span className="selvedge-profile-text">
-            <strong>{activeProfile.businessName}</strong>
+          </div>
+          <div className="active-profile-info">
+            <h4>{activeProfile.businessName}</h4>
             <small>{activeProfile.category}</small>
-          </span>
-        </button>
+          </div>
+        </div>
 
-        <nav className="selvedge-nav" aria-label={t('dashboard.nav.aria', 'Sections')}>
-          {NAV.map((item) => (
-            <button
-              key={item.key}
-              className={`nav-item ${activeTab === item.key ? 'active' : ''}`}
-              onClick={() => { setActiveTab(item.key); setRailOpen(false); }}
-              id={`btn_tab_${item.key}`}
-              aria-current={activeTab === item.key ? 'page' : undefined}
-            >
-              <i className={`fa-solid ${item.icon}`} aria-hidden="true"></i>
-              <span>{t(item.i18n, item.fallback)}</span>
-            </button>
-          ))}
+        <nav className="sidebar-nav">
+          <button 
+            className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+            id="btn_tab_analytics"
+          >
+            <i className="fa-solid fa-chart-pie"></i> {t('dashboard.nav.metrics', 'Dashboard')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'content' ? 'active' : ''}`}
+            onClick={() => setActiveTab('content')}
+            id="btn_tab_content"
+          >
+            <i className="fa-solid fa-wand-magic-sparkles"></i> {t('dashboard.nav.content', 'AI Content Engine')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'autopilot' ? 'active' : ''}`}
+            onClick={() => setActiveTab('autopilot')}
+            id="btn_tab_autopilot"
+          >
+            <i className="fa-solid fa-robot"></i> {t('dashboard.nav.autopilot', 'Autopilot')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'media' ? 'active' : ''}`}
+            onClick={() => setActiveTab('media')}
+            id="btn_tab_media"
+          >
+            <i className="fa-solid fa-clapperboard"></i> {t('dashboard.nav.media', 'Media Studio')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'competitors' ? 'active' : ''}`}
+            onClick={() => setActiveTab('competitors')}
+            id="btn_tab_competitors"
+          >
+            <i className="fa-solid fa-users-viewfinder"></i> {t('dashboard.nav.competitors', 'Competitor Intel')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'connections' ? 'active' : ''}`}
+            onClick={() => setActiveTab('connections')}
+            id="btn_tab_connections"
+          >
+            <i className="fa-solid fa-plug"></i> {t('dashboard.nav.connections', 'Connections')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+            id="btn_tab_settings"
+          >
+            <i className="fa-solid fa-gear"></i> {t('dashboard.settingsTab', 'Settings')}
+          </button>
         </nav>
 
-        <div className="selvedge-foot">
+        <div className="sidebar-footer">
           {usage && (
-            <div className="usage" id="usage_meter">
-              <div className="usage-top">
-                <span className="label">{t('usage.label', 'AI generations')}</span>
-                <span className="num small">{usage.used}/{usage.limit}</span>
+            <div className="usage-meter" id="usage_meter" title={t('usage.resetsTitle', { defaultValue: 'Resets {{date}}', date: usage.resetsAt?.slice(0, 10) })}>
+              <div className="usage-meter-label">
+                <span>{t('usage.label', 'AI generations')}</span>
+                <span>{t('usage.count', { defaultValue: '{{used}} / {{limit}}', used: usage.used, limit: usage.limit })}</span>
               </div>
-              <div
-                className="usage-track"
-                role="progressbar"
-                aria-valuenow={usage.used}
-                aria-valuemin={0}
-                aria-valuemax={usage.limit}
-              >
+              <div className="usage-meter-track">
                 <div
-                  className={`usage-fill ${usage.used >= usage.limit ? 'full' : ''}`}
-                  style={{ transform: `scaleX(${Math.min(1, usage.used / Math.max(1, usage.limit))})` }}
+                  className={`usage-meter-fill ${usage.used >= usage.limit ? 'full' : ''}`}
+                  style={{ width: `${Math.min(100, Math.round((usage.used / usage.limit) * 100))}%` }}
                 ></div>
               </div>
-              <small className="usage-tier">
-                {t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}
-              </small>
+              <small className="usage-meter-tier">{t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}</small>
             </div>
           )}
-          <button className="btn btn-ghost btn-block" onClick={onLogout} id="btn_logout">
-            <i className="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
-            {t('dashboard.exit', 'Sign out')}
+          <button className="btn btn-secondary w-full" onClick={onLogout} id="btn_logout">
+            <i className="fa-solid fa-arrow-right-from-bracket"></i> {t('dashboard.exit', 'Exit Dashboard')}
           </button>
         </div>
       </aside>
 
-      {railOpen && <button className="selvedge-scrim" onClick={() => setRailOpen(false)} aria-label={t('common.close', 'Close')} />}
-
-      {/* --- FIELD --- */}
-      <main className={`field ${agentOpen ? '' : 'agent-collapsed'}`}>
-        <header className="field-head">
-          <button className="rail-toggle" onClick={() => setRailOpen(true)} aria-label={t('dashboard.nav.aria', 'Sections')}>
+      {/* --- MAIN MAIN WRAPPER --- */}
+      <main className={`dashboard-main-content ${agentOpen ? '' : 'agent-collapsed'}`}>
+        {/* TOP BAR */}
+        <header className="main-header glass-card">
+          <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
             <i className="fa-solid fa-bars"></i>
           </button>
-          <h1 className="field-title">
-            {t(NAV.find((n) => n.key === activeTab)?.i18n, NAV.find((n) => n.key === activeTab)?.fallback)}
-          </h1>
-          <div className="field-head-right">
-            <span className="field-place">
-              <i className="fa-solid fa-location-dot" aria-hidden="true"></i>
-              {activeProfile.location || t('dashboard.defaultLocation', 'Tashkent, Uzbekistan')}
-            </span>
+          <div className="header-location">
+            <i className="fa-solid fa-location-dot text-accent"></i> <span>{activeProfile.location || t('dashboard.defaultLocation', 'Tashkent, Uzbekistan')}</span>
+          </div>
+          <div className="header-badge-wrap">
+            <span className="badge badge-success"><i className="fa-solid fa-circle-check"></i> {t('dashboard.systemOperational', 'System Operational')}</span>
+            <span className="badge badge-primary">{t('dashboard.versionBadge', 'V1 Live')}</span>
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </div>
         </header>
 
-        <div className="field-body">
-          {/* ===== DASHBOARD ===== */}
+        {/* TABS CONTAINER */}
+        <div className="tab-pane-container">
+          
+          {/* TAB 1: METRICS & SEARCH */}
           {activeTab === 'analytics' && (
-            <div className="stack animate-fade-in">
+            <div className="tab-analytics animate-fade-in">
+
               {statsOffline && (
                 <div className="demo-offline-banner" role="status">
-                  <i className="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                  {t('common.offlineDemo', 'Demo data — server offline')}
-                </div>
-              )}
-              {igNotice && (
-                <div className="demo-offline-banner" role="status" style={{ borderLeftColor: 'var(--jade)', background: 'var(--jade-field)', color: 'var(--jade)' }}>
-                  <i className="fa-solid fa-circle-check" aria-hidden="true"></i>{igNotice}
+                  <i className="fa-solid fa-triangle-exclamation"></i> {t('common.offlineDemo', 'Demo data — server offline')}
                 </div>
               )}
 
-              {/* --- WARP BAND: channels, then the queue, seamed together.
-                  The band is the first thing on the page — no title row above
-                  it — and Compose is its rightmost cell. --- */}
-              <section className="panel opening" aria-labelledby="h_channels">
-                <h2 id="h_channels" className="visually-hidden">
-                  {t('dashboard.activeInfrastructure', 'Channels')}
-                </h2>
+              {/* CONNECTED PLATFORMS */}
+              <div className="channels-status-row">
+                <h3>{t('dashboard.activeInfrastructure', 'Your Active Infrastructure')}</h3>
+                {igNotice && (
+                  <div className="badge badge-success mb-10" style={{ display: 'block', padding: 8 }} role="status">{igNotice}</div>
+                )}
+                <div className="channels-grid">
+                  <div className={`channel-pill ${activeProfile.platforms.googleBusiness ? 'connected' : 'inactive'}`}>
+                    <i className="fa-brands fa-google"></i> {t('dashboard.channels.google', 'Google Profile')}
+                    <span className="dot"></span>
+                  </div>
+                  <div
+                    className={`channel-pill ${igStatus?.connected ? 'connected' : 'inactive'}`}
+                    onClick={igStatus?.comingSoon ? undefined : () => setIgModalOpen(true)}
+                    style={{ cursor: igStatus?.comingSoon ? 'default' : 'pointer' }}
+                    title={
+                      igStatus?.comingSoon
+                        ? t('instagram.pillTitleSoon', 'Instagram connection is coming soon')
+                        : igStatus?.connected
+                          ? t('instagram.pillTitleConnected', { defaultValue: 'Connected as @{{username}}', username: igStatus.username || igStatus.accountName || '' })
+                          : t('instagram.pillTitleConnect', 'Click to connect Instagram')
+                    }
+                    id="btn_instagram_pill"
+                  >
+                    <i className="fa-brands fa-instagram"></i>{' '}
+                    {igStatus?.comingSoon
+                      ? t('instagram.pillSoon', 'Instagram · soon')
+                      : igStatus?.connected
+                        ? (igStatus.username
+                            ? t('instagram.pillConnected', { defaultValue: 'Instagram · @{{username}}', username: igStatus.username })
+                            : t('instagram.pillConnectedGeneric', 'Instagram · connected'))
+                        : t('instagram.pillConnect', 'Instagram · connect')}
+                    <span className="dot"></span>
+                  </div>
+                  <div
+                    className={`channel-pill ${tgStatus?.connected && tgStatus?.chat ? 'connected' : 'inactive'}`}
+                    onClick={tgStatus?.comingSoon ? undefined : () => setTgModalOpen(true)}
+                    style={{ cursor: tgStatus?.comingSoon ? 'default' : 'pointer' }}
+                    title={
+                      tgStatus?.comingSoon
+                        ? t('telegram.pillTitleSoon', 'Telegram integration is coming soon')
+                        : tgStatus?.connected
+                          ? t('telegram.pillTitleBot', { defaultValue: 'Bot @{{username}}', username: tgStatus.botUsername })
+                          : t('telegram.pillTitleConnect', 'Click to connect Telegram')
+                    }
+                    id="btn_telegram_pill"
+                  >
+                    <i className="fa-brands fa-telegram"></i>{' '}
+                    {tgStatus?.comingSoon
+                      ? t('telegram.pillSoon', 'Telegram · soon')
+                      : tgStatus?.connected && tgStatus?.chat
+                        ? t('telegram.pillChat', { defaultValue: 'Telegram · {{chatTitle}}', chatTitle: tgStatus.chat.chatTitle })
+                        : tgStatus?.connected
+                          ? t('telegram.pillFinishSetup', 'Telegram · finish setup')
+                          : t('telegram.pillConnect', 'Telegram · connect')}
+                    <span className="dot"></span>
+                  </div>
+                  <div className={`channel-pill ${activeProfile.platforms.tiktok ? 'connected' : 'inactive'}`}>
+                    <i className="fa-brands fa-tiktok"></i> TikTok
+                    <span className="dot"></span>
+                  </div>
+                </div>
+              </div>
 
-                <div className="warp warp-flush">
-                  {channels.map((c) => (
-                    <button
-                      key={c.key}
-                      className={`warp-stripe is-${c.state} ${c.state === 'sim' ? 'frayed' : ''}`}
-                      // Every stripe is a route, including the disconnected
-                      // ones: on a new account all four are off, and a band of
-                      // dead buttons leaves the operator with nowhere to go.
-                      onClick={c.onClick || (() => setActiveTab('connections'))}
-                      id={`btn_warp_${c.key}`}
-                    >
-                      <span className="warp-name">
-                        <i className={c.icon} aria-hidden="true"></i>{c.label}
-                      </span>
-                      {/* The detail line already names the state in words, so
-                          the stripe does not repeat it as a second badge. */}
-                      <span className="warp-foot">
-                        <span className={`warp-state ${c.state === 'sim' ? 'is-warn' : ''}`}>{c.detail}</span>
-                      </span>
-                    </button>
-                  ))}
-
-                  <div className="warp-action">
-                    <button className="btn btn-primary btn-block" onClick={() => setActiveTab('content')} id="btn_compose">
-                      <i className="fa-solid fa-pen-nib" aria-hidden="true"></i>
-                      {t('dashboard.compose', 'Compose')}
-                    </button>
+              {/* CORE METRICS GRID */}
+              <div className="grid-3 stats-grid">
+                
+                {/* GOOGLE MAPS VIEWS */}
+                <div className="stat-card glass-card">
+                  <div className="flex-between">
+                    <span className="stat-label">{t('dashboard.stats.googleViews', 'Google Maps Search Views')}</span>
+                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.googleViews.change })}</span>
+                  </div>
+                  <div className="stat-number-wrap">
+                    <h2>{stats.metrics.googleViews.current.toLocaleString()}</h2>
+                    <span className="text-muted">{t('dashboard.stats.past30Days', 'past 30 days')}</span>
+                  </div>
+                  <div className="stat-chart-svg">
+                    <Sparkline
+                      history={stats.metrics.googleViews.history}
+                      color="var(--accent-primary)"
+                      label={t('dashboard.stats.googleViews', 'Google Maps Search Views')}
+                    />
                   </div>
                 </div>
 
-                <div className="queue">
-                  <div className="queue-head">
-                    <h3 className="label">{t('dashboard.queue.title', 'Queue')}</h3>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setActiveTab('autopilot')} id="btn_open_calendar">
-                      {t('dashboard.queue.openCalendar', 'Open calendar')}
-                      <i className="fa-solid fa-arrow-right" aria-hidden="true"></i>
-                    </button>
+                {/* INSTAGRAM FOLLOWERS */}
+                <div className="stat-card glass-card">
+                  <div className="flex-between">
+                    <span className="stat-label">{t('dashboard.stats.instagramFollowers', 'Instagram Followers')}</span>
+                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}</span>
                   </div>
-
-                  {upcoming.length === 0 ? (
-                    <div className="empty">
-                      <h4>{t('dashboard.queue.emptyTitle', 'Nothing queued')}</h4>
-                      <p>{t('dashboard.queue.emptyBody', 'Write a post in the Content Engine and schedule it — it will appear here with its time and channel.')}</p>
-                      <button className="btn btn-primary btn-sm" onClick={() => setActiveTab('content')}>
-                        {t('dashboard.queue.emptyCta', 'Write the first post')}
-                      </button>
-                    </div>
-                  ) : (
-                    <ul className="queue-rows">
-                      {upcoming.map((row) => {
-                        const state = row.status === 'posted' ? 'live' : row.status === 'failed' ? 'failed' : 'queued';
-                        return (
-                          <li key={row.id} className={`queue-row is-${state}`}>
-                            <time className="num queue-time" dateTime={row.scheduled_time}>
-                              {hhmm(row.scheduled_time, i18n.language)}
-                            </time>
-                            {/* Day and channel travel together so they can drop
-                                onto a second line on narrow screens instead of
-                                being hidden — they are the row's whole point. */}
-                            <span className="queue-meta">
-                              <span className="queue-day label">
-                                {new Date(row.scheduled_time).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}
-                              </span>
-                              <span className="queue-platform">{row.platform}</span>
-                            </span>
-                            <p className="queue-text">{row.post_text}</p>
-                            <span className={`stamp stamp-${state}`}>
-                              {t(`dashboard.queue.status.${state}`, state)}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              </section>
-
-              {/* --- MEASUREMENTS: below the queue, because the queue is the
-                  job. One panel divided by seams, not three floating cards. --- */}
-              <section className="panel" aria-labelledby="h_metrics">
-                <div className="panel-head">
-                  <h2 id="h_metrics">{t('dashboard.measurements', 'Measurements')}</h2>
-                  {/* One legend for the whole strip, so the frayed hem is
-                      explained once instead of five times in five wordings. */}
-                  <span className="truth-legend">
-                    <span className="truth-key is-hard">{t('truth.measured', 'Measured')}</span>
-                    <span className="truth-key is-frayed">{t('truth.simulated', 'Simulated')}</span>
-                  </span>
-                </div>
-                <div className="metric-strip">
-                  {metricPanels.map((m) => {
-                    const metric = stats.metrics[m.key];
-                    if (!metric) return null;
-                    const sim = !!metric.simulated;
-                    return (
-                      <article
-                        key={m.key}
-                        className={`metric ${sim ? 'frayed' : ''}`}
-                        style={{ '--fray': 'var(--saffron)' }}
-                      >
-                        <div className="metric-top">
-                          <span className="label">{m.label}</span>
-                          <span className={sim ? 'frayed-note' : 'stamp stamp-live'}>
-                            {sim ? t('truth.simulated', 'Simulated') : t('truth.measured', 'Measured')}
-                          </span>
-                        </div>
-                        <p className="metric-value num">{metric.current.toLocaleString()}</p>
-                        <p className="metric-sub">{m.sub}</p>
-                        {/* A simulated number has no history worth plotting —
-                            it is the same constant every day, so claiming to be
-                            "collecting data" on it would be a second untruth. */}
-                        {!sim && (
-                          <div className="metric-chart">
-                            <Sparkline history={metric.history} color={m.color} label={m.label} />
-                          </div>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* --- SEARCH --- */}
-              <div className="grid-2">
-                <section className={`panel ${simFlags.seoKeywords ? 'frayed' : ''}`} style={{ '--fray': 'var(--saffron)' }} aria-labelledby="h_seo">
-                  <div className="panel-head">
-                    <h2 id="h_seo">{t('dashboard.seo.title', 'Local search')}</h2>
-                    {/* One word per truth-state, driven by the flag. A number
-                        the backend marks simulated says SIMULATED wherever it
-                        sits; ESTIMATE is reserved for a real capture that has
-                        gone stale, which this demo profile is not. */}
-                    {simFlags.seoKeywords && (
-                      <span className="frayed-note">{t('truth.simulated', 'Simulated')}</span>
-                    )}
+                  <div className="stat-number-wrap">
+                    <h2>{stats.metrics.instagramFollowers.current.toLocaleString()}</h2>
+                    <span className="text-muted">@{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
                   </div>
-                  <div className="rows">
-                    <div className="row-head kw-grid">
-                      <span>{t('dashboard.seo.keywordCol', 'Keyword')}</span>
-                      <span>{t('dashboard.seo.positionCol', 'Position')}</span>
+                  <div className="stat-chart-svg">
+                    <Sparkline
+                      history={stats.metrics.instagramFollowers.history}
+                      color="var(--accent-purple)"
+                      label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
+                    />
+                  </div>
+                </div>
+
+                {/* TELEGRAM ACTIVE MEMBERS */}
+                <div className="stat-card glass-card">
+                  <div className="flex-between">
+                    <span className="stat-label">{t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}</span>
+                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.telegramSubscribers.change })}</span>
+                  </div>
+                  <div className="stat-number-wrap">
+                    <h2>{stats.metrics.telegramSubscribers.current.toLocaleString()}</h2>
+                    <span className="text-muted">t.me/{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
+                  </div>
+                  <div className="stat-chart-svg">
+                    <Sparkline
+                      history={stats.metrics.telegramSubscribers.history}
+                      color="var(--accent-secondary)"
+                      label={t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SEARCH PERFORMANCE ROW */}
+              <div className="grid-2 search-analytics-grid mt-30">
+                
+                {/* SEO LOCAL KEYWORDS */}
+                <div className="seo-panel glass-card">
+                  <h3>{t('dashboard.seo.title', 'Local SEO Rankings')}</h3>
+                  <p className="panel-subtitle">{t('dashboard.seo.subtitle', 'How your business ranks in Tashkent search results')}</p>
+
+                  <div className="keywords-list">
+                    <div className="kw-header">
+                      <span>{t('dashboard.seo.keywordCol', 'Search Keyword')}</span>
+                      <span>{t('dashboard.seo.positionCol', 'Avg. Position')}</span>
                       <span>{t('dashboard.seo.volumeCol', 'Volume')}</span>
                     </div>
                     {stats.seoKeywords.map((kw, idx) => {
                       const position = kw.avg_position ?? kw.position;
                       return (
-                        <div key={idx} className="row kw-grid">
-                          <span>{kw.keyword_phrase || kw.keyword}</span>
-                          <span className={`num ${position <= 10 ? 'text-live' : 'text-secondary'}`}>#{position}</span>
-                          <span className="small text-secondary">{volumeLabels[kw.volume] || kw.volume}</span>
+                        <div key={idx} className="kw-row">
+                          <span className="kw-text">{kw.keyword_phrase || kw.keyword}</span>
+                          <span className={`kw-pos ${position <= 10 ? 'top-10' : ''}`}>#{position}</span>
+                          <span className="kw-volume">{volumeLabels[kw.volume] || kw.volume}</span>
                         </div>
                       );
                     })}
                   </div>
-                  {simFlags.seoKeywords && (
-                    <p className="panel-foot">
-                      {t('dashboard.seo.estimateNote', 'Captured when this profile was created and not re-measured since. Connect Google Business for live ranks.')}
-                    </p>
-                  )}
-                </section>
+                </div>
 
-                <section className={`panel ${simFlags.aiPresence ? 'frayed' : ''}`} style={{ '--fray': 'var(--saffron)' }} aria-labelledby="h_ai">
-                  <div className="panel-head">
-                    <h2 id="h_ai">{t('dashboard.aiSearch.title', 'AI search visibility')}</h2>
-                    {simFlags.aiPresence && (
-                      <span className="frayed-note">{t('truth.simulated', 'Simulated')}</span>
-                    )}
-                  </div>
-                  <div className="panel-body">
-                    <div className="ai-score">
-                      <span className="ai-score-num num">{stats.aiPresence.perplexityScore}</span>
-                      <div>
-                        <h4>{t('dashboard.aiSearch.optimised', 'Index score')}</h4>
-                        <p className="small text-secondary">
-                          {t('dashboard.aiSearch.scale', 'Out of 100, across chat-model recommendations')}
-                        </p>
+                {/* AI SEARCH PRESENCE INDEX */}
+                <div className="ai-search-panel glass-card">
+                  <h3>{t('dashboard.aiSearch.title', 'AI Search Visibility')}</h3>
+                  <p className="panel-subtitle">{t('dashboard.aiSearch.subtitle', 'How models recommend you in natural chat queries')}</p>
+
+                  <div className="ai-score-ring-wrap">
+                    <div className="ai-ring-container">
+                      <svg width="80" height="80" viewBox="0 0 36 36" className="circular-chart">
+                        <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#222" strokeWidth="2.5" />
+                        <path className="circle-fill" strokeDasharray={`${stats.aiPresence.perplexityScore}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--accent-primary)" strokeWidth="2.5" />
+                      </svg>
+                      <div className="ai-score-inside">
+                        <span>{stats.aiPresence.perplexityScore}</span>
+                        <small>{t('dashboard.aiSearch.indexLabel', 'index')}</small>
                       </div>
                     </div>
-                    <div className="ai-bar" role="img" aria-label={`${stats.aiPresence.perplexityScore} / 100`}>
-                      <span style={{ width: `${stats.aiPresence.perplexityScore}%` }}></span>
+                    <div className="ai-score-info">
+                      <h4>{t('dashboard.aiSearch.optimised', 'Highly Search Optimised')}</h4>
+                      <p>
+                        <Trans
+                          i18nKey="dashboard.aiSearch.citedIn"
+                          defaults="Cited in <1>{{count}} distinct</1> search models this week."
+                          values={{ count: stats.aiPresence.sourcesCitedCount }}
+                          components={{ 1: <strong /> }}
+                        />
+                      </p>
                     </div>
-                    <dl className="ai-facts">
-                      <div>
-                        <dt className="label">{t('dashboard.aiSearch.chatgptRank', 'Chat rank')}</dt>
-                        <dd>{stats.aiPresence.chatgptRank}</dd>
-                      </div>
-                      <div>
-                        <dt className="label">{t('dashboard.aiSearch.perplexityCitations', 'Citations')}</dt>
-                        <dd className="num">{stats.aiPresence.sourcesCitedCount}</dd>
-                      </div>
-                    </dl>
                   </div>
-                  {simFlags.aiPresence && (
-                    <p className="panel-foot">
-                      {t('dashboard.aiSearch.placeholderNote', 'This score is a fixed placeholder, identical for every business. It is not measured yet.')}
-                    </p>
-                  )}
-                </section>
+
+                  <div className="ai-mentions-breakdown border-top-onboard pt-20">
+                    <div className="mention-item">
+                      <span><i className="fa-solid fa-message text-success"></i> {t('dashboard.aiSearch.chatgptRank', 'ChatGPT recommendation rank')}</span>
+                      <strong className="text-success">{stats.aiPresence.chatgptRank === 'Top 10' ? t('dashboard.aiSearch.rankTop10', 'Top 10') : stats.aiPresence.chatgptRank}</strong>
+                    </div>
+                    <div className="mention-item mt-10">
+                      <span><i className="fa-solid fa-lightbulb text-accent"></i> {t('dashboard.aiSearch.perplexityCitations', 'Perplexity Citations')}</span>
+                      <strong>{t('dashboard.aiSearch.active', 'Active')}</strong>
+                    </div>
+                  </div>
+                </div>
               </div>
+
             </div>
           )}
 
+          {/* TAB 2: AI CONTENT ENGINE */}
           {activeTab === 'content' && (
             <ContentEngine
               token={token}
@@ -570,16 +496,26 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             />
           )}
 
-          {activeTab === 'autopilot' && <AutonomousAgent activeProfile={activeProfile} />}
+          {activeTab === 'autopilot' && (
+            <AutonomousAgent activeProfile={activeProfile} />
+          )}
 
-          {activeTab === 'media' && <MediaStudio activeProfile={activeProfile} />}
+          {/* TAB 3: MEDIA STUDIO */}
+          {activeTab === 'media' && (
+            <MediaStudio activeProfile={activeProfile} />
+          )}
 
+          {/* TAB 4: COMPETITOR INTEL */}
           {activeTab === 'competitors' && (
             <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} />
           )}
 
-          {activeTab === 'connections' && <ConnectionsPanel activeProfile={activeProfile} />}
+          {/* TAB 5: PLATFORM CONNECTIONS */}
+          {activeTab === 'connections' && (
+            <ConnectionsPanel activeProfile={activeProfile} />
+          )}
 
+          {/* TAB 6: SETTINGS */}
           {activeTab === 'settings' && (
             <SettingsPane
               activeProfile={activeProfile}
@@ -593,6 +529,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         </div>
       </main>
 
+      {/* --- TELEGRAM CONNECT MODAL --- */}
       {tgModalOpen && (
         <TelegramConnect
           status={tgStatus}
@@ -601,6 +538,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         />
       )}
 
+      {/* --- INSTAGRAM CONNECT MODAL --- */}
       {igModalOpen && (
         <InstagramConnect
           status={igStatus}
@@ -610,6 +548,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         />
       )}
 
+      {/* --- INSTAGRAM COMPOSER MODAL --- */}
       {igComposerOpen && (
         <InstagramComposer
           status={igStatus}
@@ -618,6 +557,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         />
       )}
 
+      {/* --- PERSISTENT RIGHT-FLOATING AI AGENT PANEL --- */}
       <AIAgentSidebar
         token={token}
         activeProfile={activeProfile}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import TemplateStudio from './TemplateStudio';
@@ -11,9 +11,9 @@ import './ContentEngine.css';
 // wants Uzbek first, then Russian, then English, and the post has to read that
 // way in the single message it publishes.
 const LANGUAGES = [
-  { code: 'uz', label: 'Uzbek' },
-  { code: 'ru', label: 'Russian' },
-  { code: 'en', label: 'English' },
+  { code: 'uz', flag: '🇺🇿', label: 'Uzbek' },
+  { code: 'ru', flag: '🇷🇺', label: 'Russian' },
+  { code: 'en', flag: '🇬🇧', label: 'English' },
 ];
 
 export default function ContentEngine({ activeProfile, onGoToConnections }) {
@@ -33,10 +33,6 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
   const [langs, setLangs] = useState(['en']);
   const [loadingCopy, setLoadingCopy] = useState(false);
   const [generatedCopy, setGeneratedCopy] = useState(null);
-  // Discarded generations for this session, newest first, and whether the fan
-  // is currently pulled open.
-  const [fan, setFan] = useState([]);
-  const [fanOpen, setFanOpen] = useState(false);
   // Photo/video that ships with the post. Instagram cannot publish without it.
   const [media, setMedia] = useState(null);
   const [tgStatus, setTgStatus] = useState(null);
@@ -156,21 +152,6 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
     });
   };
 
-  // Every regeneration used to destroy the draft before it. Generation is
-  // cheap to repeat and expensive to lose — a good line from two tries ago is
-  // the thing an operator actually wants back — so each draft is pushed onto a
-  // stack that can be fanned open beside the current one.
-  // The id is a monotonic counter, not the timestamp: two drafts pushed inside
-  // the same millisecond would collide as React keys and break the filter that
-  // reinstates one. `at` stays for display only.
-  const fanSeq = useRef(0);
-  const pushToFan = (draft) => {
-    if (!draft?.post) return;
-    fanSeq.current += 1;
-    const entry = { id: fanSeq.current, post: draft.post, at: Date.now() };
-    setFan((prev) => [entry, ...prev].slice(0, 8));
-  };
-
   const handleGenerateCopy = async (e) => {
     e.preventDefault();
     if (!topic.trim()) return;
@@ -178,7 +159,6 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
     setLoadingCopy(true);
     resetPostFlows();
     setTgPostResult(null);
-    pushToFan(generatedCopy);
     try {
       const data = await api.post('/api/content/copywrite', {
         platform: generationKey,
@@ -368,7 +348,7 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
       <div className="compose-column">
 
         {/* --- AI COPYWRITER PANEL --- */}
-        <div className="copywriter-panel panel">
+        <div className="copywriter-panel glass-card">
           <div className="panel-title-wrap">
             <i className="fa-solid fa-pen-nib text-accent icon-header"></i>
             <div>
@@ -402,6 +382,7 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
                       id={`btn_lang_${lang.code}`}
                     >
                       {selected && <span className="lang-chip-order">{position + 1}</span>}
+                      <span className="lang-chip-flag">{lang.flag}</span>
                       <span>{t(`content.copywriter.lang.${lang.code}`, lang.label)}</span>
                     </button>
                   );
@@ -450,7 +431,7 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
 
           {/* GENERATED COPY OUTLINE */}
           {generatedCopy && (
-            <div className="generated-output-box panel mt-20 animate-fade-in">
+            <div className="generated-output-box glass-card mt-20 animate-fade-in">
               <div className="output-header flex-between">
                 <span className="badge badge-primary"><i className="fa-solid fa-code-merge"></i> {platform.label}</span>
                 <small className="text-muted">{langs.map((c) => LANGUAGES.find((l) => l.code === c)?.label).join(' + ')}</small>
@@ -473,76 +454,8 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
                 </div>
               )}
 
-              {/* --- THE FAN ---
-                  Pull the draft sideways and the generations behind it fan out
-                  by recency. Any one can be reinstated whole, or a single line
-                  lifted forward into the draft you are keeping. --- */}
-              {fan.length > 0 && (
-                <div className={`fan ${fanOpen ? 'open' : ''}`}>
-                  <button
-                    className="fan-pull"
-                    onClick={() => setFanOpen((o) => !o)}
-                    aria-expanded={fanOpen}
-                    id="btn_fan_toggle"
-                  >
-                    <i className={`fa-solid ${fanOpen ? 'fa-chevron-down' : 'fa-layer-group'}`} aria-hidden="true"></i>
-                    {/* Plural forms live in the catalogues (en/uz one+other,
-                        ru one+few+many) — a bare defaultValue cannot select
-                        one, which is how this read "1 EARLIER DRAFTS". */}
-                    {t('content.fan.pull', { count: fan.length })}
-                  </button>
-
-                  {fanOpen && (
-                    <ol className="fan-stack">
-                      {fan.map((entry, i) => (
-                        <li key={entry.id} className="fan-card" style={{ '--depth': i }}>
-                          <div className="fan-card-head">
-                            <span className="label num">
-                              −{i + 1} · {new Date(entry.at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => {
-                                pushToFan(generatedCopy);
-                                setGeneratedCopy({ post: entry.post });
-                                setFan((prev) => prev.filter((f) => f.id !== entry.id));
-                                setFanOpen(false);
-                                resetPostFlows();
-                              }}
-                            >
-                              {t('content.fan.restore', 'Reinstate')}
-                            </button>
-                          </div>
-                          {/* Each line is liftable on its own — the usual reason
-                              to open the fan is one sentence, not the whole post. */}
-                          <div className="fan-lines">
-                            {entry.post.split('\n').filter((l) => l.trim()).map((line, li) => (
-                              <button
-                                key={li}
-                                className="fan-line"
-                                title={t('content.fan.liftTitle', 'Add this line to the current draft')}
-                                onClick={() => setGeneratedCopy((cur) => ({ ...cur, post: `${cur.post}\n${line}` }))}
-                              >
-                                <span>{line}</span>
-                                <i className="fa-solid fa-arrow-turn-up" aria-hidden="true"></i>
-                              </button>
-                            ))}
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                </div>
-              )}
-
               <div className="output-actions flex-between mt-20">
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => { pushToFan(generatedCopy); setGeneratedCopy(null); resetPostFlows(); }}
-                  id="btn_discard_post"
-                >
-                  {t('common.discard', 'Discard')}
-                </button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setGeneratedCopy(null); resetPostFlows(); }} id="btn_discard_post">{t('common.discard', 'Discard')}</button>
                 <div className="flex-gap-8">
                   {isTelegram && telegramReady && tgPostResult !== 'ok' && (
                     <button className="btn btn-primary btn-sm" onClick={handlePostToTelegram} disabled={tgPosting} id="btn_post_telegram_now">

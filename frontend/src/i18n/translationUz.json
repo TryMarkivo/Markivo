@@ -73,7 +73,7 @@
       "getStarted": "Boshlash"
     },
     "hero": {
-      "badge": "AI MARKETING PLATFORMASI",
+      "badge": "✦ AI MARKETING PLATFORMASI",
       "titlePre": "",
       "titleHighlight": "Noldan",
       "titlePost": "to'liq ishlaydigan biznesgacha.",
@@ -83,7 +83,7 @@
       "ctaScan": "Mavjud brendimni skanerlash"
     },
     "preview": {
-      "demoBrand": "Cafe Noir",
+      "demoBrand": "☕ Cafe Noir",
       "menuDashboard": "Dashbord",
       "menuContent": "Kontent dvigateli",
       "menuCompetitors": "Raqobatchilar bo'shliqlari",
@@ -91,7 +91,7 @@
       "statInstagram": "Instagram o'sishi",
       "agentName": "Markiv — AI marketing agenti",
       "agentStatus": "Tayyorlandi va rejalashtirildi, tasdiqlashingiz kutilmoqda",
-      "postText": "\"Toshkentdagi eng zo'r espressoni izlayapsizmi? Bizda yangi mahalliy pishiriqlar va shinam ish kabinalari sizni kutmoqda!\"",
+      "postText": "\"Toshkentdagi eng zo'r espressoni izlayapsizmi? ☕ Bizda yangi mahalliy pishiriqlar va shinam ish kabinalari sizni kutmoqda!\"",
       "approved": "Tasdiqlandi",
       "uzRuReady": "O'zbek/rus tillarida tayyor"
     },
@@ -251,7 +251,7 @@
       "step2Title": "Brend qiyofangizni belgilang",
       "step2Subtitle": "Brendingizga mos ohangni tanlang, so'ngra shior qo'shing — o'zingizniki yoki AI yaratgan.",
       "sloganLabel": "Maxsus brend slogani",
-      "generateSlogans": "3 ta AI slogan yaratish",
+      "generateSlogans": "3 ta AI slogan yaratish ✦",
       "sloganPlaceholder": "O'z sloganingizni yozing yoki yuqorida biznesingizni tasvirlab, 'Yaratish' tugmasini bosing",
       "step2Cta": "Logotipga o'tish",
       "step3Title": "Logotipni sozlang",
@@ -370,7 +370,7 @@
       "googleNotFoundTitle": "Google Maps'da topilmadi",
       "googleNotFoundText": "{{location}} hududida \"{{businessName}}\"ni topa olmadik. Imlo va joylashuvni tekshiring yoki Google Business Profile yarating — Markivo keyinroq sizga yo'l ko'rsatadi.",
       "alternativesIntro": "Bu sizning biznesingiz emasmi? Biz yana shularni topdik:",
-      "alternativeItem": "{{name}} — {{address}} ( {{rating}})",
+      "alternativeItem": "· {{name}} — {{address}} (★ {{rating}})",
       "altSelectTitle": "Buning o'rniga shu biznesni tanlash",
       "instagramTitle": "Instagram akkaunt nomi",
       "foundViaWebsite": "Veb-saytingiz orqali aniqlandi",
@@ -380,7 +380,7 @@
       "telegramSoonText": "Telegram uchun kanal boshqaruvi va AI nashrlar MVPdan so'ng darhol qo'shiladi.",
       "insightTitle": "AI mahalliy qidiruv skaneri xulosasi",
       "insightFoundBase": "\"{{name}}\" Google Maps'da faol",
-      "insightFoundRating": "{{count}} ta sharh bo'yicha reytingi {{rating}}",
+      "insightFoundRating": " — {{count}} ta sharh bo'yicha reytingi {{rating}}★",
       "insightFoundCompetitors_one": ", shuningdek, yaqin-atrofda {{count}} ta o'xshash raqobatchi biznesni payqadik",
       "insightFoundCompetitors_other": ", shuningdek, yaqin-atrofda {{count}} ta o'xshash raqobatchi biznesni payqadik",
       "insightFoundTail": ". Kanallaringizni ulasangiz, Markivo agenti raqobatchilarni kuzatadi, mahalliy SEO'ni kuchaytiradi va auditoriyangizga mos kontent qoralamalarini tayyorlaydi.",
@@ -423,9 +423,9 @@
       "luxury3": "Premium tanlov."
     },
     "logoGen": {
-      "cta": "AI bilan logotip yaratish",
+      "cta": "✦ AI bilan logotip yaratish",
       "hint": "Nomingiz, kategoriyangiz va brend ohangingiz asosida yaratilgan 4 ta noyob belgi — birini tanlang yoki quyida qo'lda sozlang.",
-      "regenerate": "Qayta yaratish",
+      "regenerate": "↻ Qayta yaratish",
       "variantAlt": "Logotip varianti {{num}}"
     }
   },
@@ -473,8 +473,7 @@
         "high": "Yuqori",
         "medium": "O'rtacha",
         "veryHigh": "Juda yuqori"
-      },
-      "estimateNote": "Bu profil yaratilganda olingan va shundan beri qayta oʻlchanmagan. Jonli oʻrinlar uchun Google Business’ni ulang."
+      }
     },
     "aiSearch": {
       "title": "AI qidiruvdagi ko'rinish",
@@ -485,27 +484,7 @@
       "chatgptRank": "ChatGPT tavsiya reytingi",
       "perplexityCitations": "Perplexity iqtiboslari",
       "active": "Faol",
-      "rankTop10": "Top 10",
-      "placeholderNote": "Bu ball har bir biznes uchun bir xil qatʼiy son. U hali oʻlchanmagan.",
-      "scale": "100 balldan, chat-modellar tavsiyalari boʻyicha"
-    },
-    "compose": "Post yozish",
-    "measurements": "Oʻlchovlar",
-    "warp": {
-      "notConnected": "Ulanmagan",
-      "simulated": "Simulyatsiya qilingan nashr"
-    },
-    "queue": {
-      "title": "Navbat",
-      "openCalendar": "Kalendarni ochish",
-      "emptyTitle": "Navbat boʻsh",
-      "emptyBody": "Kontent dvigatelida post yozing va rejalashtiring — u shu yerda vaqti va kanali bilan koʻrinadi.",
-      "emptyCta": "Birinchi postni yozish",
-      "status": {
-        "live": "Joylandi",
-        "queued": "Navbatda",
-        "failed": "Xato"
-      }
+      "rankTop10": "Top 10"
     }
   },
   "contentEngine": {
@@ -523,13 +502,13 @@
       "subtitle": "Har bir kanalga mos formatda rejalashtirilgan postlar yarating",
       "platformLabel": "Mo'ljal platforma",
       "languageLabel": "Post tili",
-      "langEn": "Inglizcha",
-      "langMulti": "EN + UZ + RU",
+      "langEn": "🇬🇧 Inglizcha",
+      "langMulti": "🌐 EN + UZ + RU",
       "topicLabel": "Bu postning asosiy mavzusi nima?",
       "topicPlaceholder": "masalan, Shu hafta oxiri har bir dabl espressoga bepul asal torti bo'lagi!",
       "topicPlaceholderByCategory": "Masalan: {{category}} mijozlaringizga yoqadigan dam olish kunlari uchun maxsus taklif!",
       "generating": "Mahalliylashtirilgan qoralamalar tayyorlanmoqda...",
-      "generateCta": "Platforma qoralamalarini yaratish",
+      "generateCta": "Platforma qoralamalarini yaratish ✦",
       "subtitleForPlatform": "{{platform}} uchun yozyapmiz — shu kanal kutgan formatda."
     },
     "output": {
@@ -570,10 +549,7 @@
       "subtitle": "Smartfon suratlarini yuklang — AI yorqinlik, tekstura va kontrastni optimallashtiradi",
       "afterLabel": "AI yaxshilagan kadr",
       "beforeLabel": "Telefonning asl surati",
-      "hint": "Asl smartfon surati va AI optimallashtirgan natijani solishtirish uchun kadr ustida kursorni yurgizing yoki suring",
-      "subtitleHonest": "Bu funksiya ishlatadigan kadrning namunasi. U suratingizni yaxshilamayapti — quyidagi ikkala yarmida ham bir xil rasm.",
-      "sampleLabel": "Namuna kadr",
-      "hintHonest": "Yaxshilash rasm generatsiya kaliti sozlangach ishlaydi. Shu paytgacha oʻz suratlaringizni yuklab, borligicha nashr eting."
+      "hint": "Asl smartfon surati va AI optimallashtirgan natijani solishtirish uchun kadr ustida kursorni yurgizing yoki suring"
     },
     "tutorials": {
       "title": "Telefonda suratga olish bo'yicha jonli qo'llanma",
@@ -602,18 +578,12 @@
       }
     },
     "fallback": {
-      "post": "#{{businessName}}dan maxsus taklif! Ajoyib maskan izlayapsizmi? {{topic}} Bugun Toshkentda bizga tashrif buyuring! #localbusiness #tashkent #vibe",
-      "mediaTip": "Maslahat: shom payti, derazalardan iliq ichki yorug'lik taralayotganda do'koningiz old tomonini gorizontal suratga oling."
+      "post": "✨ #{{businessName}}dan maxsus taklif! ✨\n\nAjoyib maskan izlayapsizmi? {{topic}}\n\n📍 Bugun Toshkentda bizga tashrif buyuring!\n\n#localbusiness #tashkent #vibe",
+      "mediaTip": "📸 Maslahat: shom payti, derazalardan iliq ichki yorug'lik taralayotganda do'koningiz old tomonini gorizontal suratga oling."
     },
     "platformTabsLabel": "Platforma",
     "modeCompose": "Post yozish",
-    "modeTemplates": "Shablonlar",
-    "fan": {
-      "pull_one": "{{count}} oldingi qoralama",
-      "pull_other": "{{count}} ta oldingi qoralama",
-      "restore": "Tiklash",
-      "liftTitle": "Bu qatorni joriy qoralamaga qoʻshish"
-    }
+    "modeTemplates": "Shablonlar"
   },
   "media": {
     "title": "Media studiya",
@@ -713,7 +683,7 @@
       "perWeek": "haftasiga {{count}}",
       "channelsCount_one": "{{count}} ta kanal",
       "channelsCount_other": "{{count}} ta kanal",
-      "ratingSuffix": "{{rating}}"
+      "ratingSuffix": " · ★ {{rating}}"
     },
     "frequency": {
       "title": "Haftalik post chastotasi",
@@ -729,9 +699,9 @@
       "cadenceTitle": "Post chastotasi ogohlantirishi",
       "cadenceTextKnown": "Asosiy mahalliy raqobatchingiz <1>{{name}}</1> haftasiga o'rtacha <3>{{count}} marta</3> post joylaydi. Siz esa <5>{{yourCount}} marta</5> joylaysiz.",
       "cadenceTextUnknown": "Asosiy mahalliy raqobatchingiz <1>{{name}}</1> Google Maps'da faol{{ratingPart}}. Muntazam post joylash — mahalliy darajada ajralib turishning eng tezkor yo'li.",
-      "cadenceRating": ", reytingi {{rating}}",
+      "cadenceRating": ", reytingi ★ {{rating}}",
       "nearbyFallback": "yaqin-atrofdagi",
-      "solutionLabel": "Yechim:",
+      "solutionLabel": "💡 Yechim:",
       "cadenceSolution": "Ko'rinish farqini yopish uchun Kontent dvigatelida kamida yana 4 ta AI post rejalashtiring.",
       "seoTitle": "SEO kalit so'z bo'shliqlari",
       "seoText": "Yaqin-atrofdagi raqobatchilar profillaringizda umuman tilga olinmaydigan <1>{{category}} bilan bog'liq mahalliy qidiruv so'rovlari</1> bo'yicha faol reytinglanmoqda. Siz bu mahalliy qidiruv yo'nalishini butunlay boy beryapsiz.",
@@ -742,7 +712,7 @@
     "title": "AI agent",
     "welcome": "Xush kelibsiz!",
     "typing": "Yozmoqda...",
-    "greeting": "Salom! Men Markiv — sizning marketing agentingizman. Kontent qoralamalarini tayyorlashim, raqobatchilarni tahlil qilishim va so'rovingiz bilan to'g'ridan-to'g'ri Telegram kanalingizga post joylashim mumkin. Bugun nima ustida ishlaymiz?",
+    "greeting": "Salom! Men Markiv 🤖 — sizning marketing agentingizman. Kontent qoralamalarini tayyorlashim, raqobatchilarni tahlil qilishim va so'rovingiz bilan to'g'ridan-to'g'ri Telegram kanalingizga post joylashim mumkin.\n\nBugun nima ustida ishlaymiz?",
     "justNow": "Hozirgina",
     "subtitle": "Sizning AI marketing agentingiz",
     "inputPlaceholder": "AI agentdan bajarishni so'rang...",
@@ -762,11 +732,11 @@
       "createAd": "Reklama kampaniyasini yaratish"
     },
     "suggestions": {
-      "draftAnnouncement": "E'lon qoralamasi",
-      "postTelegram": "Telegramga joylash",
-      "instagram": "Instagram post qoralamasi",
-      "gaps": "Raqobatchilar bo'shliqlari",
-      "ad": "Reklama kampaniyasi"
+      "draftAnnouncement": "📣 E'lon qoralamasi",
+      "postTelegram": "📣 Telegramga joylash",
+      "instagram": "✍️ Instagram post qoralamasi",
+      "gaps": "📊 Raqobatchilar bo'shliqlari",
+      "ad": "🚀 Reklama kampaniyasi"
     },
     "approval": {
       "titleSuffix": "{{action}} — TASDIQ TALAB QILINADI",
@@ -778,23 +748,22 @@
       "reject": "Rad etish va bekor qilish",
       "approve": "Tasdiqlash va bajarish",
       "executing": "Bajarilmoqda...",
-      "executed": "Amal tasdiqlandi va bajarildi!",
-      "simulated": "Amal tasdiqlandi! (Simulyatsiya — server oflayn.)",
+      "executed": "✅ Amal tasdiqlandi va bajarildi!",
+      "simulated": "✅ Amal tasdiqlandi! (Simulyatsiya — server oflayn.)",
       "error": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring.",
       "mockAction": "Meta reklama kampaniyasini yaratish",
       "mockCost": "$5.00 / kun",
       "mockTarget": "Toshkent, masofaviy ishlovchilar (2-5 km radius)",
-      "mockCreative": "Ko'rib chiqish: \"#{{businessName}}da eng zo'r {{category}} muhitini his eting! Yuqori tezlikdagi Wi-Fi, qo'lda tayyorlangan qahva va sokin o'qish kabinalari sizni kutmoqda.\""
+      "mockCreative": "🎯 Ko'rib chiqish: \"#{{businessName}}da eng zo'r {{category}} muhitini his eting! Yuqori tezlikdagi Wi-Fi, qo'lda tayyorlangan qahva va sokin o'qish kabinalari sizni kutmoqda.\""
     },
     "send": "Yuborish",
     "collapse": "Panelni yig'ish",
-    "expand": "Panelni ochish",
-    "templateNote": "Model kaliti sozlanmagan, shuning uchun Markiv biznesingizni tahlil qilmasdan tayyor namunalar asosida javob bermoqda."
+    "expand": "Panelni ochish"
   },
   "telegram": {
     "setupTitle": "Telegram sozlamasi",
-    "connectedNotice": "@{{username}} bot ulandi va biznes qiyofangiz bilan bezatildi",
-    "linkedNotice": "\"{{chatTitle}}\"ga bog'landi",
+    "connectedNotice": "@{{username}} bot ulandi va biznes qiyofangiz bilan bezatildi ✓",
+    "linkedNotice": "\"{{chatTitle}}\"ga bog'landi ✓",
     "step1Title": "1/2-qadam — Biznes botingizni yarating (~1 daqiqa)",
     "step1Item1": "Telegramda <1>@BotFather</1>ni oching",
     "step1Item2": "<1>/newbot</1> yuboring va ikkita ko'rsatmaga amal qiling",
@@ -803,17 +772,17 @@
     "botTokenLabel": "Bot API tokeni",
     "botTokenPlaceholder": "masalan, 1234567890:ABCdefGhIJKlmNoPQRstuVWxyZ...",
     "connecting": "Botingiz ulanmoqda va bezatilmoqda…",
-    "connectCta": "Botimni ulash va bezash",
+    "connectCta": "Botimni ulash va bezash ✦",
     "step2Title": "2/2-qadam — Kanal yoki guruhingizni bog'lang",
     "step2Text": "<1>@{{username}}</1>ni Telegram kanalingizga <3>administrator</3> sifatida (\"Xabarlar joylash\" ruxsati bilan) yoki guruhingizga a'zo sifatida qo'shing. So'ng aniqlash tugmasini bosing:",
     "detecting": "Kanalingiz qidirilmoqda…",
-    "detectCta": "Kanalimni aniqlash",
+    "detectCta": "🔍 Kanalimni aniqlash",
     "manualLabel": "Yoki qo'lda kiriting",
     "manualPlaceholder": "@mening_kanalim",
     "linkCta": "Bog'lash",
     "doneTitle": "Telegram to'liq ulandi!",
     "doneText": "<1>@{{username}}</1> bot <3>{{chatTitle}}</3>ga post joylaydi ({{chatType}}).",
-    "doneHint": "Endi chat panelida <1>Markiv</1>ga shunchaki ayting: <3>\"Dam olish kuni taklifimizni Telegramga joyla\"</3> — siz tasdiqlaysiz, u e'lon qiladi.",
+    "doneHint": "Endi chat panelida <1>Markiv</1>ga shunchaki ayting: <3>\"Dam olish kuni taklifimizni Telegramga joyla\"</3> — siz tasdiqlaysiz, u e'lon qiladi. 🚀",
     "chatTypes": {
       "channel": "kanal",
       "group": "guruh"
@@ -831,15 +800,15 @@
     "intro": "Markivo siz nomingizdan post joylashi uchun Instagram Business akkauntingizni ulang. Avtorizatsiya uchun Meta'ga o'tasiz — bu taxminan bir daqiqa oladi.",
     "step1": "Quyidagi tugmani bosing — sizni Meta'ning xavfsiz tizimiga yo'naltiramiz.",
     "step2": "Instagram Business akkauntingizga bog'langan Facebook sahifasini tanlang va ruxsat bering.",
-    "step3": "Ulangan holda shu yerga qaytasiz.",
+    "step3": "Ulangan holda shu yerga qaytasiz. ✓",
     "requirement": "Instagram akkauntingiz Facebook sahifasiga bog'langan <1>Business yoki Creator</1> akkaunt bo'lishi kerak.",
     "connecting": "Meta'ga yo'naltirilmoqda…",
-    "connectCta": "Instagram'ni ulash",
+    "connectCta": "Instagram'ni ulash ✦",
     "doneTitle": "Instagram ulandi!",
     "doneText": "<1>{{handle}}</1> sifatida ulandi.",
     "yourAccount": "akkauntingiz",
     "disconnectCta": "Uzish",
-    "noticeConnected": "Instagram ulandi",
+    "noticeConnected": "Instagram ulandi ✓",
     "noticeError": "Instagram'ni ulab bo'lmadi — qayta urinib ko'ring.",
     "errors": {
       "denied": "Instagram ulanishi bekor qilindi.",
@@ -868,10 +837,10 @@
       "uploading": "Yuklanmoqda…",
       "publishing": "Joylanmoqda…",
       "publishingVideo": "Joylanmoqda… (video bir daqiqa olishi mumkin)",
-      "publish": "Instagram'ga joylash",
+      "publish": "Instagram'ga joylash ✦",
       "publishedTitle": "Instagram'ga joylandi!",
       "publishedTo": "{{handle}} ga joylandi.",
-      "viewPost": "Instagram'da postni ko'rish",
+      "viewPost": "Instagram'da postni ko'rish ↗",
       "another": "Yana joylash"
     }
   },
@@ -961,8 +930,8 @@
     "title": "Xabar shablonlari",
     "subtitle": "{{platform}} da doim yuboradigan xabaringizni joylashtiring — o‘zgaruvchi qismlarni bir necha soniyada to‘ldiriladigan o‘zgaruvchilarga aylantiramiz.",
     "sampleLabel": "Tez-tez yuboradigan xabaringiz",
-    "samplePlaceholder": "masalan: Stadion No:141, 9 ta joy qoldi",
-    "analyzeCta": "Tahlil qilib shablon yasash",
+    "samplePlaceholder": "masalan: Stadion No:141, 9 ta joy qoldi✅",
+    "analyzeCta": "Tahlil qilib shablon yasash ✦",
     "analyzing": "O‘zgaruvchi qismlar qidirilmoqda…",
     "startManual": "O‘zgaruvchilarni o‘zim belgilayman",
     "engineGemini": "Gemini",
@@ -994,7 +963,7 @@
   "connections": {
     "title": "Platforma ulanishlari",
     "subtitle": "Markiv siz nomingizdan post joylay oladigan platformalarni ulang — har bir platformaning rasmiy API’si orqali va faqat siz tasdiqlaganingizdan keyin.",
-    "connectedToast": "Ulandi",
+    "connectedToast": "Ulandi ✓",
     "errorToast": "{{label}} ulanmadi — qaytadan urinib ko‘ring.",
     "connect": "Ulash",
     "manage": "Boshqarish",
@@ -1014,21 +983,14 @@
     "comingSoonNote": "{{label}} hali yoqilmagan — yoqilganda quyidagi qadamlar kerak bo‘ladi.",
     "sandboxNote": "Sinov rejimi — bu platforma uchun hali haqiqiy kalitlar sozlanmagan, shuning uchun ulanish taqlid qilinadi (haqiqiy post ketmaydi). Ishga tushirish uchun platformaning API kalitlarini qo‘shing.",
     "connecting": "Ulanmoqda…",
-    "connectLiveCta": "{{label}} ni ulash",
+    "connectLiveCta": "{{label}} ni ulash →",
     "connectSandboxCta": "{{label}} ni ulash (sinov)",
-    "sandboxConnected": "{{label}} sinov rejimida ulandi",
+    "sandboxConnected": "{{label}} sinov rejimida ulandi ✓",
     "disconnected": "{{label}} uzildi",
     "statusConnected": "Ulangan",
     "statusSandbox": "Ulangan (sinov rejimi)",
     "connectedHint": "Chat panelida Markiv’dan {{label}} ga post joylashni so‘rang — siz tasdiqlaysiz, u joylaydi.",
     "disconnectCta": "Uzish",
     "working": "Bajarilmoqda…"
-  },
-  "truth": {
-    "simulated": "Simulyatsiya",
-    "measured": "Oʻlchangan",
-    "estimate": "Taxminiy",
-    "canned": "Tayyor javoblar",
-    "notLive": "Hali ishlamaydi"
   }
 }

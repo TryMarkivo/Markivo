@@ -90,7 +90,7 @@ export default function InstagramComposer({ status, onPosted, onClose }) {
       id="instagram_composer_modal"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose?.(); }}
     >
-      <div className="auth-card panel text-left" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-labelledby="instagram_composer_title">
+      <div className="auth-card glass-card glass-card-glow text-left" style={{ maxWidth: 560 }} role="dialog" aria-modal="true" aria-labelledby="instagram_composer_title">
         <div className="auth-header flex-between mb-20">
           <h3 id="instagram_composer_title">
             <i className="fa-brands fa-instagram" style={{ color: '#E1306C' }}></i> {t('instagram.composer.title', 'New Instagram post')}

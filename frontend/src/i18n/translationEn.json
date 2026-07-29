@@ -73,19 +73,17 @@
       "getStarted": "Get Started"
     },
     "hero": {
-      "badge": "THE AI MARKETING PLATFORM",
+      "badge": "✦ THE AI MARKETING PLATFORM",
       "titlePre": "From",
       "titleHighlight": "zero",
       "titlePost": "to fully running.",
       "subtitle": "Markivo is an all-in-one marketing platform that builds, manages, and grows your business's entire online presence — across every channel, in any language, fully autonomously. Native Uzbek, Russian, and English.",
       "ctaDashboard": "Go to My Dashboard",
       "ctaBuild": "Build My Presence From Zero",
-      "ctaScan": "Scan My Existing Brand",
-      "title": "Your business posts every day. You do not.",
-      "langsLabel": "Publishes in"
+      "ctaScan": "Scan My Existing Brand"
     },
     "preview": {
-      "demoBrand": "Cafe Noir",
+      "demoBrand": "☕ Cafe Noir",
       "menuDashboard": "Dashboard",
       "menuContent": "Content Engine",
       "menuCompetitors": "Competitor Gaps",
@@ -93,15 +91,9 @@
       "statInstagram": "Instagram Growth",
       "agentName": "Markiv — AI Marketing Agent",
       "agentStatus": "Drafted & scheduled, pending your approval",
-      "postText": "\"Looking for the best espresso in Tashkent? We've got you covered with fresh local pastries and cozy workspace booths!\"",
+      "postText": "\"Looking for the best espresso in Tashkent? ☕ We've got you covered with fresh local pastries and cozy workspace booths!\"",
       "approved": "Approved",
-      "uzRuReady": "Uzbek/Russian Ready",
-      "aria": "Product preview",
-      "sample": "Sample",
-      "live": "Live",
-      "q1": "Morning roast is on — first fifty cups half price.",
-      "q2": "Bugun tushlik menyusi: lagʻmon va shirin choy.",
-      "q3": "Study booths free all evening. Wi-Fi is fast, coffee is faster."
+      "uzRuReady": "Uzbek/Russian Ready"
     },
     "problem": {
       "title": "Millions of businesses have no marketing — and no idea where to start.",
@@ -185,8 +177,7 @@
         "feat4": "AI website generation",
         "feat5": "Markiv agent · 250 generations / mo",
         "cta": "Go Autonomous"
-      },
-      "periodAria": "Billing period"
+      }
     },
     "founder": {
       "title": "Built by someone who's done it for real.",
@@ -205,8 +196,7 @@
       "titlePre": "Let's give every business a marketing team —",
       "titleHighlight": "in code.",
       "subtitle": "Markivo turns zero into a fully-running online presence — autonomously, multilingually, and in the markets the giants ignore.",
-      "button": "Start Free Today",
-      "title": "Let's give every business a marketing team — in code."
+      "button": "Start Free Today"
     },
     "footer": {
       "copyright": "© {{year}} Markivo. From zero to fully running. All rights reserved."
@@ -261,7 +251,7 @@
       "step2Title": "Define Your Brand Identity",
       "step2Subtitle": "Pick a tone that aligns with your space, then add your slogan — your own or AI-generated.",
       "sloganLabel": "Custom Brand Slogan",
-      "generateSlogans": "Generate 3 AI Slogans",
+      "generateSlogans": "Generate 3 AI Slogans ✦",
       "sloganPlaceholder": "Write your own slogan, or describe your cafe above and click 'Generate'",
       "step2Cta": "Continue to Logo",
       "step3Title": "Set Up Your Logo",
@@ -380,7 +370,7 @@
       "googleNotFoundTitle": "Not found on Google Maps",
       "googleNotFoundText": "We couldn't find \"{{businessName}}\" in {{location}}. Check the spelling and location, or create a Google Business Profile — Markivo will guide you later.",
       "alternativesIntro": "Not your business? We also found:",
-      "alternativeItem": "{{name}} — {{address}} ( {{rating}})",
+      "alternativeItem": "· {{name}} — {{address}} (★ {{rating}})",
       "altSelectTitle": "Use this business instead",
       "instagramTitle": "Instagram Handle",
       "foundViaWebsite": "Detected from your website",
@@ -390,7 +380,7 @@
       "telegramSoonText": "Channel management and AI publishing for Telegram arrive right after the MVP.",
       "insightTitle": "AI Local Discovery Scan Insight",
       "insightFoundBase": "\"{{name}}\" is live on Google Maps",
-      "insightFoundRating": "with a {{rating}} rating across {{count}} reviews",
+      "insightFoundRating": " with a {{rating}}★ rating across {{count}} reviews",
       "insightFoundCompetitors_one": ", and we spotted {{count}} similar business competing nearby",
       "insightFoundCompetitors_other": ", and we spotted {{count}} similar businesses competing nearby",
       "insightFoundTail": ". Connecting your channels lets the Markivo agent track competitors, strengthen your local SEO, and draft content tuned to your audience.",
@@ -433,9 +423,9 @@
       "luxury3": "Premium choice."
     },
     "logoGen": {
-      "cta": "Generate logo with AI",
+      "cta": "✦ Generate logo with AI",
       "hint": "4 unique marks designed from your name, category and brand tone — pick one or customize manually below.",
-      "regenerate": "Regenerate",
+      "regenerate": "↻ Regenerate",
       "variantAlt": "Logo variant {{num}}"
     }
   },
@@ -461,8 +451,7 @@
       "content": "AI Content Engine",
       "media": "Media Studio",
       "competitors": "Competitor Intel",
-      "autopilot": "Autopilot",
-      "aria": "Sections"
+      "autopilot": "Autopilot"
     },
     "channels": {
       "google": "Google Profile"
@@ -484,8 +473,7 @@
         "high": "High",
         "medium": "Medium",
         "veryHigh": "Very High"
-      },
-      "estimateNote": "Captured when this profile was created and not re-measured since. Connect Google Business for live ranks."
+      }
     },
     "aiSearch": {
       "title": "AI Search Visibility",
@@ -496,27 +484,7 @@
       "chatgptRank": "ChatGPT recommendation rank",
       "perplexityCitations": "Perplexity Citations",
       "active": "Active",
-      "rankTop10": "Top 10",
-      "scale": "Out of 100, across chat-model recommendations",
-      "placeholderNote": "This score is the same fixed number for every business. It is not measured yet."
-    },
-    "warp": {
-      "notConnected": "Not connected",
-      "simulated": "Simulated publishing"
-    },
-    "compose": "Compose",
-    "measurements": "Measurements",
-    "queue": {
-      "title": "Queue",
-      "openCalendar": "Open calendar",
-      "emptyTitle": "Nothing queued",
-      "emptyBody": "Write a post in the Content Engine and schedule it — it will appear here with its time and channel.",
-      "emptyCta": "Write the first post",
-      "status": {
-        "live": "Posted",
-        "queued": "Queued",
-        "failed": "Failed"
-      }
+      "rankTop10": "Top 10"
     }
   },
   "contentEngine": {
@@ -534,13 +502,13 @@
       "subtitle": "Generate scheduled posts formatted specifically per channel",
       "platformLabel": "Destination Platform",
       "languageLabel": "Post Language",
-      "langEn": "English",
-      "langMulti": "EN + UZ + RU",
+      "langEn": "🇬🇧 English",
+      "langMulti": "🌐 EN + UZ + RU",
       "topicLabel": "What is the focus of this post?",
       "topicPlaceholder": "e.g. Free honeycomb cake slices with every double espresso this weekend!",
       "topicPlaceholderByCategory": "e.g. A weekend special offer your {{category}} customers will love!",
       "generating": "Crafting localized drafts...",
-      "generateCta": "Generate Platform Drafts",
+      "generateCta": "Generate Platform Drafts ✦",
       "subtitleForPlatform": "Writing for {{platform}} — formatted the way that channel expects."
     },
     "output": {
@@ -581,10 +549,7 @@
       "subtitle": "Upload smartphone photos and let our AI optimize brightness, textures & contrast",
       "afterLabel": "Enhanced AI Frame",
       "beforeLabel": "Raw Phone Photo",
-      "hint": "Hover or drag across the frame to preview raw smartphone vs. AI optimized results",
-      "subtitleHonest": "A preview of the framing this feature will use. It is not enhancing your photo — both halves below show the same image.",
-      "sampleLabel": "Sample frame",
-      "hintHonest": "Enhancement runs once an image-generation key is configured. Until then, upload your own photos and publish them as they are."
+      "hint": "Hover or drag across the frame to preview raw smartphone vs. AI optimized results"
     },
     "tutorials": {
       "title": "Dynamic Phone Photography Guide",
@@ -613,20 +578,14 @@
       }
     },
     "fallback": {
-      "post": "Special offer from #{{businessName}}! Looking for the perfect spot? {{topic}} Visit us today in Tashkent! #localbusiness #tashkent #vibe",
-      "mediaTip": "Tip: Snap a landscape photo of your storefront at dusk with warm interior lighting glowing through the windows."
+      "post": "✨ Special offer from #{{businessName}}! ✨\n\nLooking for the perfect spot? {{topic}}\n\n📍 Visit us today in Tashkent!\n\n#localbusiness #tashkent #vibe",
+      "mediaTip": "📸 Tip: Snap a landscape photo of your storefront at dusk with warm interior lighting glowing through the windows."
     },
     "platformTabsLabel": "Platform",
     "modeCompose": "Compose",
     "modeTemplates": "Templates",
     "yourChannels": "Your channels",
-    "noConnections": "No channels connected yet — connect one in Connections to publish for real.",
-    "fan": {
-      "pull_one": "{{count}} earlier draft",
-      "pull_other": "{{count}} earlier drafts",
-      "restore": "Reinstate",
-      "liftTitle": "Add this line to the current draft"
-    }
+    "noConnections": "No channels connected yet — connect one in Connections to publish for real."
   },
   "media": {
     "title": "Media Studio",
@@ -763,7 +722,7 @@
       "perWeek": "{{count}} / week",
       "channelsCount_one": "{{count}} channel",
       "channelsCount_other": "{{count}} channels",
-      "ratingSuffix": "{{rating}}"
+      "ratingSuffix": " · ★ {{rating}}"
     },
     "frequency": {
       "title": "Weekly Posting Frequency",
@@ -779,9 +738,9 @@
       "cadenceTitle": "Post Cadence Alert",
       "cadenceTextKnown": "Your primary local competitor <1>{{name}}</1> posts average <3>{{count}} times</3> per week. You post <5>{{yourCount}} times</5>.",
       "cadenceTextUnknown": "Your primary local competitor <1>{{name}}</1> is active on Google Maps{{ratingPart}}. Consistent posting is your fastest way to stand out locally.",
-      "cadenceRating": "with a {{rating}} rating",
+      "cadenceRating": " with a ★ {{rating}} rating",
       "nearbyFallback": "nearby",
-      "solutionLabel": "Solution:",
+      "solutionLabel": "💡 Solution:",
       "cadenceSolution": "Schedule at least 4 more AI posts in your Content Engine to close the visibility gap.",
       "seoTitle": "SEO Keyword Gaps",
       "seoText": "Nearby competitors are actively ranking for <1>{{category}}-relevant local search phrases</1> that your profiles never mention. You are completely missing this local search vector.",
@@ -792,7 +751,7 @@
     "title": "AI Agent",
     "welcome": "Welcome!",
     "typing": "Typing...",
-    "greeting": "Hi! I'm Markiv — your marketing agent. I can draft content, analyse competitors, and post straight to your Telegram channel when you ask. What shall we work on today?",
+    "greeting": "Hi! I'm Markiv 🤖 — your marketing agent. I can draft content, analyse competitors, and post straight to your Telegram channel when you ask.\n\nWhat shall we work on today?",
     "justNow": "Just now",
     "subtitle": "Your AI marketing agent",
     "inputPlaceholder": "Ask AI Agent to execute...",
@@ -812,11 +771,11 @@
       "createAd": "Create ad campaign"
     },
     "suggestions": {
-      "draftAnnouncement": "Draft announcement",
-      "postTelegram": "Post to Telegram",
-      "instagram": "Draft Instagram post",
-      "gaps": "Check competitor gaps",
-      "ad": "Create ad campaign"
+      "draftAnnouncement": "📣 Draft announcement",
+      "postTelegram": "📣 Post to Telegram",
+      "instagram": "✍️ Draft Instagram post",
+      "gaps": "📊 Check competitor gaps",
+      "ad": "🚀 Create ad campaign"
     },
     "approval": {
       "titleSuffix": "{{action}} — APPROVAL REQUIRED",
@@ -828,25 +787,22 @@
       "reject": "Disapprove & Cancel",
       "approve": "Approve & Execute",
       "executing": "Executing...",
-      "executed": "Action approved and executed!",
-      "simulated": "Action approved! (Simulated — server offline.)",
+      "executed": "✅ Action approved and executed!",
+      "simulated": "✅ Action approved! (Simulated — server offline.)",
       "error": "The action could not be executed. Please try again.",
       "mockAction": "Create Meta Ad Campaign",
       "mockCost": "$5.00 / day",
       "mockTarget": "Tashkent, remote workers (2-5km radius)",
-      "mockCreative": "Preview: \"Experience the ultimate {{category}} vibe at #{{businessName}}! High-speed Wi-Fi, handcrafted coffee, and quiet study booths ready for you.\"",
-      "badge": "Approval required",
-      "creativeLabel": "What will be published"
+      "mockCreative": "🎯 Preview: \"Experience the ultimate {{category}} vibe at #{{businessName}}! High-speed Wi-Fi, handcrafted coffee, and quiet study booths ready for you.\""
     },
     "send": "Send",
     "collapse": "Collapse panel",
-    "expand": "Expand panel",
-    "templateNote": "No model key is configured, so Markiv is answering from fixed patterns rather than reasoning about your business."
+    "expand": "Expand panel"
   },
   "telegram": {
     "setupTitle": "Telegram Setup",
-    "connectedNotice": "Bot @{{username}} connected and branded with your business identity",
-    "linkedNotice": "Linked to \"{{chatTitle}}\"",
+    "connectedNotice": "Bot @{{username}} connected and branded with your business identity ✓",
+    "linkedNotice": "Linked to \"{{chatTitle}}\" ✓",
     "step1Title": "Step 1 of 2 — Create your business bot (~1 minute)",
     "step1Item1": "Open <1>@BotFather</1> in Telegram",
     "step1Item2": "Send <1>/newbot</1> and follow the two prompts",
@@ -855,17 +811,17 @@
     "botTokenLabel": "Bot API Token",
     "botTokenPlaceholder": "e.g. 1234567890:ABCdefGhIJKlmNoPQRstuVWxyZ...",
     "connecting": "Connecting & branding your bot…",
-    "connectCta": "Connect & Brand My Bot",
+    "connectCta": "Connect & Brand My Bot ✦",
     "step2Title": "Step 2 of 2 — Link your channel or group",
     "step2Text": "Add <1>@{{username}}</1> to your Telegram channel as an <3>administrator</3> (with \"Post messages\" permission), or to your group as a member. Then click detect:",
     "detecting": "Looking for your channel…",
-    "detectCta": "Detect My Channel",
+    "detectCta": "🔍 Detect My Channel",
     "manualLabel": "Or enter it manually",
     "manualPlaceholder": "@yourchannel",
     "linkCta": "Link",
     "doneTitle": "Telegram is fully connected!",
     "doneText": "Bot <1>@{{username}}</1> posts to <3>{{chatTitle}}</3> ({{chatType}}).",
-    "doneHint": "Now just tell <1>Markiv</1> in the chat panel: <3>\"Post our weekend offer to Telegram\"</3> — you approve, it publishes.",
+    "doneHint": "Now just tell <1>Markiv</1> in the chat panel: <3>\"Post our weekend offer to Telegram\"</3> — you approve, it publishes. 🚀",
     "chatTypes": {
       "channel": "channel",
       "group": "group"
@@ -883,15 +839,15 @@
     "intro": "Connect your Instagram Business account so Markivo can publish on your behalf. You'll be taken to Meta to authorize — it takes about a minute.",
     "step1": "Click the button below — we send you to Meta's secure login.",
     "step2": "Choose the Facebook Page linked to your Instagram Business account and approve access.",
-    "step3": "You'll land back here, connected.",
+    "step3": "You'll land back here, connected. ✓",
     "requirement": "Your Instagram must be a <1>Business or Creator</1> account linked to a Facebook Page.",
     "connecting": "Redirecting to Meta…",
-    "connectCta": "Connect Instagram",
+    "connectCta": "Connect Instagram ✦",
     "doneTitle": "Instagram is connected!",
     "doneText": "Connected as <1>{{handle}}</1>.",
     "yourAccount": "your account",
     "disconnectCta": "Disconnect",
-    "noticeConnected": "Instagram connected",
+    "noticeConnected": "Instagram connected ✓",
     "noticeError": "Could not connect Instagram — please try again.",
     "errors": {
       "denied": "Instagram connection was cancelled.",
@@ -920,10 +876,10 @@
       "uploading": "Uploading…",
       "publishing": "Publishing…",
       "publishingVideo": "Publishing… (video can take a minute)",
-      "publish": "Publish to Instagram",
+      "publish": "Publish to Instagram ✦",
       "publishedTitle": "Published to Instagram!",
       "publishedTo": "Posted to {{handle}}.",
-      "viewPost": "View post on Instagram",
+      "viewPost": "View post on Instagram ↗",
       "another": "Post another"
     }
   },
@@ -1013,8 +969,8 @@
     "title": "Message Templates",
     "subtitle": "Paste a message you already send on {{platform}} — we turn the changing parts into variables you can refill in seconds.",
     "sampleLabel": "A message you send often",
-    "samplePlaceholder": "e.g. Stadium No:141, 9 spots left",
-    "analyzeCta": "Analyze & build template",
+    "samplePlaceholder": "e.g. Stadium No:141, 9 spots left✅",
+    "analyzeCta": "Analyze & build template ✦",
     "analyzing": "Finding the variable parts…",
     "startManual": "Mark variables myself",
     "engineGemini": "Gemini",
@@ -1046,7 +1002,7 @@
   "connections": {
     "title": "Platform Connections",
     "subtitle": "Connect the platforms Markiv can publish to on your behalf — through each platform’s official API, behind your approval.",
-    "connectedToast": "Connected",
+    "connectedToast": "Connected ✓",
     "errorToast": "Could not connect {{label}} — please try again.",
     "connect": "Connect",
     "manage": "Manage",
@@ -1066,9 +1022,9 @@
     "comingSoonNote": "{{label}} is not switched on yet — these are the steps for when it is.",
     "sandboxNote": "Sandbox mode — no live credentials are configured for this platform yet, so connecting simulates the flow (no real posts go out). Add the platform’s API keys to switch this to live.",
     "connecting": "Connecting…",
-    "connectLiveCta": "Connect {{label}}",
+    "connectLiveCta": "Connect {{label}} →",
     "connectSandboxCta": "Connect {{label}} (sandbox)",
-    "sandboxConnected": "{{label}} connected in sandbox mode",
+    "sandboxConnected": "{{label}} connected in sandbox mode ✓",
     "disconnected": "{{label}} disconnected",
     "statusConnected": "Connected",
     "statusSandbox": "Connected (sandbox)",
@@ -1085,12 +1041,5 @@
     "emptyDay": "Nothing scheduled for this day.",
     "cancelEvent": "Cancel this post",
     "dragHint": "Drag a scheduled post onto another day to move it. Autopilot history cannot be changed."
-  },
-  "truth": {
-    "simulated": "Simulated",
-    "measured": "Measured",
-    "estimate": "Estimate",
-    "canned": "Canned replies",
-    "notLive": "Not live yet"
   }
 }

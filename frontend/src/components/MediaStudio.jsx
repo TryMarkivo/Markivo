@@ -323,7 +323,7 @@ export default function MediaStudio({ activeProfile }) {
       <div className="media-mode-grid">
         <button
           type="button"
-          className={`media-mode-card panel ${mode === 'full' ? 'active' : ''}`}
+          className={`media-mode-card glass-card ${mode === 'full' ? 'active' : ''}`}
           onClick={() => switchMode('full')}
           id="btn_mode_full"
         >
@@ -335,7 +335,7 @@ export default function MediaStudio({ activeProfile }) {
         </button>
         <button
           type="button"
-          className={`media-mode-card panel ${mode === 'guided' ? 'active' : ''}`}
+          className={`media-mode-card glass-card ${mode === 'guided' ? 'active' : ''}`}
           onClick={() => switchMode('guided')}
           id="btn_mode_guided"
         >
@@ -351,7 +351,7 @@ export default function MediaStudio({ activeProfile }) {
           Just the prompt: a short explanation of what to write, the image/video
           choice, and the box. Nothing else — the AI does the rest. */}
       {mode === 'full' && (
-        <div className="media-brief-panel panel">
+        <div className="media-brief-panel glass-card">
           <h3>{t('media.full.title', 'Describe what you want')}</h3>
           <p className="media-panel-subtitle">
             {t('media.full.explainer', 'Write it like you would describe it to a designer: the subject, the feeling, and where it will be posted. One or two sentences is enough — the AI fills in the rest.')}
@@ -466,7 +466,7 @@ export default function MediaStudio({ activeProfile }) {
           brief a professional photographer or videographer would work from. */}
       {mode === 'guided' && (
         <>
-          <div className="media-brief-panel panel">
+          <div className="media-brief-panel glass-card">
             <h3>{t('media.guided.title', 'What do you want to shoot?')}</h3>
             <p className="media-panel-subtitle">
               {t('media.guided.explainer', 'Tell us what you are filming or photographing and press send. You get back the full production plan — how to set the scene, exact camera setup, and every shot to take.')}
@@ -593,7 +593,7 @@ export default function MediaStudio({ activeProfile }) {
 
           {/* UPLOAD + EDIT PLAN — only relevant once you have actually filmed. */}
           <div className="media-work-grid">
-            <div className="media-upload-panel panel">
+            <div className="media-upload-panel glass-card">
               <h3>{t('media.upload.title', 'Upload your footage')}</h3>
               <p className="media-panel-subtitle">{t('media.upload.subtitle', 'Drop in the photo or video you filmed')}</p>
 
@@ -645,7 +645,7 @@ export default function MediaStudio({ activeProfile }) {
             </div>
 
             {uploaded ? (
-              <div className="media-edit-panel panel">
+              <div className="media-edit-panel glass-card">
                 <h3>{t('media.edit.title', 'AI edit plan')}</h3>
                 <p className="media-panel-subtitle">{t('media.edit.subtitle', 'Describe how the AI should edit this media')}</p>
 
@@ -714,66 +714,60 @@ export default function MediaStudio({ activeProfile }) {
                 )}
               </div>
             ) : (
-              <div className="media-edit-panel media-edit-locked panel">
+              <div className="media-edit-panel media-edit-locked glass-card">
                 <i className="fa-solid fa-scissors"></i>
                 <p>{t('media.edit.locked', 'Upload media to unlock AI edit planning.')}</p>
               </div>
             )}
           </div>
 
-          {/* AI PHOTO ENHANCEMENT
-              Both sides of this wiper draw the SAME source image, because no
-              enhancement pass exists yet — there is nothing to compare against.
-              Labelling it "Raw" versus "Enhanced" would be a claim the product
-              cannot back, so the panel frays and says what it actually is. */}
-          <div className="enhancer-box panel frayed" style={{ '--fray': 'var(--saffron)' }}>
-            <div className="panel-head">
-              <h3>{t('content.enhancer.title', 'Photo enhancement')}</h3>
-              <span className="frayed-note">{t('truth.notLive', 'Not live yet')}</span>
-            </div>
-            <div className="panel-body">
-              <p className="media-panel-subtitle">
-                {t('content.enhancer.subtitleHonest', 'A preview of the framing this feature will use. It is not enhancing your photo — both halves below show the same image.')}
-              </p>
+          {/* AI PHOTO ENHANCEMENT — what the footage looks like after the AI pass. */}
+          <div className="enhancer-box glass-card">
+            <h3>{t('content.enhancer.title', 'AI Photo Enhancement')}</h3>
+            <p className="media-panel-subtitle">
+              {t('content.enhancer.subtitle', 'Upload smartphone photos and let our AI optimize brightness, textures & contrast')}
+            </p>
 
+            <div
+              className="before-after-container"
+              onMouseMove={handleSliderMove}
+              onTouchMove={(e) => { if (e.touches[0]) handleSliderMove(e.touches[0]); }}
+            >
+              {/* Enhanced frame underneath */}
               <div
-                className="before-after-container"
-                onMouseMove={handleSliderMove}
-                onTouchMove={(e) => { if (e.touches[0]) handleSliderMove(e.touches[0]); }}
+                className="image-after"
+                style={{ backgroundImage: `url('${enhancerImage}')` }}
               >
-                <div
-                  className="image-after"
-                  style={{ backgroundImage: `url('${enhancerImage}')` }}
-                >
-                  <span className="image-label label-after">{t('content.enhancer.sampleLabel', 'Sample frame')}</span>
-                </div>
+                <span className="image-label label-after">{t('content.enhancer.afterLabel', 'Enhanced AI Frame')}</span>
+              </div>
 
-                <div
-                  className="image-before"
-                  style={{
-                    backgroundImage: `url('${enhancerImage}')`,
-                    clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)`,
-                  }}
-                >
-                  <span className="image-label label-before">{t('content.enhancer.sampleLabel', 'Sample frame')}</span>
-                </div>
+              {/* Raw frame clipped to the wiper position */}
+              <div
+                className="image-before"
+                style={{
+                  backgroundImage: `url('${enhancerImage}')`,
+                  clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)`,
+                }}
+              >
+                <span className="image-label label-before">{t('content.enhancer.beforeLabel', 'Raw Phone Photo')}</span>
+              </div>
 
-                <div className="slider-divider" style={{ left: `${sliderPosition}%` }}>
-                  <div className="slider-handle">
-                    <i className="fa-solid fa-arrows-left-right"></i>
-                  </div>
+              <div className="slider-divider" style={{ left: `${sliderPosition}%` }}>
+                <div className="slider-handle">
+                  <i className="fa-solid fa-arrows-left-right"></i>
                 </div>
               </div>
-              <p className="media-panel-subtitle mt-20">
-                {t('content.enhancer.hintHonest', 'Enhancement runs once an image-generation key is configured. Until then, upload your own photos and publish them as they are.')}
-              </p>
             </div>
+            <p className="text-center text-muted mt-10">
+              <i className="fa-solid fa-circle-info"></i>{' '}
+              {t('content.enhancer.hint', 'Hover or drag across the frame to preview raw smartphone vs. AI optimized results')}
+            </p>
           </div>
         </>
       )}
 
       {/* LIBRARY */}
-      <div className="media-library panel">
+      <div className="media-library glass-card">
         <h3>{t('media.library.title', 'Your media')}</h3>
         {items.length === 0 ? (
           <p className="media-library-empty text-muted">
@@ -821,7 +815,7 @@ export default function MediaStudio({ activeProfile }) {
       {/* POST — the end of the page, once there is a finished photo/video to
           send. Everything above this point produces the media; this ships it. */}
       {postable && (
-        <div className="media-post-bar panel animate-fade-in">
+        <div className="media-post-bar glass-card animate-fade-in">
           <div className="media-post-bar-info">
             {postable.kind === 'video'
               ? <i className="fa-solid fa-film media-post-bar-icon"></i>
