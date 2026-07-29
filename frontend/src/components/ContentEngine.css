@@ -1,96 +1,80 @@
-.content-engine-container {
-  text-align: left;
-}
+/* ============================================================================
+   CONTENT ENGINE
+   A two-panel workroom: the channel menu is a selvedge of its own, the
+   composer is the working field.
+   ========================================================================= */
 
-.panel-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
+.content-engine-container { text-align: left; }
 
-.icon-header {
-  font-size: 1.5rem;
-}
-
-/* Two columns: the vertical channel menu, then the working panel. */
 .content-engine-layout {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
-  gap: 24px;
-  align-items: stretch;
+  grid-template-columns: 216px minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
   text-align: left;
 }
 
-/* Platform menu — one room per channel, full height beside the panel. */
+/* --- Channel menu ------------------------------------------------------- */
 .platform-menu {
+  position: sticky;
+  top: calc(53px + var(--s5));
+  align-self: start;
+  max-height: calc(100vh - 53px - var(--s8));
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  /* Sticks alongside a long panel instead of scrolling away. */
-  position: sticky;
-  top: 16px;
-  align-self: start;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-md);
+  background: var(--panel);
 }
 
 .platform-menu-label {
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--ink-3);
 }
 
-/* The items share the menu's height evenly, so the column always reads as one
-   justified block rather than a short stack floating at the top. */
 .platform-menu-items {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  justify-content: space-evenly;
+  gap: 1px;
 }
 
 .platform-menu-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--s3);
   width: 100%;
-  min-height: 48px;
-  padding: 12px 14px;
-  /* Rounded rectangles, icon locked to the left of the name. */
-  border-radius: 14px;
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-size: 0.88rem;
+  padding: var(--s2) var(--s3);
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--t-body);
+  font-weight: 500;
   text-align: left;
-  cursor: pointer;
-  transition: var(--transition-fast);
+  transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
 
-.platform-menu-item:hover {
-  background: var(--surface-2);
-  color: var(--text-primary);
-}
+.platform-menu-item:hover { background: var(--panel-raised); color: var(--ink); }
 
 .platform-menu-item.active {
-  background: rgba(212, 163, 115, 0.1);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
+  background: var(--panel-raised);
+  border-left-color: var(--madder);
+  color: var(--ink);
+  font-weight: 600;
 }
 
-/* Fixed icon column keeps every label starting at the same x. */
 .platform-menu-icon {
-  flex: 0 0 20px;
-  width: 20px;
-  font-size: 1.05rem;
+  flex: 0 0 18px;
+  width: 18px;
+  font-size: var(--t-base);
   text-align: center;
 }
 
@@ -102,228 +86,338 @@
   white-space: nowrap;
 }
 
-/* Connected marker — mirrors the Connections tab's "on" state colour. */
+/* Connected marker. Never colour alone — the item also carries a title. */
 .platform-menu-dot {
   flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--text-success, #34d399);
+  background: var(--jade);
 }
 
 .platform-menu-empty {
-  font-size: 0.75rem;
-  line-height: 1.5;
   margin: 0;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--ink-3);
 }
 
-/* Below 992px the layout stacks and the menu becomes a horizontal scroller. */
-@media (max-width: 992px) {
-  .content-engine-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .platform-menu {
-    position: static;
-    max-height: none;
-  }
-
-  .platform-menu-items {
-    flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .platform-menu-item {
-    width: auto;
-    flex: 0 0 auto;
-  }
-}
-
-/* Compose | Templates switch inside the selected platform */
+/* --- Compose / Templates switch ----------------------------------------- */
 .engine-mode-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
+  gap: 0;
+  margin-bottom: var(--s5);
+  border-bottom: 1px solid var(--seam);
 }
 
-/* The composer is one column now that the photography guide lives in Media
-   Studio; cap the measure so the copy stays readable on a wide screen. */
-.compose-column {
-  max-width: 780px;
+.engine-mode-tabs .picker-chip,
+.engine-mode-tabs .btn {
+  border-radius: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-3);
+  padding: var(--s3) var(--s4);
 }
 
-/* Ordered language picker. The badge is the whole point of the control: it
-   shows the position each language will take inside the single published post,
-   so the owner can see "Uzbek first, then Russian" without generating first. */
+.engine-mode-tabs .picker-chip:hover,
+.engine-mode-tabs .btn:hover { color: var(--ink); background: transparent; }
+
+.engine-mode-tabs .picker-chip.active,
+.engine-mode-tabs .btn.btn-primary,
+.engine-mode-tabs .btn.active {
+  background: transparent;
+  border-bottom-color: var(--madder);
+  color: var(--ink);
+}
+
+/* Cap the measure so drafted copy stays readable on a wide screen. */
+.compose-column { max-width: 780px; }
+
+/* --- Ordered language picker -------------------------------------------
+   The number badge is the control's whole point: it shows the position each
+   language takes inside the single published post.
+   -------------------------------------------------------------------- */
 .lang-chip-row {
   display: flex;
-  gap: 10px;
+  gap: var(--s2);
   flex-wrap: wrap;
 }
 
 .lang-chip {
   position: relative;
   flex: 1;
-  min-width: 120px;
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
-  font-weight: 600;
+  min-width: 118px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: var(--transition-fast);
+  gap: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--t-body);
+  font-weight: 600;
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
 }
 
-.lang-chip:hover {
-  background: var(--surface-2);
-  color: var(--text-primary);
-}
+.lang-chip:hover { border-color: var(--ink-3); color: var(--ink); }
 
 .lang-chip.active {
-  background: rgba(212, 163, 115, 0.1);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
+  background: var(--madder-field);
+  border-color: var(--madder);
+  color: var(--madder-ink);
 }
 
+/* A square stamp in the corner, set in mono — it is an ordinal, not a bubble. */
 .lang-chip-order {
   position: absolute;
-  top: -8px;
-  left: -8px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
+  top: -1px;
+  left: -1px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: var(--madder);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 600;
 }
 
-.lang-chip-flag {
-  font-size: 1.05rem;
-}
+.lang-chip-flag { font-size: var(--t-lg); }
 
 .lang-order-preview {
-  font-size: 0.78rem;
-  margin-top: 10px;
+  margin-top: var(--s2);
+  font-size: var(--t-small);
+  color: var(--ink-3);
 }
 
 .form-hint {
-  font-size: 0.78rem;
-  margin: -4px 0 10px;
+  margin: calc(var(--s1) * -1) 0 var(--s3);
+  font-size: var(--t-small);
   line-height: 1.5;
+  color: var(--ink-3);
 }
 
-/* Text output preview */
+/* --- Generated output ---------------------------------------------------
+   The draft is a panel banded in madder: this is the thing about to go out.
+   -------------------------------------------------------------------- */
 .generated-output-box {
-  padding: 24px;
-  background: rgba(212, 163, 115, 0.02);
-  border-color: rgba(212, 163, 115, 0.15);
+  padding: var(--s5);
+  border: 1px solid var(--seam);
+  border-top: 3px solid var(--madder);
+  border-radius: var(--r-md);
+  background: var(--panel);
   text-align: left;
 }
 
 .copy-text-area {
+  margin: var(--s3) 0 var(--s5);
+  padding: var(--s4);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+  font-family: var(--font-ui);
+  font-size: var(--t-base);
+  line-height: 1.65;
+  color: var(--ink);
   white-space: pre-wrap;
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  background: var(--input-bg);
-  padding: 16px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
-  margin-top: 14px;
-  margin-bottom: 20px;
-  line-height: 1.5;
 }
 
-/* Attached photo/video shown with the draft, so the owner reviews exactly what
-   will publish — caption AND media together. */
-.output-media {
-  margin-bottom: 20px;
-}
+.output-media { margin-bottom: var(--s5); }
 
 .output-media-thumb {
+  display: block;
   max-width: 100%;
   max-height: 260px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
-  display: block;
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
 }
 
 .output-media-warning {
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: rgba(240, 173, 78, 0.08);
-  border: 1px solid rgba(240, 173, 78, 0.25);
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  margin-bottom: 16px;
-  line-height: 1.5;
+  margin-bottom: var(--s4);
+  padding: var(--s3);
+  border-left: 3px solid var(--saffron);
+  border-radius: var(--r-sm);
+  background: var(--saffron-field);
+  color: var(--ink);
+  font-size: var(--t-small);
+  line-height: 1.55;
 }
 
-/* Inline two-step schedule picker */
-.schedule-picker-panel {
-  margin-top: 16px;
-  padding: 16px;
-  background: var(--surface-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+/* --- THE FAN ------------------------------------------------------------
+   Earlier generations kept behind the current draft. Closed it is a single
+   pull-tab; open, the drafts step back by recency like cards dealt from under
+   the top one, each carrying its own timestamp on the exposed edge.
+   -------------------------------------------------------------------- */
+.fan { margin-top: var(--s4); }
+
+.fan-pull {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border: 1px dashed var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: border-color var(--fast), color var(--fast);
+}
+
+.fan-pull:hover { border-color: var(--madder); color: var(--ink); }
+
+.fan-stack {
+  list-style: none;
+  margin-top: var(--s3);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--s2);
+}
+
+/* Each step back is indented and faded a notch, so depth is legible without
+   an actual 3-D stack. */
+.fan-card {
+  margin-left: calc(var(--depth, 0) * 10px);
+  padding: var(--s3);
+  border: 1px solid var(--seam);
+  border-left: 2px solid var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+}
+
+.fan-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+
+.fan-lines { display: flex; flex-direction: column; }
+
+.fan-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s1) var(--s2);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  text-align: left;
+  transition: background var(--fast), color var(--fast);
+}
+
+.fan-line i { opacity: 0; flex: none; margin-top: 3px; font-size: var(--t-micro); }
+
+.fan-line:hover {
+  background: var(--madder-field);
+  color: var(--ink);
+}
+
+.fan-line:hover i { opacity: 1; color: var(--madder); }
+
+@media (max-width: 700px) {
+  .fan-card { margin-left: 0; }
+}
+
+/* --- Inline schedule picker --------------------------------------------- */
+.schedule-picker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  padding: var(--s4);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
 }
 
 .picker-step-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--ink-3);
 }
 
-.picker-input {
-  width: 100%;
-}
+.picker-input { width: 100%; }
 
 .picker-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .picker-chip {
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: var(--surface-1);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-size: 0.8rem;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--t-small);
   font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition-fast);
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
 }
 
-.picker-chip:hover {
-  background: var(--surface-2);
-  color: var(--text-primary);
-}
+.picker-chip:hover { border-color: var(--ink-3); color: var(--ink); }
 
 .picker-chip.active {
-  background: var(--surface-2);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
+  background: var(--madder);
+  border-color: var(--madder);
+  color: #fff;
 }
 
 .picker-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--s2);
+}
+
+/* --- Responsive --------------------------------------------------------- */
+@media (max-width: 992px) {
+  .content-engine-layout { grid-template-columns: 1fr; }
+
+  .platform-menu {
+    position: static;
+    max-height: none;
+  }
+
+  /* The menu becomes a horizontal rail of channels. */
+  .platform-menu-items {
+    flex-direction: row;
+    gap: var(--s2);
+    overflow-x: auto;
+    padding-bottom: var(--s1);
+  }
+
+  .platform-menu-item {
+    width: auto;
+    flex: 0 0 auto;
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  .platform-menu-item.active {
+    border-left: 0;
+    border-bottom-color: var(--madder);
+  }
+}
+
+@media (max-width: 700px) {
+  .lang-chip { min-width: 0; flex-basis: calc(50% - var(--s1)); }
+  .generated-output-box { padding: var(--s4); }
+  .picker-actions { flex-direction: column-reverse; }
+  .picker-actions .btn { width: 100%; }
 }

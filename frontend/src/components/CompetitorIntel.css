@@ -1,55 +1,60 @@
-.competitor-intel-container {
-  text-align: left;
-}
+/* ============================================================================
+   COMPETITOR INTEL
+   A comparison ledger. The owner's own row is the one dyed band in the table.
+   ========================================================================= */
 
-.benchmark-table-box, .frequency-chart-box {
-  padding: 24px;
-}
+.competitor-intel-container { text-align: left; }
 
-/* Benchmarks table list */
-.competitor-list {
-  display: flex;
-  flex-direction: column;
+.benchmark-table-box,
+.frequency-chart-box { padding: var(--s5); }
+
+.competitor-list { display: flex; flex-direction: column; }
+
+.comp-header,
+.comp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) 1fr 1fr 1fr;
+  gap: var(--s3);
+  align-items: center;
 }
 
 .comp-header {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--glass-border);
-  font-size: 0.7rem;
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--seam);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  color: var(--ink-3);
 }
 
 .comp-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-subtle);
-  align-items: center;
-  font-size: 0.85rem;
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--seam);
+  font-size: var(--t-body);
 }
 
-.comp-row:last-child {
-  border-bottom: none;
-}
+.comp-row:last-child { border-bottom: none; }
 
+/* The owner's row: a madder selvedge on the field, not a tinted box. */
 .active-brand {
-  background: rgba(212, 163, 115, 0.04);
-  padding: 16px 12px;
-  margin: 4px -12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(212, 163, 115, 0.15);
+  margin: 0 calc(var(--s3) * -1);
+  padding: var(--s4) var(--s3);
+  border-left: 3px solid var(--madder);
+  background: var(--madder-field);
+  font-weight: 600;
 }
 
-.comp-name i {
-  margin-right: 6px;
+.comp-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* SVG Chart Container */
+.comp-name i { margin-right: var(--s2); }
+
 .svg-chart-container {
   display: flex;
   align-items: center;
@@ -62,45 +67,53 @@
   height: 180px;
 }
 
-/* Gap recommendation cards */
-.gaps-grid {
-  gap: 20px;
-}
+/* --- Gap recommendations ------------------------------------------------ */
+.gaps-grid { gap: var(--s5); }
 
 .gap-card {
-  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--s3);
+  padding: var(--s5);
+  border-left: 3px solid var(--saffron);
 }
 
 .gap-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s3);
 }
 
-.gap-icon {
-  font-size: 1.15rem;
-}
+.gap-icon { font-size: var(--t-lg); color: var(--saffron); }
 
-.text-danger { color: var(--accent-danger); }
+.gap-header h4 { font-size: var(--t-base); font-weight: 700; }
 
-.gap-header h4 {
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.gap-desc {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
+.gap-desc { font-size: var(--t-body); color: var(--ink-2); }
 
 .gap-recommendation {
-  font-size: 0.8rem;
-  padding: 12px;
-  background: var(--surface-1);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
-  color: var(--text-primary);
+  padding: var(--s3);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .comp-header,
+  .comp-row { grid-template-columns: minmax(0, 1.6fr) 1fr 1fr; }
+  .comp-header > :nth-child(4),
+  .comp-row > :nth-child(4) { display: none; }
+}
+
+@media (max-width: 700px) {
+  .benchmark-table-box,
+  .frequency-chart-box,
+  .gap-card { padding: var(--s4); }
+
+  .comp-header,
+  .comp-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .comp-header > :nth-child(3),
+  .comp-row > :nth-child(3) { display: none; }
 }

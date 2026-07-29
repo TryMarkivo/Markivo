@@ -1,566 +1,1042 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+/* ============================================================================
+   MARKIVO — ikat & suzani panel system
+   ----------------------------------------------------------------------------
+   The interface is a bolt of cloth. Regions are panels stitched together with
+   a visible seam; there is no glass, no drop shadow on flat content, and no
+   gradient. Structure comes from flat saturated fields and the seams between
+   them, exactly as it does in a suzani sewn from separately embroidered strips.
 
-/* --- 1. DESIGN SYSTEM VARIABLES --- */
+   The signature mechanism is the ikat edge. In resist-dyed silk the warp
+   threads are tied and dyed before weaving, so every colour boundary bleeds
+   into a stepped comb. Here that comb encodes truth: a HARD edge means the
+   value is real and verified, a FRAYED edge means it is simulated, demo, or a
+   keyless fallback. See `.frayed` below. Texture never carries that meaning
+   alone — every frayed element also states it in words.
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600&display=swap');
+
+/* ---------------------------------------------------------------------------
+   1. TOKENS
+   ------------------------------------------------------------------------ */
 :root {
-  --font-heading: 'Outfit', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-ui: 'Golos Text', 'Segoe UI', system-ui, sans-serif;
+  /* Mono is for measurement only — times, counts, ranks, ids. Never a costume
+     for "technical"; it is here so numeric columns align. */
+  --font-mono: 'Martian Mono', ui-monospace, 'Cascadia Mono', monospace;
 
-  /* Colors */
-  --bg-primary: #0a080c;
-  --bg-secondary: #131016;
-  --bg-tertiary: #1b1720;
-  
-  --accent-primary: #d4a373;   /* Rich warm gold */
-  --accent-secondary: #3a86f0; /* Electric blue */
-  --accent-purple: #8338ec;    /* Deep violet */
-  --accent-success: #06d6a0;   /* Mint green */
-  --accent-danger: #ff5a5f;    /* Vibrant red */
-  --tg-blue: #2aabee;          /* Telegram brand blue (legible on both themes) */
+  /* --- The four dyes. Constant hues across themes; lightness retuned per
+         theme below so both stay above 4.5:1 on their own ground. --- */
+  --madder: #d81f3c;         /* primary action, active state, brand */
+  --madder-deep: #a5122a;
+  --jade: #17a37c;           /* live, connected, published */
+  --saffron: #e3a018;        /* queued, scheduled, needs attention */
+  --pomegranate: #b03060;    /* failed, error */
 
-  --text-primary: #f8f9fa;
-  --text-secondary: #a9abb3;
-  --text-muted: #6b6d76;
+  /* Tints — flat fills for status fields, never used as text colour. */
+  --madder-field: rgba(216, 31, 60, 0.14);
+  --jade-field: rgba(23, 163, 124, 0.14);
+  --saffron-field: rgba(227, 160, 24, 0.14);
+  --pomegranate-field: rgba(176, 48, 96, 0.14);
 
-  /* Glassmorphism & borders */
-  --glass-bg: rgba(255, 255, 255, 0.02);
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --glass-glow: rgba(212, 163, 115, 0.15);
+  /* A dye laid on its OWN tint is nearly the same value as the panel beneath,
+     so the solid dye fails as text there. These are the same hues opened up
+     until they clear 4.5:1 on their field — used for text on a tinted stamp,
+     never as a fill. Measured, not eyeballed. */
+  --madder-ink: #ff6b80;
+  --jade-ink: #3fd6a8;
+  --saffron-ink: #e3a018;
+  --pomegranate-ink: #ea7fac;
 
-  /* Theme-adaptive structural tokens (overridden by [data-theme="light"]) */
-  --surface-1: rgba(255, 255, 255, 0.04);
-  --surface-2: rgba(255, 255, 255, 0.08);
-  --surface-3: rgba(255, 255, 255, 0.14);
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --input-bg: rgba(0, 0, 0, 0.3);
-  --input-bg-focus: rgba(0, 0, 0, 0.5);
-  --overlay-bg: rgba(0, 0, 0, 0.7);
-  --modal-bg: rgba(19, 16, 22, 0.85);
-  --text-on-accent: #08060a;
-  --heading-gradient-from: #ffffff;
-  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
-  --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-  
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
-  
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  /* --- Dark: an indigo night ground. Indigo, not near-black: the blue-violet
+         is the dye, and it keeps the surface off the "black + neon" default. */
+  --ground: #15152e;
+  --ground-deep: #0f0f22;    /* selvedge rail, page gutters */
+  --panel: #1c1c3a;          /* a stitched panel */
+  --panel-raised: #262649;   /* input wells, hovered rows */
+  --panel-sunken: #121228;
+
+  --ink: #f0eee9;            /* raw silk on indigo */
+  --ink-2: #bcbacd;
+  /* --ink-3 drives the 11px mono micro-labels, which are the smallest text in
+     the app. It has to clear AA against --panel, not just against --ground. */
+  --ink-3: #9997b0;
+
+  --seam: rgba(240, 238, 233, 0.13);
+  --seam-strong: rgba(240, 238, 233, 0.26);
+
+  --overlay: rgba(9, 9, 22, 0.72);
+
+  /* --- Geometry. Cloth is rectilinear; corners are essentially square. --- */
+  --r-sm: 2px;
+  --r-md: 3px;
+
+  /* --- Spacing, 4px base. One rhythm for the whole app. --- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+
+  /* --- Type scale. Operate mode: compact, with obvious steps. --- */
+  --t-micro: 0.6875rem;  /* 11 — stamps, column heads */
+  --t-small: 0.75rem;    /* 12 — meta, captions */
+  --t-body: 0.8125rem;   /* 13 — dense UI body */
+  --t-base: 0.875rem;    /* 14 — reading body */
+  --t-lg: 1rem;          /* 16 — panel titles */
+  --t-xl: 1.25rem;       /* 20 — section titles */
+  --t-2xl: 1.625rem;     /* 26 */
+  --t-3xl: 2.125rem;     /* 34 — metric numerals */
+  --t-4xl: 2.75rem;      /* 44 — landing display */
+
+  /* --- Structure. Only overlays cast a shadow, and it has a real offset. --- */
+  --lift: 0 12px 32px -8px rgba(6, 6, 18, 0.55);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fast: 120ms var(--ease);
+  --normal: 220ms var(--ease);
+
+  --rail-w: 232px;
+  --band-w: 336px;
+
+  color-scheme: dark;
 }
 
-/* --- LIGHT THEME (warm paper, same brand accents) --- */
-[data-theme="light"] {
-  --bg-primary: #f5f3ef;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #ece8e1;
+/* --- Light: raw silk. Warm, but a woven ivory rather than a beige wash, and
+       the dyes stay saturated against it. --- */
+[data-theme='light'] {
+  --ground: #efe9dd;
+  --ground-deep: #e2d9c7;
+  --panel: #fbf8f2;
+  --panel-raised: #ffffff;
+  --panel-sunken: #e8e1d3;
 
-  --text-primary: #181511;
-  --text-secondary: #4d5057;
-  --text-muted: #82858d;
+  --ink: #191526;
+  --ink-2: #4c4761;
+  /* Clears 4.5:1 on the page GROUND, not just on a panel — the mono micro
+     labels sit on both. */
+  --ink-3: #5f5975;
 
-  --glass-bg: rgba(255, 255, 255, 0.66);
-  --glass-border: rgba(24, 18, 12, 0.08);
-  --glass-glow: rgba(212, 163, 115, 0.3);
+  /* On raw silk the solid dyes are already dark enough to be read on their own
+     tints, so the ink variants collapse back onto them. */
+  --madder-ink: #b8142f;
+  --jade-ink: #0a6248;
+  --saffron-ink: #7d5504;
+  --pomegranate-ink: #8c2049;
 
-  --surface-1: rgba(24, 18, 12, 0.035);
-  --surface-2: rgba(24, 18, 12, 0.07);
-  --surface-3: rgba(24, 18, 12, 0.12);
-  --border-subtle: rgba(24, 18, 12, 0.09);
-  --border-strong: rgba(24, 18, 12, 0.18);
-  --input-bg: rgba(24, 18, 12, 0.045);
-  --input-bg-focus: #ffffff;
-  --overlay-bg: rgba(30, 24, 18, 0.45);
-  --modal-bg: rgba(255, 255, 255, 0.94);
-  --heading-gradient-from: #181511;
-  --scrollbar-thumb: rgba(24, 18, 12, 0.16);
+  --seam: rgba(25, 21, 38, 0.14);
+  --seam-strong: rgba(25, 21, 38, 0.3);
 
-  --shadow-sm: 0 4px 12px rgba(30, 24, 18, 0.06);
-  --shadow-md: 0 8px 24px rgba(30, 24, 18, 0.08);
-  --shadow-lg: 0 16px 48px rgba(30, 24, 18, 0.12);
+  /* Darkened against their own tinted fields so `.stamp-live`/`.stamp-queued`
+     clear AA — a stamp sits on --*-field, not on the page ground. */
+  --madder: #b8142f;
+  --madder-deep: #8e0d22;
+  --jade: #0a6248;
+  --saffron: #7d5504;
+  --pomegranate: #8c2049;
+
+  --madder-field: rgba(184, 20, 47, 0.1);
+  --jade-field: rgba(15, 122, 91, 0.1);
+  --saffron-field: rgba(154, 106, 6, 0.12);
+  --pomegranate-field: rgba(140, 32, 73, 0.1);
+
+  --overlay: rgba(40, 33, 24, 0.4);
+  --lift: 0 12px 32px -10px rgba(40, 33, 24, 0.28);
+
+  /* The comb has to bite into raw silk, which is far lighter than indigo — at
+     the dark theme's weight it vanished here entirely. */
+  --fray-opacity: 0.75;
+
+  color-scheme: light;
 }
 
-[data-theme="light"] .blob {
-  mix-blend-mode: multiply;
-  opacity: 0.07;
+/* ---------------------------------------------------------------------------
+   2. RESET & BASE
+   ------------------------------------------------------------------------ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* --- Offline / demo-data indicators (shown only in server-offline fallbacks) --- */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--t-base);
+  line-height: 1.55;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scrollbar-color: var(--seam-strong) transparent;
+  scrollbar-width: thin;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--t-3xl); }
+h2 { font-size: var(--t-2xl); }
+h3 { font-size: var(--t-xl); }
+h4 { font-size: var(--t-lg); }
+h5 { font-size: var(--t-base); }
+
+p { text-wrap: pretty; }
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--fast);
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+}
+
+button { cursor: pointer; }
+
+img, svg, video { display: block; max-width: 100%; }
+
+::selection {
+  background: var(--madder);
+  color: #fff;
+}
+
+/* Focus is a madder rule, never a soft glow. Applied on keyboard focus only so
+   pointer users don't see rings, but it is never suppressed outright. */
+:focus-visible {
+  outline: 2px solid var(--madder);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--seam-strong);
+  border: 3px solid var(--ground);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+
+/* ---------------------------------------------------------------------------
+   3. THE SEAM
+   Panels are stitched, not floated. This replaces every card shadow.
+   ------------------------------------------------------------------------ */
+.panel,
+.glass-card {           /* legacy alias — the old glass class is now a panel */
+  background: var(--panel);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-md);
+  position: relative;
+}
+
+/* The stitch: a dashed rule that reads as thread rather than a hairline
+   divider. Used between stacked regions inside one panel. */
+.seam {
+  border: 0;
+  border-top: 1px dashed var(--seam-strong);
+  margin: var(--s5) 0;
+}
+
+.seam-tight { margin: var(--s3) 0; }
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--seam);
+  min-height: 52px;
+}
+
+.panel-head h2,
+.panel-head h3,
+.panel-head h4 {
+  font-size: var(--t-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.panel-body { padding: var(--s5); }
+.panel-body-tight { padding: var(--s4); }
+
+/* A panel whose top edge carries its dye — the suzani border band. */
+.panel-banded { border-top: 3px solid var(--band, var(--madder)); }
+
+/* ---------------------------------------------------------------------------
+   4. THE IKAT EDGE — the truth mechanism
+   `.frayed` marks a value as simulated, demo, or a keyless fallback. It draws
+   the stepped warp comb along the bottom edge. Always accompany it with words:
+   `.frayed-note` is the label that must sit with it.
+   ------------------------------------------------------------------------ */
+.frayed {
+  position: relative;
+}
+
+/* Fine and quiet: a fringe of loose threads along the hem, not a hazard
+   stripe. The words in `.frayed-note` carry the meaning; this only has to make
+   the edge feel unfinished at a glance. */
+.frayed::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 5px;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--fray, var(--ink-3)) 0 1px,
+    transparent 1px 4px
+  );
+  -webkit-mask-image: linear-gradient(to bottom, currentColor 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, currentColor 0%, transparent 100%);
+  opacity: var(--fray-opacity, 0.5);
+}
+
+/* Same comb, drawn up the left selvedge instead — for list rows, where a
+   bottom comb would collide with the row divider. */
+.frayed-start::after {
+  left: -1px;
+  right: auto;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  height: auto;
+  background-image: repeating-linear-gradient(
+    180deg,
+    var(--fray, var(--ink-3)) 0 1px,
+    transparent 1px 4px
+  );
+  -webkit-mask-image: linear-gradient(to right, currentColor 0%, transparent 100%);
+  mask-image: linear-gradient(to right, currentColor 0%, transparent 100%);
+}
+
+.frayed-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--saffron-ink);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   5. WARP BANDS — the channel stripe row that opens the dashboard
+   ------------------------------------------------------------------------ */
+.warp {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 1px;
+  background: var(--seam);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.warp-stripe {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s4);
+  min-height: 108px;
+  padding: var(--s4);
+  background: var(--panel);
+  text-align: left;
+  transition: background var(--fast);
+}
+
+.warp-stripe:hover { background: var(--panel-raised); }
+
+/* The dye band along the top of a stripe carries its state. */
+.warp-stripe::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--band, var(--ink-3));
+}
+
+/* Every channel carries a band at the same weight, so the row reads as four
+   warp stripes rather than one dyed mark on a rule. "Off" is not pomegranate —
+   a channel that was never set up has not failed — and it is not a neutral
+   hairline either. It is the warp thread strung but NOT YET DYED: full-weight
+   indigo, drawn as a woven dash so its emptiness is the information. */
+.warp-stripe.is-live { --band: var(--jade); --fray: var(--jade); }
+.warp-stripe.is-sim { --band: var(--saffron); --fray: var(--saffron); }
+.warp-stripe.is-failed { --band: var(--pomegranate); --fray: var(--pomegranate); }
+
+.warp-stripe.is-off::before {
+  background: transparent;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--seam-strong) 0 6px,
+    transparent 6px 11px
+  );
+}
+
+.warp-stripe.is-off .warp-name { color: var(--ink-2); }
+.warp-stripe.is-off .warp-state { color: var(--ink-3); }
+
+.warp-name {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-weight: 600;
+  font-size: var(--t-body);
+}
+
+.warp-state {
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.warp-state.is-warn { color: var(--saffron-ink); }
+
+/* Every stripe keeps the same interior height whatever its detail line says,
+   so the band reads as one woven row rather than four unequal boxes. */
+.warp-stripe .warp-foot { min-height: 1.4em; }
+
+/* ---------------------------------------------------------------------------
+   6. STAMPS — status marks, set in mono like a traffic log
+   ------------------------------------------------------------------------ */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: 3px var(--s2);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--panel-raised);
+  color: var(--ink-2);
+}
+
+.stamp-live { background: var(--jade-field); color: var(--jade-ink); }
+.stamp-queued { background: var(--saffron-field); color: var(--saffron-ink); }
+.stamp-failed { background: var(--pomegranate-field); color: var(--pomegranate-ink); }
+.stamp-action { background: var(--madder-field); color: var(--madder-ink); }
+
+/* Numerals anywhere they need to line up. */
+.num {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Column heads and small all-caps labels. */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+   7. CONTROLS
+   Flat fields, square corners, no lift on hover. A button changes its field,
+   the way a swatch changes dye — it does not float.
+   ------------------------------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  font-family: var(--font-ui);
+  font-size: var(--t-body);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
+}
+
+/* A disabled control loses its dye entirely rather than fading it. A madder
+   fill at 45% is still a red button — it reads as pressable and the label
+   fails contrast against it. Undyed is unambiguous. */
+.btn:disabled,
+.btn[disabled] {
+  background: var(--panel-raised);
+  border-color: var(--seam);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--madder);
+  color: #fff;
+}
+.btn-primary:not(:disabled):hover { background: var(--madder-deep); }
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--seam-strong);
+  color: var(--ink);
+}
+.btn-secondary:not(:disabled):hover {
+  background: var(--panel-raised);
+  border-color: var(--ink-3);
+}
+
+/* Kept for markup that still asks for it; it is the primary field, not a
+   second gradient identity. */
+.btn-accent {
+  background: var(--madder);
+  color: #fff;
+}
+.btn-accent:not(:disabled):hover { background: var(--madder-deep); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-2);
+  padding: var(--s2) var(--s3);
+}
+.btn-ghost:not(:disabled):hover { background: var(--panel-raised); color: var(--ink); }
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--pomegranate);
+  color: var(--pomegranate);
+}
+.btn-danger:not(:disabled):hover { background: var(--pomegranate); color: #fff; }
+
+.btn-sm {
+  padding: var(--s2) var(--s3);
+  font-size: var(--t-small);
+}
+
+.btn-block { width: 100%; }
+
+.btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  transition: background var(--fast), color var(--fast);
+}
+.btn-close:hover { background: var(--panel-raised); color: var(--ink); }
+
+/* --- Fields --- */
+.form-group { margin-bottom: var(--s4); text-align: left; }
+
+.form-label {
+  display: block;
+  margin-bottom: var(--s2);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.input-field,
+.select-field {
+  width: 100%;
+  padding: var(--s3);
+  border: 1px solid var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+  color: var(--ink);
+  font-size: var(--t-body);
+  transition: border-color var(--fast), background var(--fast);
+}
+
+.input-field::placeholder { color: var(--ink-3); }
+
+.input-field:focus,
+.select-field:focus {
+  outline: none;
+  border-color: var(--madder);
+  background: var(--panel-raised);
+}
+
+.input-field:focus-visible,
+.select-field:focus-visible { outline: none; }
+
+textarea.input-field {
+  resize: vertical;
+  min-height: 88px;
+  line-height: 1.6;
+}
+
+.select-field {
+  cursor: pointer;
+  appearance: none;
+  padding-right: var(--s7);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23807e99' stroke-width='2.5' stroke-linecap='square'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--s3) center;
+  background-size: 14px;
+}
+
+.select-field option {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+/* A chip is a square swatch, selected by taking the dye. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  font-weight: 600;
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
+}
+.chip:hover { border-color: var(--ink-3); color: var(--ink); }
+.chip.active,
+.chip[aria-pressed='true'] {
+  background: var(--madder);
+  border-color: var(--madder);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+   8. ROWS — the traffic-log table used by the queue, templates, keywords
+   ------------------------------------------------------------------------ */
+.rows { display: flex; flex-direction: column; }
+
+.row-head,
+.row {
+  display: grid;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) var(--s5);
+}
+
+.row-head {
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--seam);
+  padding-top: var(--s2);
+  padding-bottom: var(--s2);
+}
+
+.row {
+  border-bottom: 1px solid var(--seam);
+  transition: background var(--fast);
+}
+.row:last-child { border-bottom: 0; }
+.row:hover { background: var(--panel-raised); }
+
+/* ---------------------------------------------------------------------------
+   9. EMPTY & LOADING
+   ------------------------------------------------------------------------ */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s6) var(--s5);
+  border: 1px dashed var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+}
+
+.empty h4 { font-size: var(--t-base); }
+.empty p {
+  font-size: var(--t-body);
+  color: var(--ink-2);
+  max-width: 58ch;
+}
+
+/* A loading placeholder is a woven field, not a shimmering gradient. */
+.weaving {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--seam) 0 2px,
+    transparent 2px 6px
+  );
+  border-radius: var(--r-sm);
+  animation: weave 1.1s linear infinite;
+}
+
+@keyframes weave {
+  from { background-position: 0 0; }
+  to { background-position: 6px 0; }
+}
+
+/* ---------------------------------------------------------------------------
+   10. OVERLAYS
+   ------------------------------------------------------------------------ */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s5);
+  background: var(--overlay);
+  animation: overlayIn 160ms var(--ease);
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--s6);
+  background: var(--panel);
+  border: 1px solid var(--seam-strong);
+  border-top: 3px solid var(--madder);
+  border-radius: var(--r-md);
+  box-shadow: var(--lift);
+  animation: cardIn 220ms var(--ease);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.auth-card form { display: flex; flex-direction: column; }
+
+.auth-error-box {
+  padding: var(--s3);
+  border-radius: var(--r-sm);
+  border-left: 3px solid var(--pomegranate);
+  background: var(--pomegranate-field);
+  color: var(--pomegranate-ink);
+  font-size: var(--t-body);
+  font-weight: 500;
+}
+
+.auth-toggle-link p { font-size: var(--t-body); color: var(--ink-2); }
+
+.auth-toggle-link .link-text {
+  margin-left: var(--s1);
+  color: var(--madder);
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-toggle-link .link-text:hover { text-decoration: underline; }
+
+/* ---------------------------------------------------------------------------
+   11. LANGUAGE + THEME CONTROLS
+   ------------------------------------------------------------------------ */
+.language-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+}
+
+.lang-btn {
+  padding: var(--s1) var(--s2);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  transition: background var(--fast), color var(--fast);
+}
+.lang-btn:hover { color: var(--ink); }
+.lang-btn.active { background: var(--madder); color: #fff; }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  transition: background var(--fast), color var(--fast);
+}
+.theme-toggle:hover { background: var(--panel-raised); color: var(--madder); }
+
+.floating-controls {
+  position: fixed;
+  top: var(--s4);
+  right: var(--s4);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* ---------------------------------------------------------------------------
+   12. NOTES & CALLOUTS
+   ------------------------------------------------------------------------ */
 .demo-offline-banner,
 .chat-offline-note {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  margin-bottom: 16px;
-  font-size: 0.82rem;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  margin-bottom: var(--s4);
+  border-left: 3px solid var(--saffron);
+  background: var(--saffron-field);
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
   font-weight: 500;
-  color: var(--accent-primary);
-  background: var(--surface-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-}
-.chat-offline-note {
-  margin: 8px 10px 4px;
-  font-size: 0.76rem;
+  color: var(--saffron-ink);
 }
 
-/* Long unbroken strings (URLs, tokens) must wrap inside chat/caption blocks. */
+.chat-offline-note { margin: var(--s2) var(--s3); }
+
 .bubble-text,
 .media-caption-box {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
 
-/* --- 2. GLOBAL RESET & BASE STYLES --- */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
-}
+/* ---------------------------------------------------------------------------
+   13. GRID + UTILITIES
+   ------------------------------------------------------------------------ */
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s5); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s5); }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s4); }
 
-body {
-  background-color: var(--bg-primary);
-  transition: background-color var(--transition-normal), color var(--transition-normal);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  line-height: 1.6;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-}
+.stack { display: flex; flex-direction: column; gap: var(--s5); }
+.stack-sm { display: flex; flex-direction: column; gap: var(--s3); }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
+.flex-between { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.flex-row { display: flex; align-items: center; gap: var(--s2); }
+.flex-wrap { flex-wrap: wrap; }
 
-a {
-  color: inherit;
-  text-decoration: none;
-  transition: var(--transition-fast);
-}
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-muted { color: var(--ink-3); }
+.text-secondary { color: var(--ink-2); }
+.text-accent { color: var(--madder); }
+.text-live { color: var(--jade); }
+.text-queued { color: var(--saffron); }
+.text-failed { color: var(--pomegranate); }
 
-button, input, select, textarea {
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  outline: none;
-}
+.mb-20 { margin-bottom: var(--s5); }
+.mt-20 { margin-top: var(--s5); }
 
-/* --- 3. PREMIUM DECORATIVE BACKDROP EFFECTS --- */
-.bg-blobs {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}
+.small { font-size: var(--t-small); }
+.micro { font-size: var(--t-micro); }
 
-.blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.12;
-  mix-blend-mode: screen;
-}
+/* Kept as a no-op so legacy markup referencing the old glow class inherits the
+   panel treatment rather than a leftover gradient border. */
+.glass-card-glow { border-color: var(--seam-strong); }
 
-.blob-1 {
-  top: -10%;
-  right: 10%;
-  width: 500px;
-  height: 500px;
-  background: var(--accent-primary);
-  animation: floatBlob 20s infinite alternate;
-}
-
-.blob-2 {
-  bottom: -10%;
-  left: 5%;
-  width: 600px;
-  height: 600px;
-  background: var(--accent-purple);
-  animation: floatBlob 25s infinite alternate-reverse;
-}
-
-.blob-3 {
-  top: 40%;
-  right: -5%;
-  width: 400px;
-  height: 400px;
-  background: var(--accent-secondary);
-  animation: floatBlob 18s infinite alternate 2s;
-}
-
-@keyframes floatBlob {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(50px, -50px) scale(1.1); }
-  100% { transform: translate(-30px, 30px) scale(0.9); }
-}
-
-/* --- 4. UTILITIES --- */
-.gradient-text {
-  background: linear-gradient(135deg, var(--heading-gradient-from) 0%, var(--accent-primary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.gradient-text-accent {
-  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-purple) 50%, var(--accent-primary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.glass-card {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  transition: var(--transition-normal);
-}
-
-.glass-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-lg), 0 0 25px rgba(255, 255, 255, 0.02);
-}
-
-.glass-card-glow {
-  border-color: rgba(212, 163, 115, 0.2);
-  box-shadow: 0 8px 32px var(--glass-glow);
-}
-
-.glass-card-glow:hover {
-  border-color: rgba(212, 163, 115, 0.35);
-  box-shadow: 0 16px 48px rgba(212, 163, 115, 0.25);
-}
-
-/* Custom buttons */
-.btn {
+/* --- Badges: square stamps, same family as .stamp ----------------------- */
+.badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px 28px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  font-family: var(--font-heading);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, #bd8c5c 100%);
-  color: var(--text-on-accent);
-  box-shadow: 0 4px 15px rgba(212, 163, 115, 0.3);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(212, 163, 115, 0.5);
-}
-
-.btn-secondary {
-  background: var(--surface-1);
-  color: var(--text-primary);
-  border: 1px solid var(--glass-border);
-}
-
-.btn-secondary:hover {
-  background: var(--surface-2);
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
-}
-
-.btn-accent {
-  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-purple) 100%);
-  color: #fff;
-  box-shadow: 0 4px 15px rgba(131, 56, 236, 0.3);
-}
-
-.btn-accent:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(131, 56, 236, 0.5);
-}
-
-/* Custom fields */
-.form-group {
-  margin-bottom: 20px;
-  text-align: left;
-}
-
-.form-label {
-  display: block;
-  font-size: 0.85rem;
+  gap: var(--s1);
+  padding: 3px var(--s2);
+  border-radius: var(--r-sm);
+  background: var(--panel-raised);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
   font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
-.input-field {
-  width: 100%;
-  padding: 14px 16px;
-  border-radius: var(--radius-sm);
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  color: var(--text-primary);
-  transition: var(--transition-fast);
-}
+.badge-primary { background: var(--madder-field); color: var(--madder-ink); }
+.badge-success { background: var(--jade-field); color: var(--jade-ink); }
+.badge-warning { background: var(--saffron-field); color: var(--saffron-ink); }
+.badge-danger { background: var(--pomegranate-field); color: var(--pomegranate-ink); }
 
-.input-field:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 10px rgba(212, 163, 115, 0.2);
-  background: var(--input-bg-focus);
-}
+/* --- Remaining layout / text utilities used across the tabs ------------- */
+.btn-lg { padding: var(--s3) var(--s5); font-size: var(--t-base); }
 
-.select-field {
-  width: 100%;
-  padding: 14px 16px;
-  border-radius: var(--radius-sm);
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  color: var(--text-primary);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d4a373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 16px center;
-  background-size: 16px;
-  transition: var(--transition-fast);
+.btn-text {
+  padding: 0;
+  background: none;
+  color: var(--madder);
+  font-weight: 600;
+  font-size: var(--t-body);
 }
+.btn-text:hover { text-decoration: underline; }
 
-.select-field:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 10px rgba(212, 163, 115, 0.2);
-}
+.w-full { width: 100%; }
+.align-center { align-items: center; }
+.font-bold { font-weight: 700; }
+.text-success { color: var(--jade); }
+.text-danger { color: var(--pomegranate); }
+.text-purple { color: var(--pomegranate); }
 
-.select-field option {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
+.px-20 { padding-left: var(--s5); padding-right: var(--s5); }
+.py-10 { padding-top: var(--s3); padding-bottom: var(--s3); }
+.mt-10 { margin-top: var(--s3); }
+.mb-10 { margin-bottom: var(--s3); }
+.mt-30 { margin-top: var(--s6); }
+.pt-20 { padding-top: var(--s5); }
+.mt-auto { margin-top: auto; }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+.border-top-onboard { border-top: 1px solid var(--seam); }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.logo-text {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 1.5rem;
-  letter-spacing: -0.03em;
+.auth-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.auth-header h3 { font-size: var(--t-xl); }
+
+/* A panel's supporting line. Sits under a heading, never above it. */
+.panel-subtitle,
+.subtitle {
+  font-size: var(--t-body);
+  color: var(--ink-2);
+  max-width: 66ch;
+}
+
+.panel-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.icon-header { font-size: var(--t-xl); color: var(--madder); }
+
+.animate-pulse { animation: pulseSoft 1.6s var(--ease) infinite; }
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* The logo lockup. The mark is a binding brand asset; only its setting changed. */
+.logo-text {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: var(--t-lg);
+  letter-spacing: -0.03em;
   cursor: pointer;
 }
 
 .logo-icon {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-purple) 100%);
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  background: var(--madder);
   color: #fff;
-  font-weight: 900;
+  font-weight: 800;
+  font-size: var(--t-small);
 }
 
-/* Responsive grid layouts */
-.grid-2 {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+/* ---------------------------------------------------------------------------
+   14. MOTION
+   One authored moment: panels arrive by settling, like cloth laid down. It is
+   applied to a region once, not to every element on every section.
+   ------------------------------------------------------------------------ */
+.animate-fade-in {
+  animation: settle 320ms var(--ease) both;
 }
 
-.grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+@keyframes settle {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
 }
 
-.grid-4 {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 992px) {
-  .grid-3, .grid-4 {
-    grid-template-columns: repeat(2, 1fr);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-@media (max-width: 768px) {
-  .grid-2, .grid-3, .grid-4 {
-    grid-template-columns: 1fr;
+/* ---------------------------------------------------------------------------
+   15. RESPONSIVE
+   ------------------------------------------------------------------------ */
+@media (max-width: 1100px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .grid-2,
+  .grid-3,
+  .grid-4 { grid-template-columns: 1fr; }
+
+  .panel-head { padding: var(--s3) var(--s4); }
+  .panel-body { padding: var(--s4); }
+  .row-head,
+  .row { padding-left: var(--s4); padding-right: var(--s4); }
+  .auth-card { padding: var(--s5); }
+  .floating-controls { top: var(--s2); right: var(--s2); }
+
+  /* Stripes stack rather than compress into unreadable slivers. */
+  .warp {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
   }
-}
-
-/* --- 5. SECURE AUTH GATE MODALS --- */
-.auth-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: var(--overlay-bg);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.auth-card {
-  width: 420px;
-  max-width: 90%;
-  padding: 36px;
-  background: var(--modal-bg);
-  border: 1px solid var(--border-subtle);
-}
-
-.auth-card form {
-  display: flex;
-  flex-direction: column;
-}
-
-.auth-error-box {
-  padding: 12px 16px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 90, 95, 0.1);
-  border: 1px solid rgba(255, 90, 95, 0.2);
-  color: var(--accent-danger);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.btn-close {
-  cursor: pointer;
-  background: var(--surface-1);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: var(--transition-fast);
-}
-
-.btn-close:hover {
-  background: var(--surface-3);
-  color: var(--text-primary);
-}
-
-.auth-toggle-link p {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.auth-toggle-link .link-text {
-  color: var(--accent-primary);
-  font-weight: 600;
-  cursor: pointer;
-  margin-left: 4px;
-}
-
-.auth-toggle-link .link-text:hover {
-  text-decoration: underline;
-}
-
-/* --- 6. LANGUAGE SWITCHER & THEME TOGGLE --- */
-.language-selector {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--surface-1);
-  border: 1px solid var(--border-subtle);
-  backdrop-filter: blur(12px);
-}
-
-.lang-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  font-family: var(--font-heading);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.lang-btn:hover {
-  color: var(--text-primary);
-  background: var(--surface-2);
-}
-
-.lang-btn.active {
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
-  box-shadow: 0 2px 10px rgba(212, 163, 115, 0.35);
-}
-
-.theme-toggle {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-1);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: var(--transition-fast);
-  backdrop-filter: blur(12px);
-}
-
-.theme-toggle:hover {
-  color: var(--accent-primary);
-  border-color: var(--border-strong);
-  transform: rotate(15deg) scale(1.06);
-}
-
-.floating-controls {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  .warp-stripe { min-height: 0; flex-direction: row; align-items: center; }
 }

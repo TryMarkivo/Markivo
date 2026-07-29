@@ -60,7 +60,7 @@ export default function ConnectCard({ platform, status, meta, onChanged, onClose
 
   return (
     <div className="auth-overlay animate-fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div className="auth-card glass-card glass-card-glow text-left" style={{ maxWidth: 520 }} role="dialog" aria-modal="true" aria-labelledby="connect_modal_title">
+      <div className="auth-card panel text-left" style={{ maxWidth: 520 }} role="dialog" aria-modal="true" aria-labelledby="connect_modal_title">
         <div className="auth-header flex-between mb-20">
           <h3 id="connect_modal_title"><i className={meta.icon} style={{ color: meta.color }}></i>{' '}
             {t('connections.setupTitle', { defaultValue: 'Connect {{label}}', label: platform.label })}</h3>

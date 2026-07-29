@@ -1,5 +1,12 @@
+/* ============================================================================
+   TEMPLATE STUDIO
+   The message IS the editor: the post reads exactly as it will go out, and a
+   variable is a stamped insert sitting in the sentence rather than a form
+   field parked underneath it.
+   ========================================================================= */
+
 .template-studio {
-  padding: 24px;
+  padding: var(--s5);
   text-align: left;
 }
 
@@ -7,175 +14,161 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: var(--s2);
 }
 
 .template-engine-badge {
   margin-left: auto;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  padding: 3px var(--s2);
+  border-radius: var(--r-sm);
+  background: var(--panel-raised);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
 }
 
 .template-draft {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--glass-border);
+  margin-top: var(--s5);
+  padding-top: var(--s5);
+  border-top: 1px dashed var(--seam-strong);
 }
 
 .template-text-input {
-  font-family: var(--font-body);
-  line-height: 1.5;
+  font-family: var(--font-ui);
+  line-height: 1.6;
 }
 
 .template-hint {
-  font-size: 0.78rem;
-  margin-top: 6px;
+  margin-top: var(--s2);
+  font-size: var(--t-small);
+  color: var(--ink-3);
 }
 
-/* ===== Draft header: which template you are editing, and its name ===== */
+/* --- Draft header ------------------------------------------------------- */
 .template-draft-head {
   display: flex;
   align-items: center;
-  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
 }
 
 .template-draft-mode {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  padding: 3px var(--s2);
+  border-radius: var(--r-sm);
+  background: var(--madder);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
   white-space: nowrap;
 }
 
-.template-name-input {
-  flex: 1 1 200px;
-  min-width: 0;
-}
+.template-name-input { flex: 1 1 200px; min-width: 0; }
 
 .tpl-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
 }
 
-/* ===== The message itself, with variables highlighted in place =====
-   This IS the editor. The post reads exactly as it will go out, and the
-   variables are objects in the sentence rather than a list of form fields
-   sitting somewhere underneath it. */
+/* --- The canvas --------------------------------------------------------- */
 .tpl-canvas {
-  min-height: 90px;
-  padding: 14px 16px;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  font-family: var(--font-body);
-  font-size: 0.95rem;
+  min-height: 92px;
+  padding: var(--s4);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+  font-family: var(--font-ui);
+  font-size: var(--t-base);
   line-height: 2.1;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.tpl-canvas-edit {
-  cursor: text;
-}
+.tpl-canvas-edit { cursor: text; }
 
-.tpl-literal {
-  white-space: pre-wrap;
-}
+.tpl-literal { white-space: pre-wrap; }
 
-/* A variable in edit mode: its label, its example value, and the × that
-   turns it back into ordinary text. */
+/* A variable in edit mode: its label, its example value, and the × that turns
+   it back into ordinary text. Square, stamped, and dyed madder — it reads as
+   an insert in the cloth. */
 .tpl-chip {
   display: inline-flex;
   align-items: stretch;
   vertical-align: baseline;
   margin: 0 2px;
-  border-radius: 8px;
-  border: 1px solid var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  border: 1px solid var(--madder);
+  border-radius: var(--r-sm);
+  background: var(--madder-field);
   overflow: hidden;
   user-select: none;
 }
 
-.tpl-chip.active {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 45%, transparent);
-}
+.tpl-chip.active { box-shadow: 0 0 0 2px var(--madder-field); border-color: var(--madder); }
 
 .tpl-chip-body {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
+  gap: var(--s2);
+  padding: 1px var(--s2);
   cursor: pointer;
-  color: var(--text-primary);
-  font-size: 0.85rem;
+  color: var(--ink);
+  font-size: var(--t-body);
   line-height: 1.5;
 }
 
-.tpl-chip-body:hover {
-  background: color-mix(in srgb, var(--accent-primary) 24%, transparent);
-}
+.tpl-chip-body:hover { background: var(--madder); color: #fff; }
+.tpl-chip-body:hover .tpl-chip-name { color: #fff; }
 
 .tpl-chip-name {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--accent-primary);
+  color: var(--madder-ink);
 }
 
-.tpl-chip-value {
-  font-weight: 600;
-}
+.tpl-chip-value { font-weight: 600; }
 
 .tpl-chip-remove {
   display: inline-flex;
   align-items: center;
-  padding: 0 7px;
+  padding: 0 var(--s2);
+  border-left: 1px solid var(--madder);
+  color: var(--ink-2);
+  font-size: var(--t-small);
   cursor: pointer;
-  color: var(--text-secondary);
-  border-left: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
-  font-size: 0.75rem;
 }
 
-.tpl-chip-remove:hover {
-  background: var(--accent-danger);
-  color: #fff;
-}
+.tpl-chip-remove:hover { background: var(--pomegranate); color: #fff; }
 
 /* Fill mode: the chip IS the input, so the post updates under your cursor. */
 .tpl-chip-input {
   display: inline-block;
   vertical-align: baseline;
   margin: 0 2px;
-  padding: 1px 8px;
+  padding: 0 var(--s2);
   min-width: 6ch;
   max-width: 100%;
+  border: 1px solid var(--madder);
+  border-radius: var(--r-sm);
+  background: var(--madder-field);
   font: inherit;
   font-weight: 700;
-  color: var(--text-primary);
-  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
-  border: 1px solid var(--accent-primary);
-  border-radius: 8px;
+  color: var(--ink);
 }
 
 .tpl-chip-input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  background: var(--panel-raised);
 }
 
 /* Rename / example panel for the chip you clicked. */
@@ -183,12 +176,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  gap: var(--s3);
+  margin-top: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--seam);
+  border-left: 3px solid var(--madder);
+  border-radius: var(--r-sm);
+  background: var(--panel-raised);
 }
 
 .tpl-var-editor .form-group {
@@ -197,54 +191,45 @@
   margin-bottom: 0;
 }
 
-/* Saved templates */
+/* --- Saved templates ---------------------------------------------------- */
 .saved-templates {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid var(--glass-border);
+  margin-top: var(--s6);
+  padding-top: var(--s5);
+  border-top: 1px dashed var(--seam-strong);
 }
 
-.saved-templates h4 {
-  margin-bottom: 12px;
-}
+.saved-templates h4 { margin-bottom: var(--s3); font-size: var(--t-base); }
 
 .saved-template-card {
-  padding: 14px 16px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  margin-bottom: 10px;
+  margin-bottom: var(--s2);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+  transition: background var(--fast);
 }
 
-.saved-template-card .template-hint {
-  word-break: break-word;
-}
+.saved-template-card:hover { background: var(--panel-raised); }
+
+.saved-template-card .template-hint { word-break: break-word; }
 
 .template-fill {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px dashed var(--border-subtle);
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--seam-strong);
 }
 
-/* Media attached to the template being edited. */
-.tpl-media {
-  margin-top: 18px;
-}
+.tpl-media { margin-top: var(--s4); }
 
-/* Marks a saved template that carries a photo/video, so the list makes the
-   difference visible without opening each one. */
 .tpl-media-badge {
-  margin-left: 8px;
-  color: var(--accent-primary);
-  font-size: 0.8rem;
+  margin-left: var(--s2);
+  color: var(--madder);
+  font-size: var(--t-small);
 }
 
-@media (max-width: 600px) {
-  .tpl-var-editor .form-group {
-    flex: 1 1 100%;
-  }
-
-  .template-draft-head {
-    align-items: stretch;
-  }
+@media (max-width: 700px) {
+  .template-studio { padding: var(--s4); }
+  .tpl-var-editor .form-group { flex: 1 1 100%; }
+  .template-draft-head { align-items: stretch; }
+  .template-engine-badge { margin-left: 0; }
 }

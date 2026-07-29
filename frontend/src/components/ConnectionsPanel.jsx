@@ -78,7 +78,7 @@ export default function ConnectionsPanel({ activeProfile }) {
             // tapping one opens its card with the step-by-step instructions.
             <div
               key={p.key}
-              className={`connection-card glass-card ${isConnected ? 'connected' : 'not-connected'}`}
+              className={`connection-card panel ${isConnected ? 'connected' : 'not-connected'}`}
               onClick={openCard}
               role="button"
               tabIndex={0}

@@ -1,48 +1,51 @@
 /* Attach one photo/video to a post or template. Shared by the Content Engine
    composer and the Template Studio. */
 
-.media-attach {
-  margin-top: 4px;
-}
+.media-attach { margin-top: var(--s1); }
 
-.media-attach-cta {
-  border-style: dashed;
-}
+.media-attach-cta { border-style: dashed; }
 
 .media-attach-hint {
-  font-size: 0.75rem;
-  margin-top: 6px;
+  margin-top: var(--s2);
+  font-size: var(--t-small);
   line-height: 1.5;
+  color: var(--ink-3);
 }
 
 .media-attach-preview {
   display: flex;
-  gap: 14px;
   align-items: flex-start;
-  padding: 12px;
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  background: var(--surface-1);
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
 }
 
 .media-attach-thumb {
-  width: 96px;
-  height: 96px;
-  object-fit: cover;
-  border-radius: 10px;
   flex-shrink: 0;
-  background: var(--bg-secondary);
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: var(--ground-deep);
 }
 
 .media-attach-meta {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s2);
   min-width: 0;
+  font-size: var(--t-small);
 }
 
 .media-attach-actions {
   display: flex;
-  gap: 4px;
+  gap: var(--s1);
   flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .media-attach-preview { flex-direction: column; }
+  .media-attach-thumb { width: 100%; height: 140px; }
 }

@@ -101,7 +101,7 @@ export default function SettingsPane({ activeProfile, onProfileUpdate, theme, on
       )}
 
       {/* BUSINESS PROFILE */}
-      <section className="settings-section glass-card">
+      <section className="settings-section panel">
         <h3><i className="fa-solid fa-store text-accent"></i> {t('settings.business', 'Business profile')}</h3>
         <p className="settings-hint">
           {t('settings.businessHint', 'Markivo personalizes content, insights, and the Markiv agent from these details.')}
@@ -152,7 +152,7 @@ export default function SettingsPane({ activeProfile, onProfileUpdate, theme, on
       </section>
 
       {/* PLAN & BILLING */}
-      <section className="settings-section glass-card" id="settings_plan">
+      <section className="settings-section panel" id="settings_plan">
         <h3><i className="fa-solid fa-credit-card text-accent"></i> {t('settings.plan.title', 'Plan & billing')}</h3>
         <p className="settings-hint">
           {t('settings.plan.hint', 'Your plan sets your monthly AI generation limit and unlocks advanced features.')}
@@ -224,7 +224,7 @@ export default function SettingsPane({ activeProfile, onProfileUpdate, theme, on
       </section>
 
       {/* APPEARANCE */}
-      <section className="settings-section glass-card">
+      <section className="settings-section panel">
         <h3><i className="fa-solid fa-palette text-accent"></i> {t('settings.appearance', 'Appearance')}</h3>
         <div className="settings-row">
           <span>{t('settings.theme', 'Theme')}</span>

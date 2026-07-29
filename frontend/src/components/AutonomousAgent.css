@@ -1,190 +1,202 @@
-/* ===== Autopilot (autonomous marketing agent) panel ===== */
-.autopilot-pane {
-  max-width: 900px;
-}
+/* ============================================================================
+   AUTOPILOT
+   Settings for the machine that fills the queue, then the log of what it did.
+   ========================================================================= */
+
+.autopilot-pane { max-width: 940px; }
 
 .ap-loading {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: var(--text-secondary);
-  padding: 40px 0;
+  gap: var(--s2);
+  padding: var(--s7) 0;
+  color: var(--ink-2);
 }
 
 .ap-header h2 {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s2);
+  font-size: var(--t-xl);
 }
 
 .ap-header .subtitle {
-  color: var(--text-secondary);
-  margin-top: 4px;
+  margin-top: var(--s1);
+  color: var(--ink-2);
+  font-size: var(--t-body);
+  max-width: 66ch;
 }
 
 .ap-error {
-  margin: 12px 0;
-  padding: 12px 16px;
-  border-radius: var(--radius-sm);
-  background: rgba(239, 68, 68, 0.08);
-  color: var(--accent-danger);
-  font-size: 0.9rem;
+  margin: var(--s3) 0;
+  padding: var(--s3);
+  border-left: 3px solid var(--pomegranate);
+  border-radius: var(--r-sm);
+  background: var(--pomegranate-field);
+  color: var(--pomegranate-ink);
+  font-size: var(--t-body);
 }
 
 .ap-notice-card {
-  padding: 40px;
+  padding: var(--s7);
   text-align: center;
 }
 
 .ap-hero-icon {
-  font-size: 2.4rem;
-  color: var(--accent-primary);
-  margin-bottom: 12px;
+  margin-bottom: var(--s3);
+  font-size: 2rem;
+  color: var(--madder);
 }
 
-/* Master enable */
+/* --- Master enable ------------------------------------------------------ */
 .ap-toggle-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 20px 24px;
-  margin: 18px 0;
+  gap: var(--s5);
+  margin: var(--s4) 0;
+  padding: var(--s4) var(--s5);
+  border-left: 3px solid var(--band, var(--seam-strong));
 }
 
-.ap-toggle-card h4 { margin: 0 0 4px; }
-.ap-toggle-card p { margin: 0; font-size: 0.85rem; }
+.ap-toggle-card.on { --band: var(--jade); }
 
-/* Switch */
+.ap-toggle-card h4 { margin: 0 0 var(--s1); font-size: var(--t-base); }
+.ap-toggle-card p { margin: 0; font-size: var(--t-body); color: var(--ink-2); }
+
+/* A switch is a shuttle sliding across its track — square, like everything. */
 .ap-switch {
-  flex-shrink: 0;
-  width: 52px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid var(--glass-border);
-  background: var(--surface-2, rgba(255, 255, 255, 0.06));
   position: relative;
-  cursor: pointer;
-  transition: var(--transition-fast);
+  flex-shrink: 0;
+  width: 48px;
+  height: 26px;
   padding: 0;
+  border: 1px solid var(--seam-strong);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+  transition: background var(--fast), border-color var(--fast);
 }
 
-.ap-switch.on {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
-}
-
-.ap-switch:disabled { opacity: 0.6; cursor: default; }
+.ap-switch.on { background: var(--jade); border-color: var(--jade); }
+.ap-switch:disabled { opacity: 0.5; cursor: default; }
 
 .ap-switch-knob {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #fff;
-  transition: var(--transition-fast);
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-sm);
+  background: var(--ink-3);
+  transition: transform var(--fast), background var(--fast);
 }
 
-.ap-switch.on .ap-switch-knob { transform: translateX(22px); }
+.ap-switch.on .ap-switch-knob { transform: translateX(22px); background: #fff; }
 
-/* Config block dims when Autopilot is off */
-.ap-config-muted { opacity: 0.55; }
+/* Config block recedes when Autopilot is off, but stays readable. */
+.ap-config-muted { opacity: 0.6; }
 
 .ap-section {
-  padding: 18px 22px;
-  margin-bottom: 14px;
+  padding: var(--s4) var(--s5);
+  margin-bottom: var(--s3);
 }
 
 .ap-hint {
-  font-size: 0.82rem;
-  margin: 4px 0 12px;
+  margin: var(--s1) 0 var(--s3);
+  font-size: var(--t-small);
+  color: var(--ink-3);
 }
 
 .ap-platform-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--s2);
 }
 
 .ap-platform-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--seam-strong);
+  border-radius: var(--r-sm);
   background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.88rem;
-  transition: var(--transition-fast);
+  color: var(--ink-2);
+  font-size: var(--t-body);
+  font-weight: 600;
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
 }
 
-.ap-platform-chip:hover:not(:disabled) { border-color: var(--accent-primary); }
+.ap-platform-chip:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+
 .ap-platform-chip.selected {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-  background: rgba(212, 163, 115, 0.08);
+  background: var(--madder);
+  border-color: var(--madder);
+  color: #fff;
 }
-.ap-platform-chip:disabled { cursor: default; }
-.ap-platform-chip.selected i { color: var(--accent-primary); }
 
-/* Publish-mode radios */
+.ap-platform-chip.selected i { color: #fff; }
+.ap-platform-chip:disabled { cursor: default; opacity: 0.5; }
+
+/* --- Publish-mode radios ------------------------------------------------ */
 .ap-radio-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
 }
 
 .ap-radio {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  padding: 16px 18px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
+  gap: var(--s1);
+  padding: var(--s4);
+  border: 1px solid var(--seam-strong);
+  border-left: 2px solid transparent;
+  border-radius: var(--r-sm);
   background: transparent;
-  cursor: pointer;
   text-align: left;
-  transition: var(--transition-fast);
+  transition: background var(--fast), border-color var(--fast);
 }
 
-.ap-radio:hover:not(:disabled) { border-color: var(--accent-primary); }
-.ap-radio.selected { border-color: var(--accent-primary); background: rgba(212, 163, 115, 0.08); }
-.ap-radio:disabled { cursor: default; }
-.ap-radio i { color: var(--accent-primary); font-size: 1.05rem; margin-bottom: 4px; }
-.ap-radio-title { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }
-.ap-radio-hint { font-size: 0.78rem; color: var(--text-secondary); }
+.ap-radio:hover:not(:disabled) { border-color: var(--ink-3); }
+
+.ap-radio.selected {
+  border-color: var(--madder);
+  border-left-color: var(--madder);
+  background: var(--madder-field);
+}
+
+.ap-radio:disabled { cursor: default; opacity: 0.6; }
+
+.ap-radio i { margin-bottom: var(--s1); color: var(--madder); font-size: var(--t-lg); }
+.ap-radio-title { font-size: var(--t-body); font-weight: 600; color: var(--ink); }
+.ap-radio-hint { font-size: var(--t-small); color: var(--ink-2); }
 
 .ap-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 6px;
   flex-wrap: wrap;
+  gap: var(--s3);
+  margin-top: var(--s2);
 }
 
-.ap-notice {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.ap-notice-error { color: var(--accent-danger); }
+.ap-notice { font-size: var(--t-body); color: var(--ink-2); }
+.ap-notice-error { color: var(--pomegranate); }
 
 .ap-safety {
-  margin-top: 16px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  line-height: 1.5;
+  margin-top: var(--s4);
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--ink-3);
+  max-width: 68ch;
 }
-.ap-safety i { color: var(--accent-primary); }
 
-/* Activity log */
-.ap-activity { margin-top: 28px; }
-.ap-activity h3 { margin-bottom: 12px; }
+.ap-safety i { color: var(--madder); }
+
+/* --- Activity log ------------------------------------------------------- */
+.ap-activity { margin-top: var(--s6); }
+.ap-activity h3 { margin-bottom: var(--s3); font-size: var(--t-lg); }
 
 .ap-activity-list {
   list-style: none;
@@ -192,50 +204,57 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s2);
 }
 
 .ap-activity-item {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 14px 18px;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-left: 3px solid var(--band, var(--jade));
 }
 
+.ap-activity-item.kind-error { --band: var(--pomegranate); }
+.ap-activity-item.kind-skipped { --band: var(--seam-strong); }
+
 .ap-activity-icon {
-  color: var(--accent-primary);
-  margin-top: 2px;
   flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--band, var(--jade));
 }
-.ap-activity-item.kind-error .ap-activity-icon { color: var(--accent-danger); }
-.ap-activity-item.kind-skipped .ap-activity-icon { color: var(--text-muted); }
 
 .ap-activity-body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 
-.ap-activity-kind { font-weight: 600; font-size: 0.88rem; }
+.ap-activity-kind { font-size: var(--t-body); font-weight: 600; }
+
 .ap-activity-summary {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  font-size: var(--t-body);
+  color: var(--ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
 .ap-activity-time {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  white-space: nowrap;
   flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  white-space: nowrap;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 700px) {
   .ap-radio-row { grid-template-columns: 1fr; }
+  .ap-toggle-card { flex-direction: column; align-items: flex-start; gap: var(--s3); }
+  .ap-section { padding: var(--s4); }
 }

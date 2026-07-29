@@ -11,7 +11,7 @@ export default function CompetitorIntel({ stats, activeProfile }) {
       <div className="grid-2 main-intel-grids">
 
         {/* COMPETING BENCHMARK TABLE */}
-        <div className="benchmark-table-box glass-card">
+        <div className="benchmark-table-box panel">
           <h3>{t('competitors.benchmark.title', 'Local Competitor Benchmark')}</h3>
           <p className="panel-subtitle">{t('competitors.benchmark.subtitle', 'How your channel infrastructure compares to nearby local brands')}</p>
 
@@ -47,7 +47,7 @@ export default function CompetitorIntel({ stats, activeProfile }) {
         </div>
 
         {/* POST FREQUENCY CHART USING Pure SVG Bar Graphs */}
-        <div className="frequency-chart-box glass-card">
+        <div className="frequency-chart-box panel">
           <h3>{t('competitors.frequency.title', 'Weekly Posting Frequency')}</h3>
           <p className="panel-subtitle">{t('competitors.frequency.subtitle', 'Benchmark of content frequency across competing channels')}</p>
 
@@ -95,7 +95,7 @@ export default function CompetitorIntel({ stats, activeProfile }) {
         <h3>{t('competitors.gaps.title', 'Actionable AI Moat Recommendations')}</h3>
 
         <div className="grid-2 gaps-grid mt-20">
-          <div className="gap-card glass-card">
+          <div className="gap-card panel">
             <div className="gap-header">
               <i className="fa-solid fa-triangle-exclamation text-danger gap-icon"></i>
               <h4>{t('competitors.gaps.cadenceTitle', 'Post Cadence Alert')}</h4>
@@ -127,7 +127,7 @@ export default function CompetitorIntel({ stats, activeProfile }) {
             </div>
           </div>
 
-          <div className="gap-card glass-card">
+          <div className="gap-card panel">
             <div className="gap-header">
               <i className="fa-solid fa-magnifying-glass-plus text-success gap-icon"></i>
               <h4>{t('competitors.gaps.seoTitle', 'SEO Keyword Gaps')}</h4>

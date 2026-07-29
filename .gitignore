@@ -21,6 +21,11 @@ npm-debug.log*
 # Claude Code local (machine-specific) settings
 .claude/settings.local.json
 
+# Locally installed agent skills (graphify, taste-skill) - machine-specific
+.agents/
+.claude/skills/
+skills-lock.json
+
 # Local working materials (pitch deck stays out of the repo; source for the
 # future landing-page work)
 Markivo_Pitch_Deck.pptx
@@ -28,6 +33,10 @@ Markivo_Pitch_Deck.pptx
 # Private credentials intake (see CLAUDE.md credentials workflow)
 CREDENTIALS.local.md
 *.local.md
+
+# Impeccable design-hook per-session scratch. The waiver config alongside it
+# (.impeccable/config.json) IS committed — it records deliberate exceptions.
+.impeccable/hook.cache.json
 
 # local SQLite data
 backend/database/*.db

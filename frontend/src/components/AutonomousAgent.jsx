@@ -124,7 +124,7 @@ export default function AutonomousAgent({ activeProfile }) {
   if (!featureEnabled) {
     return (
       <div className="autopilot-pane">
-        <div className="glass-card ap-notice-card">
+        <div className="panel ap-notice-card">
           <i className="fa-solid fa-robot ap-hero-icon"></i>
           <h2>{t('autopilot.title', 'Autopilot')}</h2>
           <p className="text-muted">{t('autopilot.disabledNotice', 'Autopilot is not enabled in this deployment.')}</p>
@@ -145,7 +145,7 @@ export default function AutonomousAgent({ activeProfile }) {
       {loadError && <div className="ap-error">{loadError}</div>}
 
       {/* MASTER ENABLE */}
-      <div className="glass-card ap-toggle-card">
+      <div className="panel ap-toggle-card">
         <div>
           <h4>{t('autopilot.enableLabel', 'Enable Autopilot')}</h4>
           <p className="text-muted">{t('autopilot.enableHint', 'When on, Markiv runs on a schedule — analyzing, generating, and posting for you.')}</p>
@@ -165,7 +165,7 @@ export default function AutonomousAgent({ activeProfile }) {
 
       {/* CONFIG */}
       <div className={`ap-config ${form.enabled ? '' : 'ap-config-muted'}`}>
-        <div className="glass-card ap-section">
+        <div className="panel ap-section">
           <label className="form-label">{t('autopilot.platformsLabel', 'Channels to post to')}</label>
           <p className="text-muted ap-hint">{t('autopilot.platformsHint', 'Autopilot posts to the channels you pick (connected channels post for real; others are simulated until connected).')}</p>
           <div className="ap-platform-grid">
@@ -184,7 +184,7 @@ export default function AutonomousAgent({ activeProfile }) {
           </div>
         </div>
 
-        <div className="glass-card ap-section">
+        <div className="panel ap-section">
           <label className="form-label" htmlFor="sel_ap_frequency">{t('autopilot.frequencyLabel', 'How often')}</label>
           <select
             id="sel_ap_frequency"
@@ -199,7 +199,7 @@ export default function AutonomousAgent({ activeProfile }) {
           </select>
         </div>
 
-        <div className="glass-card ap-section">
+        <div className="panel ap-section">
           <label className="form-label">{t('autopilot.publishModeLabel', 'When a post is ready')}</label>
           <div className="ap-radio-row">
             <button
@@ -252,7 +252,7 @@ export default function AutonomousAgent({ activeProfile }) {
       </div>
 
       {/* SCHEDULE — everything queued or already done, on one timeline */}
-      <div className="glass-card ap-section">
+      <div className="panel ap-section">
         <AutomationCalendar activeProfile={activeProfile} />
       </div>
 
@@ -266,7 +266,7 @@ export default function AutonomousAgent({ activeProfile }) {
             {activity.map((a) => {
               const m = KIND_META[a.kind] || { icon: 'fa-circle-info', key: a.kind, fallback: a.kind };
               return (
-                <li key={a.id} className={`ap-activity-item glass-card kind-${a.kind}`}>
+                <li key={a.id} className={`ap-activity-item panel kind-${a.kind}`}>
                   <i className={`fa-solid ${m.icon} ap-activity-icon`}></i>
                   <div className="ap-activity-body">
                     <span className="ap-activity-kind">{t(`autopilot.kind.${m.key}`, m.fallback)}</span>

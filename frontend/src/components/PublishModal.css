@@ -1,126 +1,126 @@
 /* "Post this media" modal — platform picker, then Post Now or Schedule. */
 
 .publish-card {
-  max-width: 560px;
   width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - var(--s8));
+  overflow-y: auto;
 }
 
 .publish-preview {
+  margin-bottom: var(--s5);
   text-align: center;
-  margin-bottom: 20px;
 }
 
 .publish-thumb {
+  display: inline-block;
   max-width: 100%;
   max-height: 220px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
 }
 
 .publish-platform-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--s2);
+  margin-top: var(--s2);
 }
 
 .publish-platform {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  background: var(--input-bg);
-  cursor: pointer;
-  transition: var(--transition-fast);
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--seam-strong);
+  border-left: 2px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+  color: var(--ink-2);
+  font-size: var(--t-body);
   font-weight: 600;
-  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
 }
 
-.publish-platform:hover {
-  background: var(--surface-2);
-  color: var(--text-primary);
-}
+.publish-platform:hover { background: var(--panel-raised); color: var(--ink); }
 
 .publish-platform.checked {
-  border-color: var(--accent-primary);
-  background: rgba(212, 163, 115, 0.1);
-  color: var(--text-primary);
+  border-color: var(--madder);
+  border-left-color: var(--madder);
+  background: var(--madder-field);
+  color: var(--ink);
 }
 
 .publish-platform input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent-primary);
+  width: 15px;
+  height: 15px;
+  accent-color: var(--madder);
   cursor: pointer;
 }
 
 .publish-empty {
-  font-size: 0.85rem;
-  padding: 12px 0;
-  line-height: 1.5;
+  padding: var(--s3) 0;
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--ink-3);
 }
 
 /* Both primary actions sit bottom-right of the card. */
 .publish-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 24px;
   flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s5);
 }
 
 /* --- Schedule steps --- */
-
 .publish-cal-head {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 12px;
+  margin-bottom: var(--s3);
 }
 
 .publish-picked-date {
+  margin-bottom: var(--s3);
   font-weight: 600;
-  margin-bottom: 14px;
+  text-transform: capitalize;
 }
 
-.publish-time-input {
-  width: 100%;
-}
+.publish-time-input { width: 100%; }
 
 .publish-time-presets {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  gap: var(--s2);
+  margin-top: var(--s3);
 }
 
 /* --- Per-platform outcome --- */
-
 .publish-results {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s2);
 }
 
 .publish-results li {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
-  background: var(--surface-1);
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--seam);
+  border-left: 3px solid var(--band, var(--ink-3));
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
 }
 
-.publish-results li.ok i {
-  color: var(--accent-success, #2ecc71);
-}
+.publish-results li.ok { --band: var(--jade); }
+.publish-results li.failed { --band: var(--pomegranate); }
 
-.publish-results li.failed i {
-  color: var(--accent-danger, #e74c3c);
-}
+.publish-results li.ok i { color: var(--jade); }
+.publish-results li.failed i { color: var(--pomegranate); }
 
 .publish-results li div {
   display: flex;
@@ -129,8 +129,15 @@
   min-width: 0;
 }
 
+.publish-results li strong { font-size: var(--t-body); }
+
 .publish-results li span {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  font-size: var(--t-small);
+  color: var(--ink-2);
   line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .publish-actions { flex-direction: column-reverse; }
+  .publish-actions .btn { width: 100%; }
 }

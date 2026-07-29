@@ -1,330 +1,250 @@
-.agent-sidebar-container {
-  width: 320px;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--glass-border);
-  display: flex;
-  flex-direction: column;
+/* ============================================================================
+   THE BORDER BAND — Markiv
+   A suzani's running border: the narrow worked strip along the finished edge.
+   It collapses to a stub the width of a selvedge.
+   ========================================================================= */
+
+/* The width snaps rather than transitioning: animating it relayouts the whole
+   dashboard column beneath for the duration, which is real jank on a long
+   queue. The motion lives on the contents instead — opacity only, so it is
+   composited and costs nothing. */
+.band {
   position: fixed;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  z-index: 10;
-  transition: transform var(--transition-normal);
-  border-radius: 0;
-}
-
-.agent-sidebar-container.closed {
-  transform: translateX(276px); /* Leave just a tiny toggle visible */
-}
-
-/* Collapsed, only the leftmost 44px of the panel is still on screen. The full
-   header is right-aligned, which pushed the toggle 276px off-screen and left no
-   way to expand again — so the header becomes a narrow vertical stub whose
-   controls sit INSIDE the visible strip. */
-.agent-sidebar-container.closed .agent-header {
+  inset: 0 0 0 auto;
+  z-index: 30;
+  width: var(--band-w);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  width: 44px;
-  padding: 16px 0;
+  background: var(--ground-deep);
+  border-left: 1px solid var(--seam);
 }
 
-/* Keep the robot as the panel's marker; drop the name/subtitle, which cannot
-   fit in 44px. */
-.agent-sidebar-container.closed .agent-title-wrap > div {
-  display: none;
+.band.closed { width: 44px; }
+
+.band > *:not(.band-head) {
+  animation: bandIn 200ms var(--ease) both;
 }
 
-.agent-sidebar-container.closed .agent-toggle-btn {
-  font-size: 1.05rem;
-  color: var(--accent-primary);
+@keyframes bandIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* The whole stub reads as one expand control. */
-.agent-sidebar-container.closed .agent-header:hover .agent-toggle-btn {
-  transform: translateX(-2px);
-}
-
-.agent-header {
-  padding: 20px 16px;
-  border-bottom: 1px solid var(--glass-border);
-  background: var(--surface-1);
-}
-
-.agent-title-wrap {
+.band-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: var(--s2);
+  min-height: 53px;
+  padding: var(--s3) var(--s3) var(--s3) var(--s4);
+  border-bottom: 1px solid var(--seam);
 }
 
-.agent-avatar-icon {
-  font-size: 1.6rem;
+.band.closed .band-head {
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: var(--s3) var(--s2);
+  border-bottom: 0;
 }
 
-.agent-header h4 {
-  font-size: 0.9rem;
-  font-weight: 700;
+.band-title h4 { font-size: var(--t-base); font-weight: 700; }
+.band-title small { font-size: var(--t-micro); color: var(--ink-3); }
+
+/* Collapsed, the name runs up the stub like a bolt-end label. */
+.band-stub-label {
+  order: 2;
+  margin-top: var(--s4);
+  writing-mode: vertical-rl;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
 }
 
-.agent-header small {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+.band-actions { display: flex; align-items: center; gap: var(--s1); }
+.band.closed .band-actions { order: 1; }
+
+/* The honesty note about canned replies. */
+.band-note {
+  margin: var(--s3) var(--s4) 0;
+  padding: var(--s3);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
+  background: var(--panel);
 }
 
-.agent-toggle-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  transition: var(--transition-fast);
+.band-note p {
+  margin-top: var(--s1);
+  font-size: var(--t-small);
+  color: var(--ink-2);
 }
 
-.agent-toggle-btn:hover {
-  color: var(--accent-primary);
-}
-
-/* Header action cluster (clear + toggle) */
-.agent-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.agent-clear-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  transition: var(--transition-fast);
-}
-
-.agent-clear-btn:hover {
-  color: var(--accent-danger);
-}
-
-/* Chat thread list */
+/* --- Thread --- */
 .chat-thread-container {
   flex: 1;
-  padding: 20px 16px;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--s3);
+  padding: var(--s4);
 }
 
-.chat-bubble-wrap {
-  display: flex;
-  width: 100%;
-}
+.chat-bubble-wrap { display: flex; }
+.user-bubble { justify-content: flex-end; }
+.agent-bubble { justify-content: flex-start; }
 
+/* Speech is set as a stitched patch, not a rounded balloon. The dyed selvedge
+   tells you who is speaking, and the alignment carries the same information so
+   the cue is never colour alone. */
 .chat-bubble {
-  max-width: 85%;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  line-height: 1.45;
-  text-align: left;
+  max-width: 92%;
+  padding: var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  border: 1px solid var(--seam);
+}
+
+.agent-bubble .chat-bubble { border-left: 2px solid var(--madder); }
+
+.user-bubble .chat-bubble {
+  background: var(--panel-raised);
+  border-right: 2px solid var(--jade);
 }
 
 .bubble-text {
+  font-family: var(--font-ui);
+  font-size: var(--t-body);
+  line-height: 1.6;
   white-space: pre-wrap;
-  font-family: inherit;
-  font-size: inherit;
+  color: var(--ink);
 }
 
 .bubble-time {
   display: block;
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  margin-top: 6px;
-  text-align: right;
+  margin-top: var(--s2);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  color: var(--ink-3);
 }
 
-.agent-bubble {
-  justify-content: flex-start;
-}
+.typing-bubble { padding: var(--s3) var(--s4); }
 
-.agent-bubble .chat-bubble {
-  background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  color: var(--text-primary);
-}
-
-.user-bubble {
-  justify-content: flex-end;
-}
-
-.user-bubble .chat-bubble {
-  background: rgba(212, 163, 115, 0.1);
-  border: 1px solid rgba(212, 163, 115, 0.25);
-  color: var(--text-primary);
-}
-
-/* Typing indicator */
-.typing-bubble {
-  display: flex;
-  align-items: center;
-  min-height: 20px;
-}
-
-.typing-dots {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 2px 0;
-}
+/* Three warp threads being laid down in turn. */
+.typing-dots { display: inline-flex; gap: 4px; align-items: center; }
 
 .typing-dots span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  animation: typing-dot-bounce 1.2s infinite ease-in-out;
+  width: 3px;
+  height: 12px;
+  background: var(--ink-3);
+  animation: thread 1s var(--ease) infinite;
 }
 
-.typing-dots span:nth-child(2) {
-  animation-delay: 0.15s;
+.typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes thread {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.4; }
+  50% { transform: scaleY(1); opacity: 1; }
 }
 
-.typing-dots span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes typing-dot-bounce {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-4px);
-    opacity: 1;
-  }
-}
-
-/* Suggestions lists */
+/* --- Suggestions --- */
 .chat-suggestions {
-  padding: 10px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--seam);
 }
 
-.suggestion-pill {
-  padding: 10px 12px;
-  background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  text-align: left;
-}
+.chat-suggestions .chip { font-size: var(--t-micro); font-weight: 500; }
 
-.suggestion-pill:hover {
-  background: rgba(212, 163, 115, 0.05);
-  border-color: rgba(212, 163, 115, 0.2);
-  color: var(--text-primary);
-}
-
-/* Inputs panel */
+/* --- Input --- */
 .chat-input-panel {
-  padding: 16px;
-  border-top: 1px solid var(--glass-border);
   display: flex;
-  gap: 8px;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4) var(--s4);
+  border-top: 1px solid var(--seam);
 }
 
-.chat-field {
-  flex: 1;
-  padding: 10px 14px;
-  font-size: 0.85rem;
-}
+.chat-field { flex: 1; min-width: 0; }
 
 .btn-send {
-  padding: 10px;
+  flex: none;
   width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
+  padding: 0;
 }
 
-/* Approval Gate modal overlay */
-.approval-gate-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: var(--overlay-bg);
-  backdrop-filter: blur(8px);
-  z-index: 100;
+/* ---------------------------------------------------------------------------
+   APPROVAL GATE
+   The money gate is deterministic in the backend; the UI must read like a
+   document being signed, not a toast.
+   ------------------------------------------------------------------------ */
+.gate-card {
+  max-width: 460px;
+  border-top-color: var(--saffron);
+}
+
+.gate-head { margin-bottom: var(--s5); }
+.gate-head h3 { margin: var(--s3) 0 var(--s1); font-size: var(--t-xl); }
+
+.gate-facts {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-sm);
+  background: var(--panel-sunken);
+}
+
+.gate-facts > div {
   display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.approval-gate-card {
-  width: 500px;
-  max-width: 90%;
-  padding: 40px;
-}
-
-.approval-gate-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 20px;
-}
-
-.shield-icon {
-  font-size: 2.25rem;
-}
-
-.approval-gate-header h3 {
-  font-size: 1.25rem;
-  text-transform: uppercase; /* uppercase via CSS, not toUpperCase() (safe for non-Latin) */
-}
-
-.approval-gate-header small {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.approval-gate-details {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.gate-detail-row {
-  display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  font-size: 0.9rem;
+  gap: var(--s4);
 }
 
-.gate-detail-row span {
-  color: var(--text-secondary);
-}
+.gate-facts dd { font-size: var(--t-body); font-weight: 600; }
 
-.gate-creative-box {
-  padding: 16px;
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-}
+.gate-creative { margin-top: var(--s4); }
 
-.gate-creative-box pre {
+.gate-creative pre {
+  margin-top: var(--s2);
+  padding: var(--s3);
+  max-height: 180px;
+  overflow-y: auto;
+  border-left: 2px solid var(--saffron);
+  background: var(--panel-sunken);
+  font-family: var(--font-ui);
+  font-size: var(--t-body);
+  line-height: 1.6;
   white-space: pre-wrap;
-  font-family: var(--font-body);
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
+  word-break: break-word;
+}
+
+.gate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin-top: var(--s5);
+}
+
+/* ---------------------------------------------------------------------------
+   RESPONSIVE
+   Below the desktop breakpoint the band stops reserving a column and lies over
+   the field, because 336px of a 390px phone is not a sidebar.
+   ------------------------------------------------------------------------ */
+@media (max-width: 1280px) {
+  .band.open { box-shadow: var(--lift); }
+}
+
+@media (max-width: 700px) {
+  .band.open { inset-inline: 0; width: 100%; }
+  .band.closed { width: 40px; }
+  .chat-bubble { max-width: 88%; }
+  .gate-actions { flex-direction: column-reverse; }
+  .gate-actions .btn { width: 100%; }
 }

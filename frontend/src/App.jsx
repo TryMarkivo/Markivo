@@ -214,26 +214,19 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Decorative moving backdrop blur blobs */}
-      <div className="bg-blobs">
-        <div className="blob blob-1"></div>
-        <div className="blob blob-2"></div>
-        <div className="blob blob-3"></div>
-      </div>
-
       {/* CONDITIONAL RENDER WORKSPACES */}
       {view === 'landing' && (
-        <>
-          <div className="floating-controls">
-            <LanguageSelector onChange={handleLanguageChange} />
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          </div>
-          <LandingPage
-            onStartOnboarding={handleStartOnboarding}
-            onOpenLogin={openLogin}
-            isLoggedIn={!!token}
-          />
-        </>
+        <LandingPage
+          onStartOnboarding={handleStartOnboarding}
+          onOpenLogin={openLogin}
+          isLoggedIn={!!token}
+          controls={
+            <>
+              <LanguageSelector onChange={handleLanguageChange} />
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            </>
+          }
+        />
       )}
 
       {/* Dedicated auth page — login.markivo.io */}
