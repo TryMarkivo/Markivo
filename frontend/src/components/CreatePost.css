@@ -1,0 +1,246 @@
+/* Multi-channel post composer — "Create Post" | "Post Preview" split. */
+
+.cp-card {
+  max-width: 960px;
+  width: 100%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-empty {
+  padding: 50px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.cp-body {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 24px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.cp-editor-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* --- channel avatars: the multi-select at the top --- */
+.cp-channel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.cp-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.cp-avatar:hover {
+  border-color: var(--ch-color, var(--accent-primary));
+}
+
+.cp-avatar.selected {
+  border-color: var(--ch-color, var(--accent-primary));
+  background: color-mix(in srgb, var(--ch-color, var(--accent-primary)) 16%, transparent);
+  color: var(--ch-color, var(--accent-primary));
+}
+
+.cp-select-all {
+  border: 0;
+  background: none;
+  color: var(--accent-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+/* --- Global Edit / per-platform pill switcher --- */
+.cp-pill-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.cp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.cp-pill:hover {
+  color: var(--text-primary);
+}
+
+.cp-pill.active {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: rgba(212, 163, 115, 0.1);
+}
+
+.cp-pill.overridden {
+  font-style: italic;
+}
+
+.cp-textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.cp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.cp-media-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cp-media-chip button {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+}
+
+.cp-media-chip button:hover {
+  color: var(--accent-danger, #e5484d);
+}
+
+.cp-counter {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-counter.over {
+  color: var(--accent-danger, #e5484d);
+  font-weight: 700;
+}
+
+.cp-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.cp-bottom-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* --- Post Preview column --- */
+.cp-preview-col {
+  border-left: 1px solid var(--glass-border);
+  padding-left: 24px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.cp-preview-col h4 {
+  margin-bottom: 14px;
+}
+
+.cp-preview-empty {
+  font-size: 0.85rem;
+}
+
+.cp-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cp-preview-card {
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface-1);
+}
+
+.cp-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  margin-bottom: 8px;
+}
+
+.cp-preview-media {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.cp-preview-text {
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 6px;
+}
+
+@media (max-width: 720px) {
+  .cp-body {
+    grid-template-columns: 1fr;
+  }
+  .cp-preview-col {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 16px;
+  }
+}

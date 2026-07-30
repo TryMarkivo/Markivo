@@ -3,17 +3,29 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import CalendarGrid, { CalendarNav } from './CalendarGrid';
 import { DAY_MS, monthGrid, ymd } from '../lib/calendar';
+import { metaFor } from '../lib/platforms';
 import './AutomationCalendar.css';
 
 const sourceOf = (ev) => (ev.extendedProperties?.private?.source) || 'scheduled_post';
 const isReadOnly = (ev) => ev.extendedProperties?.private?.readOnly === 'true';
+
+// Chip icon/colour for a day cell — Autopilot history gets a fixed robot
+// glyph; scheduled/posted rows resolve their real platform icon. 'instagram'
+// is the bespoke connection's key (not a connector-registry key), so it maps
+// to meta_instagram's visuals directly rather than falling through to the
+// generic share-icon fallback.
+const chipMetaFor = (ev) => {
+  if (sourceOf(ev) === 'autopilot') return { icon: 'fa-solid fa-robot', color: 'var(--accent-purple, #8338ec)' };
+  const platform = ev.extendedProperties?.private?.platform || '';
+  return metaFor(platform === 'instagram' ? 'meta_instagram' : platform);
+};
 
 /**
  * Calendar for the Automations tab: everything Markivo has scheduled or already
  * done, on one timeline. Reads the Google-Calendar-shaped /api/calendar/events
  * feed, so the same view would work against a real Google Calendar unchanged.
  */
-export default function AutomationCalendar({ activeProfile }) {
+export default function AutomationCalendar({ activeProfile, onCreatePost }) {
   const { t, i18n } = useTranslation();
 
   const today = new Date();
@@ -96,7 +108,14 @@ export default function AutomationCalendar({ activeProfile }) {
             {t('calendar.subtitle', 'Everything Markivo has scheduled or already done, on one timeline.')}
           </p>
         </div>
-        <CalendarNav cursor={cursor} onStep={step} onToday={goToday} />
+        <div className="cal-head-actions">
+          <CalendarNav cursor={cursor} onStep={step} onToday={goToday} />
+          {onCreatePost && (
+            <button className="btn btn-primary" onClick={onCreatePost} id="btn_cal_create_post">
+              <i className="fa-solid fa-plus"></i> {t('createPost.title', 'Create Post')}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="auth-error-box" role="alert">{error}</div>}
@@ -116,12 +135,24 @@ export default function AutomationCalendar({ activeProfile }) {
             }}
             dayContent={(key) => {
               const dayEvents = byDay[key] || [];
+              const visible = dayEvents.slice(0, 2);
+              const extra = dayEvents.length - visible.length;
               return (
-                <span className="cal-day-dots">
-                  {dayEvents.slice(0, 4).map((ev) => (
-                    <span key={ev.id} className={`cal-dot ${sourceOf(ev)} ${ev.status}`}></span>
-                  ))}
-                  {dayEvents.length > 4 && <span className="cal-more">+{dayEvents.length - 4}</span>}
+                <span className="cal-day-chips">
+                  {visible.map((ev) => {
+                    const m = chipMetaFor(ev);
+                    const hasMedia = !!ev.extendedProperties?.private?.mediaId;
+                    return (
+                      <span key={ev.id} className={`cal-chip ${sourceOf(ev)} ${ev.status}`} style={{ '--chip-color': m.color }}>
+                        <i className={m.icon}></i>
+                        <span className="cal-chip-text">{ev.description || ev.summary}</span>
+                        {hasMedia && <i className="fa-solid fa-image cal-chip-media"></i>}
+                      </span>
+                    );
+                  })}
+                  {extra > 0 && (
+                    <span className="cal-more">{t('calendar.showMore', { defaultValue: '+ Show more ({{count}})', count: extra })}</span>
+                  )}
                 </span>
               );
             }}

@@ -18,6 +18,7 @@ const places = require('./places');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
+const { limitFor } = require('./postLimits');
 const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
 
 const db = createDb(config.dbPath);
@@ -445,15 +446,25 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
   const { platform, postText, scheduledTime } = req.body;
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
+
+  const key = (platform || 'instagram').toLowerCase();
+  const text = typeof postText === 'string' ? postText : '';
+  const limit = limitFor(key);
+  if (text.length > limit) {
+    return res.status(400).json({ error: `Post text must be ${limit} characters or fewer for this platform.` });
+  }
+
   const post = db.calendar.add({
     profileId: profile.id,
-    platform: (platform || 'instagram').toLowerCase(),
+    platform: key,
     postText,
     // Carried so the scheduled-post worker can publish the same photo/video the
     // owner attached in the composer, hours later.
     mediaId: typeof req.body.mediaId === 'string' ? req.body.mediaId : null,
     scheduledTime: scheduledTime || new Date(Date.now() + 86400000).toISOString(),
-    status: 'scheduled',
+    // The composer's "Save as Draft" sends status:'draft' — same row shape,
+    // just excluded from the worker's listDue('scheduled') queue.
+    status: req.body.status === 'draft' ? 'draft' : 'scheduled',
   });
   res.json(post);
 });
@@ -546,6 +557,9 @@ const POST_STATUS_TO_EVENT = {
   posted: 'confirmed',
   failed: 'cancelled',
   cancelled: 'cancelled',
+  // A draft is not yet committed to go out — 'tentative' is Google's word for
+  // exactly that, and the worker never picks up anything but 'scheduled' rows.
+  draft: 'tentative',
 };
 
 const postToEvent = (post) => {
@@ -563,7 +577,12 @@ const postToEvent = (post) => {
     start: { dateTime: start },
     end: { dateTime: end },
     extendedProperties: {
-      private: { source: 'scheduled_post', platform: post.platform || '', markivoStatus: post.status },
+      private: {
+        source: 'scheduled_post',
+        platform: post.platform || '',
+        markivoStatus: post.status,
+        mediaId: post.mediaId || '',
+      },
     },
   };
 };
@@ -1250,12 +1269,29 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
+  // Instagram followers: same pattern — REAL count once an account is
+  // connected, the demo number otherwise.
+  let instagramFollowers = { current: 1542, change: 15.6 };
+  if (config.instagramEnabled) {
+    const conn = db.instagram.findByProfile(profile.id);
+    if (conn && conn.accessToken) {
+      try {
+        const acct = await ig.getAccountStats(conn.accessToken);
+        if (Number.isFinite(acct.followers)) {
+          instagramFollowers = { current: acct.followers, change: 0, live: true };
+        }
+      } catch (err) {
+        console.warn('getAccountStats failed, using demo number:', err.message);
+      }
+    }
+  }
+
   const metrics = {
-    googleViews: { current: 4320, change: 12.4 },
-    googleCalls: { current: 148, change: 8.2 },
-    instagramFollowers: { current: 1542, change: 15.6 },
+    googleViews: { current: 4320, change: 12.4, live: false },
+    googleCalls: { current: 148, change: 8.2, live: false },
+    instagramFollowers,
     telegramSubscribers,
-    tiktokFollowers: { current: 0, change: 0 },
+    tiktokFollowers: { current: 0, change: 0, live: false },
   };
 
   // Record today's reading, then hand back the recorded series so the dashboard
@@ -1913,10 +1949,12 @@ app.post('/api/billing/webhook', asyncRoute(async (req, res) => {
 
 // ==========================================
 // 3.8 SCHEDULED-POST WORKER
-//   Publishes due calendar posts. Telegram posts go out for real via the Bot
-//   API (when the flag is on and a chat is linked); other platforms stay
-//   'scheduled' until their integrations land. Runs every 60s when the
-//   server is started directly; tests invoke the exported tick by hand.
+//   Publishes due calendar posts. Instagram and Telegram go out through their
+//   dedicated, more complete real-publish paths (media resolution, video
+//   polling); every other platform dispatches through the generic connector
+//   adapter (sandbox-simulated until live credentials are configured — see
+//   connectors/base.js). Runs every 60s when the server is started directly;
+//   tests invoke the exported tick by hand.
 // ==========================================
 async function runScheduledPostsTick() {
   const due = db.calendar.listDue(new Date().toISOString());
@@ -1949,25 +1987,48 @@ async function runScheduledPostsTick() {
       continue;
     }
 
-    // Other non-telegram platforms: integrations pending — leave the row alone.
-    if (row.platform !== 'telegram') continue;
-    // Flag off, or the profile hasn't linked a chat yet: leave it scheduled so
-    // it publishes automatically once the setup completes.
-    if (!config.telegramEnabled) continue;
-    const conn = db.telegram.findByProfile(row.profileId);
-    if (!conn || !conn.chatId) continue;
+    if (row.platform === 'telegram') {
+      // Flag off, or the profile hasn't linked a chat yet: leave it scheduled so
+      // it publishes automatically once the setup completes.
+      if (!config.telegramEnabled) continue;
+      const conn = db.telegram.findByProfile(row.profileId);
+      if (!conn || !conn.chatId) continue;
 
-    // Send directly (NOT executeTelegramPost — that helper adds a NEW calendar
-    // row for ad-hoc posts; here the row already exists and just flips status).
+      // Send directly (NOT executeTelegramPost — that helper adds a NEW calendar
+      // row for ad-hoc posts; here the row already exists and just flips status).
+      try {
+        const profile = row.mediaId ? db.profiles.findById(row.profileId) : null;
+        const media = profile ? resolvePublicMedia(profile, row.mediaId) : null;
+        await tg.sendPost(conn.botToken, conn.chatId, row.post_text, media);
+        db.calendar.setStatus(row.id, 'posted');
+        posted += 1;
+      } catch (err) {
+        db.calendar.setStatus(row.id, 'failed');
+        console.warn(`Scheduled telegram post ${row.id} failed:`, err.description || err.message);
+        failed += 1;
+      }
+      continue;
+    }
+
+    // Every other platform (Facebook/TikTok/Google Business/YouTube, and any
+    // future connector) goes through the SAME generic adapter dispatch the
+    // approval gate and Autopilot already use (executePlatformPost). An
+    // adapter with no live credentials still publishes — as a recorded sandbox
+    // simulation (connectors/base.js simulatedPublish) — so a scheduled post
+    // never gets silently stuck at 'scheduled' forever just because the
+    // platform hasn't gone live yet.
+    const adapter = connectors.get(row.platform);
+    if (!adapter) continue; // unknown platform key — leave the row alone, don't guess
+    const profile = db.profiles.findById(row.profileId);
+    if (!profile) continue;
     try {
-      const profile = row.mediaId ? db.profiles.findById(row.profileId) : null;
-      const media = profile ? resolvePublicMedia(profile, row.mediaId) : null;
-      await tg.sendPost(conn.botToken, conn.chatId, row.post_text, media);
+      const media = row.mediaId ? resolvePublicMedia(profile, row.mediaId) : null;
+      await adapter.publish({ db, profile, text: row.post_text, mediaUrl: media?.url });
       db.calendar.setStatus(row.id, 'posted');
       posted += 1;
     } catch (err) {
       db.calendar.setStatus(row.id, 'failed');
-      console.warn(`Scheduled telegram post ${row.id} failed:`, err.description || err.message);
+      console.warn(`Scheduled ${row.platform} post ${row.id} failed:`, err.message);
       failed += 1;
     }
   }

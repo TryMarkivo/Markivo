@@ -224,11 +224,37 @@
 }
 
 .stat-card {
+  position: relative;
   padding: 24px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   height: 180px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  overflow: hidden;
+}
+
+.stat-card:hover,
+.stat-card:focus-visible {
+  background: rgba(212, 163, 115, 0.06);
+}
+
+/* The whole card is the drill-down handle now, not just the chart, so the
+   number and label need to visibly belong to that affordance too. */
+.stat-card-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  transition: opacity var(--transition-fast);
+}
+
+/* Sample/demo data — not yet backed by a live reading from the platform.
+   Dimmed rather than hidden, so the layout stays put and the number is
+   still legible as a placeholder. */
+.stat-card-content.is-demo {
+  opacity: 0.5;
 }
 
 .stat-label {
@@ -278,23 +304,9 @@
   border-bottom-right-radius: inherit;
 }
 
-/* The chart doubles as the handle for the platform drill-down. It has to look
+/* The whole card is the handle for the platform drill-down. It has to look
    pressable without adding chrome that competes with the number above it, so
    the affordance is a corner cue that only surfaces on hover/focus. */
-.stat-chart-btn {
-  position: relative;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.stat-chart-btn:hover,
-.stat-chart-btn:focus-visible {
-  background: rgba(212, 163, 115, 0.06);
-}
-
 .stat-chart-cue {
   position: absolute;
   top: 6px;
@@ -306,10 +318,33 @@
   pointer-events: none;
 }
 
-.stat-chart-btn:hover .stat-chart-cue,
-.stat-chart-btn:focus-visible .stat-chart-cue {
+.stat-card:hover .stat-chart-cue,
+.stat-card:focus-visible .stat-chart-cue {
   opacity: 1;
   color: var(--accent-primary);
+}
+
+/* Hover affordance for an unconnected platform: a real "Connect" button sits
+   over the (dimmed) sample card, on top of a scrim so it reads clearly.
+   Hidden and non-interactive until hover/focus so it never steals clicks
+   that should open the drill-down. */
+.stat-connect-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 9, 8, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition-fast);
+  border-radius: inherit;
+}
+
+.stat-card:hover .stat-connect-overlay,
+.stat-card:focus-within .stat-connect-overlay {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .sparkline {

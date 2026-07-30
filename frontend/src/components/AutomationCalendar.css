@@ -27,6 +27,13 @@
   gap: 8px;
 }
 
+.cal-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .cal-month-label {
   min-width: 150px;
   text-align: center;
@@ -52,7 +59,7 @@
 }
 
 .cal-day {
-  min-height: 72px;
+  min-height: 92px;
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -103,32 +110,53 @@
   font-weight: 600;
 }
 
-.cal-day-dots {
+.cal-day-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* One post/activity, as a small coloured chip — icon + truncated text, so a
+   day cell reads at a glance instead of needing a hover/click to identify
+   what's scheduled. */
+.cal-chip {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 3px;
+  gap: 4px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--chip-color, var(--accent-primary)) 18%, transparent);
+  color: var(--chip-color, var(--accent-primary));
+  font-size: 0.62rem;
+  font-weight: 600;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.cal-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-primary);
+.cal-chip.cancelled {
+  opacity: 0.55;
+  text-decoration: line-through;
 }
 
-/* Autopilot runs read as history, scheduled posts as upcoming work. */
-.cal-dot.autopilot {
-  background: var(--accent-purple, #8338ec);
+.cal-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
-.cal-dot.cancelled {
-  background: var(--accent-danger, #ff5a5f);
+.cal-chip-media {
+  font-size: 0.55rem;
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .cal-more {
   font-size: 0.62rem;
   color: var(--text-muted);
+  padding: 1px 5px;
 }
 
 /* Day agenda */

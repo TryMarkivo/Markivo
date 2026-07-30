@@ -449,6 +449,7 @@
     "nav": {
       "metrics": "Dashboard",
       "content": "AI Content Engine",
+      "calendar": "Calendar",
       "media": "Media Studio",
       "competitors": "Competitor Intel",
       "autopilot": "Autopilot"
@@ -590,6 +591,12 @@
   },
   "media": {
     "title": "Media Studio",
+    "picker": {
+      "title": "Insert media",
+      "library": "Library",
+      "upload": "Upload new",
+      "empty": "Nothing in your library yet — switch to Upload new."
+    },
     "subtitle": "Plan, shoot and edit scroll-stopping content for {{businessName}}",
     "modes": {
       "fullTitle": "Full AI generation",
@@ -1041,7 +1048,31 @@
     "nextMonth": "Next month",
     "emptyDay": "Nothing scheduled for this day.",
     "cancelEvent": "Cancel this post",
-    "dragHint": "Drag a scheduled post onto another day to move it. Autopilot history cannot be changed."
+    "dragHint": "Drag a scheduled post onto another day to move it. Autopilot history cannot be changed.",
+    "showMore": "+ Show more ({{count}})"
+  },
+  "createPost": {
+    "title": "Create Post",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "globalEdit": "Global Edit",
+    "platformEdit": "{{label}} Edit",
+    "globalPlaceholder": "This will be posted to all the channels together…",
+    "overridePlaceholder": "Write content just for {{label}}…",
+    "insertMedia": "Insert Media",
+    "resetToGlobal": "Reset to global",
+    "saveDraft": "Save as draft",
+    "saving": "Saving…",
+    "addToCalendar": "Add to Calendar",
+    "scheduling": "Scheduling…",
+    "scheduled": "Added to calendar",
+    "previewTitle": "Post Preview",
+    "previewEmpty": "Select a channel to preview your post.",
+    "previewNothing": "Nothing written yet…",
+    "overLimit": "Over the character limit for: {{names}}",
+    "emptyText": "Write something before scheduling.",
+    "noneConnected": "Connect a channel first — then it shows up here to post to.",
+    "goToConnections": "Go to Connections"
   },
   "platformDetail": {
     "subtitle": "Channel statistics",

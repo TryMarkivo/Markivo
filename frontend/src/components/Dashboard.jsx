@@ -13,9 +13,59 @@ import SettingsPane from './SettingsPane';
 import Sparkline from './Sparkline';
 import PlatformDetail from './PlatformDetail';
 import ThemeToggle from './ThemeToggle';
+import ConnectCard from './ConnectCard';
+import AutomationCalendar from './AutomationCalendar';
+import CreatePost from './CreatePost';
+import { metaFor } from '../lib/platforms';
 import api from '../lib/api';
 import logoUrl from '../assets/markivo-logo.png';
 import './Dashboard.css';
+
+// A metric card: number + trend + sparkline, dimmed when it is still sample
+// data rather than a real reading, and clickable anywhere to open the
+// platform drill-down. Unconnected platforms surface a real "Connect" button
+// on hover instead of silently showing a dead chart.
+function StatCard({ id, label, platformName, changeText, value, subtitle, color, history, live, connectable, connected, onConnect, onDrill }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="stat-card glass-card"
+      onClick={onDrill}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDrill(); } }}
+      id={id}
+      aria-label={t('dashboard.stats.drillDown', { defaultValue: 'Show detailed {{platform}} statistics', platform: label })}
+    >
+      <div className={`stat-card-content ${live ? '' : 'is-demo'}`}>
+        <div className="flex-between">
+          <span className="stat-label">{label}</span>
+          <span className="trend-percentage positive">{changeText}</span>
+        </div>
+        <div className="stat-number-wrap">
+          <h2>{value}</h2>
+          <span className="text-muted">{subtitle}</span>
+        </div>
+        <div className="stat-chart-svg">
+          <Sparkline history={history} color={color} label={label} />
+        </div>
+      </div>
+      <span className="stat-chart-cue" aria-hidden="true"><i className="fa-solid fa-up-right-and-down-left-from-center"></i></span>
+      {connectable && !connected && (
+        <div className="stat-connect-overlay">
+          <button
+            className="btn btn-primary"
+            onClick={(e) => { e.stopPropagation(); onConnect(); }}
+            id={`${id}_connect`}
+          >
+            <i className="fa-solid fa-plug"></i>{' '}
+            {t('connections.setupTitle', { defaultValue: 'Connect {{label}}', label: platformName || label })}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Dashboard({ token, activeProfile, onLogout, onProfileUpdate, theme, onToggleTheme, onLanguageChange }) {
   const { t } = useTranslation();
@@ -53,6 +103,22 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [statsOffline, setStatsOffline] = useState(false);
   // Which platform's drill-down is open, opened by clicking a metric's chart.
   const [detailPlatform, setDetailPlatform] = useState(null);
+  const [createPostOpen, setCreatePostOpen] = useState(false);
+  // Bumped after a successful Create Post schedule to remount (and so refetch)
+  // the Calendar tab's AutomationCalendar.
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  // Catalogue + per-platform connection status from the generic connector
+  // framework — used to power the stat cards' "Connect" hover button for
+  // platforms without a bespoke modal (e.g. Google Business).
+  const [connectCatalogue, setConnectCatalogue] = useState(null);
+  const [connectModalKey, setConnectModalKey] = useState(null);
+
+  const refreshConnectCatalogue = () => {
+    api.get('/api/connect/status')
+      .then(setConnectCatalogue)
+      .catch(() => setConnectCatalogue({ catalogue: [], status: {} }));
+  };
+  useEffect(refreshConnectCatalogue, [activeProfile]);
 
   const refreshTelegramStatus = () => {
     api.get('/api/telegram/status')
@@ -203,6 +269,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             id="btn_tab_content"
           >
             <i className="fa-solid fa-wand-magic-sparkles"></i> {t('dashboard.nav.content', 'AI Content Engine')}
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'calendar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calendar')}
+            id="btn_tab_calendar"
+          >
+            <i className="fa-solid fa-calendar-days"></i> {t('dashboard.nav.calendar', 'Calendar')}
           </button>
           <button
             className={`nav-item ${activeTab === 'autopilot' ? 'active' : ''}`}
@@ -361,81 +434,55 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               <div className="grid-3 stats-grid">
                 
                 {/* GOOGLE MAPS VIEWS */}
-                <div className="stat-card glass-card">
-                  <div className="flex-between">
-                    <span className="stat-label">{t('dashboard.stats.googleViews', 'Google Maps Search Views')}</span>
-                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.googleViews.change })}</span>
-                  </div>
-                  <div className="stat-number-wrap">
-                    <h2>{stats.metrics.googleViews.current.toLocaleString()}</h2>
-                    <span className="text-muted">{t('dashboard.stats.past30Days', 'past 30 days')}</span>
-                  </div>
-                  {/* The chart is the handle for the drill-down. A real button
-                      so it is reachable by keyboard, not a click-on-div. */}
-                  <button
-                    className="stat-chart-svg stat-chart-btn"
-                    onClick={() => setDetailPlatform('google')}
-                    id="btn_drill_google"
-                    aria-label={t('dashboard.stats.drillDown', 'Show detailed {{platform}} statistics', { platform: 'Google Business' })}
-                  >
-                    <Sparkline
-                      history={stats.metrics.googleViews.history}
-                      color="var(--accent-primary)"
-                      label={t('dashboard.stats.googleViews', 'Google Maps Search Views')}
-                    />
-                    <span className="stat-chart-cue"><i className="fa-solid fa-up-right-and-down-left-from-center"></i></span>
-                  </button>
-                </div>
+                <StatCard
+                  id="btn_drill_google"
+                  label={t('dashboard.stats.googleViews', 'Google Maps Search Views')}
+                  platformName={t('dashboard.channels.google', 'Google Profile')}
+                  changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.googleViews.change })}
+                  value={stats.metrics.googleViews.current.toLocaleString()}
+                  subtitle={t('dashboard.stats.past30Days', 'past 30 days')}
+                  color="var(--accent-primary)"
+                  history={stats.metrics.googleViews.history}
+                  live={!!stats.metrics.googleViews.live}
+                  connectable
+                  connected={!!connectCatalogue?.status?.google_business?.connected}
+                  onConnect={() => setConnectModalKey('google_business')}
+                  onDrill={() => setDetailPlatform('google')}
+                />
 
                 {/* INSTAGRAM FOLLOWERS */}
-                <div className="stat-card glass-card">
-                  <div className="flex-between">
-                    <span className="stat-label">{t('dashboard.stats.instagramFollowers', 'Instagram Followers')}</span>
-                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}</span>
-                  </div>
-                  <div className="stat-number-wrap">
-                    <h2>{stats.metrics.instagramFollowers.current.toLocaleString()}</h2>
-                    <span className="text-muted">@{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
-                  </div>
-                  <button
-                    className="stat-chart-svg stat-chart-btn"
-                    onClick={() => setDetailPlatform('instagram')}
-                    id="btn_drill_instagram"
-                    aria-label={t('dashboard.stats.drillDown', 'Show detailed {{platform}} statistics', { platform: 'Instagram' })}
-                  >
-                    <Sparkline
-                      history={stats.metrics.instagramFollowers.history}
-                      color="var(--accent-purple)"
-                      label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
-                    />
-                    <span className="stat-chart-cue"><i className="fa-solid fa-up-right-and-down-left-from-center"></i></span>
-                  </button>
-                </div>
+                <StatCard
+                  id="btn_drill_instagram"
+                  label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
+                  platformName="Instagram"
+                  changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}
+                  value={stats.metrics.instagramFollowers.current.toLocaleString()}
+                  subtitle={`@${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`}
+                  color="var(--accent-purple)"
+                  history={stats.metrics.instagramFollowers.history}
+                  live={!!stats.metrics.instagramFollowers.live}
+                  connectable
+                  connected={!!igStatus?.connected}
+                  onConnect={() => setIgModalOpen(true)}
+                  onDrill={() => setDetailPlatform('instagram')}
+                />
 
                 {/* TELEGRAM ACTIVE MEMBERS */}
-                <div className="stat-card glass-card">
-                  <div className="flex-between">
-                    <span className="stat-label">{t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}</span>
-                    <span className="trend-percentage positive">{t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.telegramSubscribers.change })}</span>
-                  </div>
-                  <div className="stat-number-wrap">
-                    <h2>{stats.metrics.telegramSubscribers.current.toLocaleString()}</h2>
-                    <span className="text-muted">t.me/{activeProfile.businessName.toLowerCase().replace(/ /g, '')}</span>
-                  </div>
-                  <button
-                    className="stat-chart-svg stat-chart-btn"
-                    onClick={() => setDetailPlatform('telegram')}
-                    id="btn_drill_telegram"
-                    aria-label={t('dashboard.stats.drillDown', 'Show detailed {{platform}} statistics', { platform: 'Telegram' })}
-                  >
-                    <Sparkline
-                      history={stats.metrics.telegramSubscribers.history}
-                      color="var(--accent-secondary)"
-                      label={t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}
-                    />
-                    <span className="stat-chart-cue"><i className="fa-solid fa-up-right-and-down-left-from-center"></i></span>
-                  </button>
-                </div>
+                <StatCard
+                  id="btn_drill_telegram"
+                  label={t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}
+                  platformName="Telegram"
+                  changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.telegramSubscribers.change })}
+                  value={stats.metrics.telegramSubscribers.current.toLocaleString()}
+                  subtitle={`t.me/${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`}
+                  color="var(--accent-secondary)"
+                  history={stats.metrics.telegramSubscribers.history}
+                  live={!!stats.metrics.telegramSubscribers.live}
+                  connectable
+                  connected={!!(tgStatus?.connected && tgStatus?.chat)}
+                  onConnect={() => setTgModalOpen(true)}
+                  onDrill={() => setDetailPlatform('telegram')}
+                />
               </div>
 
               {/* SEARCH PERFORMANCE ROW */}
@@ -519,6 +566,15 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             />
           )}
 
+          {/* TAB: CALENDAR — scheduling home, with the Create Post entry point */}
+          {activeTab === 'calendar' && (
+            <AutomationCalendar
+              key={calendarRefreshKey}
+              activeProfile={activeProfile}
+              onCreatePost={() => setCreatePostOpen(true)}
+            />
+          )}
+
           {activeTab === 'autopilot' && (
             <AutonomousAgent activeProfile={activeProfile} />
           )}
@@ -580,6 +636,18 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         />
       )}
 
+      {/* --- GENERIC CONNECT MODAL (e.g. Google Business, from a stat card's
+           "Connect" hover button) --- */}
+      {connectModalKey && connectCatalogue?.catalogue?.find((c) => c.key === connectModalKey) && (
+        <ConnectCard
+          platform={connectCatalogue.catalogue.find((c) => c.key === connectModalKey)}
+          status={connectCatalogue.status[connectModalKey] || { connected: false }}
+          meta={metaFor(connectModalKey)}
+          onChanged={refreshConnectCatalogue}
+          onClose={() => setConnectModalKey(null)}
+        />
+      )}
+
       {/* --- PERSISTENT RIGHT-FLOATING AI AGENT PANEL --- */}
       <AIAgentSidebar
         token={token}
@@ -596,6 +664,15 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           platform={detailPlatform}
           onClose={() => setDetailPlatform(null)}
           onGoToConnections={() => setActiveTab('connections')}
+        />
+      )}
+
+      {/* --- CREATE POST COMPOSER --- */}
+      {createPostOpen && (
+        <CreatePost
+          onClose={() => setCreatePostOpen(false)}
+          onScheduled={() => setCalendarRefreshKey((k) => k + 1)}
+          onGoToConnections={() => { setCreatePostOpen(false); setActiveTab('connections'); }}
         />
       )}
     </div>

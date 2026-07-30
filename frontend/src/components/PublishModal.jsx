@@ -78,7 +78,11 @@ export default function PublishModal({ media, defaultCaption = '', onClose, onPo
       const entry = catalogue.find((p) => p.key === key);
       const label = entry?.label || key;
       const body = {
-        platform: metaFor(key).generationKey,
+        // The connector's own registry key — matches what the scheduled-post
+        // worker looks up via connectors.get(). meta_instagram is the one
+        // exception: Instagram's real publishing runs through the separate,
+        // more complete bespoke Instagram Login path keyed 'instagram'.
+        platform: key === 'meta_instagram' ? 'instagram' : key,
         postText: caption.trim(),
         mediaId: media.id,
       };
