@@ -17,6 +17,19 @@
   transform: translateX(276px); /* Leave just a tiny toggle visible */
 }
 
+/* Rendered as a normal tab panel (the Markiv nav tab) instead of the fixed
+   floating chat — back in the document flow, filling the tab content area. */
+.agent-sidebar-container.as-tab {
+  position: static;
+  width: 100%;
+  max-width: 720px;
+  height: 74vh;
+  min-height: 460px;
+  margin: 0 auto;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+}
+
 /* Collapsed, only the leftmost 44px of the panel is still on screen. The full
    header is right-aligned, which pushed the toggle 276px off-screen and left no
    way to expand again — so the header becomes a narrow vertical stub whose

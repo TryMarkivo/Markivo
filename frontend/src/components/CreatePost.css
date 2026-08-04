@@ -127,6 +127,59 @@
   margin-top: 10px;
 }
 
+/* --- Emoji picker --- */
+.cp-emoji-wrap {
+  position: relative;
+}
+
+.cp-emoji-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  width: 232px;
+}
+
+.cp-emoji-btn {
+  border: 0;
+  background: none;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cp-emoji-btn:hover {
+  background: var(--surface-1);
+}
+
+/* --- Tag + repeat row --- */
+.cp-meta-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.cp-tag-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.cp-repeat-select {
+  min-width: 160px;
+  flex: 1;
+}
+
 .cp-media-chip {
   display: inline-flex;
   align-items: center;
@@ -203,17 +256,20 @@
 }
 
 .cp-preview-card {
+  position: relative;
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 12px;
   background: var(--surface-1);
 }
 
-.cp-preview-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.78rem;
+.cp-preview-edit-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
@@ -224,6 +280,80 @@
   border-radius: 8px;
   margin-bottom: 8px;
   display: block;
+}
+
+/* --- Platform-flavoured mockup chrome --- */
+.cp-mock-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cp-mock-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  background: color-mix(in srgb, var(--ch-color, var(--accent-primary)) 16%, transparent);
+  color: var(--ch-color, var(--accent-primary));
+}
+
+.cp-mock-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  min-width: 0;
+}
+
+.cp-mock-verified {
+  color: var(--tg-blue, #229ED9);
+  font-size: 0.75rem;
+}
+
+.cp-mock-handle {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.cp-mock-instagram .cp-preview-media {
+  aspect-ratio: 1 / 1;
+  max-height: none;
+  object-fit: cover;
+}
+
+.cp-mock-ig-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.cp-mock-ig-save {
+  margin-left: auto;
+}
+
+.cp-mock-telegram .cp-mock-bubble {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.cp-mock-telegram .cp-preview-media {
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.cp-mock-telegram .cp-preview-text {
+  margin-bottom: 0;
 }
 
 .cp-preview-text {
@@ -243,4 +373,95 @@
     border-top: 1px solid var(--glass-border);
     padding-top: 16px;
   }
+}
+
+/* --- Edit Post: fixed single-channel header (replaces the multi-select) --- */
+.cp-edit-channel-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* --- "Add post" thread stack --- */
+.cp-thread {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.cp-thread-item {
+  position: relative;
+  padding-left: 20px;
+  margin-top: 14px;
+}
+
+.cp-thread-connector {
+  position: absolute;
+  left: 6px;
+  top: -14px;
+  bottom: 0;
+  width: 2px;
+  background: var(--glass-border);
+}
+
+.cp-thread-textarea {
+  min-height: 72px;
+}
+
+.cp-thread-remove {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+}
+
+.cp-thread-remove:hover {
+  color: var(--accent-danger, #e5484d);
+}
+
+.cp-add-post-btn {
+  align-self: flex-start;
+  margin-top: 14px;
+}
+
+/* --- Delete Post (Edit mode) --- */
+.cp-delete-post {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: none;
+  color: var(--accent-danger, #e5484d);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 8px 4px;
+}
+
+.cp-delete-post:hover {
+  text-decoration: underline;
+}
+
+.cp-delete-post:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Templates modal, embedded verbatim from the AI Content Engine --- */
+.cp-templates-modal {
+  position: relative;
+  max-width: 720px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.cp-templates-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
 }

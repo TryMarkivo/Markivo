@@ -278,6 +278,11 @@ module.exports = function createDb(dbPath) {
   // type, so a scheduled post without this can only ever publish as simulated.
   addColumn('calendar', 'media_id TEXT');
   addColumn('content_templates', 'media_id TEXT');
+  // Free-text label ("Promo", "Announcement", …) shown as a chip on the
+  // calendar; repeat_rule (null|'daily'|'weekly'|'monthly') lets the
+  // scheduled-post worker clone a post forward once it goes out.
+  addColumn('calendar', 'tag TEXT');
+  addColumn('calendar', 'repeat_rule TEXT');
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -315,6 +320,7 @@ module.exports = function createDb(dbPath) {
   const mapCalendar = (r) => r && {
     id: r.id, profileId: r.profile_id, platform: r.platform, post_text: r.post_text,
     scheduled_time: r.scheduled_time, status: r.status, mediaId: r.media_id || null,
+    tag: r.tag || null, repeatRule: r.repeat_rule || null,
   };
   const mapMedia = (r) => r && {
     id: r.id, profileId: r.profile_id, kind: r.kind, mode: r.mode, topic: r.topic,
@@ -529,11 +535,11 @@ module.exports = function createDb(dbPath) {
         const row = {
           id: id(), profile_id: post.profileId, platform: post.platform,
           post_text: post.postText, scheduled_time: post.scheduledTime, status: post.status || 'scheduled',
-          media_id: post.mediaId || null,
+          media_id: post.mediaId || null, tag: post.tag || null, repeat_rule: post.repeatRule || null,
         };
         sqlite.prepare(
-          `INSERT INTO calendar (id, profile_id, platform, post_text, scheduled_time, status, media_id)
-           VALUES (@id, @profile_id, @platform, @post_text, @scheduled_time, @status, @media_id)`
+          `INSERT INTO calendar (id, profile_id, platform, post_text, scheduled_time, status, media_id, tag, repeat_rule)
+           VALUES (@id, @profile_id, @platform, @post_text, @scheduled_time, @status, @media_id, @tag, @repeat_rule)`
         ).run(row);
         return mapCalendar(row);
       },
@@ -557,6 +563,26 @@ module.exports = function createDb(dbPath) {
       // Drag-to-reschedule from the calendar view.
       setScheduledTime(postId, scheduledTime) {
         sqlite.prepare('UPDATE calendar SET scheduled_time = ? WHERE id = ?').run(scheduledTime, postId);
+        return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
+      // Partial update for the "edit an existing post" flow — only the
+      // columns present in `patch` are touched. Keys: postText, scheduledTime,
+      // mediaId, tag, repeatRule, status.
+      update(postId, patch) {
+        const columns = {
+          postText: 'post_text', scheduledTime: 'scheduled_time', mediaId: 'media_id',
+          tag: 'tag', repeatRule: 'repeat_rule', status: 'status',
+        };
+        const sets = [];
+        const params = { id: postId };
+        for (const [key, column] of Object.entries(columns)) {
+          if (!(key in patch)) continue;
+          sets.push(`${column} = @${column}`);
+          params[column] = patch[key];
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE calendar SET ${sets.join(', ')} WHERE id = @id`).run(params);
+        }
         return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
       },
       remove(postId) {

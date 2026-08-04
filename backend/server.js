@@ -422,6 +422,10 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async 
     description: profile?.description,
     brandTone: profile?.brandTone,
     audience: profile?.targetAudience,
+    // A follow-up prompt revises the draft already on screen ("shorter",
+    // "add emojis") instead of writing a fresh one from the topic alone.
+    previousText: typeof req.body.previousText === 'string' ? req.body.previousText : undefined,
+    feedback: typeof req.body.feedback === 'string' ? req.body.feedback : undefined,
   });
   db.usage.record({ userId: req.user.id, kind: 'content' });
 
@@ -442,6 +446,8 @@ app.get('/api/content/calendar', verifyToken, (req, res) => {
   res.json(db.calendar.listByProfile(profile.id));
 });
 
+const REPEAT_RULES = new Set(['daily', 'weekly', 'monthly']);
+
 app.post('/api/content/schedule', verifyToken, (req, res) => {
   const { platform, postText, scheduledTime } = req.body;
   const profile = db.profiles.findByUserId(req.user.id);
@@ -453,6 +459,7 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
   if (text.length > limit) {
     return res.status(400).json({ error: `Post text must be ${limit} characters or fewer for this platform.` });
   }
+  const repeatRule = REPEAT_RULES.has(req.body.repeatRule) ? req.body.repeatRule : null;
 
   const post = db.calendar.add({
     profileId: profile.id,
@@ -465,6 +472,10 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
     // The composer's "Save as Draft" sends status:'draft' — same row shape,
     // just excluded from the worker's listDue('scheduled') queue.
     status: req.body.status === 'draft' ? 'draft' : 'scheduled',
+    tag: typeof req.body.tag === 'string' ? req.body.tag.trim().slice(0, 40) || null : null,
+    // Repeat only makes sense for a post that's actually going to go out on a
+    // schedule — a draft has no fixed date to repeat from yet.
+    repeatRule: req.body.status === 'draft' ? null : repeatRule,
   });
   res.json(post);
 });
@@ -582,6 +593,8 @@ const postToEvent = (post) => {
         platform: post.platform || '',
         markivoStatus: post.status,
         mediaId: post.mediaId || '',
+        tag: post.tag || '',
+        repeatRule: post.repeatRule || '',
       },
     },
   };
@@ -646,24 +659,54 @@ const ownedPostEvent = (req, res) => {
   return post;
 };
 
-// PATCH — reschedule (Google's "move an event" is a start.dateTime change).
+// A post the owner hasn't committed to yet (draft) or has queued (scheduled)
+// can still be changed; once it has gone out (posted/failed) it's history.
+const isEditablePost = (post) => post.status === 'scheduled' || post.status === 'draft';
+
+// PATCH — the calendar's drag-to-reschedule (Google's "move an event" is a
+// start.dateTime-only change) AND the Edit Post composer's full save, which
+// may also carry postText/mediaId/tag/repeatRule/status.
 app.patch('/api/calendar/events/:id', verifyToken, (req, res) => {
   const post = ownedPostEvent(req, res);
   if (!post) return;
-  if (post.status !== 'scheduled') {
-    return res.status(400).json({ error: 'This post has already gone out — it can no longer be moved.' });
+  if (!isEditablePost(post)) {
+    return res.status(400).json({ error: 'This post has already gone out — it can no longer be changed.' });
   }
-  const when = req.body.start && req.body.start.dateTime;
-  const d = when ? new Date(String(when)) : null;
-  if (!d || Number.isNaN(d.getTime())) return res.status(400).json({ error: 'start.dateTime must be a valid date' });
-  res.json(postToEvent(db.calendar.setScheduledTime(post.id, d.toISOString())));
+
+  const patch = {};
+  if (req.body.start && req.body.start.dateTime !== undefined) {
+    const d = new Date(String(req.body.start.dateTime));
+    if (Number.isNaN(d.getTime())) return res.status(400).json({ error: 'start.dateTime must be a valid date' });
+    patch.scheduledTime = d.toISOString();
+  }
+  if (typeof req.body.postText === 'string') {
+    const limit = limitFor(post.platform);
+    if (req.body.postText.length > limit) {
+      return res.status(400).json({ error: `Post text must be ${limit} characters or fewer for this platform.` });
+    }
+    patch.postText = req.body.postText;
+  }
+  if ('mediaId' in req.body) {
+    patch.mediaId = typeof req.body.mediaId === 'string' ? req.body.mediaId : null;
+  }
+  if ('tag' in req.body) {
+    patch.tag = typeof req.body.tag === 'string' ? req.body.tag.trim().slice(0, 40) || null : null;
+  }
+  if ('repeatRule' in req.body) {
+    patch.repeatRule = REPEAT_RULES.has(req.body.repeatRule) ? req.body.repeatRule : null;
+  }
+  if (req.body.status === 'draft' || req.body.status === 'scheduled') {
+    patch.status = req.body.status;
+  }
+
+  res.json(postToEvent(db.calendar.update(post.id, patch)));
 });
 
-// DELETE — cancel a post that has not gone out yet.
+// DELETE — remove a post that has not gone out yet (draft or scheduled).
 app.delete('/api/calendar/events/:id', verifyToken, (req, res) => {
   const post = ownedPostEvent(req, res);
   if (!post) return;
-  if (post.status !== 'scheduled') {
+  if (!isEditablePost(post)) {
     return res.status(400).json({ error: 'This post has already gone out — it can no longer be cancelled.' });
   }
   db.calendar.remove(post.id);
@@ -1956,6 +1999,26 @@ app.post('/api/billing/webhook', asyncRoute(async (req, res) => {
 //   connectors/base.js). Runs every 60s when the server is started directly;
 //   tests invoke the exported tick by hand.
 // ==========================================
+const REPEAT_STEP_MS = { daily: 86400000, weekly: 7 * 86400000, monthly: 30 * 86400000 };
+
+// A post created with "Repeat Post Every…" set clones itself forward by one
+// interval the moment it goes out, so the series keeps extending on its own
+// instead of needing the owner to schedule each occurrence by hand.
+function scheduleNextOccurrence(row) {
+  const step = REPEAT_STEP_MS[row.repeatRule];
+  if (!step) return;
+  db.calendar.add({
+    profileId: row.profileId,
+    platform: row.platform,
+    postText: row.post_text,
+    mediaId: row.mediaId,
+    scheduledTime: new Date(new Date(row.scheduled_time).getTime() + step).toISOString(),
+    status: 'scheduled',
+    tag: row.tag,
+    repeatRule: row.repeatRule,
+  });
+}
+
 async function runScheduledPostsTick() {
   const due = db.calendar.listDue(new Date().toISOString());
   let posted = 0;
@@ -1978,6 +2041,7 @@ async function runScheduledPostsTick() {
         // inserts a NEW calendar row; here the row exists and just flips status.
         await ig.publishMediaPost(conn, { ...media, caption: row.post_text });
         db.calendar.setStatus(row.id, 'posted');
+        scheduleNextOccurrence(row);
         posted += 1;
       } catch (err) {
         db.calendar.setStatus(row.id, 'failed');
@@ -2001,6 +2065,7 @@ async function runScheduledPostsTick() {
         const media = profile ? resolvePublicMedia(profile, row.mediaId) : null;
         await tg.sendPost(conn.botToken, conn.chatId, row.post_text, media);
         db.calendar.setStatus(row.id, 'posted');
+        scheduleNextOccurrence(row);
         posted += 1;
       } catch (err) {
         db.calendar.setStatus(row.id, 'failed');
@@ -2025,6 +2090,7 @@ async function runScheduledPostsTick() {
       const media = row.mediaId ? resolvePublicMedia(profile, row.mediaId) : null;
       await adapter.publish({ db, profile, text: row.post_text, mediaUrl: media?.url });
       db.calendar.setStatus(row.id, 'posted');
+      scheduleNextOccurrence(row);
       posted += 1;
     } catch (err) {
       db.calendar.setStatus(row.id, 'failed');

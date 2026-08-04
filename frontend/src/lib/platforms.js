@@ -23,6 +23,18 @@ export const FALLBACK_PLATFORM_META = {
 
 export const metaFor = (key) => PLATFORM_META[key] || { ...FALLBACK_PLATFORM_META, generationKey: key };
 
+// The connector catalogue's key ('meta_instagram') and CreatePost's channel
+// key ('instagram', from the separate bespoke Instagram Login connection)
+// differ for exactly one platform. Everything else the catalogue returns —
+// telegram, tiktok, google_business, youtube, meta_facebook — is already the
+// same string CreatePost uses, so only that one case needs translating.
+export const composerKeyFor = (catalogueKey) => (catalogueKey === 'meta_instagram' ? 'instagram' : catalogueKey);
+
+// The inverse of composerKeyFor: CreatePost's channel key -> the connector
+// catalogue key templates are actually saved under, so opening "Templates"
+// from a specific channel tab shows the templates saved for THAT channel.
+export const catalogueKeyFor = (composerKey) => (composerKey === 'instagram' ? 'meta_instagram' : composerKey);
+
 // Shown when /api/connect/status cannot be reached, so the engine still opens
 // with usable tabs instead of an empty shell. Mirrors the registry's order.
 export const FALLBACK_CATALOGUE = [

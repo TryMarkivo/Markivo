@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
-import ContentEngine from './ContentEngine';
 import AutonomousAgent from './AutonomousAgent';
 import MediaStudio from './MediaStudio';
 import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
 import InstagramConnect from './InstagramConnect';
-import ConnectionsPanel from './ConnectionsPanel';
 import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
+import BusinessProfilePane from './BusinessProfilePane';
+import UpgradePane from './UpgradePane';
 import Sparkline from './Sparkline';
 import PlatformDetail from './PlatformDetail';
 import ThemeToggle from './ThemeToggle';
 import ConnectCard from './ConnectCard';
 import AutomationCalendar from './AutomationCalendar';
 import CreatePost from './CreatePost';
-import { metaFor } from '../lib/platforms';
+import AIGenerationModal from './AIGenerationModal';
+import TemplatesModal from './TemplatesModal';
+import { metaFor, composerKeyFor } from '../lib/platforms';
 import api from '../lib/api';
 import logoUrl from '../assets/markivo-logo.png';
 import './Dashboard.css';
@@ -74,15 +76,12 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // — computed lazily from the URL to avoid a setState-in-effect cascade.
   const [activeTab, setActiveTab] = useState(() => {
     const p = new URLSearchParams(window.location.search);
-    return (p.get('connected') || p.get('connect_error')) ? 'connections' : 'analytics';
-  }); // 'analytics' | 'content' | 'media' | 'competitors' | 'connections' | 'settings'
+    return (p.get('connected') || p.get('connect_error')) ? 'settings' : 'analytics';
+  }); // 'analytics' | 'calendar' | 'autopilot' | 'markiv' | 'media' | 'competitors' | 'settings'
 
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  // Markiv AI lives here rather than inside the panel: collapsing it has to give
-  // the main column back the 320px it was reserving.
-  const [agentOpen, setAgentOpen] = useState(true);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [igStatus, setIgStatus] = useState(null);
@@ -103,7 +102,17 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [statsOffline, setStatsOffline] = useState(false);
   // Which platform's drill-down is open, opened by clicking a metric's chart.
   const [detailPlatform, setDetailPlatform] = useState(null);
-  const [createPostOpen, setCreatePostOpen] = useState(false);
+  // The Create Post / Edit Post composer: null when closed, otherwise one of
+  // { when } — a fresh post, optionally prefilled from a clicked calendar slot
+  // { editEvent } — an existing post opened from the calendar
+  // { text, platform, media } — a draft approved from AI Generation, or a
+  //   template sent over from Edit Templates
+  const [composer, setComposer] = useState(null);
+  // Calendar's "AI Generation" and "Edit Templates" popups — the AI Content
+  // Engine tab's functionality lives on here, feeding whatever it produces
+  // into the Create Post composer above instead of posting on its own.
+  const [aiGenerationOpen, setAiGenerationOpen] = useState(false);
+  const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   // Bumped after a successful Create Post schedule to remount (and so refetch)
   // the Calendar tab's AutomationCalendar.
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -112,6 +121,10 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // platforms without a bespoke modal (e.g. Google Business).
   const [connectCatalogue, setConnectCatalogue] = useState(null);
   const [connectModalKey, setConnectModalKey] = useState(null);
+  // The Business Profile and Upgrade panes are no longer their own sidebar
+  // tabs — they open as a modal from clicking the profile card / usage meter.
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   const refreshConnectCatalogue = () => {
     api.get('/api/connect/status')
@@ -230,8 +243,16 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           </div>
         </div>
 
-        {/* LOGO BRIEF BLOCK */}
-        <div className="active-profile-card">
+        {/* LOGO BRIEF BLOCK — opens the Business Profile editor */}
+        <div
+          className="active-profile-card is-clickable"
+          onClick={() => setProfileModalOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setProfileModalOpen(true); } }}
+          id="btn_open_profile"
+          title={t('settings.business', 'Business profile')}
+        >
           <div className="sidebar-logo-icon" style={{ backgroundColor: logoStyle.bgColor, borderColor: logoStyle.color, color: logoStyle.color }}>
             {activeProfile.logo?.image ? (
               <img
@@ -253,6 +274,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <h4>{activeProfile.businessName}</h4>
             <small>{activeProfile.category}</small>
           </div>
+          <i className="fa-solid fa-chevron-right active-profile-cue" aria-hidden="true"></i>
         </div>
 
         <nav className="sidebar-nav">
@@ -262,13 +284,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             id="btn_tab_analytics"
           >
             <i className="fa-solid fa-chart-pie"></i> {t('dashboard.nav.metrics', 'Dashboard')}
-          </button>
-          <button
-            className={`nav-item ${activeTab === 'content' ? 'active' : ''}`}
-            onClick={() => setActiveTab('content')}
-            id="btn_tab_content"
-          >
-            <i className="fa-solid fa-wand-magic-sparkles"></i> {t('dashboard.nav.content', 'AI Content Engine')}
           </button>
           <button
             className={`nav-item ${activeTab === 'calendar' ? 'active' : ''}`}
@@ -285,6 +300,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <i className="fa-solid fa-robot"></i> {t('dashboard.nav.autopilot', 'Autopilot')}
           </button>
           <button
+            className={`nav-item ${activeTab === 'markiv' ? 'active' : ''}`}
+            onClick={() => setActiveTab('markiv')}
+            id="btn_tab_markiv"
+          >
+            <i className="fa-solid fa-comment-dots"></i> Markiv
+          </button>
+          <button
             className={`nav-item ${activeTab === 'media' ? 'active' : ''}`}
             onClick={() => setActiveTab('media')}
             id="btn_tab_media"
@@ -299,13 +321,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <i className="fa-solid fa-users-viewfinder"></i> {t('dashboard.nav.competitors', 'Competitor Intel')}
           </button>
           <button
-            className={`nav-item ${activeTab === 'connections' ? 'active' : ''}`}
-            onClick={() => setActiveTab('connections')}
-            id="btn_tab_connections"
-          >
-            <i className="fa-solid fa-plug"></i> {t('dashboard.nav.connections', 'Connections')}
-          </button>
-          <button
             className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
             id="btn_tab_settings"
@@ -316,7 +331,15 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
         <div className="sidebar-footer">
           {usage && (
-            <div className="usage-meter" id="usage_meter" title={t('usage.resetsTitle', { defaultValue: 'Resets {{date}}', date: usage.resetsAt?.slice(0, 10) })}>
+            <div
+              className="usage-meter is-clickable"
+              id="usage_meter"
+              onClick={() => setUpgradeModalOpen(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setUpgradeModalOpen(true); } }}
+              title={t('usage.resetsTitle', { defaultValue: 'Resets {{date}}', date: usage.resetsAt?.slice(0, 10) })}
+            >
               <div className="usage-meter-label">
                 <span>{t('usage.label', 'AI generations')}</span>
                 <span>{t('usage.count', { defaultValue: '{{used}} / {{limit}}', used: usage.used, limit: usage.limit })}</span>
@@ -330,14 +353,14 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               <small className="usage-meter-tier">{t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}</small>
             </div>
           )}
-          <button className="btn btn-secondary w-full" onClick={onLogout} id="btn_logout">
+          <button className="btn btn-danger w-full" onClick={onLogout} id="btn_logout">
             <i className="fa-solid fa-arrow-right-from-bracket"></i> {t('dashboard.exit', 'Exit Dashboard')}
           </button>
         </div>
       </aside>
 
       {/* --- MAIN MAIN WRAPPER --- */}
-      <main className={`dashboard-main-content ${agentOpen ? '' : 'agent-collapsed'}`}>
+      <main className="dashboard-main-content">
         {/* TOP BAR */}
         <header className="main-header glass-card">
           <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
@@ -557,26 +580,26 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             </div>
           )}
 
-          {/* TAB 2: AI CONTENT ENGINE */}
-          {activeTab === 'content' && (
-            <ContentEngine
-              token={token}
-              activeProfile={activeProfile}
-              onGoToConnections={() => setActiveTab('connections')}
-            />
-          )}
-
           {/* TAB: CALENDAR — scheduling home, with the Create Post entry point */}
           {activeTab === 'calendar' && (
             <AutomationCalendar
               key={calendarRefreshKey}
               activeProfile={activeProfile}
-              onCreatePost={() => setCreatePostOpen(true)}
+              onCreatePost={(when) => setComposer({ when: when || null })}
+              onEditEvent={(editEvent) => setComposer({ editEvent })}
+              onOpenAiGeneration={() => setAiGenerationOpen(true)}
+              onOpenTemplates={() => setTemplatesModalOpen(true)}
             />
           )}
 
           {activeTab === 'autopilot' && (
             <AutonomousAgent activeProfile={activeProfile} />
+          )}
+
+          {/* TAB: MARKIV — the AI marketing agent, now its own tab rather than
+              a persistent floating panel. */}
+          {activeTab === 'markiv' && (
+            <AIAgentSidebar activeProfile={activeProfile} telegramStatus={tgStatus} asTab />
           )}
 
           {/* TAB 3: MEDIA STUDIO */}
@@ -589,20 +612,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} />
           )}
 
-          {/* TAB 5: PLATFORM CONNECTIONS */}
-          {activeTab === 'connections' && (
-            <ConnectionsPanel activeProfile={activeProfile} />
-          )}
-
-          {/* TAB 6: SETTINGS */}
+          {/* TAB 5: SETTINGS (appearance + connections) */}
           {activeTab === 'settings' && (
             <SettingsPane
               activeProfile={activeProfile}
-              onProfileUpdate={onProfileUpdate}
               theme={theme}
               onToggleTheme={onToggleTheme}
               onLanguageChange={onLanguageChange}
-              onBillingChanged={() => api.get('/api/usage').then(setUsage).catch(() => {})}
             />
           )}
         </div>
@@ -648,32 +664,73 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         />
       )}
 
-      {/* --- PERSISTENT RIGHT-FLOATING AI AGENT PANEL --- */}
-      <AIAgentSidebar
-        token={token}
-        activeProfile={activeProfile}
-        telegramStatus={tgStatus}
-        isOpen={agentOpen}
-        onToggle={() => setAgentOpen((open) => !open)}
-      />
-
       {/* --- PLATFORM DRILL-DOWN --- */}
       {detailPlatform && (
         <PlatformDetail
           key={detailPlatform}
           platform={detailPlatform}
           onClose={() => setDetailPlatform(null)}
-          onGoToConnections={() => setActiveTab('connections')}
+          onGoToConnections={() => setActiveTab('settings')}
         />
       )}
 
-      {/* --- CREATE POST COMPOSER --- */}
-      {createPostOpen && (
+      {/* --- CREATE POST / EDIT POST COMPOSER --- */}
+      {composer && (
         <CreatePost
-          onClose={() => setCreatePostOpen(false)}
+          activeProfile={activeProfile}
+          initialWhen={composer.when}
+          initialText={composer.text}
+          initialPlatform={composer.platform}
+          initialMedia={composer.media}
+          editEvent={composer.editEvent}
+          onClose={() => setComposer(null)}
           onScheduled={() => setCalendarRefreshKey((k) => k + 1)}
-          onGoToConnections={() => { setCreatePostOpen(false); setActiveTab('connections'); }}
+          onGoToConnections={() => { setComposer(null); setActiveTab('settings'); }}
         />
+      )}
+
+      {/* --- AI GENERATION (Calendar) — generates text only; approving hands it
+           to the Create Post composer above. --- */}
+      {aiGenerationOpen && (
+        <AIGenerationModal
+          activeProfile={activeProfile}
+          onClose={() => setAiGenerationOpen(false)}
+          onApprove={(text, platform) => { setAiGenerationOpen(false); setComposer({ text, platform: composerKeyFor(platform) }); }}
+        />
+      )}
+
+      {/* --- EDIT TEMPLATES (Calendar) — TemplateStudio itself, unchanged;
+           using a template hands it to Create Post the same way. --- */}
+      {templatesModalOpen && (
+        <TemplatesModal
+          activeProfile={activeProfile}
+          onClose={() => setTemplatesModalOpen(false)}
+          onUseTemplate={(text, media, platform) => { setTemplatesModalOpen(false); setComposer({ text, media, platform: composerKeyFor(platform) }); }}
+        />
+      )}
+
+      {/* --- BUSINESS PROFILE MODAL (opened from the sidebar's profile card) --- */}
+      {profileModalOpen && (
+        <div className="auth-overlay animate-fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) setProfileModalOpen(false); }}>
+          <div className="glass-card glass-card-glow text-left side-pane-modal" role="dialog" aria-modal="true" aria-label={t('settings.business', 'Business profile')}>
+            <button className="btn-close side-pane-modal-close" onClick={() => setProfileModalOpen(false)} aria-label={t('common.close', 'Close')}>
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+            <BusinessProfilePane activeProfile={activeProfile} onProfileUpdate={onProfileUpdate} />
+          </div>
+        </div>
+      )}
+
+      {/* --- UPGRADE MODAL (opened from the sidebar's usage meter) --- */}
+      {upgradeModalOpen && (
+        <div className="auth-overlay animate-fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) setUpgradeModalOpen(false); }}>
+          <div className="glass-card glass-card-glow text-left side-pane-modal" role="dialog" aria-modal="true" aria-label={t('settings.plan.title', 'Plan & billing')}>
+            <button className="btn-close side-pane-modal-close" onClick={() => setUpgradeModalOpen(false)} aria-label={t('common.close', 'Close')}>
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+            <UpgradePane onBillingChanged={() => api.get('/api/usage').then(setUsage).catch(() => {})} />
+          </div>
+        </div>
       )}
     </div>
   );

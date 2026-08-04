@@ -300,15 +300,18 @@ function langInstructionFor(languages) {
 // the call fails, so ai.generateContent can fall through to its next provider.
 async function generateContent(ctx) {
   if (!config.geminiEnabled) return null;
-  const { platform = 'instagram', topic, businessName, category, description, brandTone, audience } = ctx;
+  const { platform = 'instagram', topic, businessName, category, description, brandTone, audience, previousText, feedback } = ctx;
   const langInstruction = langInstructionFor(ctx.languages);
+  // A follow-up prompt ("shorter", "add more emojis", …) revises the draft
+  // already on screen instead of writing a brand-new one from the topic.
+  const revising = !!(previousText && feedback);
 
   try {
     const parsed = await callGemini({
       maxTokens: 1500,
       system:
         "You are Markivo's expert social-media copywriter for small businesses. " +
-        `${langInstruction} Write a single platform-native post that matches the brand tone. ` +
+        `${langInstruction} ${revising ? 'Revise the existing draft per the instruction — keep everything else about it intact.' : 'Write a single platform-native post that matches the brand tone.'} ` +
         'Keep hashtags OUT of the post body — return them separately. Respond as JSON only.',
       user:
         `Business: ${businessName || 'a local business'}\n` +
@@ -318,7 +321,9 @@ async function generateContent(ctx) {
         `Target audience: ${audience || 'local customers'}\n` +
         `Platform: ${platform}\n` +
         `Post topic: ${topic || 'a friendly general promotion'}\n\n` +
-        'Write the post, a one-line phone photography/video tip, and 4-6 relevant hashtags.',
+        (revising
+          ? `Current draft:\n${previousText}\n\nRevision instruction: ${feedback}\n\nReturn the revised post, an updated one-line phone photography/video tip, and 4-6 relevant hashtags.`
+          : 'Write the post, a one-line phone photography/video tip, and 4-6 relevant hashtags.'),
       schema: CONTENT_SCHEMA,
     });
     if (!parsed.post) return null;

@@ -45,6 +45,23 @@
   margin-bottom: 30px;
 }
 
+.active-profile-card.is-clickable {
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.active-profile-card.is-clickable:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-2);
+}
+
+.active-profile-cue {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 .sidebar-logo-icon {
   width: 40px;
   height: 40px;
@@ -112,16 +129,8 @@
 .dashboard-main-content {
   flex: 1;
   margin-left: 260px;
-  margin-right: 320px; /* Leave space for AI Chat sidebar */
   padding: 30px;
   min-width: 0; /* Enable shrinking */
-  transition: margin-right var(--transition-normal);
-}
-
-/* Markiv AI collapsed: the panel slides out to a 44px stub, so the main column
-   reclaims the rest instead of leaving a dead 320px gutter. */
-.dashboard-main-content.agent-collapsed {
-  margin-right: 56px;
 }
 
 /* Header */
@@ -495,13 +504,6 @@
 }
 
 /* Responsive adjustments */
-@media (max-width: 1200px) {
-  .dashboard-main-content,
-  .dashboard-main-content.agent-collapsed {
-    margin-right: 0; /* Chat overlays instead of reserving a column */
-  }
-}
-
 @media (max-width: 992px) {
   .dashboard-sidebar {
     transform: translateX(-260px);
@@ -525,6 +527,16 @@
   border-radius: 10px;
   background: var(--surface-1);
   border: 1px solid var(--border-subtle);
+}
+
+.usage-meter.is-clickable {
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.usage-meter.is-clickable:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-2);
 }
 
 .usage-meter-label {
@@ -559,4 +571,22 @@
   font-size: 11px;
   color: var(--text-muted);
   text-transform: capitalize;
+}
+
+/* Business Profile / Upgrade modals — opened from the sidebar's profile card
+   and usage meter rather than living as their own sidebar tabs. */
+.side-pane-modal {
+  position: relative;
+  max-width: 780px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 30px;
+}
+
+.side-pane-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
 }

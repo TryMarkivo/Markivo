@@ -24,7 +24,9 @@ const CATEGORY_KEYS = {
 
 // `isOpen` is owned by the Dashboard: collapsing the panel has to reflow the
 // main column into the freed space, and only the shell can do that.
-export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, onToggle }) {
+// `asTab` renders the same chat as a normal in-flow tab panel instead of the
+// fixed-position floating panel — no collapse control, always "open".
+export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, onToggle, asTab = false }) {
   const { t, i18n } = useTranslation();
   const greetingMessage = () => ({
     sender: 'agent',
@@ -188,9 +190,11 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
     setMessages(prev => [...prev, { sender: 'agent', text: resultText, time: t('agent.justNow', 'Just now') }]);
   };
 
+  const open = asTab ? true : isOpen;
+
   return (
     <>
-      <div className={`agent-sidebar-container glass-card ${isOpen ? 'open' : 'closed'}`} id="agent_sidebar_container">
+      <div className={`agent-sidebar-container glass-card ${asTab ? 'as-tab' : (open ? 'open' : 'closed')}`} id="agent_sidebar_container">
         {/* HEADER */}
         <div className="agent-header flex-between">
           <div className="agent-title-wrap">
@@ -201,7 +205,7 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
             </div>
           </div>
           <div className="agent-header-actions">
-            {isOpen && (
+            {open && (
               <button
                 className="agent-clear-btn"
                 onClick={handleClearChat}
@@ -212,13 +216,15 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
                 <i className="fa-solid fa-trash-can"></i>
               </button>
             )}
-            <button className="agent-toggle-btn" onClick={onToggle} id="btn_toggle_agent" aria-label={t(isOpen ? 'agent.collapse' : 'agent.expand', isOpen ? 'Collapse panel' : 'Expand panel')}>
-              {isOpen ? <i className="fa-solid fa-angles-right"></i> : <i className="fa-solid fa-angles-left"></i>}
-            </button>
+            {!asTab && (
+              <button className="agent-toggle-btn" onClick={onToggle} id="btn_toggle_agent" aria-label={t(open ? 'agent.collapse' : 'agent.expand', open ? 'Collapse panel' : 'Expand panel')}>
+                {open ? <i className="fa-solid fa-angles-right"></i> : <i className="fa-solid fa-angles-left"></i>}
+              </button>
+            )}
           </div>
         </div>
 
-        {isOpen && (
+        {open && (
           <>
             {/* CHAT THREAD */}
             <div className="chat-thread-container" ref={threadRef}>

@@ -24,7 +24,12 @@ const cleanTag = (name) => `#${(name || 'business').toLowerCase().replace(/[^a-z
 // The language blocks come out in the ORDER the owner selected — the same
 // contract the live engines follow (gemini.langInstructionFor).
 // ===========================================================================
-function templateContent({ platform, topic, businessName, category, description, languages }) {
+function templateContent({ platform, topic, businessName, category, description, languages, previousText, feedback }) {
+  // Keyless mode has no reasoning engine to act on a follow-up instruction —
+  // returning the draft unchanged is more honest than silently rewriting it
+  // in a way that ignores what was actually asked for.
+  if (previousText && feedback) return { post: previousText, mediaTip: '', hashtags: [] };
+
   const name = businessName || 'Our Spot';
   const langs = gemini.normalizeLanguages(languages);
 
@@ -422,17 +427,18 @@ async function generateContent(ctx) {
   const viaGemini = await gemini.generateContent(ctx);
   if (viaGemini) return viaGemini;
   if (!client) return templateContent(ctx);
-  const { platform = 'instagram', topic, businessName, category, description, brandTone, audience } = ctx;
+  const { platform = 'instagram', topic, businessName, category, description, brandTone, audience, previousText, feedback } = ctx;
   // Shared with the Gemini path so both engines honour the owner's chosen
   // language ORDER identically.
   const langInstruction = gemini.langInstructionFor(ctx.languages);
+  const revising = !!(previousText && feedback);
   try {
     const msg = await client.messages.create({
       model: config.aiContentModel,
       max_tokens: 1500,
       system:
         "You are Markivo's expert social-media copywriter for small businesses. " +
-        `${langInstruction} Write a single platform-native post that matches the brand tone. ` +
+        `${langInstruction} ${revising ? 'Revise the existing draft per the instruction — keep everything else about it intact.' : 'Write a single platform-native post that matches the brand tone.'} ` +
         'Keep hashtags OUT of the post body — return them separately. Respond as JSON only.',
       messages: [
         {
@@ -445,7 +451,9 @@ async function generateContent(ctx) {
             `Target audience: ${audience || 'local customers'}\n` +
             `Platform: ${platform}\n` +
             `Post topic: ${topic || 'a friendly general promotion'}\n\n` +
-            'Write the post, a one-line phone photography/video tip, and 4-6 relevant hashtags.',
+            (revising
+              ? `Current draft:\n${previousText}\n\nRevision instruction: ${feedback}\n\nReturn the revised post, an updated one-line phone photography/video tip, and 4-6 relevant hashtags.`
+              : 'Write the post, a one-line phone photography/video tip, and 4-6 relevant hashtags.'),
         },
       ],
       output_config: { format: { type: 'json_schema', schema: CONTENT_SCHEMA } },

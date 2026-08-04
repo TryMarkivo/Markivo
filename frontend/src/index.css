@@ -292,6 +292,17 @@ button, input, select, textarea {
   box-shadow: 0 4px 15px rgba(131, 56, 236, 0.3);
 }
 
+.btn-danger {
+  background: var(--accent-danger);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(255, 90, 95, 0.3);
+}
+
+.btn-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 90, 95, 0.5);
+}
+
 .btn-accent:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(131, 56, 236, 0.5);
