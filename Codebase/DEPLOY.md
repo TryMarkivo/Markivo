@@ -156,6 +156,53 @@ if SQLite is outgrown (swap point: `backend/db.js`).
 
 ---
 
+## Subdomain routing (optional)
+
+By default the whole app runs on **one origin** and switches sections via
+in-app state — nothing below is required. To split sections onto their own
+subdomains (`login.`, `onboarding.`, `dashboard.`, root = landing), set the
+frontend build variable and provision DNS + host + CORS to match.
+
+| Subdomain | Section |
+| --- | --- |
+| `markivo.io` (also `app.` / `www.`) | Landing |
+| `login.markivo.io` | Auth (login / register) |
+| `onboarding.markivo.io` | Setup wizard (Path A / B) |
+| `dashboard.markivo.io` | Product dashboard |
+
+**1. Frontend build var:** `VITE_ROOT_DOMAIN=markivo.io` (blank ⇒ routing off,
+single origin — the default). Rebuild the frontend after changing it.
+
+**2. DNS:** add a record for each subdomain (or one wildcard `*`) pointing at the
+same frontend host as the apex — e.g. on Vercel a `CNAME` to `cname.vercel-dns.com`
+for `login`, `onboarding`, `dashboard` (and the apex `A`/`www` records you already
+have). A wildcard `CNAME *` works too.
+
+**3. Host:** the SPA must be served for every subdomain.
+   - **Vercel:** Project → Settings → Domains → add each subdomain (or `*.markivo.io`)
+     to the *same* project. The existing `rewrites` already serve `index.html` for
+     all paths.
+   - **nginx (docker-compose):** `server_name _;` already matches every host, so no
+     change is needed — just route the extra DNS names to the container.
+
+**4. Backend CORS:** `CORS_ORIGIN` must list **every** subdomain origin the app is
+served from — including whichever landing aliases you use (`app.` / `www.`), e.g.
+`https://markivo.io,https://www.markivo.io,https://app.markivo.io,https://login.markivo.io,https://onboarding.markivo.io,https://dashboard.markivo.io`
+(or front the API same-origin). Redeploy the backend after changing it.
+
+**Session across subdomains:** subdomains are separate origins, so the bearer
+token (localStorage) is handed off through the URL fragment on navigation and
+scrubbed from the address bar on arrival (`frontend/src/lib/subdomains.js`).
+Fragments are never sent to servers or in `Referer`. For a hardened setup, issue
+the session as an `httpOnly` cookie scoped to `Domain=.markivo.io` from the
+backend instead — that removes the fragment hand-off entirely.
+
+**Local testing:** `VITE_ROOT_DOMAIN=localhost npm run dev --prefix frontend`,
+then open `http://app.localhost:5173` (browsers resolve any `*.localhost` to
+127.0.0.1; the Vite dev server already allows `.localhost` hosts).
+
+---
+
 ## Post-deploy smoke test
 
 ```sh

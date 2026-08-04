@@ -186,6 +186,16 @@ const facebook = {
   label: 'Facebook',
   group: 'meta',
 
+  authType: 'oauth',
+  docsUrl: 'https://developers.facebook.com/docs/pages-api/posts',
+  requirements: ['A Facebook Page (not a personal profile)', 'Admin access to that Page'],
+  howToConnect: [
+    'Press Connect — we send you to Facebook’s official login screen.',
+    'Sign in with the account that ADMINISTERS your Page.',
+    'On the permissions screen, tick the Page you want Markivo to post to.',
+    'Approve, and Facebook sends you straight back here — connected.',
+  ],
+
   isLive: () => config.connectors.meta.enabled,
 
   getAuthUrl({ state }) {
@@ -257,6 +267,19 @@ const facebook = {
 const instagram = {
   key: 'meta_instagram',
   label: 'Instagram',
+  authType: 'oauth',
+  docsUrl: 'https://developers.facebook.com/docs/instagram-api/guides/content-publishing',
+  requirements: [
+    'An Instagram Professional account (Business or Creator)',
+    'That account linked to a Facebook Page you administer',
+    'A photo or video for every post — Instagram has no text-only post',
+  ],
+  howToConnect: [
+    'In the Instagram app: Settings → Account type → switch to Business or Creator.',
+    'Still in Instagram settings, link the account to your Facebook Page.',
+    'Press Connect here and sign in with that Facebook account.',
+    'Tick both the Page and the linked Instagram account on the permissions screen.',
+  ],
   group: 'meta',
 
   isLive: () => config.connectors.meta.enabled,

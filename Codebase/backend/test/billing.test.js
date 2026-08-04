@@ -10,8 +10,12 @@ const TMP_DB = path.join(os.tmpdir(), `markivo-billing-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
-delete process.env.STRIPE_SECRET_KEY;
-delete process.env.STRIPE_WEBHOOK_SECRET;
+// Force SIMULATED billing. Set to '' rather than delete(): config.js calls
+// dotenv.config(), which re-populates any key NOT already present in process.env
+// from backend/.env — where real Stripe keys now live. Assigning '' keeps the key
+// present, so dotenv leaves it alone and billing stays keyless/simulated.
+process.env.STRIPE_SECRET_KEY = '';
+process.env.STRIPE_WEBHOOK_SECRET = '';
 
 const { app } = require('../server');
 const billing = require('../billing');

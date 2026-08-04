@@ -20,6 +20,14 @@ export default function ConnectCard({ platform, status, meta, onChanged, onClose
   const connected = !!status?.connected;
   const sandbox = !!status?.sandbox && connected;
   const live = !!status?.live;
+  const comingSoon = !!status?.comingSoon;
+  // Connect guidance travels with the platform from /api/connect/status, so
+  // this modal explains any platform without hardcoding per-platform copy.
+  const requirements = platform.requirements || [];
+  const steps = platform.howToConnect || [];
+  // Telegram-style platforms are connected with a pasted token, not OAuth —
+  // there is no button to press here, only instructions.
+  const tokenAuth = platform.authType === 'token';
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -69,19 +77,54 @@ export default function ConnectCard({ platform, status, meta, onChanged, onClose
 
         {!connected && (
           <div className="step-content">
-            {!live && (
+            {requirements.length > 0 && (
+              <div className="connect-requirements">
+                <h5>{t('connections.requirementsTitle', 'What you need first')}</h5>
+                <ul>
+                  {requirements.map((req, i) => (
+                    <li key={i}><i className="fa-solid fa-circle-check"></i> {req}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {steps.length > 0 && (
+              <div className="connect-steps">
+                <h5>{t('connections.howToTitle', 'How to connect')}</h5>
+                <ol>
+                  {steps.map((step, i) => <li key={i}>{step}</li>)}
+                </ol>
+                {platform.docsUrl && (
+                  <a className="connect-docs-link" href={platform.docsUrl} target="_blank" rel="noreferrer">
+                    <i className="fa-solid fa-arrow-up-right-from-square"></i>{' '}
+                    {t('connections.officialDocs', 'Official documentation')}
+                  </a>
+                )}
+              </div>
+            )}
+
+            {comingSoon && (
+              <div className="badge badge-primary mb-20" style={{ display: 'block', padding: 10 }} role="status">
+                <i className="fa-solid fa-clock"></i>{' '}
+                {t('connections.comingSoonNote', { defaultValue: '{{label}} is not switched on yet — these are the steps for when it is.', label: platform.label })}
+              </div>
+            )}
+
+            {!live && !comingSoon && (
               <div className="mb-20" style={{ padding: 10, borderRadius: 8, fontSize: 13, background: 'var(--surface-2, rgba(245,158,11,.08))', border: '1px solid var(--border-subtle, rgba(245,158,11,.3))' }}>
                 <i className="fa-solid fa-flask"></i>{' '}
                 {t('connections.sandboxNote', 'Sandbox mode — no live credentials are configured for this platform yet, so connecting simulates the flow (no real posts go out). Add the platform’s API keys to switch this to live.')}
               </div>
             )}
-            <button className="btn btn-primary w-full" onClick={handleConnect} disabled={busy} id={`btn_connect_${platform.key}`}>
-              {busy
-                ? t('connections.connecting', 'Connecting…')
-                : live
-                  ? t('connections.connectLiveCta', { defaultValue: 'Connect {{label}} →', label: platform.label })
-                  : t('connections.connectSandboxCta', { defaultValue: 'Connect {{label}} (sandbox)', label: platform.label })}
-            </button>
+            {!tokenAuth && !comingSoon && (
+              <button className="btn btn-primary w-full" onClick={handleConnect} disabled={busy} id={`btn_connect_${platform.key}`}>
+                {busy
+                  ? t('connections.connecting', 'Connecting…')
+                  : live
+                    ? t('connections.connectLiveCta', { defaultValue: 'Connect {{label}} →', label: platform.label })
+                    : t('connections.connectSandboxCta', { defaultValue: 'Connect {{label}} (sandbox)', label: platform.label })}
+              </button>
+            )}
           </div>
         )}
 

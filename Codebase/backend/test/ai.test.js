@@ -1,7 +1,13 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 
-// No ANTHROPIC_API_KEY in the test env → the AI layer runs in fallback mode.
+// Pin BOTH text-engine keys to '' BEFORE requiring the module (config reads env
+// at load). Defining them here means dotenv cannot fill them from a .env on
+// disk, so this file always asserts against the deterministic fallback
+// templates rather than whatever a live model happens to return.
+process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
+
 const ai = require('../ai');
 
 test('AI layer is disabled without an API key', () => {

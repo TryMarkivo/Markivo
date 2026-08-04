@@ -63,6 +63,21 @@ const config = {
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
 
+  // --- AI (Google Gemini) — social copy + message templates ---
+  // Gemini is the PREFERRED engine for social post copy and for turning a real
+  // message an owner sends ("Stadium No:141, 9 spots left ✅") into a reusable
+  // template with editable variables. When GEMINI_API_KEY is unset the copy
+  // path falls through to Anthropic and then to the smart templates, and the
+  // template path falls back to the deterministic heuristic parser in
+  // gemini.js — so a blank key never breaks the app or the tests.
+  // Key: https://aistudio.google.com/apikey
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  // `gemini-flash-latest` is an alias that tracks the current Flash model, and
+  // it carries its own free-tier quota bucket — the pinned `gemini-2.5-flash`
+  // name is far more likely to be exhausted on a free project.
+  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-flash-latest',
+  geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 20000,
+
   // Monthly AI generation allowance per pricing tier (content + slogans +
   // agent queries all count). Numbers are provisional until pricing is final.
   aiTierLimits: {
@@ -92,6 +107,17 @@ const config = {
   // re-enable end-to-end — no code changes needed.
   telegramEnabled: process.env.TELEGRAM_ENABLED === 'true',
 
+  // --- Autopilot (autonomous marketing agent) ---
+  // Per-business opt-in agent that analyzes the profile and auto-generates +
+  // publishes ORGANIC promotional posts on a cadence. Default ON = the
+  // capability exists (owners still enable it per business). Set
+  // AUTONOMOUS_ENABLED=false to disable the feature and its background worker.
+  // SAFETY: Autopilot never runs paid ad campaigns — money spend always stays
+  // behind the deterministic human approval gate.
+  autonomousEnabled: process.env.AUTONOMOUS_ENABLED !== 'false',
+  // How often the background worker scans for due Autopilot profiles (minutes).
+  autonomousTickMs: (parseInt(process.env.AUTONOMOUS_TICK_MIN, 10) || 10) * 60 * 1000,
+
   // --- Google Places (Discovery scan) ---
   // When GOOGLE_MAPS_API_KEY is unset, the discovery scan transparently falls
   // back to deterministic mock results, so the app keeps working without it.
@@ -106,30 +132,75 @@ const config = {
   scanRateLimit: parseInt(process.env.SCAN_RATE_LIMIT, 10) || 10,
   scanRateWindowMs: (parseInt(process.env.SCAN_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
 
-  // --- Platform connectors (Instagram/Facebook/TikTok/Google Business/YouTube) ---
-  // Each platform publishes through its OFFICIAL API, on the user's behalf, behind
-  // the human approval gate. When a platform's OAuth credentials are absent its
-  // adapter runs in SANDBOX mode (simulated connect + publish) so the app and the
-  // tests work fully keyless — mirroring the AI/Places/Stripe fallbacks.
-  //
-  // `redirectBase` is the PUBLIC API base used to build OAuth redirect URIs
-  // (`<redirectBase>/api/connect/<key>/callback`). It must match the redirect URI
-  // registered in each platform's developer console. Defaults to APP_URL in dev.
-  connectors: (() => {
-    const redirectBase = (process.env.OAUTH_REDIRECT_BASE || process.env.APP_URL || 'http://localhost:5000').replace(/\/$/, '');
-    const meta = { clientId: process.env.META_CLIENT_ID || '', clientSecret: process.env.META_CLIENT_SECRET || '' };
-    const tiktok = { clientKey: process.env.TIKTOK_CLIENT_KEY || '', clientSecret: process.env.TIKTOK_CLIENT_SECRET || '' };
-    // Google OAuth client is shared by the Google Business Profile and YouTube adapters.
-    const google = { clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '', clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '' };
-    meta.enabled = !!(meta.clientId && meta.clientSecret);
-    tiktok.enabled = !!(tiktok.clientKey && tiktok.clientSecret);
-    google.enabled = !!(google.clientId && google.clientSecret);
-    return { redirectBase, meta, tiktok, google };
-  })(),
+  // --- Instagram (Instagram API with Instagram Login) — "Connect Instagram" ---
+  // Uses the Instagram **Business Login** flow (instagram.com auth →
+  // api.instagram.com / graph.instagram.com), NOT Facebook Login. Credentials
+  // are the INSTAGRAM app ID/secret (found under the app's Instagram product →
+  // API setup with Instagram login) — distinct from the Facebook app's. When
+  // unset the connect routes answer 503 "coming soon" (instagramEnabled ===
+  // false). INSTAGRAM_REDIRECT_URI must match the redirect registered in the
+  // Instagram business-login settings byte-for-byte, and is reused unchanged in
+  // the token exchange.
+  instagramAppId: process.env.INSTAGRAM_APP_ID || '',
+  instagramAppSecret: process.env.INSTAGRAM_APP_SECRET || '',
+  instagramRedirectUri:
+    process.env.INSTAGRAM_REDIRECT_URI ||
+    process.env.META_REDIRECT_URI ||
+    'http://localhost:5000/api/instagram/oauth/callback',
+  instagramScopes: 'instagram_business_basic,instagram_business_content_publish',
+
+  // --- Platform connector framework (connectors/*) ---
+  // Meta (Facebook/Instagram), TikTok, and Google (Google Business/YouTube)
+  // OAuth adapters. Each platform goes LIVE only when its client credentials
+  // are present; otherwise isLive() is false and the adapter runs in sandbox
+  // mode (simulated publishes) — so Autopilot and the agent work fully keyless.
+  // `redirectBase` is the public origin the /api/connect/* callbacks live under.
+  // `enabled` flags are computed below from the credentials.
+  connectors: {
+    redirectBase:
+      process.env.CONNECTORS_REDIRECT_BASE ||
+      process.env.PUBLIC_BASE_URL ||
+      'http://localhost:5000',
+    meta: {
+      clientId: process.env.META_CLIENT_ID || '',
+      clientSecret: process.env.META_CLIENT_SECRET || '',
+      enabled: false,
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      enabled: false,
+    },
+    tiktok: {
+      clientKey: process.env.TIKTOK_CLIENT_KEY || '',
+      clientSecret: process.env.TIKTOK_CLIENT_SECRET || '',
+      enabled: false,
+    },
+  },
 };
 
-config.aiEnabled = !!config.anthropicApiKey;
+// A connector is live only when BOTH halves of its OAuth client are configured.
+// Until then the adapter stays in sandbox mode (simulated publishing).
+config.connectors.meta.enabled = !!(config.connectors.meta.clientId && config.connectors.meta.clientSecret);
+config.connectors.google.enabled = !!(config.connectors.google.clientId && config.connectors.google.clientSecret);
+config.connectors.tiktok.enabled = !!(config.connectors.tiktok.clientKey && config.connectors.tiktok.clientSecret);
+
 config.geminiEnabled = !!config.geminiApiKey;
+// "AI is on" means at least one text engine is reachable. aiEnabled stays tied
+// to Anthropic because ai.js builds its Anthropic client (and the agent's tool
+// loop) off it; geminiEnabled gates the Gemini copy + template paths.
+config.aiEnabled = !!config.anthropicApiKey;
+config.textEngine = config.geminiEnabled ? 'gemini' : (config.aiEnabled ? 'anthropic' : 'template');
+// Instagram connect goes live only when both Instagram app credentials are set.
+config.instagramEnabled = !!(config.instagramAppId && config.instagramAppSecret);
+
+// Public base URL for assets Instagram must fetch (image_url for publishing) and
+// other outward links. Instagram fetches images server-side, so localhost is not
+// reachable — in dev this is the tunnel host (derived from the redirect URI's
+// origin); set PUBLIC_BASE_URL explicitly in production.
+config.publicBaseUrl = process.env.PUBLIC_BASE_URL || (() => {
+  try { return new URL(config.instagramRedirectUri).origin; } catch { return ''; }
+})();
 
 // Convenience helpers used by the auth layer.
 config.newRefreshToken = () => crypto.randomBytes(32).toString('hex');

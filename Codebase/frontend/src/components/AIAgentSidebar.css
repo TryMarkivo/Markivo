@@ -17,6 +17,48 @@
   transform: translateX(276px); /* Leave just a tiny toggle visible */
 }
 
+/* Rendered as a normal tab panel (the Markiv nav tab) instead of the fixed
+   floating chat — back in the document flow, filling the tab content area. */
+.agent-sidebar-container.as-tab {
+  position: static;
+  width: 100%;
+  max-width: 720px;
+  height: 74vh;
+  min-height: 460px;
+  margin: 0 auto;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+}
+
+/* Collapsed, only the leftmost 44px of the panel is still on screen. The full
+   header is right-aligned, which pushed the toggle 276px off-screen and left no
+   way to expand again — so the header becomes a narrow vertical stub whose
+   controls sit INSIDE the visible strip. */
+.agent-sidebar-container.closed .agent-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 44px;
+  padding: 16px 0;
+}
+
+/* Keep the robot as the panel's marker; drop the name/subtitle, which cannot
+   fit in 44px. */
+.agent-sidebar-container.closed .agent-title-wrap > div {
+  display: none;
+}
+
+.agent-sidebar-container.closed .agent-toggle-btn {
+  font-size: 1.05rem;
+  color: var(--accent-primary);
+}
+
+/* The whole stub reads as one expand control. */
+.agent-sidebar-container.closed .agent-header:hover .agent-toggle-btn {
+  transform: translateX(-2px);
+}
+
 .agent-header {
   padding: 20px 16px;
   border-bottom: 1px solid var(--glass-border);

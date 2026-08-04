@@ -10,6 +10,7 @@
     "generating": "Yaratilmoqda...",
     "back": "Orqaga",
     "discard": "Bekor qilish",
+    "working": "Bajarilmoqda…",
     "done": "Tayyor",
     "somethingWentWrong": "Nimadir xato ketdi",
     "active": "Faol",
@@ -27,7 +28,8 @@
     "themeToLight": "Yorug' mavzuga o'tish",
     "themeToDark": "Tungi mavzuga o'tish",
     "themeToggle": "Mavzuni almashtirish",
-    "language": "Til"
+    "language": "Til",
+    "retry": "Qayta urinish"
   },
   "auth": {
     "login": "Kirish",
@@ -247,13 +249,13 @@
       "audiencePlaceholder": "masalan, yosh dasturchilar, dizaynerlar, qahva ishqibozlari va masofaviy ishlovchilar",
       "step1Cta": "Brend ohangi va sloganini tanlash",
       "step2Title": "Brend qiyofangizni belgilang",
-      "step2Subtitle": "Makoningizga mos ohangni tanlang va o'zingizga xos brend sloganini yarating.",
+      "step2Subtitle": "Brendingizga mos ohangni tanlang, so'ngra shior qo'shing — o'zingizniki yoki AI yaratgan.",
       "sloganLabel": "Maxsus brend slogani",
       "generateSlogans": "3 ta AI slogan yaratish ✦",
       "sloganPlaceholder": "O'z sloganingizni yozing yoki yuqorida biznesingizni tasvirlab, 'Yaratish' tugmasini bosing",
-      "step2Cta": "Maxsus logotipimni yaratish",
-      "step3Title": "Brend belgingizni yarating",
-      "step3Subtitle": "Vizual emblemangizni sozlang. Logotip dvigatelimiz biznes mavzuingizga mos maketlarni chizib beradi.",
+      "step2Cta": "Logotipga o'tish",
+      "step3Title": "Logotipni sozlang",
+      "step3Subtitle": "O'z logotipingizdan foydalaning yoki dvigatelimiz uni brendingizga moslab yaratsin.",
       "shapeLabel": "Emblema shakli",
       "iconLabel": "Belgi-ramz",
       "colorLabel": "Rang mavzulari",
@@ -262,7 +264,24 @@
       "step3Cta": "Ijtimoiy kanallarni tanlang",
       "step4Title": "Ishga tushiriladigan kanallarni tanlang",
       "step4Subtitle": "Qaysi akkauntlar avtomatik yaratilishini tanlang. Markivo Markaziy Osiyo uchun moslangan qoralama tuzilmalarni yaratadi.",
-      "scaffoldCta": "Biznesimni qurish"
+      "scaffoldCta": "Biznesimni qurish",
+      "sloganQuestion": "Brendingiz uchun shioringiz bormi?",
+      "hasSloganYes": "Menda shior bor",
+      "hasSloganYesHint": "Mavjud shioringizni kiriting",
+      "hasSloganNo": "AI yordamida yaratish",
+      "hasSloganNoHint": "3 ta mos shior yarating",
+      "ownSloganPlaceholder": "Brend shioringizni kiriting",
+      "logoQuestion": "Logotipingiz bormi?",
+      "hasLogoYes": "Menda logotip bor",
+      "hasLogoYesHint": "Mavjud logotipingizni yuklang",
+      "hasLogoNo": "AI yordamida yaratish",
+      "hasLogoNoHint": "Brendingizdan logotip yarating",
+      "uploadLabel": "Logotipni yuklang",
+      "uploadCta": "Rasm tanlang · PNG, JPG, SVG (maks. 1MB)",
+      "uploadPreviewTitle": "Sizning logotipingiz",
+      "uploadEmpty": "Yuklangan logotip shu yerda ko'rinadi",
+      "uploadTypeError": "PNG, JPG, SVG yoki WebP rasm yuklang.",
+      "uploadSizeError": "Rasm hajmi 1MB dan kichik bo'lishi kerak."
     },
     "categories": {
       "cafe": "Kafe / Qahvaxona",
@@ -428,10 +447,11 @@
     "activeInfrastructure": "Faol infratuzilmangiz",
     "settingsTab": "Sozlamalar",
     "nav": {
-      "metrics": "Ko'rsatkichlar va qidiruv",
+      "metrics": "Boshqaruv paneli",
       "content": "AI kontent dvigateli",
       "media": "Media studiya",
-      "competitors": "Raqobatchilar tahlili"
+      "competitors": "Raqobatchilar tahlili",
+      "autopilot": "Avtopilot"
     },
     "channels": {
       "google": "Google profili"
@@ -441,7 +461,8 @@
       "instagramFollowers": "Instagram obunachilari",
       "telegramMembers": "Telegram kanal a'zolari",
       "past30Days": "so'nggi 30 kun",
-      "changePositive": "+{{change}}%"
+      "changePositive": "+{{change}}%",
+      "drillDown": "{{platform}} boʻyicha batafsil statistikani koʻrsatish"
     },
     "seo": {
       "title": "Mahalliy SEO reytinglari",
@@ -488,7 +509,8 @@
       "topicPlaceholder": "masalan, Shu hafta oxiri har bir dabl espressoga bepul asal torti bo'lagi!",
       "topicPlaceholderByCategory": "Masalan: {{category}} mijozlaringizga yoqadigan dam olish kunlari uchun maxsus taklif!",
       "generating": "Mahalliylashtirilgan qoralamalar tayyorlanmoqda...",
-      "generateCta": "Platforma qoralamalarini yaratish ✦"
+      "generateCta": "Platforma qoralamalarini yaratish ✦",
+      "subtitleForPlatform": "{{platform}} uchun yozyapmiz — shu kanal kutgan formatda."
     },
     "output": {
       "toneOptimized": "Platforma ohangiga moslangan",
@@ -559,7 +581,10 @@
     "fallback": {
       "post": "✨ #{{businessName}}dan maxsus taklif! ✨\n\nAjoyib maskan izlayapsizmi? {{topic}}\n\n📍 Bugun Toshkentda bizga tashrif buyuring!\n\n#localbusiness #tashkent #vibe",
       "mediaTip": "📸 Maslahat: shom payti, derazalardan iliq ichki yorug'lik taralayotganda do'koningiz old tomonini gorizontal suratga oling."
-    }
+    },
+    "platformTabsLabel": "Platforma",
+    "modeCompose": "Post yozish",
+    "modeTemplates": "Shablonlar"
   },
   "media": {
     "title": "Media studiya",
@@ -771,6 +796,55 @@
     "pillFinishSetup": "Telegram · sozlashni yakunlang",
     "pillConnect": "Telegram · ulash"
   },
+  "instagram": {
+    "setupTitle": "Instagram'ni ulash",
+    "intro": "Markivo siz nomingizdan post joylashi uchun Instagram Business akkauntingizni ulang. Avtorizatsiya uchun Meta'ga o'tasiz — bu taxminan bir daqiqa oladi.",
+    "step1": "Quyidagi tugmani bosing — sizni Meta'ning xavfsiz tizimiga yo'naltiramiz.",
+    "step2": "Instagram Business akkauntingizga bog'langan Facebook sahifasini tanlang va ruxsat bering.",
+    "step3": "Ulangan holda shu yerga qaytasiz. ✓",
+    "requirement": "Instagram akkauntingiz Facebook sahifasiga bog'langan <1>Business yoki Creator</1> akkaunt bo'lishi kerak.",
+    "connecting": "Meta'ga yo'naltirilmoqda…",
+    "connectCta": "Instagram'ni ulash ✦",
+    "doneTitle": "Instagram ulandi!",
+    "doneText": "<1>{{handle}}</1> sifatida ulandi.",
+    "yourAccount": "akkauntingiz",
+    "disconnectCta": "Uzish",
+    "noticeConnected": "Instagram ulandi ✓",
+    "noticeError": "Instagram'ni ulab bo'lmadi — qayta urinib ko'ring.",
+    "errors": {
+      "denied": "Instagram ulanishi bekor qilindi.",
+      "missing_code": "Instagram avtorizatsiya kodini qaytarmadi. Qayta urinib ko'ring.",
+      "bad_state": "Ulanish sessiyasi muddati tugadi. Qayta urinib ko'ring.",
+      "no_profile": "Instagram'ni ulashdan oldin onboardingni yakunlang.",
+      "exchange_failed": "Meta ulanishni rad etdi. Instagram'ingiz Facebook sahifasiga bog'langan Business akkaunt ekanini tekshiring.",
+      "not_configured": "Instagram ulanishi hali sozlanmagan."
+    },
+    "pillTitleSoon": "Instagram ulanishi tez orada",
+    "pillTitleConnected": "@{{username}} sifatida ulangan",
+    "pillTitleConnect": "Instagram'ni ulash uchun bosing",
+    "pillSoon": "Instagram · tez orada",
+    "pillConnected": "Instagram · @{{username}}",
+    "pillConnectedGeneric": "Instagram · ulangan",
+    "pillConnect": "Instagram · ulash",
+    "createPostCta": "Post yaratish",
+    "composer": {
+      "title": "Yangi Instagram posti",
+      "hint": "{{handle}} ga joylanadi. Instagram media talab qiladi — JPEG rasm yoki MP4 video (Reel) ishlating. Maksimal 8MB.",
+      "pick": "Rasm yoki video tanlang",
+      "change": "Faylni almashtirish",
+      "caption": "Izoh",
+      "captionPh": "Izoh yozing… #hashtaglar mumkin",
+      "tooLarge": "Fayl juda katta — maksimal 8MB.",
+      "uploading": "Yuklanmoqda…",
+      "publishing": "Joylanmoqda…",
+      "publishingVideo": "Joylanmoqda… (video bir daqiqa olishi mumkin)",
+      "publish": "Instagram'ga joylash ✦",
+      "publishedTitle": "Instagram'ga joylandi!",
+      "publishedTo": "{{handle}} ga joylandi.",
+      "viewPost": "Instagram'da postni ko'rish ↗",
+      "another": "Yana joylash"
+    }
+  },
   "settings": {
     "title": "Sozlamalar",
     "saved": "Saqlandi! Biznes profilingiz yangilandi.",
@@ -810,6 +884,153 @@
       "periodEnd": "Joriy davr {{date}} kuni tugaydi",
       "unavailable": "To'lov holati hozircha mavjud emas.",
       "loading": "Tarif yuklanmoqda…"
+    }
+  },
+  "autopilot": {
+    "title": "Avtopilot",
+    "subtitle": "Markiv biznesingizni tahlil qilib, kanallaringizga reklama kontentini o'zi joylashtirsin.",
+    "disabledNotice": "Avtopilot bu muhitda yoqilmagan.",
+    "loadError": "Avtopilotni yuklab bo'lmadi.",
+    "saveError": "Sozlamalarni saqlab bo'lmadi.",
+    "runError": "Avtopilotni ishga tushirib bo'lmadi.",
+    "saved": "Sozlamalar saqlandi.",
+    "ranNow": "Avtopilot ishladi — quyidagi faoliyatga qarang.",
+    "enableLabel": "Avtopilotni yoqish",
+    "enableHint": "Yoqilganda, Markiv jadval bo'yicha ishlaydi — tahlil qiladi, yaratadi va siz uchun joylashtiradi.",
+    "platformsLabel": "Post uchun kanallar",
+    "platformsHint": "Avtopilot siz tanlagan kanallarga joylashtiradi (ulangan kanallarga haqiqiy, boshqalari ulanmaguncha simulyatsiya qilinadi).",
+    "frequencyLabel": "Qanchalik tez-tez",
+    "freq": {
+      "daily": "Kuniga bir marta",
+      "weekly": "Haftada bir marta",
+      "test": "Har daqiqada (demo)"
+    },
+    "publishModeLabel": "Post tayyor bo'lganda",
+    "autoPublish": "Avtomatik joylashtirish",
+    "autoPublishHint": "Markiv so'ramasdan joylashtiradi.",
+    "queueMode": "Mening tasdig'im uchun",
+    "queueModeHint": "Har bir postni chiqishidan oldin siz tasdiqlaysiz.",
+    "save": "Sozlamalarni saqlash",
+    "saving": "Saqlanmoqda…",
+    "runNow": "Hozir ishga tushirish",
+    "running": "Ishlamoqda…",
+    "runNeedsSave": "Avval o'zgarishlarni saqlang",
+    "activityTitle": "Faoliyat",
+    "noActivity": "Hozircha bo'sh. Avtopilotni yoqing (yoki «Hozir ishga tushirish»ni bosing), uning harakatlari shu yerda ko'rinadi.",
+    "adSafetyNote": "Avtopilot faqat bepul organik postlar yaratadi. Pullik reklama kampaniyalari doimo sizning aniq tasdig'ingizni talab qiladi — Markiv hech qachon pulingizni o'zi sarflamaydi.",
+    "kind": {
+      "analysis": "Biznesingiz tahlil qilindi",
+      "post_published": "Post joylashtirildi",
+      "post_scheduled": "Post rejalashtirildi",
+      "approval_created": "Tasdig'ingizga yuborildi",
+      "skipped": "To'xtatildi",
+      "error": "Xato"
+    }
+  },
+  "templates": {
+    "title": "Xabar shablonlari",
+    "subtitle": "{{platform}} da doim yuboradigan xabaringizni joylashtiring — o‘zgaruvchi qismlarni bir necha soniyada to‘ldiriladigan o‘zgaruvchilarga aylantiramiz.",
+    "sampleLabel": "Tez-tez yuboradigan xabaringiz",
+    "samplePlaceholder": "masalan: Stadion No:141, 9 ta joy qoldi✅",
+    "analyzeCta": "Tahlil qilib shablon yasash ✦",
+    "analyzing": "O‘zgaruvchi qismlar qidirilmoqda…",
+    "startManual": "O‘zgaruvchilarni o‘zim belgilayman",
+    "engineGemini": "Gemini",
+    "engineOffline": "Oflayn tahlil",
+    "nameLabel": "Shablon nomi",
+    "namePlaceholder": "masalan: Qolgan joylar",
+    "templateLabel": "Shablon",
+    "makeVariable": "O‘zgaruvchi qilish",
+    "editHint": "Yuqoridagi istalgan matnni belgilab «O‘zgaruvchi qilish» tugmasini bosing yoki quyidagi o‘zgaruvchini o‘chirib, qiymatini qaytaring.",
+    "variablesLabel": "O‘zgaruvchilar ({{count}})",
+    "noVariables": "Hozircha o‘zgaruvchi yo‘q — xabarning o‘zgaradigan qismini belgilab «O‘zgaruvchi qilish» tugmasini bosing.",
+    "variableName": "O‘zgaruvchi nomi",
+    "examplePlaceholder": "Namuna qiymat",
+    "removeVariable": "{{key}} o‘zgaruvchisini o‘chirish",
+    "selectFirst": "Avval xabarning o‘zgaradigan qismini belgilang, so‘ng «O‘zgaruvchi qilish» tugmasini bosing.",
+    "alreadyVariable": "Belgilangan qismda allaqachon o‘zgaruvchi bor.",
+    "preview": "Ko‘rinishi",
+    "saveCta": "Shablonni saqlash",
+    "saving": "Saqlanmoqda…",
+    "savedTitle": "{{platform}} uchun saqlanganlar",
+    "savedEmpty": "Bu platforma uchun hali shablon yo‘q.",
+    "untitled": "Nomsiz shablon",
+    "useCta": "Ishlatish",
+    "deleteTemplate": "Shablonni o‘chirish",
+    "fixedTemplate": "Bu shablonda o‘zgaruvchi yo‘q — qanday yozilgan bo‘lsa, shundayligicha yuboriladi.",
+    "sendToComposer": "Muharrirga yuborish",
+    "fromTemplateTip": "Saqlangan shablonlaringizdan biri to‘ldirildi — tekshiring, so‘ng joylang yoki rejalashtiring."
+  },
+  "connections": {
+    "title": "Platforma ulanishlari",
+    "subtitle": "Markiv siz nomingizdan post joylay oladigan platformalarni ulang — har bir platformaning rasmiy API’si orqali va faqat siz tasdiqlaganingizdan keyin.",
+    "connectedToast": "Ulandi ✓",
+    "errorToast": "{{label}} ulanmadi — qaytadan urinib ko‘ring.",
+    "connect": "Ulash",
+    "manage": "Boshqarish",
+    "howToCta": "Qanday ulanadi",
+    "state": {
+      "connected": "Ulangan",
+      "sandbox": "Ulangan · sinov rejimi",
+      "ready": "Ulashga tayyor",
+      "sandboxReady": "Sinov rejimi mavjud",
+      "soon": "Tez orada"
+    },
+    "setupTitle": "{{label}} ni ulash",
+    "howItWorks": "Markivo {{label}} ga siz nomingizdan rasmiy API orqali post joylaydi va har bir post avval sizning tasdiqingizdan o‘tadi — hisobingizga hech qachon kirmaydi.",
+    "requirementsTitle": "Avval nima kerak",
+    "howToTitle": "Qanday ulanadi",
+    "officialDocs": "Rasmiy hujjatlar",
+    "comingSoonNote": "{{label}} hali yoqilmagan — yoqilganda quyidagi qadamlar kerak bo‘ladi.",
+    "sandboxNote": "Sinov rejimi — bu platforma uchun hali haqiqiy kalitlar sozlanmagan, shuning uchun ulanish taqlid qilinadi (haqiqiy post ketmaydi). Ishga tushirish uchun platformaning API kalitlarini qo‘shing.",
+    "connecting": "Ulanmoqda…",
+    "connectLiveCta": "{{label}} ni ulash →",
+    "connectSandboxCta": "{{label}} ni ulash (sinov)",
+    "sandboxConnected": "{{label}} sinov rejimida ulandi ✓",
+    "disconnected": "{{label}} uzildi",
+    "statusConnected": "Ulangan",
+    "statusSandbox": "Ulangan (sinov rejimi)",
+    "connectedHint": "Chat panelida Markiv’dan {{label}} ga post joylashni so‘rang — siz tasdiqlaysiz, u joylaydi.",
+    "disconnectCta": "Uzish",
+    "working": "Bajarilmoqda…"
+  },
+  "platformDetail": {
+    "subtitle": "Kanal statistikasi",
+    "sourceLive": "{{platform}}dan jonli",
+    "sourceLocal": "Faqat Markivo yozuvlari",
+    "connect": "Ulash",
+    "accountStats": "Akkaunt",
+    "trend": "Qayd etilgan dinamika",
+    "trendHint": "Kuniga bitta oʻlchov — dashboard har ochilganda yoziladi.",
+    "recentPosts": "{{platform}}dagi soʻnggi postlar",
+    "fromMarkivo": "Markivo rejalashtirgan",
+    "countPosted": "joylandi",
+    "countScheduled": "navbatda",
+    "countFailed": "xato",
+    "noneScheduled": "Bu kanal uchun hali hech narsa rejalashtirilmagan.",
+    "noCaption": "(matnsiz)",
+    "open": "Ochish",
+    "notReported": "maʼlumot yoʻq",
+    "engagementUnavailable": "faollik maʼlumoti yoʻq",
+    "hasMedia": "Media bor",
+    "engagementNote": "Har bir post uchun layk va izohlar faqat ulangan Instagram Business yoki Creator akkauntlarida mavjud. Bu kanal ularni bermaydi.",
+    "stat": {
+      "followers": "Obunachilar",
+      "following": "Obunalar",
+      "posts": "Postlar",
+      "members": "Aʼzolar"
+    },
+    "status": {
+      "posted": "joylandi",
+      "scheduled": "navbatda",
+      "failed": "xato"
+    },
+    "notice": {
+      "connectInstagram": "Obunachilar va har bir post uchun layk va izohlarni koʻrish uchun Instagramni ulang.",
+      "instagramError": "Instagram javob bermadi ({{error}}). Raqamlarni yangilash uchun akkauntni qayta ulang.",
+      "linkTelegram": "Aʼzolar sonini jonli koʻrish uchun Telegram kanalini bogʻlang.",
+      "telegramError": "Telegram javob bermadi ({{error}}).",
+      "noIntegration": "Bu kanalda hali jonli integratsiya yoʻq, shuning uchun faqat Markivo rejalashtirgan narsalar koʻrsatiladi."
     }
   }
 }

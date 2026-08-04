@@ -14,6 +14,20 @@ const adapter = {
   label: 'Telegram',
   group: 'telegram',
 
+  // Owner-facing connect guidance, surfaced through /api/connect/status so the
+  // dashboard can explain HOW to connect each platform without hardcoding
+  // per-platform copy in the frontend.
+  authType: 'token',
+  docsUrl: 'https://core.telegram.org/bots#how-do-i-create-a-bot',
+  requirements: ['A Telegram account', 'A channel or group where your bot is an admin'],
+  howToConnect: [
+    'Open Telegram and start a chat with @BotFather.',
+    'Send /newbot and follow the prompts to name your bot.',
+    'Copy the bot token BotFather gives you and paste it here.',
+    'Add the bot as an ADMIN of your channel or group.',
+    'Post any message in that channel, then press "Detect channel".',
+  ],
+
   // "Live" = the feature flag is on. Telegram uses per-business bot tokens
   // rather than a platform-wide OAuth credential, so there is no sandbox key.
   isLive: () => config.telegramEnabled,

@@ -142,6 +142,31 @@ async function verifyPostAccess(token, chatId, botUserId) {
 const sendMessage = (token, chatId, text) =>
   call(token, 'sendMessage', { chat_id: chatId, text });
 
+// Telegram fetches media from a public URL, exactly like Instagram does, so
+// these take a URL rather than bytes.
+const sendPhoto = (token, chatId, photoUrl, caption) =>
+  call(token, 'sendPhoto', { chat_id: chatId, photo: photoUrl, caption });
+
+const sendVideo = (token, chatId, videoUrl, caption) =>
+  call(token, 'sendVideo', { chat_id: chatId, video: videoUrl, caption });
+
+// Captions are capped at 1024 characters while a plain message allows 4096.
+// Rather than truncate the owner's copy, a long post is sent as media first and
+// the full text second — both land in the channel, nothing is lost.
+const CAPTION_MAX = 1024;
+
+/**
+ * Publish one post, with or without media. Returns the Telegram message that
+ * carries the text, so callers keep a single message id to record.
+ */
+async function sendPost(token, chatId, text, media) {
+  if (!media || !media.url) return sendMessage(token, chatId, text);
+  const send = media.kind === 'video' ? sendVideo : sendPhoto;
+  if (text.length <= CAPTION_MAX) return send(token, chatId, media.url, text);
+  await send(token, chatId, media.url, '');
+  return sendMessage(token, chatId, text);
+}
+
 // Live subscriber/member count for the linked chat (dashboard metric).
 const getChatMemberCount = (token, chatId) =>
   call(token, 'getChatMemberCount', { chat_id: chatId });
@@ -156,5 +181,8 @@ module.exports = {
   detectChat,
   verifyPostAccess,
   sendMessage,
+  sendPhoto,
+  sendVideo,
+  sendPost,
   getChatMemberCount,
 };

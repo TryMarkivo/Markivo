@@ -1,0 +1,331 @@
+/* Platform drill-down, opened by clicking a metric chart.
+   The overlay blurs the whole dashboard behind it so the panel is the only
+   thing in focus. */
+
+.pd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.pd-panel {
+  width: 100%;
+  max-width: 780px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: var(--modal-bg);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+/* --- Header --- */
+.pd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.pd-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+.pd-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  border-radius: 50%;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+}
+
+.pd-identity h3 { font-size: 1.1rem; line-height: 1.2; }
+.pd-identity small { font-size: 0.8rem; }
+
+.pd-handle { color: var(--accent-primary); }
+.pd-handle:hover { text-decoration: underline; }
+
+.pd-header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+/* Says where the numbers came from — live API, or only our own records. */
+.pd-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pd-source.is-live {
+  background: rgba(6, 214, 160, 0.12);
+  border: 1px solid rgba(6, 214, 160, 0.3);
+  color: var(--accent-success);
+}
+
+.pd-source.is-local {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+/* --- Body --- */
+.pd-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 0;
+  color: var(--text-secondary);
+}
+
+.pd-body {
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.pd-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(212, 163, 115, 0.08);
+  border: 1px solid rgba(212, 163, 115, 0.25);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.pd-notice i { color: var(--accent-primary); flex-shrink: 0; }
+.pd-notice .btn { margin-left: auto; flex-shrink: 0; }
+
+.pd-section h4 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+/* --- Account numbers --- */
+.pd-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.pd-stat {
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+}
+
+.pd-stat-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.pd-stat-value {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+/* A figure the platform does not report reads as absent, never as zero. */
+.pd-unreported {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* --- Trend --- */
+.pd-chart {
+  height: 90px;
+  padding: 12px 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+}
+
+.pd-hint {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* --- Real posts from the platform --- */
+.pd-posts { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+
+.pd-post {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+}
+
+.pd-post-thumb {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.pd-post-thumb-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.pd-post-body { min-width: 0; flex: 1; }
+
+.pd-post-caption {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pd-post-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.pd-post-meta i { margin-right: 4px; }
+.pd-post-meta a { color: var(--accent-primary); }
+.pd-post-meta a:hover { text-decoration: underline; }
+
+/* --- Our own records --- */
+.pd-counts { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+
+.pd-count {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+}
+
+.pd-count strong { color: var(--text-primary); margin-right: 4px; }
+.pd-count.is-posted strong { color: var(--accent-success); }
+.pd-count.is-scheduled strong { color: var(--accent-primary); }
+.pd-count.is-failed strong { color: var(--accent-danger); }
+
+.pd-our-posts {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.pd-our-post {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+}
+
+.pd-our-post:last-child { border-bottom: none; }
+
+.pd-our-when { color: var(--text-muted); font-size: 0.76rem; white-space: nowrap; }
+
+.pd-our-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.pd-our-status {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.pd-our-status i { margin-right: 6px; color: var(--accent-primary); }
+.pd-our-post.is-posted .pd-our-status { color: var(--accent-success); }
+.pd-our-post.is-failed .pd-our-status { color: var(--accent-danger); }
+
+.pd-footnote {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pd-footnote i { color: var(--accent-primary); }
+
+/* --- Responsive --- */
+@media (max-width: 700px) {
+  .pd-overlay { padding: 0; }
+
+  .pd-panel {
+    max-width: 100%;
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+  }
+
+  .pd-header { padding: 16px; }
+  .pd-body { padding: 16px; gap: 22px; }
+  .pd-source { display: none; }
+
+  .pd-notice { flex-wrap: wrap; }
+  .pd-notice .btn { margin-left: 0; width: 100%; }
+
+  .pd-our-post {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 4px;
+  }
+  .pd-our-when { grid-column: 1 / -1; }
+}

@@ -122,21 +122,66 @@ module.exports = function createDb(dbPath) {
       updated_at   TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS platform_connections (
+    CREATE TABLE IF NOT EXISTS instagram_connections (
       id               TEXT PRIMARY KEY,
-      profile_id       TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-      platform         TEXT NOT NULL,
-      status           TEXT DEFAULT 'connected',
-      account_handle   TEXT,
-      account_id       TEXT,
-      access_token     TEXT,
-      refresh_token    TEXT,
+      profile_id       TEXT UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      access_token     TEXT NOT NULL,
       token_expires_at TEXT,
-      scopes           TEXT,
-      meta             TEXT,
+      ig_user_id       TEXT,
+      ig_username      TEXT,
+      page_id          TEXT,
+      account_name     TEXT,
       created_at       TEXT NOT NULL,
-      updated_at       TEXT,
+      updated_at       TEXT
+    );
+
+    -- Generic connector framework store (Meta/Facebook/TikTok/Google/YouTube).
+    -- One row per (profile, platform). access_token is encrypted at rest; meta
+    -- holds platform-specific ids (pageId/igUserId) as JSON. Separate from the
+    -- dedicated instagram_connections table used by the Instagram Login flow.
+    CREATE TABLE IF NOT EXISTS platform_connections (
+      id             TEXT PRIMARY KEY,
+      profile_id     TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform       TEXT NOT NULL,
+      status         TEXT,
+      account_handle TEXT,
+      account_id     TEXT,
+      access_token   TEXT,
+      scopes         TEXT,
+      meta           TEXT,
+      created_at     TEXT NOT NULL,
+      updated_at     TEXT,
       UNIQUE(profile_id, platform)
+    );
+
+    -- Reusable message templates, one row per (profile, platform). Built by
+    -- pasting a real message the owner already sends; the changing parts become
+    -- {{variables}} in template_text. The variables column is a JSON array of
+    -- { key, label, example } decorating the placeholders found in the text.
+    CREATE TABLE IF NOT EXISTS content_templates (
+      id            TEXT PRIMARY KEY,
+      profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform      TEXT NOT NULL,
+      name          TEXT,
+      sample_text   TEXT,
+      template_text TEXT NOT NULL,
+      variables     TEXT,
+      source        TEXT,                        -- 'gemini' | 'heuristic' | 'manual'
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT
+    );
+
+    -- Daily snapshot of each dashboard metric, so the sparklines plot REAL
+    -- recorded movement instead of a decorative fixed curve. One row per
+    -- (profile, metric, day); the day is a local YYYY-MM-DD key.
+    CREATE TABLE IF NOT EXISTS metric_history (
+      id         TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      metric     TEXT NOT NULL,
+      day        TEXT NOT NULL,
+      value      REAL NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(profile_id, metric, day)
     );
 
     CREATE TABLE IF NOT EXISTS media (
@@ -193,6 +238,28 @@ module.exports = function createDb(dbPath) {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS autonomous_config (
+      id           TEXT PRIMARY KEY,
+      profile_id   TEXT UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      enabled      INTEGER DEFAULT 0,
+      platforms    TEXT,                        -- JSON array of platform keys
+      frequency    TEXT DEFAULT 'daily',        -- 'daily' | 'weekly' | 'test'
+      auto_publish INTEGER DEFAULT 1,           -- 1 = publish organically; 0 = queue approvals
+      last_run_at  TEXT,
+      next_run_at  TEXT,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS autonomous_activity (
+      id         TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      kind       TEXT,
+      summary    TEXT,
+      payload    TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
     CREATE INDEX IF NOT EXISTS idx_ai_usage_user_time ON ai_usage(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_platforms_profile ON platforms(profile_id);
@@ -205,7 +272,9 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_agent_messages_profile_time ON agent_messages(profile_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_content_feedback_profile ON content_feedback(profile_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_platform_connections_profile ON platform_connections(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_instagram_profile ON instagram_connections(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_templates_profile_platform ON content_templates(profile_id, platform);
+    CREATE INDEX IF NOT EXISTS idx_metric_history_lookup ON metric_history(profile_id, metric, day);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -224,6 +293,15 @@ module.exports = function createDb(dbPath) {
   // visual direction. Generated post-onboarding and read by every AI generator
   // so output is specific to THIS business, not generic.
   addColumn('profiles', 'brand_brief TEXT');
+  // Photo/video attached to a post or template. Instagram has no text-only post
+  // type, so a scheduled post without this can only ever publish as simulated.
+  addColumn('calendar', 'media_id TEXT');
+  addColumn('content_templates', 'media_id TEXT');
+  // Free-text label ("Promo", "Announcement", …) shown as a chip on the
+  // calendar; repeat_rule (null|'daily'|'weekly'|'monthly') lets the
+  // scheduled-post worker clone a post forward once it goes out.
+  addColumn('calendar', 'tag TEXT');
+  addColumn('calendar', 'repeat_rule TEXT');
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -261,7 +339,8 @@ module.exports = function createDb(dbPath) {
   };
   const mapCalendar = (r) => r && {
     id: r.id, profileId: r.profile_id, platform: r.platform, post_text: r.post_text,
-    scheduled_time: r.scheduled_time, status: r.status,
+    scheduled_time: r.scheduled_time, status: r.status, mediaId: r.media_id || null,
+    tag: r.tag || null, repeatRule: r.repeat_rule || null,
   };
   const mapMedia = (r) => r && {
     id: r.id, profileId: r.profile_id, kind: r.kind, mode: r.mode, topic: r.topic,
@@ -271,6 +350,13 @@ module.exports = function createDb(dbPath) {
   };
   const mapAgentMessage = (r) => r && {
     id: r.id, profileId: r.profile_id, sender: r.sender, text: r.text, created_at: r.created_at,
+  };
+  const mapTemplate = (r) => r && {
+    id: r.id, profileId: r.profile_id, platform: r.platform, name: r.name,
+    sampleText: r.sample_text, templateText: r.template_text,
+    variables: r.variables ? JSON.parse(r.variables) : [],
+    source: r.source, mediaId: r.media_id || null,
+    created_at: r.created_at, updated_at: r.updated_at,
   };
   const mapSubscription = (r) => r && {
     id: r.id, userId: r.user_id, tier: r.tier, status: r.status,
@@ -282,6 +368,17 @@ module.exports = function createDb(dbPath) {
     id: r.id, profileId: r.profile_id, action_type: r.action_type,
     action_payload: r.action_payload ? JSON.parse(r.action_payload) : null,
     status: r.status, created_at: r.created_at, executed_at: r.executed_at,
+  };
+  const mapAutoConfig = (r) => r && {
+    id: r.id, profileId: r.profile_id, enabled: !!r.enabled,
+    platforms: r.platforms ? JSON.parse(r.platforms) : [],
+    frequency: r.frequency, autoPublish: !!r.auto_publish,
+    lastRunAt: r.last_run_at, nextRunAt: r.next_run_at,
+    created_at: r.created_at, updated_at: r.updated_at,
+  };
+  const mapAutoActivity = (r) => r && {
+    id: r.id, profileId: r.profile_id, kind: r.kind, summary: r.summary,
+    payload: r.payload ? JSON.parse(r.payload) : null, created_at: r.created_at,
   };
 
   return {
@@ -460,10 +557,11 @@ module.exports = function createDb(dbPath) {
         const row = {
           id: id(), profile_id: post.profileId, platform: post.platform,
           post_text: post.postText, scheduled_time: post.scheduledTime, status: post.status || 'scheduled',
+          media_id: post.mediaId || null, tag: post.tag || null, repeat_rule: post.repeatRule || null,
         };
         sqlite.prepare(
-          `INSERT INTO calendar (id, profile_id, platform, post_text, scheduled_time, status)
-           VALUES (@id, @profile_id, @platform, @post_text, @scheduled_time, @status)`
+          `INSERT INTO calendar (id, profile_id, platform, post_text, scheduled_time, status, media_id, tag, repeat_rule)
+           VALUES (@id, @profile_id, @platform, @post_text, @scheduled_time, @status, @media_id, @tag, @repeat_rule)`
         ).run(row);
         return mapCalendar(row);
       },
@@ -480,6 +578,37 @@ module.exports = function createDb(dbPath) {
       setStatus(postId, status) {
         sqlite.prepare('UPDATE calendar SET status = ? WHERE id = ?').run(status, postId);
         return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
+      findById(postId) {
+        return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
+      // Drag-to-reschedule from the calendar view.
+      setScheduledTime(postId, scheduledTime) {
+        sqlite.prepare('UPDATE calendar SET scheduled_time = ? WHERE id = ?').run(scheduledTime, postId);
+        return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
+      // Partial update for the "edit an existing post" flow — only the
+      // columns present in `patch` are touched. Keys: postText, scheduledTime,
+      // mediaId, tag, repeatRule, status.
+      update(postId, patch) {
+        const columns = {
+          postText: 'post_text', scheduledTime: 'scheduled_time', mediaId: 'media_id',
+          tag: 'tag', repeatRule: 'repeat_rule', status: 'status',
+        };
+        const sets = [];
+        const params = { id: postId };
+        for (const [key, column] of Object.entries(columns)) {
+          if (!(key in patch)) continue;
+          sets.push(`${column} = @${column}`);
+          params[column] = patch[key];
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE calendar SET ${sets.join(', ')} WHERE id = @id`).run(params);
+        }
+        return mapCalendar(sqlite.prepare('SELECT * FROM calendar WHERE id = ?').get(postId));
+      },
+      remove(postId) {
+        sqlite.prepare('DELETE FROM calendar WHERE id = ?').run(postId);
       },
     },
 
@@ -503,6 +632,10 @@ module.exports = function createDb(dbPath) {
         sqlite.prepare('UPDATE approvals SET status = ?, executed_at = ? WHERE id = ?')
           .run(status, now(), approvalId);
         return mapApproval(sqlite.prepare('SELECT * FROM approvals WHERE id = ?').get(approvalId));
+      },
+      listByProfile(profileId, limit = 30) {
+        return sqlite.prepare('SELECT * FROM approvals WHERE profile_id = ? ORDER BY created_at DESC LIMIT ?')
+          .all(profileId, limit).map(mapApproval);
       },
     },
 
@@ -719,73 +852,182 @@ module.exports = function createDb(dbPath) {
       },
     },
 
-    // Generic per-platform connection store for the connector framework
-    // (Instagram/Facebook/TikTok/Google Business/YouTube). OAuth tokens are
-    // encrypted at rest with the same AES-256-GCM helper Telegram uses; the
-    // mapper decrypts on the way out and returns null on a decrypt failure
-    // (e.g. JWT_SECRET rotated) so a stale connection degrades gracefully.
-    connections: {
-      mapRow(r) {
+    instagram: {
+      // Access token is encrypted at rest (secrets.encrypt); findByProfile
+      // decrypts on the way out. One row per profile (profile_id is UNIQUE).
+      upsert({ profileId, accessToken, tokenExpiresAt, igUserId, igUsername, pageId, accountName }) {
+        const enc = secrets.encrypt(accessToken);
+        const existing = sqlite.prepare('SELECT id FROM instagram_connections WHERE profile_id = ?').get(profileId);
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE instagram_connections SET access_token = ?, token_expires_at = ?, ig_user_id = ?,
+             ig_username = ?, page_id = ?, account_name = ?, updated_at = ? WHERE id = ?`
+          ).run(enc, tokenExpiresAt || null, igUserId || null, igUsername || null, pageId || null, accountName || null, now(), existing.id);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO instagram_connections (id, profile_id, access_token, token_expires_at, ig_user_id, ig_username, page_id, account_name, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(id(), profileId, enc, tokenExpiresAt || null, igUserId || null, igUsername || null, pageId || null, accountName || null, now());
+        }
+        return this.findByProfile(profileId);
+      },
+      findByProfile(profileId) {
+        const r = sqlite.prepare('SELECT * FROM instagram_connections WHERE profile_id = ?').get(profileId);
         if (!r) return null;
-        const dec = (v) => {
-          if (!v) return null;
-          try { return secrets.decrypt(v); } catch { return undefined; }
-        };
-        const accessToken = dec(r.access_token);
-        const refreshToken = dec(r.refresh_token);
-        // undefined => stored ciphertext could not be decrypted: unusable.
-        if (accessToken === undefined || refreshToken === undefined) return null;
+        let accessToken = null;
+        try {
+          accessToken = secrets.decrypt(r.access_token);
+        } catch {
+          // Encryption key changed (JWT_SECRET rotated) — connection is unusable.
+          return null;
+        }
         return {
-          id: r.id, profileId: r.profile_id, platform: r.platform, status: r.status,
-          accountHandle: r.account_handle, accountId: r.account_id,
-          accessToken, refreshToken, tokenExpiresAt: r.token_expires_at,
-          scopes: r.scopes || null,
-          meta: r.meta ? JSON.parse(r.meta) : null,
+          id: r.id, profileId: r.profile_id, accessToken, tokenExpiresAt: r.token_expires_at,
+          igUserId: r.ig_user_id, igUsername: r.ig_username, pageId: r.page_id, accountName: r.account_name,
           created_at: r.created_at, updated_at: r.updated_at,
         };
       },
-      upsert({ profileId, platform, status = 'connected', accountHandle, accountId,
-               accessToken, refreshToken, tokenExpiresAt, scopes, meta }) {
-        const enc = (v) => (v ? secrets.encrypt(String(v)) : null);
-        const existing = sqlite.prepare(
-          'SELECT id FROM platform_connections WHERE profile_id = ? AND platform = ?'
-        ).get(profileId, platform);
+      remove(profileId) {
+        sqlite.prepare('DELETE FROM instagram_connections WHERE profile_id = ?').run(profileId);
+      },
+    },
+
+    // Generic connector-framework store (connectors/*). One row per (profile,
+    // platform), keyed by the connector registry key (e.g. 'meta_instagram').
+    // access_token is encrypted at rest; meta holds platform ids as JSON. With
+    // no rows, adapters fall back to sandbox (simulated) publishing.
+    connections: {
+      upsert({ profileId, platform, status, accountHandle, accountId, accessToken, scopes, meta }) {
+        const enc = accessToken ? secrets.encrypt(accessToken) : null;
+        const scopesJson = scopes ? JSON.stringify(scopes) : null;
         const metaJson = meta ? JSON.stringify(meta) : null;
+        const existing = sqlite.prepare('SELECT id FROM platform_connections WHERE profile_id = ? AND platform = ?').get(profileId, platform);
         if (existing) {
           sqlite.prepare(
             `UPDATE platform_connections SET status = ?, account_handle = ?, account_id = ?,
-             access_token = ?, refresh_token = ?, token_expires_at = ?, scopes = ?, meta = ?, updated_at = ?
-             WHERE id = ?`
-          ).run(status, accountHandle || null, accountId || null, enc(accessToken), enc(refreshToken),
-                tokenExpiresAt || null, scopes || null, metaJson, now(), existing.id);
+             access_token = ?, scopes = ?, meta = ?, updated_at = ? WHERE id = ?`
+          ).run(status || null, accountHandle || null, accountId || null, enc, scopesJson, metaJson, now(), existing.id);
         } else {
           sqlite.prepare(
-            `INSERT INTO platform_connections (id, profile_id, platform, status, account_handle, account_id,
-               access_token, refresh_token, token_expires_at, scopes, meta, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).run(id(), profileId, platform, status, accountHandle || null, accountId || null,
-                enc(accessToken), enc(refreshToken), tokenExpiresAt || null, scopes || null, metaJson, now());
+            `INSERT INTO platform_connections (id, profile_id, platform, status, account_handle, account_id, access_token, scopes, meta, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(id(), profileId, platform, status || null, accountHandle || null, accountId || null, enc, scopesJson, metaJson, now());
         }
         return this.findByProfile(profileId, platform);
       },
       findByProfile(profileId, platform) {
-        return this.mapRow(sqlite.prepare(
-          'SELECT * FROM platform_connections WHERE profile_id = ? AND platform = ?'
-        ).get(profileId, platform));
+        const r = sqlite.prepare('SELECT * FROM platform_connections WHERE profile_id = ? AND platform = ?').get(profileId, platform);
+        if (!r) return null;
+        let accessToken = null;
+        if (r.access_token) {
+          try {
+            accessToken = secrets.decrypt(r.access_token);
+          } catch {
+            // Encryption key rotated (JWT_SECRET changed) — connection unusable.
+            return null;
+          }
+        }
+        return {
+          id: r.id, profileId: r.profile_id, platform: r.platform, status: r.status,
+          accountHandle: r.account_handle, accountId: r.account_id, accessToken,
+          scopes: r.scopes ? JSON.parse(r.scopes) : [], meta: r.meta ? JSON.parse(r.meta) : null,
+          created_at: r.created_at, updated_at: r.updated_at,
+        };
       },
+      // Connected platform keys for a profile — { platform } rows, as the
+      // autopilot and agent expect.
       listByProfile(profileId) {
-        return sqlite.prepare('SELECT * FROM platform_connections WHERE profile_id = ?')
-          .all(profileId).map((r) => this.mapRow(r)).filter(Boolean);
-      },
-      setStatus(profileId, platform, status) {
-        sqlite.prepare(
-          'UPDATE platform_connections SET status = ?, updated_at = ? WHERE profile_id = ? AND platform = ?'
-        ).run(status, now(), profileId, platform);
-        return this.findByProfile(profileId, platform);
+        return sqlite.prepare('SELECT platform FROM platform_connections WHERE profile_id = ?').all(profileId).map((r) => ({ platform: r.platform }));
       },
       remove(profileId, platform) {
-        sqlite.prepare('DELETE FROM platform_connections WHERE profile_id = ? AND platform = ?')
-          .run(profileId, platform);
+        sqlite.prepare('DELETE FROM platform_connections WHERE profile_id = ? AND platform = ?').run(profileId, platform);
+      },
+    },
+
+    // Reusable message templates per (profile, platform). The template TEXT is
+    // the source of truth for which {{variables}} exist; the stored `variables`
+    // array only carries their labels and example values.
+    templates: {
+      create({ profileId, platform, name, sampleText, templateText, variables, source, mediaId }) {
+        const row = {
+          id: id(),
+          profile_id: profileId,
+          platform: String(platform || 'instagram').toLowerCase(),
+          name: name || null,
+          sample_text: sampleText || null,
+          template_text: templateText,
+          variables: JSON.stringify(variables || []),
+          source: source || 'manual',
+          media_id: mediaId || null,
+          created_at: now(),
+          updated_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO content_templates (id, profile_id, platform, name, sample_text, template_text, variables, source, media_id, created_at, updated_at)
+           VALUES (@id, @profile_id, @platform, @name, @sample_text, @template_text, @variables, @source, @media_id, @created_at, @updated_at)`
+        ).run(row);
+        return mapTemplate(row);
+      },
+      findById(templateId) {
+        return mapTemplate(sqlite.prepare('SELECT * FROM content_templates WHERE id = ?').get(templateId));
+      },
+      // All templates for a profile, newest first; optionally one platform only.
+      listByProfile(profileId, platform) {
+        const rows = platform
+          ? sqlite.prepare('SELECT * FROM content_templates WHERE profile_id = ? AND platform = ? ORDER BY created_at DESC').all(profileId, String(platform).toLowerCase())
+          : sqlite.prepare('SELECT * FROM content_templates WHERE profile_id = ? ORDER BY created_at DESC').all(profileId);
+        return rows.map(mapTemplate);
+      },
+      update(templateId, fields = {}) {
+        const colFor = {
+          name: 'name',
+          platform: 'platform',
+          sampleText: 'sample_text',
+          templateText: 'template_text',
+          source: 'source',
+          // Pass null to detach the photo/video from a saved template.
+          mediaId: 'media_id',
+        };
+        const sets = [];
+        const params = { id: templateId, updated_at: now() };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          sets.push(`${col} = @${col}`);
+          params[col] = key === 'platform' ? String(fields[key]).toLowerCase() : fields[key];
+        }
+        if (fields.variables !== undefined) {
+          sets.push('variables = @variables');
+          params.variables = JSON.stringify(fields.variables || []);
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE content_templates SET ${sets.join(', ')}, updated_at = @updated_at WHERE id = @id`).run(params);
+        }
+        return this.findById(templateId);
+      },
+      remove(templateId) {
+        sqlite.prepare('DELETE FROM content_templates WHERE id = ?').run(templateId);
+      },
+    },
+
+    // Recorded metric history — what the dashboard sparklines actually plot.
+    metricHistory: {
+      // Idempotent per day: the dashboard is fetched many times a day, and only
+      // the latest reading for a day should survive.
+      record({ profileId, metric, day, value }) {
+        sqlite.prepare(
+          `INSERT INTO metric_history (id, profile_id, metric, day, value, created_at)
+           VALUES (@id, @profile_id, @metric, @day, @value, @created_at)
+           ON CONFLICT(profile_id, metric, day) DO UPDATE SET value = @value, created_at = @created_at`
+        ).run({
+          id: id(), profile_id: profileId, metric, day, value, created_at: now(),
+        });
+      },
+      // Oldest-first so the caller can plot straight through the array.
+      series(profileId, metric, limit = 30) {
+        const rows = sqlite.prepare(
+          'SELECT day, value FROM metric_history WHERE profile_id = ? AND metric = ? ORDER BY day DESC LIMIT ?'
+        ).all(profileId, metric, limit);
+        return rows.reverse().map((r) => ({ day: r.day, value: r.value }));
       },
     },
 
@@ -806,6 +1048,77 @@ module.exports = function createDb(dbPath) {
       },
       revokeAllForUser(userId) {
         sqlite.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?').run(userId);
+      },
+    },
+
+    // --- Autopilot (autonomous marketing agent) ---
+    autonomous: {
+      getConfig(profileId) {
+        return mapAutoConfig(sqlite.prepare('SELECT * FROM autonomous_config WHERE profile_id = ?').get(profileId));
+      },
+      upsertConfig({ profileId, enabled, platforms, frequency, autoPublish, nextRunAt }) {
+        const existing = sqlite.prepare('SELECT id FROM autonomous_config WHERE profile_id = ?').get(profileId);
+        const p = {
+          profile_id: profileId,
+          enabled: enabled ? 1 : 0,
+          platforms: JSON.stringify(Array.isArray(platforms) ? platforms : []),
+          frequency: frequency || 'daily',
+          auto_publish: autoPublish ? 1 : 0,
+          next_run_at: nextRunAt || null,
+          updated_at: now(),
+        };
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE autonomous_config SET enabled=@enabled, platforms=@platforms, frequency=@frequency,
+             auto_publish=@auto_publish, next_run_at=@next_run_at, updated_at=@updated_at WHERE profile_id=@profile_id`
+          ).run(p);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO autonomous_config (id, profile_id, enabled, platforms, frequency, auto_publish, next_run_at, created_at, updated_at)
+             VALUES (@id, @profile_id, @enabled, @platforms, @frequency, @auto_publish, @next_run_at, @created_at, @updated_at)`
+          ).run({ ...p, id: id(), created_at: now() });
+        }
+        return this.getConfig(profileId);
+      },
+      setRun(profileId, { lastRunAt, nextRunAt }) {
+        sqlite.prepare('UPDATE autonomous_config SET last_run_at = ?, next_run_at = ?, updated_at = ? WHERE profile_id = ?')
+          .run(lastRunAt || null, nextRunAt || null, now(), profileId);
+        return this.getConfig(profileId);
+      },
+      // Atomically claim a due run: advances next_run_at ONLY if the profile is
+      // still enabled and due as of `asOfIso`. Returns true when this caller won
+      // the claim (changes === 1), false if another runner already took it or it
+      // isn't due — the guard against concurrent double-runs.
+      claimDue(profileId, asOfIso, nextRunAt) {
+        const info = sqlite.prepare(
+          `UPDATE autonomous_config SET last_run_at = @asOf, next_run_at = @next, updated_at = @asOf
+           WHERE profile_id = @pid AND enabled = 1 AND (next_run_at IS NULL OR next_run_at <= @asOf)`
+        ).run({ pid: profileId, asOf: asOfIso, next: nextRunAt || null });
+        return info.changes === 1;
+      },
+      // Enabled profiles whose next run is due (or never scheduled). The worker's
+      // work queue — mirrors calendar.listDue for scheduled posts.
+      dueProfiles(nowIso) {
+        return sqlite.prepare(
+          `SELECT profile_id FROM autonomous_config
+           WHERE enabled = 1 AND (next_run_at IS NULL OR next_run_at <= ?)`
+        ).all(nowIso).map((r) => r.profile_id);
+      },
+      logActivity({ profileId, kind, summary, payload }) {
+        const row = {
+          id: id(), profile_id: profileId, kind: kind || null,
+          summary: summary == null ? null : String(summary),
+          payload: payload ? JSON.stringify(payload) : null, created_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO autonomous_activity (id, profile_id, kind, summary, payload, created_at)
+           VALUES (@id, @profile_id, @kind, @summary, @payload, @created_at)`
+        ).run(row);
+        return mapAutoActivity(row);
+      },
+      listActivity(profileId, limit = 30) {
+        return sqlite.prepare('SELECT * FROM autonomous_activity WHERE profile_id = ? ORDER BY created_at DESC LIMIT ?')
+          .all(profileId, limit).map(mapAutoActivity);
       },
     },
   };
