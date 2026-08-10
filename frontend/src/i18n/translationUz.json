@@ -16,6 +16,7 @@
     "active": "Faol",
     "scanMyPresence": "Raqamli mavjudligimni skanerlash",
     "save": "Saqlash",
+    "delete": "O'chirish",
     "cancel": "Bekor qilish",
     "submit": "Yuborish",
     "next": "Keyingisi",
@@ -929,6 +930,7 @@
   },
   "templates": {
     "title": "Xabar shablonlari",
+    "yourChannels": "kanallaringiz",
     "subtitle": "{{platform}} da doim yuboradigan xabaringizni joylashtiring — o‘zgaruvchi qismlarni bir necha soniyada to‘ldiriladigan o‘zgaruvchilarga aylantiramiz.",
     "sampleLabel": "Tez-tez yuboradigan xabaringiz",
     "samplePlaceholder": "masalan: Stadion No:141, 9 ta joy qoldi✅",

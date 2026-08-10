@@ -1,18 +1,19 @@
 import { useTranslation } from 'react-i18next';
-import useConnectedPlatforms from '../lib/useConnectedPlatforms';
-import PlatformPicker from './PlatformPicker';
 import TemplateStudio from './TemplateStudio';
 import './CreatePost.css';
 
+// Templates aren't split per channel — one shared library, usable on
+// whichever platform(s) the post ends up going out to.
+const SHARED_PLATFORM_KEY = 'general';
+
 /**
  * Calendar's "Edit Templates" popup — TemplateStudio itself is untouched;
- * this just gives it a channel picker and a home outside the Create Post
- * composer. Using a saved template hands its text/media to the caller, which
- * opens it in Create Post exactly like an approved AI Generation draft does.
+ * this just gives it a home outside the Create Post composer. Using a saved
+ * template hands its text/media to the caller, which opens it in Create Post
+ * exactly like an approved AI Generation draft does.
  */
-export default function TemplatesModal({ activeProfile, initialPlatformKey, onClose, onUseTemplate }) {
+export default function TemplatesModal({ onClose, onUseTemplate }) {
   const { t } = useTranslation();
-  const { catalogue, connectStatus, platformKey, setPlatformKey, platform } = useConnectedPlatforms(activeProfile, initialPlatformKey);
 
   return (
     <div className="auth-overlay animate-fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
@@ -21,21 +22,11 @@ export default function TemplatesModal({ activeProfile, initialPlatformKey, onCl
           <i className="fa-solid fa-xmark"></i>
         </button>
 
-        {catalogue && (
-          <div className="form-group" style={{ marginBottom: 18 }}>
-            <label className="form-label">{t('aiGeneration.channel', 'Channel')}</label>
-            <PlatformPicker catalogue={catalogue} connectStatus={connectStatus} platformKey={platformKey} onSelect={setPlatformKey} />
-          </div>
-        )}
-
-        {platformKey && (
-          <TemplateStudio
-            key={platformKey}
-            platformKey={platformKey}
-            platformLabel={platform?.label || platformKey}
-            onUseTemplate={(text, media) => onUseTemplate?.(text, media, platformKey)}
-          />
-        )}
+        <TemplateStudio
+          platformKey={SHARED_PLATFORM_KEY}
+          platformLabel={t('templates.yourChannels', 'your channels')}
+          onUseTemplate={(text, media) => onUseTemplate?.(text, media)}
+        />
       </div>
     </div>
   );

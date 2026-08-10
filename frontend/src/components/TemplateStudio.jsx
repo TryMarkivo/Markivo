@@ -25,6 +25,16 @@ const renderTemplate = (text, values = {}) =>
 
 const humanize = (key) => String(key || '').replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
+// The saved-template list is a picker, not a reading view — a long template
+// (a whole football schedule, say) only needs enough of a preview to
+// recognise it by. CSS line-clamps the common case (many short lines); this
+// catches the other one (one very long line) so the card never balloons.
+const PREVIEW_MAX_CHARS = 220;
+const previewOf = (text) => {
+  const s = String(text || '');
+  return s.length > PREVIEW_MAX_CHARS ? `${s.slice(0, PREVIEW_MAX_CHARS).trimEnd()}…` : s;
+};
+
 const toKey = (raw, fallback) =>
   String(raw || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 32) || fallback;
 
@@ -177,6 +187,18 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
   const [filling, setFilling] = useState(null);
 
   const editorRef = useRef(null);
+
+  // "Use" opens the fill-in-place editor for that one card; bring it into
+  // view instead of leaving the owner to scroll down and hunt for it,
+  // especially past a long saved template above it.
+  useEffect(() => {
+    if (!filling) return;
+    document.getElementById(`tpl_card_${filling.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Deliberately keyed on the id alone — `filling.values` changes on every
+    // keystroke while filling a variable, and re-scrolling on each one would
+    // fight the owner's typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filling?.id]);
 
   // Bumped after a save/delete to re-run the list fetch below.
   const [reloadToken, setReloadToken] = useState(0);
@@ -566,23 +588,26 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
             const open = filling && filling.id === tpl.id;
             const meta = (key) => (tpl.variables || []).find((v) => v.key === key) || { label: humanize(key), example: '' };
             return (
-              <div key={tpl.id} className="saved-template-card">
-                <div className="flex-between">
-                  <div>
+              <div key={tpl.id} id={`tpl_card_${tpl.id}`} className={`saved-template-card ${open ? 'is-active' : ''}`}>
+                <div className="tpl-card-head">
+                  <div className="tpl-card-text">
                     <strong>{tpl.name || t('templates.untitled', 'Untitled template')}</strong>
                     {tpl.mediaId && (
                       <span className="tpl-media-badge" title={t('templates.hasMedia', 'Has attached media')}>
                         <i className={`fa-solid ${tpl.mediaKind === 'video' ? 'fa-video' : 'fa-image'}`}></i>
                       </span>
                     )}
-                    <p className="template-hint text-muted">{renderTemplate(tpl.templateText, Object.fromEntries((tpl.variables || []).map((v) => [v.key, v.example])))}</p>
+                    <p className="template-hint text-muted tpl-card-preview">
+                      {previewOf(renderTemplate(tpl.templateText, Object.fromEntries((tpl.variables || []).map((v) => [v.key, v.example]))))}
+                    </p>
                   </div>
-                  <div className="flex-gap-8">
+                  <div className="tpl-card-actions">
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => (open ? setFilling(null) : openFill(tpl))}
                       id={`btn_fill_template_${tpl.id}`}
                     >
+                      <i className={`fa-solid ${open ? 'fa-xmark' : 'fa-arrow-right-to-bracket'}`}></i>{' '}
                       {open ? t('common.close', 'Close') : t('templates.useCta', 'Use')}
                     </button>
                     <button
@@ -593,12 +618,13 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
                       <i className="fa-solid fa-pen-to-square"></i> {t('common.edit', 'Edit')}
                     </button>
                     <button
-                      className="btn-close"
+                      className="btn btn-secondary btn-sm tpl-delete-btn"
                       onClick={() => handleDelete(tpl.id)}
                       aria-label={t('templates.deleteTemplate', 'Delete template')}
                       title={t('templates.deleteTemplate', 'Delete template')}
+                      id={`btn_delete_template_${tpl.id}`}
                     >
-                      <i className="fa-solid fa-trash"></i>
+                      <i className="fa-solid fa-trash"></i> {t('common.delete', 'Delete')}
                     </button>
                   </div>
                 </div>

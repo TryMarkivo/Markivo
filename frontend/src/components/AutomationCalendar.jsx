@@ -4,6 +4,7 @@ import api from '../lib/api';
 import CalendarGrid from './CalendarGrid';
 import WeekDayGrid from './WeekDayGrid';
 import PostListView from './PostListView';
+import PostDetailModal from './PostDetailModal';
 import { DAY_MS, monthGrid, weekGrid, startOfDay, ymd } from '../lib/calendar';
 import { chipMetaFor, isEditable, isReadOnly, sourceOf, statusOf, tagOf, toEditable } from '../lib/calendarEvents';
 import './AutomationCalendar.css';
@@ -32,6 +33,8 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
   const [selected, setSelected] = useState(ymd(today));
   const [busyId, setBusyId] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [viewingEvent, setViewingEvent] = useState(null);
+  const [moreDay, setMoreDay] = useState(null); // day key whose overflow ("+N more") popup is open
 
   const refresh = useCallback(() => setReloadToken((n) => n + 1), []);
 
@@ -248,7 +251,20 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
                     const m = chipMetaFor(ev);
                     const hasMedia = !!ev.extendedProperties?.private?.mediaId;
                     return (
-                      <span key={ev.id} className={`cal-chip ${sourceOf(ev)} ${ev.status}`} style={{ '--chip-color': m.color }}>
+                      <span
+                        key={ev.id}
+                        className={`cal-chip ${sourceOf(ev)} ${ev.status}`}
+                        style={{ '--chip-color': m.color }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); setViewingEvent(ev); }}
+                        onKeyDown={(e) => {
+                          if (e.key !== 'Enter' && e.key !== ' ') return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setViewingEvent(ev);
+                        }}
+                      >
                         <i className={m.icon}></i>
                         <span className="cal-chip-text">{ev.description || ev.summary}</span>
                         {hasMedia && <i className="fa-solid fa-image cal-chip-media"></i>}
@@ -256,7 +272,20 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
                     );
                   })}
                   {extra > 0 && (
-                    <span className="cal-more">{t('calendar.showMore', { defaultValue: '+ Show more ({{count}})', count: extra })}</span>
+                    <span
+                      className="cal-more"
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setMoreDay(key); }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setMoreDay(key);
+                      }}
+                    >
+                      {t('calendar.showMore', { defaultValue: '+ Show more ({{count}})', count: extra })}
+                    </span>
                   )}
                 </span>
               );
@@ -319,6 +348,51 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
           onSlotClick={(date) => onCreatePost?.(date)}
           onDropSlot={dropFromDataTransfer}
           onEditEvent={(ev) => onEditEvent?.(toEditable(ev))}
+        />
+      )}
+
+      {moreDay && (
+        <div className="auth-overlay animate-fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) setMoreDay(null); }}>
+          <div className="auth-card glass-card glass-card-glow text-left" role="dialog" aria-modal="true" aria-labelledby="cal_more_title">
+            <div className="auth-header flex-between mb-20">
+              <h3 id="cal_more_title">
+                {new Date(`${moreDay}T00:00:00`).toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'long' })}
+              </h3>
+              <button className="btn-close" onClick={() => setMoreDay(null)} aria-label={t('common.close', 'Close')}>
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <ul className="cal-event-list">
+              {(byDay[moreDay] || []).map((ev) => {
+                const m = chipMetaFor(ev);
+                const time = new Date(ev.start.dateTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <li
+                    key={ev.id}
+                    className={`cal-event ${sourceOf(ev)} is-clickable`}
+                    onClick={() => { setMoreDay(null); setViewingEvent(ev); }}
+                  >
+                    <span className="cal-event-time">{time}</span>
+                    <div className="cal-event-body">
+                      <strong><i className={m.icon} style={{ color: m.color }}></i> {ev.summary}</strong>
+                      {ev.description && <p className="cal-event-desc">{ev.description}</p>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {viewingEvent && (
+        <PostDetailModal
+          key={viewingEvent.id}
+          event={viewingEvent}
+          busy={busyId === viewingEvent.id}
+          onClose={() => setViewingEvent(null)}
+          onEdit={onEditEvent ? (editable) => { setViewingEvent(null); onEditEvent(editable); } : undefined}
+          onCancel={(ev) => { setViewingEvent(null); cancelEvent(ev); }}
         />
       )}
     </div>

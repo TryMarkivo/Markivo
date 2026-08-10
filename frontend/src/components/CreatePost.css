@@ -4,6 +4,7 @@
   max-width: 960px;
   width: 100%;
   max-height: 88vh;
+  padding: 32px;
   display: flex;
   flex-direction: column;
 }

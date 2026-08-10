@@ -214,10 +214,65 @@
   border-radius: var(--radius-sm);
   background: var(--surface-1);
   margin-bottom: 10px;
+  scroll-margin: 16px;
+  transition: var(--transition-fast);
+}
+
+/* The card currently open for "Use" — so it's obvious at a glance which
+   template the fill-in-place editor below belongs to. */
+.saved-template-card.is-active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--surface-1));
+  box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .saved-template-card .template-hint {
   word-break: break-word;
+}
+
+/* Header row: text on the left, action buttons pinned to the top-right —
+   `flex-start` (not `center`) so a long preview never pushes the buttons
+   down or wraps them into a stack. */
+.tpl-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.tpl-card-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A saved message can be several lines and hundreds of characters (a whole
+   schedule, say) — this is a picker, not a reading view, so line breaks are
+   kept (unlike default inline collapsing) but capped at 3 lines. */
+.tpl-card-preview {
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Same-sized icon+label buttons every time, never icon-only or text-only,
+   and never reflowing under the text column. */
+.tpl-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tpl-card-actions .btn {
+  white-space: nowrap;
+  justify-content: flex-start;
+}
+
+.tpl-delete-btn:hover {
+  color: var(--accent-danger, #e5484d);
+  border-color: var(--accent-danger, #e5484d);
 }
 
 .template-fill {

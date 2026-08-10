@@ -1,44 +1,27 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import useConnectedPlatforms from '../lib/useConnectedPlatforms';
-import { metaFor } from '../lib/platforms';
-import PlatformPicker from './PlatformPicker';
 import './AIGenerationModal.css';
-
-const LANGUAGES = [
-  { code: 'uz', flag: '🇺🇿', label: 'Uzbek' },
-  { code: 'ru', flag: '🇷🇺', label: 'Russian' },
-  { code: 'en', flag: '🇬🇧', label: 'English' },
-];
 
 /**
  * Calendar's "AI Generation" popup — text only, no media/scheduling. Writes a
  * draft from a topic, then lets the owner keep asking for changes ("shorter",
  * "add more emojis") before approving it into the Create Post composer.
+ *
+ * No channel picker: the same draft works for every channel, and which
+ * channel(s) to post it to is picked in Create Post afterwards. No language
+ * picker either — the draft comes back in whatever language the topic itself
+ * was written in.
  */
 export default function AIGenerationModal({ activeProfile, onClose, onApprove }) {
   const { t } = useTranslation();
-  const { catalogue, connectStatus, platformKey, setPlatformKey } = useConnectedPlatforms(activeProfile);
-  // The name /api/content/copywrite speaks ('instagram', 'facebook', …), not
-  // the connector catalogue's key ('meta_instagram', 'meta_facebook', …).
-  const generationKey = platformKey ? metaFor(platformKey).generationKey : 'instagram';
 
   const [topic, setTopic] = useState('');
-  const [langs, setLangs] = useState(['en']);
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState(null); // generated/revised draft, editable
   const [feedback, setFeedback] = useState('');
   const [revising, setRevising] = useState(false);
   const [error, setError] = useState('');
-
-  const toggleLang = (code) => {
-    setLangs((current) => {
-      if (!current.includes(code)) return [...current, code];
-      if (current.length === 1) return current;
-      return current.filter((c) => c !== code);
-    });
-  };
 
   const generate = async (e) => {
     e.preventDefault();
@@ -47,9 +30,7 @@ export default function AIGenerationModal({ activeProfile, onClose, onApprove })
     setError('');
     try {
       const data = await api.post('/api/content/copywrite', {
-        platform: generationKey,
         topic,
-        languages: langs,
         tone: activeProfile.brandTone || activeProfile.tone,
         businessName: activeProfile.businessName,
       });
@@ -66,9 +47,7 @@ export default function AIGenerationModal({ activeProfile, onClose, onApprove })
     setError('');
     try {
       const data = await api.post('/api/content/copywrite', {
-        platform: generationKey,
         topic,
-        languages: langs,
         tone: activeProfile.brandTone || activeProfile.tone,
         businessName: activeProfile.businessName,
         previousText: text,
@@ -100,39 +79,8 @@ export default function AIGenerationModal({ activeProfile, onClose, onApprove })
 
         {error && <div className="auth-error-box mb-20" role="alert">{error}</div>}
 
-        {catalogue && (
-          <div className="form-group">
-            <label className="form-label">{t('aiGeneration.channel', 'Channel')}</label>
-            <PlatformPicker catalogue={catalogue} connectStatus={connectStatus} platformKey={platformKey} onSelect={setPlatformKey} />
-          </div>
-        )}
-
         {text == null ? (
           <form onSubmit={generate}>
-            <div className="form-group">
-              <label className="form-label">{t('content.copywriter.languageLabel', 'Post Language')}</label>
-              <div className="lang-chip-row">
-                {LANGUAGES.map((lang) => {
-                  const position = langs.indexOf(lang.code);
-                  const selected = position !== -1;
-                  return (
-                    <button
-                      key={lang.code}
-                      type="button"
-                      className={`lang-chip ${selected ? 'active' : ''}`}
-                      onClick={() => toggleLang(lang.code)}
-                      aria-pressed={selected}
-                      id={`btn_aig_lang_${lang.code}`}
-                    >
-                      {selected && <span className="lang-chip-order">{position + 1}</span>}
-                      <span className="lang-chip-flag">{lang.flag}</span>
-                      <span>{t(`content.copywriter.lang.${lang.code}`, lang.label)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <div className="form-group">
               <label className="form-label" htmlFor="inp_aig_topic">{t('content.copywriter.topicLabel', 'What is the focus of this post?')}</label>
               <textarea
@@ -188,7 +136,7 @@ export default function AIGenerationModal({ activeProfile, onClose, onApprove })
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => onApprove?.(text, platformKey)}
+                onClick={() => onApprove?.(text)}
                 disabled={!text.trim()}
                 id="btn_aig_approve"
               >
