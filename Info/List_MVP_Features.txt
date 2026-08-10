@@ -1,0 +1,7 @@
+MVP features:
+On boarding and internet search:
+Google - Account/Business/Maps/search engine
+Telegram - Bot that manages your channel
+Meta developer API - Instagram, Facebook, Whatsapp, threads
+TikTok
+AI content generator - Posts/Pictures/Videos

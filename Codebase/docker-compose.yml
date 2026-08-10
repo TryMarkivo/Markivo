@@ -1,0 +1,88 @@
+services:
+  backend:
+    build: ./backend
+    image: markivo-backend
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      # REQUIRED — config.js refuses to boot in production without it.
+      # Generate: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+      JWT_SECRET: ${JWT_SECRET:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      # Persistent SQLite + uploaded media live on the named volumes below.
+      DB_PATH: /app/database/markivo.db
+      # The frontend nginx container proxies /api and /uploads to this service,
+      # so Express must trust X-Forwarded-* for correct rate-limiter client IPs.
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      # Public URL of the app (Stripe checkout redirects, links in messages).
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      # --- Integrations (all optional; features fall back gracefully) ---
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Model overrides (config defaults: haiku for content, opus for the agent).
+      AI_CONTENT_MODEL: ${AI_CONTENT_MODEL:-}
+      AI_AGENT_MODEL: ${AI_AGENT_MODEL:-}
+      # Gemini is the primary text engine when set (post copy + message
+      # templates); blank falls back to Anthropic, then to offline templates.
+      # This list is explicit, so a key missing HERE never reaches the container
+      # no matter what .env says.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_TEXT_MODEL: ${GEMINI_TEXT_MODEL:-}
+      GEMINI_TIMEOUT_MS: ${GEMINI_TIMEOUT_MS:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}
+      MEDIA_API_KEY: ${MEDIA_API_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Monthly subscription prices in USD (billing config defaults: 20 / 50).
+      TIER_PRICE_PRO: ${TIER_PRICE_PRO:-}
+      TIER_PRICE_ULTIMATE: ${TIER_PRICE_ULTIMATE:-}
+      # --- Instagram (Instagram Login) — connect goes live only when both the
+      # app id and secret are set. INSTAGRAM_REDIRECT_URI must match the redirect
+      # registered in the Instagram business-login settings byte-for-byte.
+      INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID:-}
+      INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:-}
+      INSTAGRAM_REDIRECT_URI: ${INSTAGRAM_REDIRECT_URI:-}
+      # Public https base URL of this API — Instagram fetches post images
+      # server-side, so this must be publicly reachable (never localhost) for
+      # publishing to work. Defaults to the redirect URI's origin if unset.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+    volumes:
+      - markivo-db:/app/database
+      - markivo-uploads:/app/uploads
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - require('http').get('http://127.0.0.1:'+(process.env.PORT||5000)+'/api/health',function(r){process.exit(r.statusCode===200?0:1)}).on('error',function(){process.exit(1)})
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # "/" bakes a same-origin API base — the nginx container proxies
+        # /api and /uploads to the backend, so no CORS and no exposed port
+        # needed for browsers. For a split deploy (separate API domain), set
+        # VITE_API_URL to the public API URL and CORS_ORIGIN to match.
+        VITE_API_URL: ${VITE_API_URL:-/}
+        # Blank = single-origin routing (default). Set to trymarkivo.com to
+        # split landing/login/app onto their own subdomains (see DEPLOY.md).
+        VITE_ROOT_DOMAIN: ${VITE_ROOT_DOMAIN:-}
+    image: markivo-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  markivo-db:
+  markivo-uploads:

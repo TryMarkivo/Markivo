@@ -1,0 +1,134 @@
+/* Brand Identity panel — mirrors the dashboard's glass-card aesthetic and
+   uses the shared theme tokens so it follows light/dark + accent theming. */
+
+.brand-panel { position: relative; }
+
+.brand-loading { padding: 60px 0; }
+
+.brand-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.brand-title { margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+.brand-head .panel-subtitle { margin: 0; max-width: 640px; }
+
+.brand-error {
+  background: color-mix(in srgb, var(--accent-danger, #c2543a) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-danger, #c2543a) 40%, transparent);
+  color: var(--accent-danger, #c2543a);
+  padding: 10px 14px; border-radius: 10px; margin-bottom: 16px;
+}
+
+.brand-empty {
+  text-align: center;
+  padding: 48px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.brand-empty p { max-width: 520px; color: var(--text-muted); }
+
+/* Brief grid */
+.brand-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.brand-span-2 { grid-column: 1 / -1; }
+
+.brand-card { padding: 20px 22px; }
+.brand-card-title {
+  margin: 0 0 12px;
+  font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.brand-lead { font-size: 1.08rem; font-weight: 600; margin: 0 0 8px; line-height: 1.4; }
+.brand-pitch {
+  margin-top: 12px; padding: 10px 14px;
+  border-left: 3px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  border-radius: 0 8px 8px 0; font-style: italic;
+}
+.brand-archetype { font-weight: 600; margin: 0 0 10px; }
+
+.brand-list { margin: 0; padding-left: 18px; }
+.brand-list li { margin-bottom: 6px; line-height: 1.45; }
+.brand-list.small li { font-size: 0.9rem; margin-bottom: 3px; }
+
+.brand-dodont { margin-top: 10px; }
+.brand-do b { color: var(--accent-success, #3fa34d); }
+.brand-dont b { color: var(--accent-danger, #c2543a); }
+
+.brand-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; }
+.brand-chip {
+  display: inline-block;
+  padding: 4px 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
+  color: var(--text-primary); font-size: 0.85rem; font-weight: 500;
+}
+.brand-chip.subtle {
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  border-color: color-mix(in srgb, var(--text-muted) 24%, transparent);
+  color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+.brand-persona-name { font-weight: 700; font-size: 1.05rem; margin: 0 0 4px; }
+
+.brand-pillars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.brand-pillar {
+  padding: 12px 14px; border-radius: 10px;
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 16%, transparent);
+}
+.brand-pillar-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+
+.brand-swatches { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.brand-swatch { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.brand-swatch-dot {
+  width: 26px; height: 26px; border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.brand-swatch-label { color: var(--text-muted); }
+.brand-taglines { margin-top: 14px; }
+
+/* Facts editor */
+.brand-facts { margin-top: 4px; }
+.brand-facts-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px; margin-top: 12px;
+}
+.brand-field { display: flex; flex-direction: column; gap: 5px; }
+.brand-field-wide { grid-column: 1 / -1; }
+.brand-field span { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+.brand-field input {
+  padding: 9px 12px; border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--text-muted) 28%, transparent);
+  background: var(--bg-input, color-mix(in srgb, var(--text-muted) 6%, transparent));
+  color: var(--text-primary); font: inherit; font-size: 0.92rem;
+}
+.brand-field input:focus {
+  outline: none; border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+.brand-offer {
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px dashed color-mix(in srgb, var(--text-muted) 26%, transparent);
+}
+.brand-offer-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+
+.brand-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--accent-success, #3fa34d); color: #fff;
+  padding: 11px 18px; border-radius: 10px; font-weight: 500;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3); z-index: 1200;
+  display: flex; align-items: center; gap: 8px; max-width: 90vw;
+}
+
+@media (max-width: 900px) {
+  .brand-grid, .brand-pillars, .brand-facts-grid { grid-template-columns: 1fr; }
+}

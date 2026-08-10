@@ -1,0 +1,209 @@
+require('dotenv').config();
+const crypto = require('crypto');
+const path = require('path');
+
+const isProd = process.env.NODE_ENV === 'production';
+
+// --- JWT SECRET ---
+// Production: a real secret is mandatory. Development: fall back to a stable
+// dev secret so local sessions survive restarts, but warn loudly.
+let jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  if (isProd) {
+    throw new Error(
+      'FATAL: JWT_SECRET environment variable is required in production. ' +
+      'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"'
+    );
+  }
+  jwtSecret = 'markivo_dev_only_insecure_secret_do_not_use_in_prod';
+  console.warn(
+    '⚠️  JWT_SECRET is not set — using an insecure development default. ' +
+    'Set JWT_SECRET in backend/.env before deploying.'
+  );
+}
+
+// CORS origins: comma-separated list, or "*" to allow all (dev default).
+const corsOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const config = {
+  isProd,
+  port: parseInt(process.env.PORT, 10) || 5000,
+  // Behind a reverse proxy (nginx container, Railway/Render edge) Express must
+  // trust X-Forwarded-* or the per-IP rate limiters key on the proxy's IP.
+  trustProxy: process.env.TRUST_PROXY === 'true',
+  jwtSecret,
+  // Short-lived access token, long-lived refresh token.
+  accessTokenTtl: process.env.ACCESS_TOKEN_TTL || '1h',
+  refreshTokenTtlDays: parseInt(process.env.REFRESH_TOKEN_TTL_DAYS, 10) || 30,
+  corsOrigins,
+  dbPath: process.env.DB_PATH || path.join(__dirname, 'database', 'markivo.db'),
+  // Per-IP auth rate limit (requests per window).
+  authRateLimit: parseInt(process.env.AUTH_RATE_LIMIT, 10) || 30,
+  authRateWindowMs: (parseInt(process.env.AUTH_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
+
+  // --- AI (Anthropic) ---
+  // When ANTHROPIC_API_KEY is unset, the AI layer transparently falls back to
+  // smart templates, so the app keeps working without a key.
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+  // Cheap, fast model for high-volume content; capable model for the agent.
+  aiContentModel: process.env.AI_CONTENT_MODEL || 'claude-haiku-4-5',
+  aiAgentModel: process.env.AI_AGENT_MODEL || 'claude-opus-4-8',
+  // Capable model for the multi-step marketing pipeline (strategy + critique +
+  // brand-brief synthesis). Falls back to the content model if unset.
+  aiPipelineModel: process.env.AI_PIPELINE_MODEL || process.env.AI_AGENT_MODEL || 'claude-opus-4-8',
+
+  // --- Gemini (Google) — second model for grounded research/trends ---
+  // Keyless mode: the Gemini provider transparently no-ops (callers fall back to
+  // Claude or templates), so the app and tests run with zero Gemini config.
+  // Flip live by setting GEMINI_API_KEY. Claude = strategy/voice/copy/critique;
+  // Gemini = local-market research, trends, seasonal hooks feeding the strategy step.
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+
+  // --- AI (Google Gemini) — social copy + message templates ---
+  // Gemini is the PREFERRED engine for social post copy and for turning a real
+  // message an owner sends ("Stadium No:141, 9 spots left ✅") into a reusable
+  // template with editable variables. When GEMINI_API_KEY is unset the copy
+  // path falls through to Anthropic and then to the smart templates, and the
+  // template path falls back to the deterministic heuristic parser in
+  // gemini.js — so a blank key never breaks the app or the tests.
+  // Key: https://aistudio.google.com/apikey
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  // `gemini-flash-latest` is an alias that tracks the current Flash model, and
+  // it carries its own free-tier quota bucket — the pinned `gemini-2.5-flash`
+  // name is far more likely to be exhausted on a free project.
+  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-flash-latest',
+  geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 20000,
+
+  // Monthly AI generation allowance per pricing tier (content + slogans +
+  // agent queries all count). Numbers are provisional until pricing is final.
+  aiTierLimits: {
+    freemium: parseInt(process.env.AI_LIMIT_FREEMIUM, 10) || 25,
+    pro: parseInt(process.env.AI_LIMIT_PRO, 10) || 100,
+    ultimate: parseInt(process.env.AI_LIMIT_ULTIMATE, 10) || 250,
+  },
+
+  // --- Billing (Stripe now; Payme/Click slot in after merchant onboarding) ---
+  // When STRIPE_SECRET_KEY is unset, billing runs in SIMULATED mode: tier
+  // changes apply instantly with no payment, so the upgrade flow stays
+  // testable offline (mirrors the keyless AI/Places fallbacks).
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+  // Frontend origin for checkout success/cancel redirects.
+  appUrl: process.env.APP_URL || 'http://localhost:5173',
+  // Monthly subscription prices in USD — provisional until pricing is final.
+  tierPrices: {
+    pro: parseInt(process.env.TIER_PRICE_PRO, 10) || 20,
+    ultimate: parseInt(process.env.TIER_PRICE_ULTIMATE, 10) || 50,
+  },
+
+  // --- Feature flags ---
+  // Telegram is fully built (backend/telegram.js + TelegramConnect UI) but
+  // de-scoped from the MVP (decision 2026-06-10). Default OFF: routes answer
+  // 503 "coming soon" and the dashboard shows a Coming-soon pill. Flip to
+  // re-enable end-to-end — no code changes needed.
+  telegramEnabled: process.env.TELEGRAM_ENABLED === 'true',
+
+  // --- Autopilot (autonomous marketing agent) ---
+  // Per-business opt-in agent that analyzes the profile and auto-generates +
+  // publishes ORGANIC promotional posts on a cadence. Default ON = the
+  // capability exists (owners still enable it per business). Set
+  // AUTONOMOUS_ENABLED=false to disable the feature and its background worker.
+  // SAFETY: Autopilot never runs paid ad campaigns — money spend always stays
+  // behind the deterministic human approval gate.
+  autonomousEnabled: process.env.AUTONOMOUS_ENABLED !== 'false',
+  // How often the background worker scans for due Autopilot profiles (minutes).
+  autonomousTickMs: (parseInt(process.env.AUTONOMOUS_TICK_MIN, 10) || 10) * 60 * 1000,
+
+  // --- Google Places (Discovery scan) ---
+  // When GOOGLE_MAPS_API_KEY is unset, the discovery scan transparently falls
+  // back to deterministic mock results, so the app keeps working without it.
+  // --- Media generation (fal.ai FLUX) ---
+  // Keyless mode: POST /api/media/:id/render answers 501 "Media engine
+  // pending" — briefs, uploads, and edit plans keep working without it.
+  mediaApiKey: process.env.MEDIA_API_KEY || '',
+
+  placesApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
+  placesTimeoutMs: parseInt(process.env.PLACES_TIMEOUT_MS, 10) || 8000,
+  // Per-IP scan rate limit — live scans cost real Places API quota.
+  scanRateLimit: parseInt(process.env.SCAN_RATE_LIMIT, 10) || 10,
+  scanRateWindowMs: (parseInt(process.env.SCAN_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
+
+  // --- Instagram (Instagram API with Instagram Login) — "Connect Instagram" ---
+  // Uses the Instagram **Business Login** flow (instagram.com auth →
+  // api.instagram.com / graph.instagram.com), NOT Facebook Login. Credentials
+  // are the INSTAGRAM app ID/secret (found under the app's Instagram product →
+  // API setup with Instagram login) — distinct from the Facebook app's. When
+  // unset the connect routes answer 503 "coming soon" (instagramEnabled ===
+  // false). INSTAGRAM_REDIRECT_URI must match the redirect registered in the
+  // Instagram business-login settings byte-for-byte, and is reused unchanged in
+  // the token exchange.
+  instagramAppId: process.env.INSTAGRAM_APP_ID || '',
+  instagramAppSecret: process.env.INSTAGRAM_APP_SECRET || '',
+  instagramRedirectUri:
+    process.env.INSTAGRAM_REDIRECT_URI ||
+    process.env.META_REDIRECT_URI ||
+    'http://localhost:5000/api/instagram/oauth/callback',
+  instagramScopes: 'instagram_business_basic,instagram_business_content_publish',
+
+  // --- Platform connector framework (connectors/*) ---
+  // Meta (Facebook/Instagram), TikTok, and Google (Google Business/YouTube)
+  // OAuth adapters. Each platform goes LIVE only when its client credentials
+  // are present; otherwise isLive() is false and the adapter runs in sandbox
+  // mode (simulated publishes) — so Autopilot and the agent work fully keyless.
+  // `redirectBase` is the public origin the /api/connect/* callbacks live under.
+  // `enabled` flags are computed below from the credentials.
+  connectors: {
+    redirectBase:
+      process.env.CONNECTORS_REDIRECT_BASE ||
+      process.env.PUBLIC_BASE_URL ||
+      'http://localhost:5000',
+    meta: {
+      clientId: process.env.META_CLIENT_ID || '',
+      clientSecret: process.env.META_CLIENT_SECRET || '',
+      enabled: false,
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      enabled: false,
+    },
+    tiktok: {
+      clientKey: process.env.TIKTOK_CLIENT_KEY || '',
+      clientSecret: process.env.TIKTOK_CLIENT_SECRET || '',
+      enabled: false,
+    },
+  },
+};
+
+// A connector is live only when BOTH halves of its OAuth client are configured.
+// Until then the adapter stays in sandbox mode (simulated publishing).
+config.connectors.meta.enabled = !!(config.connectors.meta.clientId && config.connectors.meta.clientSecret);
+config.connectors.google.enabled = !!(config.connectors.google.clientId && config.connectors.google.clientSecret);
+config.connectors.tiktok.enabled = !!(config.connectors.tiktok.clientKey && config.connectors.tiktok.clientSecret);
+
+config.geminiEnabled = !!config.geminiApiKey;
+// "AI is on" means at least one text engine is reachable. aiEnabled stays tied
+// to Anthropic because ai.js builds its Anthropic client (and the agent's tool
+// loop) off it; geminiEnabled gates the Gemini copy + template paths.
+config.aiEnabled = !!config.anthropicApiKey;
+config.textEngine = config.geminiEnabled ? 'gemini' : (config.aiEnabled ? 'anthropic' : 'template');
+// Instagram connect goes live only when both Instagram app credentials are set.
+config.instagramEnabled = !!(config.instagramAppId && config.instagramAppSecret);
+
+// Public base URL for assets Instagram must fetch (image_url for publishing) and
+// other outward links. Instagram fetches images server-side, so localhost is not
+// reachable — in dev this is the tunnel host (derived from the redirect URI's
+// origin); set PUBLIC_BASE_URL explicitly in production.
+config.publicBaseUrl = process.env.PUBLIC_BASE_URL || (() => {
+  try { return new URL(config.instagramRedirectUri).origin; } catch { return ''; }
+})();
+
+// Convenience helpers used by the auth layer.
+config.newRefreshToken = () => crypto.randomBytes(32).toString('hex');
+config.hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+module.exports = config;
