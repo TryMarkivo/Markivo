@@ -285,7 +285,17 @@ function normalizeLanguages(languages) {
   return langs.length ? langs : ['en'];
 }
 
+// No explicit language list (the AI Generation popup has no language picker
+// anymore) means "write it back in whatever language the topic itself was
+// written in" rather than silently forcing English.
 function langInstructionFor(languages) {
+  if (languages == null) {
+    return (
+      'Detect the language the "Post topic" below is written in, and write the ' +
+      'ENTIRE post in that same language. If the topic is empty or its language ' +
+      'is unclear, default to English.'
+    );
+  }
   const langs = normalizeLanguages(languages);
   if (langs.length === 1) return `Write the post in ${LANG_NAMES[langs[0]]} only.`;
   return (
@@ -294,6 +304,18 @@ function langInstructionFor(languages) {
     'Separate the language blocks with a blank line so they are easy to read in a single message. ' +
     'Do not reorder the languages and do not add any language that is not listed.'
   );
+}
+
+// Keyless best-effort script/keyword sniff for the offline template fallback,
+// which has no model in the loop to actually understand the topic. Cyrillic
+// script is a solid signal for Russian; a handful of common Uzbek function
+// words (and the oʻ/gʻ apostrophe letters) catch Uzbek written in Latin
+// script. Anything else defaults to English.
+function detectLanguage(text) {
+  const s = String(text || '');
+  if (/[Ѐ-ӿ]/.test(s)) return 'ru';
+  if (/[ʻʼ‘’']/.test(s) || /\b(va|uchun|bilan|bugun|hafta|bo'lgan)\b/i.test(s)) return 'uz';
+  return 'en';
 }
 
 // Social post copy. Returns null (never throws) when Gemini is unavailable or
@@ -535,6 +557,7 @@ module.exports = {
   // Deterministic helpers — used by the routes and exercised directly by tests.
   normalizeLanguages,
   langInstructionFor,
+  detectLanguage,
   heuristicTemplate,
   extractVariables,
   reconcileVariables,

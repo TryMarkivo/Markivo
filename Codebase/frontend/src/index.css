@@ -35,7 +35,7 @@
   --input-bg: rgba(0, 0, 0, 0.3);
   --input-bg-focus: rgba(0, 0, 0, 0.5);
   --overlay-bg: rgba(0, 0, 0, 0.7);
-  --modal-bg: rgba(19, 16, 22, 0.85);
+  --modal-bg: rgb(19, 16, 22);
   --text-on-accent: #08060a;
   --heading-gradient-from: #ffffff;
   --scrollbar-thumb: rgba(255, 255, 255, 0.1);
@@ -75,7 +75,7 @@
   --input-bg: rgba(24, 18, 12, 0.045);
   --input-bg-focus: #ffffff;
   --overlay-bg: rgba(30, 24, 18, 0.45);
-  --modal-bg: rgba(255, 255, 255, 0.94);
+  --modal-bg: rgb(255, 255, 255);
   --heading-gradient-from: #181511;
   --scrollbar-thumb: rgba(24, 18, 12, 0.16);
 
@@ -449,6 +449,16 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Every popup window is the overlay's direct child card, whatever mix of
+   card classes it otherwise uses (.auth-card, .glass-card, or a bespoke
+   modal class with no background of its own) — force them all to a solid
+   surface here rather than the glassmorphism ".glass-card" is see-through
+   by design for. Higher specificity than a single class so it wins without
+   having to touch every modal component. */
+.auth-overlay > div {
+  background: var(--modal-bg);
 }
 
 .auth-card {

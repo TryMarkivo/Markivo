@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import { metaFor, catalogueKeyFor } from '../lib/platforms';
+import { metaFor } from '../lib/platforms';
 import { limitFor } from '../lib/platformLimits';
 import MediaLibraryPicker from './MediaLibraryPicker';
 import TemplatesModal from './TemplatesModal';
@@ -36,7 +36,7 @@ const newExtraPost = () => ({ id: `extra_${Date.now()}_${Math.random().toString(
  * or /api/content/post-now call — mirrors PublishModal's per-platform-call
  * pattern, just with a richer single-screen layout and per-platform overrides.
  */
-export default function CreatePost({ activeProfile, onClose, onScheduled, onGoToConnections, initialWhen, initialText, initialPlatform, initialMedia, editEvent }) {
+export default function CreatePost({ onClose, onScheduled, onGoToConnections, initialWhen, initialText, initialPlatform, initialMedia, editEvent }) {
   const { t } = useTranslation();
   const textareaRef = useRef(null);
   const emojiWrapRef = useRef(null);
@@ -221,12 +221,6 @@ export default function CreatePost({ activeProfile, onClose, onScheduled, onGoTo
   const removeExtraPost = (id) => setExtraPosts((p) => p.filter((x) => x.id !== id));
 
   const activeChannel = activeEditor === 'global' ? null : channels.find((c) => c.key === activeEditor);
-  // Templates are saved per platform — browsing from a specific channel tab
-  // shows that channel's templates; browsing from Global Edit still works,
-  // defaulting to the first selected channel (or editEvent's own channel).
-  const templatesInitialKey = activeEditor !== 'global'
-    ? catalogueKeyFor(activeEditor)
-    : catalogueKeyFor((editEvent ? editEvent.platform : selected[0]) || 'meta_instagram');
   const activeValue = activeEditor === 'global' ? globalText : effectiveFor(activeEditor).text;
   const activeMedia = activeEditor === 'global' ? globalMedia : effectiveFor(activeEditor).media;
   // Editing globally, the binding constraint is the tightest limit among
@@ -732,8 +726,6 @@ export default function CreatePost({ activeProfile, onClose, onScheduled, onGoTo
 
       {templatesOpen && (
         <TemplatesModal
-          activeProfile={activeProfile}
-          initialPlatformKey={templatesInitialKey}
           onClose={() => setTemplatesOpen(false)}
           onUseTemplate={(text, media) => {
             setActiveText(text);

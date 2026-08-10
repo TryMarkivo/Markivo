@@ -16,6 +16,7 @@
     "active": "Active",
     "scanMyPresence": "Scan My Digital Presence",
     "save": "Save",
+    "delete": "Delete",
     "cancel": "Cancel",
     "submit": "Submit",
     "next": "Next",
@@ -975,6 +976,7 @@
   },
   "templates": {
     "title": "Message Templates",
+    "yourChannels": "your channels",
     "subtitle": "Paste a message you already send on {{platform}} — we turn the changing parts into variables you can refill in seconds.",
     "sampleLabel": "A message you send often",
     "samplePlaceholder": "e.g. Stadium No:141, 9 spots left✅",
@@ -1081,6 +1083,9 @@
       "emptyDraft": "No draft posts",
       "emptyPublished": "No published posts",
       "page": "Page {{page}} of {{count}}"
+    },
+    "detail": {
+      "autopilot": "Autopilot"
     }
   },
   "createPost": {

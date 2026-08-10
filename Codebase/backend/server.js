@@ -506,7 +506,10 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async 
   const result = await ai.generateContent({
     platform,
     topic,
-    languages: Array.isArray(languages) ? languages : ['en'],
+    // No language list (the AI Generation popup no longer offers one) means
+    // "write it back in whatever language the topic is written in" — leaving
+    // this undefined is what triggers that auto-detect path downstream.
+    languages: Array.isArray(languages) && languages.length ? languages : undefined,
     businessName: req.body.businessName || profile?.businessName,
     category: profile?.category,
     description: profile?.description,

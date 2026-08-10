@@ -122,6 +122,8 @@
 
 .cal-day {
   min-height: 92px;
+  min-width: 0;
+  overflow: hidden;
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -195,6 +197,13 @@
   font-weight: 600;
   min-width: 0;
   max-width: 100%;
+  cursor: pointer;
+}
+
+.cal-chip:hover,
+.cal-chip:focus-visible {
+  background: color-mix(in srgb, var(--chip-color, var(--accent-primary)) 30%, transparent);
+  outline: none;
 }
 
 .cal-chip.cancelled {
@@ -219,6 +228,14 @@
   font-size: 0.62rem;
   color: var(--text-muted);
   padding: 1px 5px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cal-more:hover,
+.cal-more:focus-visible {
+  color: var(--accent-primary);
+  outline: none;
 }
 
 /* Day agenda */
@@ -600,6 +617,46 @@
   color: var(--text-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================
+   Post detail popup (PostDetailModal.jsx)
+   ========================================== */
+.post-detail-card {
+  max-width: 480px;
+  width: 100%;
+}
+
+.post-detail-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.post-detail-time {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.post-detail-media {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  margin: 0 auto 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+}
+
+.post-detail-text {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+  margin: 0;
 }
 
 @media (max-width: 700px) {

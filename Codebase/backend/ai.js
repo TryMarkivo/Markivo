@@ -32,7 +32,10 @@ function templateContent({ platform, topic, businessName, category, description,
   if (previousText && feedback) return { post: previousText, mediaTip: '', hashtags: [] };
 
   const name = businessName || 'Our Spot';
-  const langs = gemini.normalizeLanguages(languages);
+  // No explicit selection (the language picker is gone) means "match the
+  // topic's own language" — the offline engine has no model to read the
+  // topic with, so it falls back to a Cyrillic/keyword sniff instead.
+  const langs = languages == null ? [gemini.detectLanguage(topic)] : gemini.normalizeLanguages(languages);
 
   // No topic? Lead with the owner's own business description so the fallback
   // is personalised to ANY business, not a generic (or cafe-flavoured) line.
