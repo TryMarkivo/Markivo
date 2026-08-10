@@ -83,7 +83,74 @@ docker compose up -d --build
   provisions certificates automatically. Keep `TRUST_PROXY=true` (default).
 - Data persists in the `markivo-db` and `markivo-uploads` named volumes.
 
+## Variant C.1 — GCP Compute Engine (this project's setup)
+
+The repo already ships the exact stack this variant needs: `docker-compose.yml`
++ `docker-compose.prod.yml` (adds Caddy for automatic HTTPS) + `Caddyfile`
+(pre-configured for `trymarkivo.com`, `www.`, `login.`, `app.`) +
+`deploy/gcp-bootstrap.sh`. Everything — frontend, backend, and TLS — runs on
+one Compute Engine VM.
+
+```sh
+# 1. Reserve a static external IP and create the VM (adjust project/zone).
+gcloud compute addresses create markivo-ip --region=us-central1
+gcloud compute addresses describe markivo-ip --region=us-central1 --format='get(address)'
+# -> point every A record on Namecheap (@, www, login, app) at this IP.
+
+gcloud compute instances create markivo-vm \
+  --zone=us-central1-a \
+  --machine-type=e2-small \
+  --image-family=ubuntu-2204-lts --image-project=ubuntu-os-cloud \
+  --address=markivo-ip \
+  --tags=http-server,https-server
+
+# 2. Open the firewall (GCP blocks inbound by default — this is a VPC rule,
+#    not something you can set from inside the VM).
+gcloud compute firewall-rules create markivo-allow-web \
+  --allow=tcp:80,tcp:443 \
+  --target-tags=http-server,https-server \
+  --direction=INGRESS
+
+# 3. SSH in, bootstrap Docker, clone the repo.
+gcloud compute ssh markivo-vm --zone=us-central1-a
+#   bash <(curl -fsSL https://raw.githubusercontent.com/<you>/Markivo/main/deploy/gcp-bootstrap.sh)
+#   git clone <your-repo-url> && cd Markivo/Codebase
+
+# 4. Secrets — next to docker-compose.yml on the VM:
+cat > .env <<'EOF'
+JWT_SECRET=<generated>
+APP_URL=https://trymarkivo.com
+CORS_ORIGIN=https://trymarkivo.com,https://www.trymarkivo.com,https://login.trymarkivo.com,https://app.trymarkivo.com
+VITE_ROOT_DOMAIN=trymarkivo.com
+ANTHROPIC_API_KEY=...
+GEMINI_API_KEY=...
+GOOGLE_MAPS_API_KEY=...
+STRIPE_SECRET_KEY=...
+STRIPE_WEBHOOK_SECRET=...
+INSTAGRAM_APP_ID=...
+INSTAGRAM_APP_SECRET=...
+INSTAGRAM_REDIRECT_URI=https://trymarkivo.com/api/instagram/oauth/callback
+PUBLIC_BASE_URL=https://trymarkivo.com
+EOF
+
+# 5. Deploy — Caddy fronts everything on :80/:443, auto-provisions certs.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+Since `login.`/`app.` are same-origin to the backend they each talk to
+(nginx proxies `/api` internally per request, not cross-subdomain), the
+`CORS_ORIGIN` list above is a safety net rather than a hard requirement —
+but keep it in sync with whatever subdomains are live.
+
+**Redeploying after a code change:** `git pull && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
+**Logs:** `docker compose logs -f backend` / `caddy`.
+**Cert renewal, rollback, volumes:** identical to Variant C above — Caddy
+persists certs in the `caddy-data` volume across restarts.
+
 ## Variant D — Free stack (Vercel + Fly.io) — keep SQLite
+
+> Not used by this project (it runs on GCP — see Variant C.1 above). Left here
+> for reference only.
 
 Cheapest way to go live: **frontend on Vercel (free)**, **backend on Fly.io
 (free allowance, persistent volume)**, no database rewrite. Auth is bearer-token
@@ -160,41 +227,39 @@ if SQLite is outgrown (swap point: `backend/db.js`).
 
 By default the whole app runs on **one origin** and switches sections via
 in-app state — nothing below is required. To split sections onto their own
-subdomains (`login.`, `onboarding.`, `dashboard.`, root = landing), set the
-frontend build variable and provision DNS + host + CORS to match.
+subdomains (`login.`, `app.`, root = landing), set the frontend build variable
+and provision DNS + host + CORS to match.
 
 | Subdomain | Section |
 | --- | --- |
-| `markivo.io` (also `app.` / `www.`) | Landing |
-| `login.markivo.io` | Auth (login / register) |
-| `onboarding.markivo.io` | Setup wizard (Path A / B) |
-| `dashboard.markivo.io` | Product dashboard |
+| `trymarkivo.com` (also `www.`) | Landing |
+| `login.trymarkivo.com` | Auth (login / register) |
+| `app.trymarkivo.com` | The whole authed app — setup wizard (Path A / B) AND the product dashboard, told apart by in-app state, not by subdomain |
 
-**1. Frontend build var:** `VITE_ROOT_DOMAIN=markivo.io` (blank ⇒ routing off,
+**1. Frontend build var:** `VITE_ROOT_DOMAIN=trymarkivo.com` (blank ⇒ routing off,
 single origin — the default). Rebuild the frontend after changing it.
 
-**2. DNS:** add a record for each subdomain (or one wildcard `*`) pointing at the
-same frontend host as the apex — e.g. on Vercel a `CNAME` to `cname.vercel-dns.com`
-for `login`, `onboarding`, `dashboard` (and the apex `A`/`www` records you already
-have). A wildcard `CNAME *` works too.
+**2. DNS:** add a record for each subdomain pointing at the same frontend host
+as the apex — e.g. on Vercel a `CNAME` to `cname.vercel-dns.com` for `login`
+and `app` (and the apex `A`/`www` records you already have).
 
 **3. Host:** the SPA must be served for every subdomain.
-   - **Vercel:** Project → Settings → Domains → add each subdomain (or `*.markivo.io`)
-     to the *same* project. The existing `rewrites` already serve `index.html` for
-     all paths.
+   - **Vercel:** Project → Settings → Domains → add each subdomain (`login.trymarkivo.com`,
+     `app.trymarkivo.com`) to the *same* project. The existing `rewrites` already
+     serve `index.html` for all paths.
    - **nginx (docker-compose):** `server_name _;` already matches every host, so no
      change is needed — just route the extra DNS names to the container.
 
 **4. Backend CORS:** `CORS_ORIGIN` must list **every** subdomain origin the app is
-served from — including whichever landing aliases you use (`app.` / `www.`), e.g.
-`https://markivo.io,https://www.markivo.io,https://app.markivo.io,https://login.markivo.io,https://onboarding.markivo.io,https://dashboard.markivo.io`
+served from, e.g.
+`https://trymarkivo.com,https://www.trymarkivo.com,https://login.trymarkivo.com,https://app.trymarkivo.com`
 (or front the API same-origin). Redeploy the backend after changing it.
 
 **Session across subdomains:** subdomains are separate origins, so the bearer
 token (localStorage) is handed off through the URL fragment on navigation and
 scrubbed from the address bar on arrival (`frontend/src/lib/subdomains.js`).
 Fragments are never sent to servers or in `Referer`. For a hardened setup, issue
-the session as an `httpOnly` cookie scoped to `Domain=.markivo.io` from the
+the session as an `httpOnly` cookie scoped to `Domain=.trymarkivo.com` from the
 backend instead — that removes the fragment hand-off entirely.
 
 **Local testing:** `VITE_ROOT_DOMAIN=localhost npm run dev --prefix frontend`,

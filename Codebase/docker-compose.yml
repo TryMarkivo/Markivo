@@ -72,6 +72,9 @@ services:
         # needed for browsers. For a split deploy (separate API domain), set
         # VITE_API_URL to the public API URL and CORS_ORIGIN to match.
         VITE_API_URL: ${VITE_API_URL:-/}
+        # Blank = single-origin routing (default). Set to trymarkivo.com to
+        # split landing/login/app onto their own subdomains (see DEPLOY.md).
+        VITE_ROOT_DOMAIN: ${VITE_ROOT_DOMAIN:-}
     image: markivo-frontend
     ports:
       - "8080:80"

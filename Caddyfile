@@ -7,7 +7,7 @@
 	email elshod2607k@gmail.com
 	acme_ca https://acme-v02.api.letsencrypt.org/directory
 }
-trymarkivo.com, www.trymarkivo.com {
+trymarkivo.com, www.trymarkivo.com, login.trymarkivo.com, app.trymarkivo.com {
 	encode gzip
 	reverse_proxy frontend:80
 }

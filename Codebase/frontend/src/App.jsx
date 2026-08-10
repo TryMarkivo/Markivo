@@ -19,9 +19,15 @@ const qp = () => new URLSearchParams(window.location.search);
 function initialView() {
   if (!ROUTING_ENABLED) return 'landing';
   const section = currentSection();
-  if (section === 'onboarding') return qp().get('path') === 'A' ? 'onboarding_A' : 'onboarding_B';
   if (section === 'login') return 'login';
-  return section; // 'landing' | 'dashboard'
+  if (section === 'app') {
+    // A fresh redirect from login carries ?path — that means "go straight to
+    // onboarding." A direct page load on app. (no ?path) guesses 'dashboard';
+    // the session effect corrects it to onboarding once /active resolves.
+    if (qp().get('path')) return qp().get('path') === 'A' ? 'onboarding_A' : 'onboarding_B';
+    return 'dashboard';
+  }
+  return section; // 'landing'
 }
 
 // On the login subdomain, ?mode selects the form; elsewhere register is the
@@ -106,11 +112,8 @@ export default function App() {
     if (!token) {
       // Arriving on an authed-only subdomain without a session -> send to login.
       // Routing is on here, so this is always a cross-origin redirect (no setState).
-      if (ROUTING_ENABLED) {
-        const section = currentSection();
-        if (section === 'dashboard' || section === 'onboarding') {
-          goToSection('login', { mode: 'register', path: qp().get('path') || 'B' });
-        }
+      if (ROUTING_ENABLED && currentSection() === 'app') {
+        goToSection('login', { mode: 'register', path: qp().get('path') || 'B' });
       }
       return;
     }
@@ -135,8 +138,9 @@ export default function App() {
         // Page load / token restore.
         if (ROUTING_ENABLED) {
           const section = currentSection();
-          if (onboarded && (section === 'login' || section === 'onboarding')) go('dashboard');
-          else if (!onboarded && section === 'dashboard') go('onboarding', { path: 'B' });
+          if (onboarded && section === 'login') go('dashboard');
+          else if (onboarded && section === 'app') setView('dashboard');
+          else if (!onboarded && section === 'app') setView((v) => (v === 'onboarding_A' || v === 'onboarding_B' ? v : 'onboarding_B'));
           else if (!onboarded && section === 'login') go('onboarding', { path: authPathTarget === 'A' ? 'A' : 'B' });
           return;
         }
@@ -150,7 +154,7 @@ export default function App() {
         // On the dashboard subdomain there is no prior view to fall back to, so
         // flag it and offer a retry instead of an unrecoverable spinner.
         if (err.isNetwork) {
-          if (ROUTING_ENABLED && currentSection() === 'dashboard' && !activeProfile) setDashLoadFailed(true);
+          if (ROUTING_ENABLED && currentSection() === 'app' && !activeProfile) setDashLoadFailed(true);
           return;
         }
         // Otherwise the session is invalid/expired and refresh failed — sign out.

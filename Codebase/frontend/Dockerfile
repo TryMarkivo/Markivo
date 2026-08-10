@@ -10,6 +10,9 @@ COPY . .
 # API base URL is baked into the static bundle at build time.
 ARG VITE_API_URL=http://localhost:5000
 ENV VITE_API_URL=$VITE_API_URL
+# Root domain for subdomain routing (blank = single-origin, off by default).
+ARG VITE_ROOT_DOMAIN=
+ENV VITE_ROOT_DOMAIN=$VITE_ROOT_DOMAIN
 RUN npm run build
 
 # --- serve stage ---

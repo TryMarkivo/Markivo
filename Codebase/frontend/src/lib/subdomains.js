@@ -2,10 +2,10 @@
 //
 // Each logical section of the app can live on its own subdomain:
 //
-//   markivo.io            -> landing   (also app. / www.)
-//   login.markivo.io      -> auth      (login / register)
-//   onboarding.markivo.io -> guided setup wizard (Path A / Path B)
-//   dashboard.markivo.io  -> the product dashboard
+//   markivo.io       -> landing   (also www.)
+//   login.markivo.io -> auth      (login / register)
+//   app.markivo.io   -> the whole authed app (guided setup wizard + dashboard,
+//                        told apart by in-app view state, not by subdomain)
 //
 // Routing is OFF unless VITE_ROOT_DOMAIN is set, so a single-origin deploy — or
 // plain `localhost` dev — keeps working exactly as before. When it is ON, moving
@@ -20,15 +20,17 @@ const ROOT_DOMAIN = (import.meta.env.VITE_ROOT_DOMAIN || '').trim().toLowerCase(
 export const ROUTING_ENABLED = ROOT_DOMAIN.length > 0;
 
 // section -> subdomain label. An empty label means the root/apex domain itself.
+// 'onboarding' and 'dashboard' are both served from the same 'app' label — they
+// are navigation targets, not distinct origins; App.jsx picks the in-app view.
 const SECTION_LABEL = {
   landing: '',
   login: 'login',
-  onboarding: 'onboarding',
-  dashboard: 'dashboard',
+  onboarding: 'app',
+  dashboard: 'app',
 };
 
 // Labels that all resolve to the landing section on the root/apex.
-const LANDING_LABELS = new Set(['', 'www', 'app']);
+const LANDING_LABELS = new Set(['', 'www']);
 
 const ACCESS_KEY = 'markivo_token';
 const REFRESH_KEY = 'markivo_refresh';
@@ -45,12 +47,15 @@ function labelFor(hostname) {
 }
 
 // Which section is this browser currently showing? null when routing is off.
+// Returns 'app' (not 'onboarding'/'dashboard') for the app label — those two
+// share one origin, so App.jsx decides between them from auth/profile state.
 export function currentSection() {
   if (!ROUTING_ENABLED) return null;
   const label = labelFor(window.location.hostname);
   if (LANDING_LABELS.has(label)) return 'landing';
-  const match = Object.entries(SECTION_LABEL).find(([, l]) => l && l === label);
-  return match ? match[0] : 'landing';
+  if (label === 'login') return 'login';
+  if (label === 'app') return 'app';
+  return 'landing';
 }
 
 // Absolute URL for a section, preserving protocol + port and adding query params.
@@ -116,9 +121,16 @@ export function consumeHandoff() {
 
 // Navigate to a section. Returns true when it triggered a cross-origin redirect
 // (the caller should stop); false when the caller should handle it in-app (state).
+// Compares by subdomain LABEL, not section name — 'onboarding' and 'dashboard'
+// share the 'app' label, so switching between them while already on app.
+// never fires a needless cross-origin reload.
 export function goToSection(section, params = {}) {
   if (!ROUTING_ENABLED) return false;
-  if (currentSection() === section && Object.keys(params).length === 0) return false;
+  const label = labelFor(window.location.hostname);
+  const targetLabel = SECTION_LABEL[section] ?? '';
+  const onLanding = LANDING_LABELS.has(label);
+  const sameOrigin = (onLanding && !targetLabel) || label === targetLabel;
+  if (sameOrigin && Object.keys(params).length === 0) return false;
   let url = sectionUrl(section, params);
   const handoff = encodeHandoff();
   if (handoff) url += `#${HANDOFF_PARAM}=${handoff}`;
