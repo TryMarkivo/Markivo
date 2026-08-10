@@ -172,3 +172,50 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Danger zone (account deletion) --- */
+.settings-danger {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.settings-danger h3 {
+  color: #ef4444;
+}
+
+.settings-danger p {
+  margin-bottom: 16px;
+}
+
+.settings-danger-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 380px;
+}
+
+.settings-danger-confirm label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.settings-danger-confirm input {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.settings-danger-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-danger-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin: 0;
+}

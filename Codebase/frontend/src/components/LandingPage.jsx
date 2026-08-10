@@ -370,6 +370,13 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
       {/* --- FOOTER --- */}
       <footer className="landing-footer">
         <p>{t('landing.footer.copyright', { defaultValue: '© {{year}} Markivo. From zero to fully running. All rights reserved.', year: new Date().getFullYear() })}</p>
+        {/* Static pages in public/ — plain anchors, not SPA navigation, so the
+            policy URLs stay directly reachable for platform app review. */}
+        <nav className="landing-footer-links">
+          <a href="/privacy.html">{t('landing.footer.privacy', { defaultValue: 'Privacy Policy' })}</a>
+          <a href="/terms.html">{t('landing.footer.terms', { defaultValue: 'Terms of Service' })}</a>
+          <a href="/data-deletion.html">{t('landing.footer.dataDeletion', { defaultValue: 'Data Deletion' })}</a>
+        </nav>
       </footer>
     </div>
   );

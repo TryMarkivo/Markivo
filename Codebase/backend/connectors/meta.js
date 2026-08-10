@@ -140,11 +140,27 @@ async function fetchInstagramHandle(igUserId, pageToken) {
   }
 }
 
+// The app-scoped user id of whoever authorized us. Meta's data-deletion
+// callback identifies the person by this id and nothing else, so we capture it
+// at connect time — Page ids and IG business-account ids will not match it.
+// Best-effort: a failure here must not break an otherwise good connection.
+async function fetchMetaUserId(userToken) {
+  try {
+    const params = new URLSearchParams({ fields: 'id', access_token: userToken });
+    const res = await fetch(`${GRAPH}/me?${params.toString()}`, { method: 'GET' });
+    const data = await res.json().catch(() => ({}));
+    return data && data.id ? String(data.id) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Persist BOTH connection rows from one callback. A single Meta login gives us
 // the Page (Facebook) and, if linked, the IG business account (Instagram); we
 // write a row for each so they can be managed/published independently.
 async function persistBothConnections({ db, profile, userToken }) {
   const page = await discoverPageAndInstagram(userToken);
+  const metaUserId = await fetchMetaUserId(userToken);
   if (!page) {
     throw new ConnectorError('meta_facebook', 'No Facebook Page found on your account — create or get admin access to a Page, then reconnect.', 400);
   }
@@ -158,7 +174,7 @@ async function persistBothConnections({ db, profile, userToken }) {
     accountId: page.id,
     accessToken: page.accessToken,
     scopes: META_SCOPES,
-    meta: { pageId: page.id },
+    meta: { pageId: page.id, metaUserId },
   });
 
   // Instagram connection — only if the Page has a linked IG business account.
@@ -172,7 +188,7 @@ async function persistBothConnections({ db, profile, userToken }) {
       accountId: page.igUserId,
       accessToken: page.accessToken, // IG publishing uses the PAGE token
       scopes: META_SCOPES,
-      meta: { igUserId: page.igUserId, pageId: page.id },
+      meta: { igUserId: page.igUserId, pageId: page.id, metaUserId },
     });
   }
 }
