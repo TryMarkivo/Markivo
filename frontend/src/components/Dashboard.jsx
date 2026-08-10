@@ -619,6 +619,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               theme={theme}
               onToggleTheme={onToggleTheme}
               onLanguageChange={onLanguageChange}
+              onLogout={onLogout}
             />
           )}
         </div>

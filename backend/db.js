@@ -246,7 +246,22 @@ module.exports = function createDb(dbPath) {
       created_at TEXT NOT NULL
     );
 
+    -- Data-deletion request log. Meta's data-deletion callback must hand the
+    -- user a confirmation code they can quote back to check progress, so a
+    -- request has to outlive the account it erased — this table therefore has
+    -- NO foreign key to users(id) and is never cascaded away.
+    CREATE TABLE IF NOT EXISTS deletion_requests (
+      id               TEXT PRIMARY KEY,
+      confirmation_code TEXT UNIQUE NOT NULL,
+      source           TEXT NOT NULL,   -- 'account' (self-serve) | 'meta' (callback)
+      external_user_id TEXT,            -- Meta app-scoped user id, when source='meta'
+      status           TEXT NOT NULL,   -- 'completed' | 'no_match'
+      detail           TEXT,
+      created_at       TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
+    CREATE INDEX IF NOT EXISTS idx_deletion_code ON deletion_requests(confirmation_code);
     CREATE INDEX IF NOT EXISTS idx_ai_usage_user_time ON ai_usage(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_platforms_profile ON platforms(profile_id);
     CREATE INDEX IF NOT EXISTS idx_competitors_profile ON competitors(profile_id);
@@ -344,6 +359,11 @@ module.exports = function createDb(dbPath) {
     currentPeriodEnd: r.current_period_end,
     created_at: r.created_at, updated_at: r.updated_at,
   };
+  const mapDeletionRequest = (r) => r && {
+    id: r.id, confirmationCode: r.confirmation_code, source: r.source,
+    externalUserId: r.external_user_id, status: r.status, detail: r.detail,
+    created_at: r.created_at,
+  };
   const mapApproval = (r) => r && {
     id: r.id, profileId: r.profile_id, action_type: r.action_type,
     action_payload: r.action_payload ? JSON.parse(r.action_payload) : null,
@@ -400,6 +420,40 @@ module.exports = function createDb(dbPath) {
           sqlite.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = @userId`).run(params);
         }
         return mapUser(sqlite.prepare('SELECT * FROM users WHERE id = ?').get(userId));
+      },
+      // Erase the account. Every per-user and per-profile table declares
+      // ON DELETE CASCADE and `foreign_keys` is ON, so one DELETE removes the
+      // profiles, connections, tokens, content, and usage rows with it.
+      // Uploaded files live on disk, outside SQL — their paths are collected
+      // BEFORE the delete and returned so the caller can unlink them.
+      delete(userId) {
+        const mediaPaths = sqlite.prepare(
+          `SELECT m.file_path AS p FROM media m
+             JOIN profiles pr ON pr.id = m.profile_id
+            WHERE pr.user_id = ? AND m.file_path IS NOT NULL`
+        ).all(userId).map((r) => r.p);
+        const info = sqlite.prepare('DELETE FROM users WHERE id = ?').run(userId);
+        return { deleted: info.changes > 0, mediaPaths };
+      },
+    },
+
+    // Data-deletion request log (see the deletion_requests table comment).
+    deletionRequests: {
+      create({ confirmationCode, source, externalUserId = null, status, detail = null }) {
+        const row = {
+          id: id(), confirmation_code: confirmationCode, source,
+          external_user_id: externalUserId, status, detail, created_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO deletion_requests (id, confirmation_code, source, external_user_id, status, detail, created_at)
+           VALUES (@id, @confirmation_code, @source, @external_user_id, @status, @detail, @created_at)`
+        ).run(row);
+        return mapDeletionRequest(row);
+      },
+      findByCode(code) {
+        return mapDeletionRequest(
+          sqlite.prepare('SELECT * FROM deletion_requests WHERE confirmation_code = ?').get(code)
+        );
       },
     },
 
@@ -869,6 +923,23 @@ module.exports = function createDb(dbPath) {
       },
       remove(profileId, platform) {
         sqlite.prepare('DELETE FROM platform_connections WHERE profile_id = ? AND platform = ?').run(profileId, platform);
+      },
+      // Owning user ids for a Meta app-scoped user id — the identifier Meta's
+      // data-deletion callback sends. It is stored in the connection's `meta`
+      // JSON as metaUserId (captured at connect time), and is NOT the same as
+      // account_id (a Page id or IG business-account id). Returns [] when the
+      // id is unknown to us, which is a legitimate outcome the callback reports
+      // rather than an error.
+      findUserIdsByMetaUserId(metaUserId) {
+        if (!metaUserId) return [];
+        const rows = sqlite.prepare(
+          `SELECT DISTINCT pr.user_id AS userId
+             FROM platform_connections pc
+             JOIN profiles pr ON pr.id = pc.profile_id
+            WHERE pc.meta IS NOT NULL
+              AND json_extract(pc.meta, '$.metaUserId') = ?`
+        ).all(String(metaUserId));
+        return rows.map((r) => r.userId);
       },
     },
 

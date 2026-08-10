@@ -97,6 +97,13 @@ export const api = {
     tokens.set(data);
     return data;
   },
+  // Irreversible. The server erases the account and everything cascading from
+  // it, so the local session is cleared regardless of what happens next.
+  async deleteAccount() {
+    const data = await request('/api/me', { method: 'DELETE' });
+    tokens.clear();
+    return data;
+  },
   async logout() {
     try {
       await request('/api/auth/logout', { method: 'POST', body: { refreshToken: tokens.refresh() }, auth: false });

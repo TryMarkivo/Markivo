@@ -42,7 +42,7 @@
     </header>
 
     <h1>Privacy Policy</h1>
-    <p class="meta">Last updated: 17 June 2026</p>
+    <p class="meta">Last updated: 10 August 2026</p>
 
     <p>Markivo ("Markivo", "we", "us") provides an AI marketing assistant that helps small businesses
     create, schedule, and publish content across social platforms. This Privacy Policy explains what
@@ -62,7 +62,7 @@
     <h2>2. How we use your information</h2>
     <ul>
       <li>To provide the service: generate content, plan and schedule posts, and operate your dashboard.</li>
-      <li>To publish or manage content on a connected platform <strong>only on your behalf and only after you approve it</strong> (see Section 3).</li>
+      <li>To publish or manage content on a connected platform <strong>only on your behalf</strong>, and only as you have authorized — either by approving a specific post or by enabling Autopilot (see Section 3).</li>
       <li>To process subscriptions and enforce plan allowances.</li>
       <li>To secure the service, prevent abuse, and provide support.</li>
       <li>To communicate with you about your account and important service changes.</li>
@@ -77,33 +77,81 @@
       <li>You authorize the connection through each platform's <strong>official API and OAuth flow</strong>. We never
       ask for, store, or use your platform passwords, and we never log in as you or automate your account.</li>
       <li>We request only the permissions needed to publish and manage the content you ask us to.</li>
-      <li>Access tokens are <strong>encrypted at rest</strong> and used solely to perform actions you have approved.</li>
-      <li>Markivo posts to a connected platform only after you <strong>review and approve</strong> the specific content. We do not publish autonomously.</li>
+      <li>Access tokens are <strong>encrypted at rest</strong> (AES‑256‑GCM) and used solely to perform actions you have authorized.</li>
+      <li>By default, Markivo posts to a connected platform only after you <strong>review and approve</strong> the specific content.</li>
       <li>You can <strong>disconnect any platform at any time</strong> from your dashboard, which removes the stored tokens. You may also revoke access directly in the platform's own settings.</li>
       <li>Your use of each connected platform remains subject to that platform's own terms and privacy policy. We handle platform data in accordance with the applicable platform developer policies.</li>
+    </ul>
+
+    <h3>Autopilot (automated posting)</h3>
+    <p>Markivo includes an optional feature called <strong>Autopilot</strong>. We want to be precise about
+    what it does, because it is the one part of the product that can act without you in the room:</p>
+    <ul>
+      <li>Autopilot is <strong>off until you turn it on</strong> for a specific business.</li>
+      <li>Once enabled, it analyzes your business profile and recent activity and generates promotional
+      posts on a schedule you choose (daily or weekly).</li>
+      <li>You choose what happens next. Autopilot can either <strong>publish those posts automatically,
+      without approving each one</strong>, or queue them for your one‑tap approval. You control this
+      with the <em>auto‑publish</em> setting, and you can change it or switch Autopilot off at any time.</li>
+      <li>Autopilot only ever creates <strong>free, organic posts</strong>. It never runs paid advertising
+      and never spends money. Any spending always requires your explicit, separate approval.</li>
+      <li>Every Autopilot action is recorded in the activity log on your dashboard, so you can see exactly
+      what was published and when.</li>
     </ul>
 
     <h2>4. How we share information</h2>
     <p>We share information only with service providers that help us run Markivo, and only as needed:</p>
     <ul>
-      <li><strong>AI provider (Anthropic)</strong> — to generate the content and assistant responses you request.</li>
+      <li><strong>AI text providers (Google Gemini and Anthropic)</strong> — to generate post copy, message
+      templates, slogans, and the responses from the Markiv assistant. Which provider handles a given
+      request depends on the feature and on availability; both may receive your business profile details
+      and the text you ask us to work with.</li>
+      <li><strong>AI image provider (fal.ai)</strong> — to generate marketing images when you request them.</li>
       <li><strong>Google Maps Platform</strong> — to look up public business and competitor information during discovery.</li>
+      <li><strong>Google Analytics</strong> — to understand how our website is used (see Section 5).</li>
       <li><strong>Payment processor (Stripe)</strong> — to handle subscription payments.</li>
       <li><strong>The platforms you connect</strong> — to publish and manage content you approve.</li>
       <li><strong>Legal</strong> — when required by law, or to protect the rights, safety, and security of Markivo and its users.</li>
     </ul>
+    <p class="muted">Our AI providers process your content to return the output you asked for. They act on
+    our instructions under their business terms and do not use it to train their models.</p>
 
-    <h2>5. Data retention &amp; deletion</h2>
-    <p>We keep your information while your account is active. You can delete your business content and disconnect
-    platforms at any time. To delete your account and associated personal data, contact us at the address below;
-    we will delete it within a reasonable period, except where retention is required by law.</p>
+    <h2>5. Cookies &amp; analytics</h2>
+    <p>Markivo uses <strong>Google Analytics</strong> on our public website to measure traffic and
+    understand which pages people find useful. This sets cookies and collects standard analytics data such
+    as pages viewed, approximate location derived from IP address, referring site, and device and browser
+    type. We use it only in aggregate; we do not use it to identify you personally.</p>
+    <p>Inside the application itself we use your browser's local storage to hold your sign‑in session,
+    language, and light/dark theme preference. These are required for the product to work and are not used
+    for advertising or tracking.</p>
+    <p>You can block or delete cookies in your browser settings, and you can opt out of Google Analytics
+    entirely with the <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener">Google Analytics
+    Opt‑out Browser Add‑on</a>. Blocking analytics cookies does not affect your use of Markivo.</p>
 
-    <h2>6. Security</h2>
+    <h2>6. Data retention &amp; deletion</h2>
+    <p>We keep your information while your account is active. You can delete individual content and disconnect
+    platforms at any time from your dashboard.</p>
+    <p>To erase everything, you have three routes, described in full on our
+    <a href="/data-deletion.html">Data Deletion page</a>:</p>
+    <ul>
+      <li><strong>From your dashboard</strong> — Settings → Delete account. This is immediate and irreversible.</li>
+      <li><strong>From Facebook or Instagram</strong> — removing Markivo under <em>Apps and Websites</em>
+      notifies us automatically, and we erase the account linked to that login.</li>
+      <li><strong>By email</strong> — write to <a href="mailto:support@trymarkivo.com">support@trymarkivo.com</a>
+      and we will complete verified requests within 30 days.</li>
+    </ul>
+    <p>Deletion removes your account, business profiles, all content and uploaded media, every platform
+    connection and its stored tokens, your research and metrics history, Autopilot settings and activity,
+    and your sign‑in sessions. We retain only a minimal record of the deletion request itself — a
+    confirmation code, its status, and the date — so you can verify the erasure afterwards, plus any
+    billing records the law requires us to keep.</p>
+
+    <h2>7. Security</h2>
     <p>We protect data in transit with HTTPS and encrypt sensitive credentials (such as platform access tokens) at
     rest using strong encryption. No system is perfectly secure, but we work to protect your information using
     industry‑standard practices.</p>
 
-    <h2>7. Your rights &amp; choices</h2>
+    <h2>8. Your rights &amp; choices</h2>
     <ul>
       <li>Access, correct, or update your profile and account information from your dashboard.</li>
       <li>Disconnect any platform, which revokes our access to it.</li>
@@ -111,24 +159,25 @@
       <li>Withdraw consent for optional processing at any time.</li>
     </ul>
 
-    <h2>8. Children</h2>
+    <h2>9. Children</h2>
     <p>Markivo is intended for business owners and is not directed to children. We do not knowingly collect personal
     information from anyone under 18.</p>
 
-    <h2>9. International users</h2>
+    <h2>10. International users</h2>
     <p>Markivo is operated from Uzbekistan and may process data on infrastructure located in other countries. By using
     the service you understand your information may be processed outside your country of residence.</p>
 
-    <h2>10. Changes to this policy</h2>
+    <h2>11. Changes to this policy</h2>
     <p>We may update this policy from time to time. We will revise the "Last updated" date above and, for material
     changes, take reasonable steps to notify you.</p>
 
-    <h2>11. Contact us</h2>
+    <h2>12. Contact us</h2>
     <p>Questions about this policy or your data? Contact us at <a href="mailto:support@trymarkivo.com">support@trymarkivo.com</a>.</p>
 
     <footer>
       <a href="/">Home</a>
       <a href="/terms.html">Terms of Service</a>
+      <a href="/data-deletion.html">Data Deletion</a>
       <span class="muted">© 2026 Markivo</span>
     </footer>
   </div>

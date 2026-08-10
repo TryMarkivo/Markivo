@@ -18,6 +18,7 @@ const places = require('./places');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
+const metaDeletion = require('./metaDeletion');
 const { limitFor } = require('./postLimits');
 const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
 
@@ -1989,6 +1990,136 @@ app.post('/api/billing/webhook', asyncRoute(async (req, res) => {
   billing.applyStripeEvent(event);
   res.json({ received: true });
 }));
+
+// ==========================================
+// 3.75 ACCOUNT & DATA DELETION (/api/me, /api/meta/data-deletion)
+//   Backs the published deletion policy at /data-deletion.html and the Data
+//   Deletion Request URL registered in the Meta app dashboard.
+// ==========================================
+
+// Erase one account completely: DB rows cascade from users(id), and the
+// uploaded files those rows referenced are unlinked from disk afterwards.
+// Returns the number of files removed. Unlink failures are logged, not thrown —
+// a missing file must not abort an erasure that already succeeded in the DB.
+function eraseUser(userId) {
+  const { deleted, mediaPaths } = db.users.delete(userId);
+  if (!deleted) return { deleted: false, filesRemoved: 0 };
+
+  let filesRemoved = 0;
+  for (const rel of mediaPaths) {
+    // Media paths are stored relative ("/uploads/<file>"); resolve to the real
+    // file and refuse anything that escapes UPLOADS_DIR.
+    const resolved = path.resolve(UPLOADS_DIR, path.basename(String(rel)));
+    if (!resolved.startsWith(UPLOADS_DIR)) continue;
+    try {
+      fs.unlinkSync(resolved);
+      filesRemoved += 1;
+    } catch (err) {
+      if (err.code !== 'ENOENT') console.warn(`Could not unlink ${resolved}: ${err.message}`);
+    }
+  }
+  return { deleted: true, filesRemoved };
+}
+
+// Self-serve account deletion. Irreversible and immediate.
+app.delete('/api/me', verifyToken, (req, res) => {
+  const user = db.users.findById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User session not found' });
+
+  const code = metaDeletion.newConfirmationCode();
+  const { filesRemoved } = eraseUser(user.id);
+  db.deletionRequests.create({
+    confirmationCode: code,
+    source: 'account',
+    status: 'completed',
+    detail: `Self-serve deletion. ${filesRemoved} uploaded file(s) removed.`,
+  });
+  res.json({
+    success: true,
+    confirmationCode: code,
+    statusUrl: `${config.appUrl}/data-deletion.html?code=${code}`,
+    message: 'Your account and all associated data have been permanently deleted.',
+  });
+});
+
+// PUBLIC — Meta POSTs a form-encoded `signed_request` here when a user removes
+// the app. Authenticity is the HMAC signature over the payload, so no session
+// is involved; `express.urlencoded` is mounted only on this route because the
+// rest of the API is JSON.
+//
+// The signature is keyed by the app secret of whichever Meta app sent it — the
+// Facebook app and the Instagram-login app have different secrets, so both are
+// tried before rejecting.
+app.post(
+  '/api/meta/data-deletion',
+  express.urlencoded({ extended: false }),
+  (req, res) => {
+    const secretsToTry = [
+      config.connectors.meta.clientSecret,
+      config.instagramAppSecret,
+    ].filter(Boolean);
+
+    if (secretsToTry.length === 0) {
+      return res.status(501).json({ error: 'Data deletion callback is not configured' });
+    }
+
+    let payload = null;
+    let lastError = null;
+    for (const secret of secretsToTry) {
+      try {
+        payload = metaDeletion.parseSignedRequest(req.body.signed_request, secret);
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (!payload) {
+      // Do not echo the parser's reason back to the caller.
+      console.warn(`Meta data-deletion callback rejected: ${lastError && lastError.message}`);
+      return res.status(400).json({ error: 'Invalid signed_request' });
+    }
+
+    const metaUserId = payload.user_id ? String(payload.user_id) : '';
+    const userIds = db.connections.findUserIdsByMetaUserId(metaUserId);
+
+    let filesRemoved = 0;
+    for (const userId of userIds) filesRemoved += eraseUser(userId).filesRemoved;
+
+    // An unmatched id is a normal outcome — the person may have connected only
+    // Telegram, or already deleted their account. Meta still requires a 200
+    // with a trackable code, so the request is logged either way.
+    const code = metaDeletion.newConfirmationCode();
+    db.deletionRequests.create({
+      confirmationCode: code,
+      source: 'meta',
+      externalUserId: metaUserId || null,
+      status: userIds.length > 0 ? 'completed' : 'no_match',
+      detail: userIds.length > 0
+        ? `Erased ${userIds.length} account(s) and ${filesRemoved} uploaded file(s).`
+        : 'No Markivo account is linked to this Meta user id — nothing was stored.',
+    });
+
+    res.json({
+      url: `${config.appUrl}/data-deletion.html?code=${code}`,
+      confirmation_code: code,
+    });
+  }
+);
+
+// PUBLIC — lets someone check a deletion by its confirmation code. Returns only
+// the status and date; never the erased account's details.
+app.get('/api/data-deletion/status', (req, res) => {
+  const code = String(req.query.code || '').trim();
+  if (!code) return res.status(400).json({ error: 'A confirmation code is required' });
+  const row = db.deletionRequests.findByCode(code);
+  if (!row) return res.status(404).json({ error: 'Unknown confirmation code' });
+  res.json({
+    confirmationCode: row.confirmationCode,
+    status: row.status,
+    detail: row.detail,
+    requestedAt: row.created_at,
+  });
+});
 
 // ==========================================
 // 3.8 SCHEDULED-POST WORKER
