@@ -108,7 +108,7 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
             <div className="preview-dot dot-red"></div>
             <div className="preview-dot dot-yellow"></div>
             <div className="preview-dot dot-green"></div>
-            <span className="preview-url">app.markivo.io/dashboard</span>
+            <span className="preview-url">app.trymarkivo.com/dashboard</span>
           </div>
           <div className="preview-body">
             <div className="preview-sidebar">

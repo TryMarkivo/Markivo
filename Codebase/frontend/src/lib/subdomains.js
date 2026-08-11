@@ -2,10 +2,10 @@
 //
 // Each logical section of the app can live on its own subdomain:
 //
-//   markivo.io       -> landing   (also www.)
-//   login.markivo.io -> auth      (login / register)
-//   app.markivo.io   -> the whole authed app (guided setup wizard + dashboard,
-//                        told apart by in-app view state, not by subdomain)
+//   trymarkivo.com       -> landing   (also www.)
+//   login.trymarkivo.com -> auth      (login / register)
+//   app.trymarkivo.com   -> the whole authed app (guided setup wizard + dashboard,
+//                            told apart by in-app view state, not by subdomain)
 //
 // Routing is OFF unless VITE_ROOT_DOMAIN is set, so a single-origin deploy — or
 // plain `localhost` dev — keeps working exactly as before. When it is ON, moving

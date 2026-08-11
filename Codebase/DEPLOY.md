@@ -21,7 +21,7 @@
 | `NODE_ENV` | yes | `production` |
 | `CORS_ORIGIN` | yes | frontend origin(s), comma-separated; `*` only for same-origin proxy setups |
 | `TRUST_PROXY` | yes (behind any proxy/LB) | `true` — Railway/Render edges and the nginx container all proxy; rate limiters need real client IPs |
-| `APP_URL` | yes | public app URL, e.g. `https://app.markivo.uz` (Stripe redirects) |
+| `APP_URL` | yes | public app URL, e.g. `https://app.trymarkivo.com` (Stripe redirects) |
 | `DB_PATH` | yes | SQLite path on the persistent volume, e.g. `/app/database/markivo.db` |
 | `ANTHROPIC_API_KEY` | no | blank = template fallback |
 | `GOOGLE_MAPS_API_KEY` | no | blank = mock discovery scan |
