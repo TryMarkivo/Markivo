@@ -317,6 +317,49 @@ module.exports = function createDb(dbPath) {
   // scheduled-post worker clone a post forward once it goes out.
   addColumn('calendar', 'tag TEXT');
   addColumn('calendar', 'repeat_rule TEXT');
+  // Competitor provenance. Google Places supplies name/rating/address/placeId
+  // and nothing else, so followers and cadence can only ever be owner-entered:
+  // metric_sources records WHERE each number came from ({followers:'telegram'})
+  // so the UI can separate a measured value from a typed one, and NULL keeps
+  // meaning "not reported" rather than zero.
+  addColumn('competitors', 'place_id TEXT');
+  addColumn('competitors', 'address TEXT');
+  addColumn('competitors', 'source TEXT');            // 'google_places' | 'manual'
+  addColumn('competitors', 'instagram_handle TEXT');
+  addColumn('competitors', 'telegram_channel TEXT');
+  addColumn('competitors', 'website TEXT');
+  addColumn('competitors', 'metric_sources TEXT');    // JSON: field -> source
+  addColumn('competitors', 'notes TEXT');
+  addColumn('competitors', 'created_at TEXT');
+  addColumn('competitors', 'refreshed_at TEXT');
+  // The discovery scan already resolves these; onboarding discarded them, which
+  // is why competitors were frozen at setup. Persisting them lets a refresh cost
+  // ONE upstream call instead of re-resolving the business first.
+  addColumn('profiles', 'google_lat REAL');
+  addColumn('profiles', 'google_lng REAL');
+  addColumn('profiles', 'google_primary_type TEXT');
+  // Cached local-market research brief (same JSON-column pattern as brand_brief).
+  addColumn('profiles', 'market_brief TEXT');
+  addColumn('profiles', 'market_brief_at TEXT');
+
+  // Must run AFTER the ALTERs above: on an existing database `place_id` does
+  // not exist while the CREATE TABLE block is executing. The index is partial,
+  // so legacy rows (place_id IS NULL) are excluded and cannot collide.
+  sqlite.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_competitors_place
+      ON competitors(profile_id, place_id) WHERE place_id IS NOT NULL;
+  `);
+  // Backfill, idempotent — after one run no row has a NULL source. Places
+  // cannot report follower counts, so a legacy row that HAS one can only have
+  // come from the onboarding seeds, i.e. a number a person supplied.
+  sqlite.exec(`
+    UPDATE competitors SET source = 'manual'
+      WHERE source IS NULL AND followers_count IS NOT NULL;
+    UPDATE competitors SET source = 'google_places' WHERE source IS NULL;
+    UPDATE competitors
+       SET created_at = (SELECT created_at FROM profiles WHERE profiles.id = competitors.profile_id)
+     WHERE created_at IS NULL;
+  `);
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -337,6 +380,13 @@ module.exports = function createDb(dbPath) {
     googleRating: r.google_rating ?? null,
     googleReviewsCount: r.google_reviews_count ?? null,
     brandBrief: r.brand_brief ? JSON.parse(r.brand_brief) : null,
+    // Kept from the discovery scan so a competitor refresh can re-query Places
+    // without first re-resolving this business.
+    googleLat: r.google_lat ?? null,
+    googleLng: r.google_lng ?? null,
+    googlePrimaryType: r.google_primary_type || null,
+    marketBrief: r.market_brief ? JSON.parse(r.market_brief) : null,
+    marketBriefAt: r.market_brief_at || null,
   };
   const mapPlatform = (r) => r && {
     id: r.id, profileId: r.profile_id, platformName: r.platform_name,
@@ -353,6 +403,15 @@ module.exports = function createDb(dbPath) {
     followersCount: r.followers_count ?? null,
     postsPerWeek: r.posts_per_week ?? null,
     platformsDetected: r.platforms_detected ? JSON.parse(r.platforms_detected) : [],
+    placeId: r.place_id || null,
+    address: r.address || null,
+    source: r.source || 'google_places',
+    instagramHandle: r.instagram_handle || null,
+    telegramChannel: r.telegram_channel || null,
+    website: r.website || null,
+    metricSources: r.metric_sources ? JSON.parse(r.metric_sources) : {},
+    notes: r.notes || null,
+    created_at: r.created_at, refreshed_at: r.refreshed_at || null,
   };
   const mapKeyword = (r) => r && {
     id: r.id, profileId: r.profile_id, keyword_phrase: r.keyword_phrase,
@@ -495,15 +554,20 @@ module.exports = function createDb(dbPath) {
           google_place_id: p.googlePlaceId || null,
           google_rating: p.googleRating ?? null,
           google_reviews_count: p.googleReviewsCount ?? null,
+          google_lat: p.googleLat ?? null,
+          google_lng: p.googleLng ?? null,
+          google_primary_type: p.googlePrimaryType || null,
           created_at: now(),
         };
         sqlite.prepare(
           `INSERT INTO profiles (id, user_id, business_name, category, description, location,
              is_online, target_audience, brand_tone, slogan, logo_metadata, onboard_path,
-             google_place_id, google_rating, google_reviews_count, created_at)
+             google_place_id, google_rating, google_reviews_count,
+             google_lat, google_lng, google_primary_type, created_at)
            VALUES (@id, @user_id, @business_name, @category, @description, @location,
              @is_online, @target_audience, @brand_tone, @slogan, @logo_metadata, @onboard_path,
-             @google_place_id, @google_rating, @google_reviews_count, @created_at)`
+             @google_place_id, @google_rating, @google_reviews_count,
+             @google_lat, @google_lng, @google_primary_type, @created_at)`
         ).run(row);
         return mapProfile(row);
       },
@@ -528,6 +592,14 @@ module.exports = function createDb(dbPath) {
           slogan: 'slogan',
           logoMetadata: 'logo_metadata',
           brandBrief: 'brand_brief',
+          googlePlaceId: 'google_place_id',
+          googleRating: 'google_rating',
+          googleReviewsCount: 'google_reviews_count',
+          googleLat: 'google_lat',
+          googleLng: 'google_lng',
+          googlePrimaryType: 'google_primary_type',
+          marketBrief: 'market_brief',
+          marketBriefAt: 'market_brief_at',
         };
         const sets = [];
         const params = { profileId };
@@ -537,6 +609,7 @@ module.exports = function createDb(dbPath) {
           if (key === 'isOnline') value = value ? 1 : 0;
           if (key === 'logoMetadata') value = value ? JSON.stringify(value) : null;
           if (key === 'brandBrief') value = value ? JSON.stringify(value) : null;
+          if (key === 'marketBrief') value = value ? JSON.stringify(value) : null;
           sets.push(`${col} = @${key}`);
           params[key] = value;
         }
@@ -581,17 +654,124 @@ module.exports = function createDb(dbPath) {
       add(c) {
         const row = {
           id: id(), profile_id: c.profileId, competitor_name: c.competitorName,
-          rating: c.rating, followers_count: c.followersCount, posts_per_week: c.postsPerWeek,
+          rating: c.rating ?? null, followers_count: c.followersCount ?? null,
+          posts_per_week: c.postsPerWeek ?? null,
           platforms_detected: JSON.stringify(c.platformsDetected || []),
+          place_id: c.placeId || null,
+          address: c.address || null,
+          source: c.source || 'manual',
+          instagram_handle: c.instagramHandle || null,
+          telegram_channel: c.telegramChannel || null,
+          website: c.website || null,
+          metric_sources: JSON.stringify(c.metricSources || {}),
+          notes: c.notes || null,
+          created_at: now(),
+          refreshed_at: c.refreshedAt || null,
         };
         sqlite.prepare(
-          `INSERT INTO competitors (id, profile_id, competitor_name, rating, followers_count, posts_per_week, platforms_detected)
-           VALUES (@id, @profile_id, @competitor_name, @rating, @followers_count, @posts_per_week, @platforms_detected)`
+          `INSERT INTO competitors (id, profile_id, competitor_name, rating, followers_count, posts_per_week,
+                                    platforms_detected, place_id, address, source, instagram_handle,
+                                    telegram_channel, website, metric_sources, notes, created_at, refreshed_at)
+           VALUES (@id, @profile_id, @competitor_name, @rating, @followers_count, @posts_per_week,
+                   @platforms_detected, @place_id, @address, @source, @instagram_handle,
+                   @telegram_channel, @website, @metric_sources, @notes, @created_at, @refreshed_at)`
         ).run(row);
         return mapCompetitor(row);
       },
+
+      /**
+       * Insert-or-refresh a Places result, keyed on (profile, placeId).
+       *
+       * The DO UPDATE list is deliberately short. Places knows a competitor's
+       * name, rating and address; it cannot know their follower count, posting
+       * cadence, social handles, or the owner's notes. Overwriting those on a
+       * refresh would silently erase the only data a person actually gathered,
+       * so they are left untouched here and are writable only through update().
+       */
+      upsertByPlaceId(c) {
+        const existing = c.placeId
+          ? sqlite.prepare('SELECT * FROM competitors WHERE profile_id = ? AND place_id = ?').get(c.profileId, c.placeId)
+          : null;
+        if (!existing) return { row: this.add({ ...c, refreshedAt: now() }), created: true };
+
+        sqlite.prepare(
+          `UPDATE competitors
+              SET competitor_name = @competitor_name, rating = @rating, address = @address,
+                  platforms_detected = @platforms_detected, source = @source, refreshed_at = @refreshed_at
+            WHERE id = @id`
+        ).run({
+          id: existing.id,
+          competitor_name: c.competitorName ?? existing.competitor_name,
+          rating: c.rating ?? null,
+          address: c.address || existing.address,
+          platforms_detected: JSON.stringify(c.platformsDetected || []),
+          source: c.source || 'google_places',
+          refreshed_at: now(),
+        });
+        return { row: this.findById(existing.id), created: false };
+      },
+
+      findById(competitorId) {
+        return mapCompetitor(sqlite.prepare('SELECT * FROM competitors WHERE id = ?').get(competitorId));
+      },
+      // Manual rows have no placeId, so name is their only dedup handle.
+      findByName(profileId, competitorName) {
+        return mapCompetitor(sqlite.prepare(
+          'SELECT * FROM competitors WHERE profile_id = ? AND LOWER(TRIM(competitor_name)) = LOWER(TRIM(?))'
+        ).get(profileId, String(competitorName || '')));
+      },
       listByProfile(profileId) {
-        return sqlite.prepare('SELECT * FROM competitors WHERE profile_id = ?').all(profileId).map(mapCompetitor);
+        return sqlite.prepare('SELECT * FROM competitors WHERE profile_id = ? ORDER BY created_at')
+          .all(profileId).map(mapCompetitor);
+      },
+
+      // Only keys PRESENT in `fields` are written, so passing followersCount:
+      // null deliberately resets a value to unknown, while omitting it leaves
+      // whatever is stored alone. Same contract as templates.update.
+      update(competitorId, fields = {}) {
+        const colFor = {
+          competitorName: 'competitor_name',
+          rating: 'rating',
+          followersCount: 'followers_count',
+          postsPerWeek: 'posts_per_week',
+          placeId: 'place_id',
+          address: 'address',
+          source: 'source',
+          instagramHandle: 'instagram_handle',
+          telegramChannel: 'telegram_channel',
+          website: 'website',
+          notes: 'notes',
+          refreshedAt: 'refreshed_at',
+        };
+        const sets = [];
+        const params = { id: competitorId };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          sets.push(`${col} = @${col}`);
+          params[col] = fields[key];
+        }
+        for (const [key, col] of [['platformsDetected', 'platforms_detected'], ['metricSources', 'metric_sources']]) {
+          if (fields[key] === undefined) continue;
+          sets.push(`${col} = @${col}`);
+          params[col] = JSON.stringify(fields[key] || (key === 'metricSources' ? {} : []));
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE competitors SET ${sets.join(', ')} WHERE id = @id`).run(params);
+        }
+        return this.findById(competitorId);
+      },
+
+      remove(competitorId) {
+        sqlite.prepare('DELETE FROM competitors WHERE id = ?').run(competitorId);
+      },
+      removeByProfile(profileId, { source } = {}) {
+        const stmt = source
+          ? sqlite.prepare('DELETE FROM competitors WHERE profile_id = ? AND source = ?')
+          : sqlite.prepare('DELETE FROM competitors WHERE profile_id = ?');
+        return (source ? stmt.run(profileId, source) : stmt.run(profileId)).changes;
+      },
+      countByProfile(profileId) {
+        return sqlite.prepare('SELECT COUNT(*) AS n FROM competitors WHERE profile_id = ?').get(profileId).n;
       },
     },
 
