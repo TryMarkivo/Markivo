@@ -21,7 +21,7 @@ const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
 const metaDeletion = require('./metaDeletion');
 const { limitFor } = require('./postLimits');
-const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate, numOrNull } = require('./validators');
+const { validateRegister, validateLogin, validateScan, validateCompetitors, validateCompetitorInput, validateProfileUpdate, validateMeUpdate, numOrNull } = require('./validators');
 
 const db = createDb(config.dbPath);
 const app = express();
@@ -1402,6 +1402,178 @@ app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (re
     res.status(400).json({ error: err.message });
   }
 }));
+
+// ==========================================
+// 3.45 COMPETITOR INTEL
+// ==========================================
+// Competitor rows come from two sources and the difference is load-bearing.
+// Google Places supplies a name, rating and address for nearby businesses; it
+// does NOT supply follower counts or posting cadence, and no API we can call
+// will hand those over for an arbitrary business. So those two are either
+// owner-entered, enriched from a channel the competitor makes public (see
+// competitorSources), or genuinely unknown — and unknown travels all the way
+// to the UI as null, which renders "not reported" rather than a zero.
+
+// Request body -> db fields. Keys absent from the body are omitted entirely so
+// db.competitors.update writes only what the caller actually sent; an explicit
+// null is preserved, because that is how an owner says "I no longer claim to
+// know this".
+const competitorFields = (body = {}) => {
+  const out = {};
+  const setStr = (key, v, max) => {
+    if (v === undefined) return;
+    out[key] = v == null ? null : (String(v).trim().slice(0, max) || null);
+  };
+  if (body.competitorName !== undefined || body.name !== undefined) {
+    out.competitorName = String(body.competitorName ?? body.name).trim().slice(0, 120);
+  }
+  for (const key of ['rating', 'followersCount', 'postsPerWeek']) {
+    if (body[key] !== undefined) out[key] = numOrNull(body[key]);
+  }
+  setStr('address', body.address, 200);
+  setStr('notes', body.notes, 500);
+  setStr('website', body.website, 200);
+  setStr('instagramHandle', body.instagramHandle, 30);
+  setStr('telegramChannel', body.telegramChannel, 64);
+  if (body.platformsDetected !== undefined) {
+    out.platformsDetected = Array.isArray(body.platformsDetected)
+      ? body.platformsDetected.slice(0, 6).map((p) => String(p).slice(0, 30))
+      : [];
+  }
+  return out;
+};
+
+// `unavailable` uses the same field name and shape as
+// /api/dashboard/platform/:key, so the UI's existing `new Set(unavailable)`
+// idiom works here unchanged.
+const competitorRow = (c) => ({
+  id: c.id,
+  name: c.competitorName,
+  rating: c.rating,
+  followers: c.followersCount,
+  postsPerWeek: c.postsPerWeek,
+  platforms: c.platformsDetected || [],
+  platformCount: (c.platformsDetected || []).length,
+  address: c.address,
+  placeId: c.placeId,
+  website: c.website,
+  instagramHandle: c.instagramHandle,
+  telegramChannel: c.telegramChannel,
+  source: c.source,
+  metricSources: c.metricSources || {},
+  notes: c.notes,
+  unavailable: [
+    c.rating == null && 'rating',
+    c.followersCount == null && 'followers',
+    c.postsPerWeek == null && 'postsPerWeek',
+  ].filter(Boolean),
+  created_at: c.created_at,
+  refreshed_at: c.refreshed_at,
+});
+
+// Why the "Find nearby" button is or is not usable, as a CODE the UI
+// translates — never a prebuilt English sentence.
+const discoveryState = (profile, rows) => {
+  const stamps = rows.map((c) => c.refreshed_at).filter(Boolean).sort();
+  let reason = null;
+  if (!places.isLive()) reason = 'no_api_key';
+  else if (!profile) reason = 'no_profile';
+  else if (!Number.isFinite(profile.googleLat) || !Number.isFinite(profile.googleLng) || !profile.googlePrimaryType) {
+    reason = 'no_location';
+  }
+  return { available: reason === null, reason, lastRefreshedAt: stamps.length ? stamps[stamps.length - 1] : null };
+};
+
+// Ownership in one place, mirroring ownedTemplate.
+const ownedCompetitor = (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  const row = profile ? db.competitors.findById(req.params.id) : null;
+  if (!row || row.profileId !== profile.id) {
+    res.status(404).json({ error: 'Competitor not found' });
+    return null;
+  }
+  return row;
+};
+
+// Which metrics the owner has personally vouched for. Recorded per field so
+// the UI can badge a typed-in number differently from a measured one.
+const applyManualSources = (existing, fields) => {
+  const sources = { ...(existing || {}) };
+  for (const [srcKey, field] of [['rating', 'rating'], ['followers', 'followersCount'], ['postsPerWeek', 'postsPerWeek']]) {
+    if (fields[field] === undefined) continue;
+    if (fields[field] == null) delete sources[srcKey];
+    else sources[srcKey] = 'manual';
+  }
+  return sources;
+};
+
+// No profile yet (pre-onboarding) is not an error — answer an empty envelope,
+// the same way GET /api/templates does.
+app.get('/api/competitors', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) {
+    return res.json({ competitors: [], you: null, gaps: [], discovery: discoveryState(null, []) });
+  }
+  const rows = db.competitors.listByProfile(profile.id);
+  res.json({
+    competitors: rows.map(competitorRow),
+    you: null,
+    gaps: [],
+    discovery: discoveryState(profile, rows),
+  });
+});
+
+app.post('/api/competitors', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const error = validateCompetitorInput(req.body);
+  if (error) return res.status(400).json({ error });
+
+  const fields = competitorFields(req.body);
+  if (db.competitors.findByName(profile.id, fields.competitorName)) {
+    return res.status(409).json({ error: 'That competitor is already being tracked' });
+  }
+
+  const saved = db.competitors.add({
+    profileId: profile.id,
+    ...fields,
+    source: 'manual',
+    metricSources: applyManualSources({}, fields),
+  });
+  res.json(competitorRow(saved));
+});
+
+app.put('/api/competitors/:id', verifyToken, (req, res) => {
+  const row = ownedCompetitor(req, res);
+  if (!row) return;
+
+  // Validate the MERGED row: a partial body that omits the name must still be
+  // checked against the stored one rather than failing the required-name rule.
+  const error = validateCompetitorInput({ ...row, ...req.body });
+  if (error) return res.status(400).json({ error });
+
+  const fields = competitorFields(req.body);
+  if (fields.competitorName) {
+    const clash = db.competitors.findByName(row.profileId, fields.competitorName);
+    if (clash && clash.id !== row.id) {
+      return res.status(409).json({ error: 'That competitor is already being tracked' });
+    }
+  }
+
+  const saved = db.competitors.update(row.id, {
+    ...fields,
+    metricSources: applyManualSources(row.metricSources, fields),
+  });
+  res.json(competitorRow(saved));
+});
+
+app.delete('/api/competitors/:id', verifyToken, (req, res) => {
+  const row = ownedCompetitor(req, res);
+  if (!row) return;
+  db.competitors.remove(row.id);
+  res.json({ success: true });
+});
 
 // ==========================================
 // 3.5 DASHBOARD METRICS ROUTER

@@ -72,6 +72,38 @@ function validateCompetitors(body = {}) {
   ]);
 }
 
+/**
+ * Competitor Intel: a manually added or edited competitor row.
+ *
+ * Every metric is optional BY DESIGN. Google Places cannot report a
+ * competitor's follower count or posting cadence, so a blank field is the
+ * normal case and must validate as null — not be rejected, and not be coerced
+ * to 0. Range checks only apply once a value is actually present.
+ */
+function validateCompetitorInput(body = {}) {
+  const raw = typeof body.competitorName === 'string' ? body.competitorName
+    : (typeof body.name === 'string' ? body.name : '');
+  const name = raw.trim();
+  const rating = numOrNull(body.rating);
+  const followers = numOrNull(body.followersCount);
+  const cadence = numOrNull(body.postsPerWeek);
+  // Length checks only — Uzbek/Russian names must pass untouched.
+  const str = (v, max) => v == null || (typeof v === 'string' && v.length <= max);
+  return firstError([
+    [name.length >= 2, 'Competitor name must be at least 2 characters'],
+    [name.length <= 120, 'Competitor name must be 120 characters or fewer'],
+    [rating === null || (rating >= 0 && rating <= 5), 'Rating must be between 0 and 5'],
+    [followers === null || (followers >= 0 && followers <= 1e9), 'Follower count must be a positive number'],
+    [cadence === null || (cadence >= 0 && cadence <= 200), 'Posts per week must be between 0 and 200'],
+    [body.platformsDetected == null || (Array.isArray(body.platformsDetected) && body.platformsDetected.length <= 6), 'At most 6 platforms can be listed'],
+    [str(body.address, 200), 'Address must be 200 characters or fewer'],
+    [str(body.notes, 500), 'Notes must be 500 characters or fewer'],
+    [str(body.instagramHandle, 30), 'Instagram handle must be 30 characters or fewer'],
+    [str(body.telegramChannel, 64), 'Telegram channel must be 64 characters or fewer'],
+    [str(body.website, 200), 'Website must be 200 characters or fewer'],
+  ]);
+}
+
 // Settings: partial profile update — every field is optional, but anything
 // present must be sane. Length checks only (Cyrillic must pass untouched).
 function validateProfileUpdate(body = {}) {
@@ -100,4 +132,4 @@ function validateMeUpdate(body = {}) {
   ]);
 }
 
-module.exports = { isNonEmptyString, isEmail, numOrNull, firstError, validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate };
+module.exports = { isNonEmptyString, isEmail, numOrNull, firstError, validateRegister, validateLogin, validateScan, validateCompetitors, validateCompetitorInput, validateProfileUpdate, validateMeUpdate };
