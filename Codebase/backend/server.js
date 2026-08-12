@@ -334,7 +334,10 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
         platformName: key,
         isConnected: true,
         accountHandle: `@${businessName.toLowerCase().replace(/ /g, '')}`,
-        followersCount: Math.floor(Math.random() * 500) + 200,
+        // No follower count: nobody has measured one yet. This used to seed a
+        // random number between 200 and 700, which then appeared in the
+        // dashboard as though it were the business's real audience.
+        followersCount: null,
       });
     }
   });
@@ -349,19 +352,26 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
   ];
   competitorRows.forEach((c) => db.competitors.add({ profileId: profile.id, ...c }));
 
-  // Seed SEO keywords. (Still mocked — real rank tracking is a future
-  // milestone; the phrases improve automatically now that Path A passes the
-  // real Google category in.) The third phrase derives from the profile's
-  // audience/category instead of a hardcoded niche.
+  // Target search phrases, derived from the real category and audience.
+  //
+  // The PHRASES are legitimate — they come from this business's own category,
+  // location and audience. The rankings are not: avgPosition and volume used to
+  // be seeded with invented numbers (#8, "Very High") that no one measured, and
+  // the dashboard presented them as this business's actual standing. Rank
+  // tracking is not wired, so both stay null and the UI says so. Competitor
+  // Intel measures what IS knowable instead: whether our own published posts
+  // ever use these phrases (see gaps.js keywordsUnused).
   const cat = safeCategory.toLowerCase();
   const audiencePhrase = (typeof audience === 'string' && audience.trim())
     ? `${cat} for ${audience.trim().toLowerCase().slice(0, 60)}`
     : `top rated ${cat}`;
   [
-    { keywordPhrase: `best ${cat} in tashkent`, avgPosition: 8, volume: 'High' },
-    { keywordPhrase: `${cat} near me`, avgPosition: 12, volume: 'Very High' },
-    { keywordPhrase: `${audiencePhrase} ${location || 'tashkent'}`, avgPosition: 4, volume: 'Medium' },
-  ].forEach((k) => db.keywords.add({ profileId: profile.id, ...k }));
+    `best ${cat} in tashkent`,
+    `${cat} near me`,
+    `${audiencePhrase} ${location || 'tashkent'}`,
+  ].forEach((keywordPhrase) => db.keywords.add({
+    profileId: profile.id, keywordPhrase, avgPosition: null, volume: null,
+  }));
 
   // Seed an inaugural scheduled post — a generic welcome from the business
   // name + category (uz/ru flavour kept, no business-type assumptions).
@@ -1848,8 +1858,10 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
       rating: c.rating,
       followers: c.followersCount,
     })),
+    // Phrases are real; positions are not tracked, so they stay null rather
+    // than carrying a rank nobody measured.
     seoKeywords: keywords.length ? keywords : [
-      { keyword_phrase: `best ${cat} in tashkent`, avg_position: 8, volume: 'High' },
+      { keyword_phrase: `best ${cat} in tashkent`, avg_position: null, volume: null },
     ],
     aiPresence: { perplexityScore: 78, chatgptRank: 'Top 5', sourcesCitedCount: 4 },
   });

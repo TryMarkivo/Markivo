@@ -431,6 +431,22 @@
   color: var(--accent-primary);
 }
 
+/* A position nobody measured. Deliberately quiet and non-numeric so it cannot
+   be mistaken for a rank. */
+.kw-pos.kw-untracked {
+  font-family: inherit;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.panel-footnote {
+  margin-top: 12px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
 .kw-volume {
   font-size: 0.75rem;
   color: var(--text-muted);

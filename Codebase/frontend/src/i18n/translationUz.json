@@ -466,8 +466,8 @@
       "drillDown": "{{platform}} boʻyicha batafsil statistikani koʻrsatish"
     },
     "seo": {
-      "title": "Mahalliy SEO reytinglari",
-      "subtitle": "Biznesingiz Toshkent qidiruv natijalarida qanday o'rinda",
+      "title": "Mahalliy qidiruv iboralari",
+      "subtitle": "Ushbu biznes mo'ljallagan mahalliy qidiruv iboralari",
       "keywordCol": "Qidiruv so'zi",
       "positionCol": "O'rtacha o'rin",
       "volumeCol": "Hajm",
@@ -475,7 +475,9 @@
         "high": "Yuqori",
         "medium": "O'rtacha",
         "veryHigh": "Juda yuqori"
-      }
+      },
+      "notTracked": "kuzatilmaydi",
+      "footnote": "Pozitsiyalarni kuzatish hali ulanmagan. «Raqobatchilar tahlili» bo'limi bu iboralarning qaysi biri e'lon qilingan postlaringizda ishlatilganini ko'rsatadi."
     },
     "aiSearch": {
       "title": "AI qidiruvdagi ko'rinish",

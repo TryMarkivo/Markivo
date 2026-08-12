@@ -467,8 +467,8 @@
       "drillDown": "Show detailed {{platform}} statistics"
     },
     "seo": {
-      "title": "Local SEO Rankings",
-      "subtitle": "How your business ranks in Tashkent search results",
+      "title": "Local Search Phrases",
+      "subtitle": "The local search phrases this business targets",
       "keywordCol": "Search Keyword",
       "positionCol": "Avg. Position",
       "volumeCol": "Volume",
@@ -476,7 +476,9 @@
         "high": "High",
         "medium": "Medium",
         "veryHigh": "Very High"
-      }
+      },
+      "notTracked": "not tracked",
+      "footnote": "Rank tracking is not connected yet. Competitor Intel shows which of these phrases your published posts actually use."
     },
     "aiSearch": {
       "title": "AI Search Visibility",

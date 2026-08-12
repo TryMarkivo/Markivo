@@ -191,10 +191,12 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             { name: 'Coffee House Central', platformCount: 4, postsPerWeek: 10, rating: 4.6, followers: 4100 },
             { name: 'Local Roasters', platformCount: 2, postsPerWeek: 4, rating: 4.2, followers: 980 }
           ],
+          // Phrases only. Rank tracking is not wired, so an offline preview must
+          // not invent positions the owner might read as their real standing.
           seoKeywords: [
-            { keyword_phrase: `best ${cat} in tashkent`, avg_position: 7, volume: 'High' },
-            { keyword_phrase: `${cat} workspace`, avg_position: 11, volume: 'Medium' },
-            { keyword_phrase: `${cat} near me`, avg_position: 15, volume: 'Very High' }
+            { keyword_phrase: `best ${cat} in tashkent`, avg_position: null, volume: null },
+            { keyword_phrase: `${cat} workspace`, avg_position: null, volume: null },
+            { keyword_phrase: `${cat} near me`, avg_position: null, volume: null }
           ],
           aiPresence: {
             perplexityScore: 72,
@@ -513,8 +515,8 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                 
                 {/* SEO LOCAL KEYWORDS */}
                 <div className="seo-panel glass-card">
-                  <h3>{t('dashboard.seo.title', 'Local SEO Rankings')}</h3>
-                  <p className="panel-subtitle">{t('dashboard.seo.subtitle', 'How your business ranks in Tashkent search results')}</p>
+                  <h3>{t('dashboard.seo.title', 'Local Search Phrases')}</h3>
+                  <p className="panel-subtitle">{t('dashboard.seo.subtitle', 'The local search phrases this business targets')}</p>
 
                   <div className="keywords-list">
                     <div className="kw-header">
@@ -523,16 +525,24 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                       <span>{t('dashboard.seo.volumeCol', 'Volume')}</span>
                     </div>
                     {stats.seoKeywords.map((kw, idx) => {
+                      // Rank tracking is not connected. A position we never
+                      // measured is shown as untracked, never as a number.
                       const position = kw.avg_position ?? kw.position;
+                      const tracked = Number.isFinite(position);
                       return (
                         <div key={idx} className="kw-row">
                           <span className="kw-text">{kw.keyword_phrase || kw.keyword}</span>
-                          <span className={`kw-pos ${position <= 10 ? 'top-10' : ''}`}>#{position}</span>
-                          <span className="kw-volume">{volumeLabels[kw.volume] || kw.volume}</span>
+                          <span className={`kw-pos ${tracked ? (position <= 10 ? 'top-10' : '') : 'kw-untracked'}`}>
+                            {tracked ? `#${position}` : t('dashboard.seo.notTracked', 'not tracked')}
+                          </span>
+                          <span className="kw-volume">{kw.volume ? (volumeLabels[kw.volume] || kw.volume) : '—'}</span>
                         </div>
                       );
                     })}
                   </div>
+                  <p className="panel-footnote text-muted">
+                    {t('dashboard.seo.footnote', 'Rank tracking is not connected yet. Competitor Intel shows which of these phrases your published posts actually use.')}
+                  </p>
                 </div>
 
                 {/* AI SEARCH PRESENCE INDEX */}
