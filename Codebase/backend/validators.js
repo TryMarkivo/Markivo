@@ -6,6 +6,22 @@ const isNonEmptyString = (v) => typeof v === 'string' && v.trim().length > 0;
 const isEmail = (v) => isNonEmptyString(v) && EMAIL_RE.test(v.trim());
 
 /**
+ * Parse a numeric field that is allowed to be UNKNOWN. Blank, null, and absent
+ * all mean "not reported" and stay null — never 0.
+ *
+ * Use this instead of `Number.isFinite(+v) ? +v : null`: `+null === 0` and
+ * `Number.isFinite(0)` is true, so that idiom silently turns an honest null
+ * into a fabricated zero. Google Places returns explicit nulls for follower
+ * counts and posting cadence because it cannot measure them, and a competitor
+ * shown as "0 posts/week" is a number the owner may act on.
+ */
+const numOrNull = (v) => {
+  if (v === '' || v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
  * Run an array of [condition, message] checks. Returns the first failing
  * message, or null if all pass.
  */
@@ -84,4 +100,4 @@ function validateMeUpdate(body = {}) {
   ]);
 }
 
-module.exports = { isNonEmptyString, isEmail, firstError, validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate };
+module.exports = { isNonEmptyString, isEmail, numOrNull, firstError, validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate };

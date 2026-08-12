@@ -163,6 +163,36 @@ test('construct stores google identity and real competitors replace the seeds', 
   assert.strictEqual(stats.competitors[0].postsPerWeek, null); // honest nulls survive the API
 });
 
+// Regression: the live Path A payload carries EXPLICIT nulls for the two fields
+// Places cannot measure. The test above only proves omitted fields survive
+// (`+undefined` is NaN); an explicit null took the `+null === 0` branch and was
+// persisted as a fabricated 0, which the UI then rendered as "0 posts / week".
+test('construct keeps explicit null competitor metrics null, never 0', async () => {
+  const token = await register('nullcomp');
+  const res = await post('/api/onboarding/construct', {
+    businessName: 'Null Metrics Biz',
+    // places.js maps an unrated business to `rating: null` — the normal case
+    // for a brand-new SMB that has no Google reviews yet.
+    google: { placeId: 'pid_n', rating: null, reviewsCount: null },
+    competitors: [
+      // Byte-for-byte the shape places.findCompetitors returns.
+      { competitorName: 'Nulla Cafe', rating: null, followersCount: null, postsPerWeek: null, platformsDetected: ['google'] },
+    ],
+  }, token);
+  assert.strictEqual(res.status, 200);
+  const { profile } = await res.json();
+  assert.strictEqual(profile.googleRating, null, 'an unrated business must not become ★ 0');
+  assert.strictEqual(profile.googleReviewsCount, null);
+
+  const stats = await (await fetch(`${base}/api/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  assert.strictEqual(stats.competitors.length, 1);
+  const [c] = stats.competitors;
+  assert.strictEqual(c.name, 'Nulla Cafe');
+  assert.strictEqual(c.postsPerWeek, null, 'unknown cadence must stay null, not 0');
+  assert.strictEqual(c.followers, null, 'unknown follower count must stay null, not 0');
+  assert.strictEqual(c.rating, null, 'unrated place must stay null, not 0');
+});
+
 test('construct without competitors keeps the legacy benchmark seeds (Path B regression)', async () => {
   const token = await register('seedcomp');
   const res = await post('/api/onboarding/construct', { businessName: 'Scratch Biz' }, token);

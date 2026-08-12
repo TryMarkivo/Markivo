@@ -21,7 +21,7 @@ const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
 const metaDeletion = require('./metaDeletion');
 const { limitFor } = require('./postLimits');
-const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
+const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate, numOrNull } = require('./validators');
 
 const db = createDb(config.dbPath);
 const app = express();
@@ -269,14 +269,19 @@ app.post('/api/onboarding/logos', verifyToken, checkAiBudget, asyncRoute(async (
 
 // Cap + type-coerce competitor rows arriving from the client (Path A passes
 // real Places results through; anything malformed degrades to nothing).
+//
+// Every number goes through numOrNull, which keeps an unknown value null. The
+// scan hands us explicit nulls for followersCount/postsPerWeek — Places cannot
+// measure either — and coercing those to 0 would publish a cadence the owner
+// might act on. See validators.numOrNull.
 const sanitizeCompetitors = (list) => (Array.isArray(list) ? list : [])
   .slice(0, 10)
   .filter((c) => c && typeof (c.competitorName || c.name) === 'string')
   .map((c) => ({
     competitorName: String(c.competitorName || c.name).slice(0, 120),
-    rating: Number.isFinite(+c.rating) ? +c.rating : null,
-    followersCount: Number.isFinite(+c.followersCount) ? +c.followersCount : null,
-    postsPerWeek: Number.isFinite(+c.postsPerWeek) ? +c.postsPerWeek : null,
+    rating: numOrNull(c.rating),
+    followersCount: numOrNull(c.followersCount),
+    postsPerWeek: numOrNull(c.postsPerWeek),
     platformsDetected: Array.isArray(c.platformsDetected)
       ? c.platformsDetected.slice(0, 6).map(String)
       : ['google'],
@@ -301,8 +306,11 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
     logoMetadata: logo || { text: businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' },
     onboardPath: req.body.onboardPath || 'B (Scratch)',
     googlePlaceId: typeof g.placeId === 'string' ? g.placeId.slice(0, 128) : null,
-    googleRating: Number.isFinite(+g.rating) ? +g.rating : null,
-    googleReviewsCount: Number.isFinite(+g.reviewsCount) ? +g.reviewsCount : null,
+    // Same null-preserving rule as the competitor rows: places.js maps an
+    // unrated business to `rating: null`, and a brand-new business with no
+    // reviews is exactly the case here — "★ 0" would be a rating we invented.
+    googleRating: numOrNull(g.rating),
+    googleReviewsCount: numOrNull(g.reviewsCount),
   });
 
   // Platform connections selected in the wizard.
