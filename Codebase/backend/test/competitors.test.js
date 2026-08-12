@@ -205,6 +205,31 @@ test('POST /refresh keyless: 200 with a reason code, and nothing mutates', async
   assert.strictEqual(after.length, before.length, 'a keyless refresh must not touch stored rows');
 });
 
+test('POST /:id/enrich reports per-source codes and writes nothing it could not read', async () => {
+  const created = await (await post('/api/competitors', {
+    name: 'Enrich Target', telegramChannel: 'https://t.me/sometarget', instagramHandle: 'sometarget',
+  }, token)).json();
+
+  const res = await post(`/api/competitors/${created.id}/enrich`, {}, token);
+  assert.strictEqual(res.status, 200, 'nothing readable is information, not an error');
+  const data = await res.json();
+
+  // No Telegram bot is connected in this suite, and Instagram needs an auth
+  // upgrade — two different reasons, reported separately.
+  assert.strictEqual(data.report.telegram.ok, false);
+  assert.strictEqual(data.report.telegram.reason, 'no_telegram_bot');
+  assert.strictEqual(data.report.instagram.reason, 'auth_upgrade_required');
+
+  assert.strictEqual(data.competitor.followers, null, 'an unreadable source writes no number');
+  assert.ok(data.competitor.unavailable.includes('followers'));
+  assert.deepStrictEqual(data.competitor.metricSources, {}, 'nothing was measured, so nothing is attributed');
+});
+
+test('enrich on another profile\'s competitor answers 404', async () => {
+  const mine = await findRow('Enrich Target');
+  assert.strictEqual((await post(`/api/competitors/${mine.id}/enrich`, {}, otherToken)).status, 404);
+});
+
 test('a competitor name in Cyrillic passes validation untouched', async () => {
   const res = await post('/api/competitors', { name: 'Кофейня Улица', rating: 4.2 }, token);
   assert.strictEqual(res.status, 200);

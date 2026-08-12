@@ -16,6 +16,7 @@ const billing = require('./billing');
 const tg = require('./telegram');
 const ig = require('./instagram');
 const places = require('./places');
+const competitorSources = require('./competitorSources');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
@@ -1665,6 +1666,30 @@ app.delete('/api/competitors/:id', verifyToken, (req, res) => {
   db.competitors.remove(row.id);
   res.json({ success: true });
 });
+
+// Read whatever a competitor has actually made public on a channel we already
+// hold credentials for. Today that is a public Telegram channel via the owner's
+// own bot; Instagram reports 'auth_upgrade_required' (see competitorSources).
+//
+// Always 200: the per-source `report` carries reason CODES, because "we could
+// not read this" is information the owner needs, not an error.
+app.post('/api/competitors/:id/enrich', verifyToken, asyncRoute(async (req, res) => {
+  const row = ownedCompetitor(req, res);
+  if (!row) return;
+
+  const profile = db.profiles.findById(row.profileId);
+  const { fields, sources, report } = await competitorSources.enrich(row, { profile, db });
+
+  const saved = Object.keys(fields).length
+    ? db.competitors.update(row.id, {
+      ...fields,
+      metricSources: { ...(row.metricSources || {}), ...sources },
+      refreshedAt: new Date().toISOString(),
+    })
+    : row;
+
+  res.json({ competitor: competitorRow(saved), report });
+}));
 
 // ==========================================
 // 3.5 DASHBOARD METRICS ROUTER
