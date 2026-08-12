@@ -12,8 +12,14 @@
 // own (it finds the numbers in "Stadium No:141, 9 spots left" without any AI).
 
 const config = require('./config');
+const prompts = require('./marketing/prompts');
 
 const API_HOST = 'https://generativelanguage.googleapis.com/v1beta';
+
+// ${placeholder} interpolation for the authored prompt templates (same helper
+// shape as ai.js — the templates are shared authoring, not shared code).
+const fill = (tmpl, vars) =>
+  String(tmpl).replace(/\$\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
 
 // ===========================================================================
 // LOW-LEVEL CLIENT
@@ -548,10 +554,87 @@ async function generateMediaBrief(ctx) {
   }
 }
 
+// ===========================================================================
+// LOCAL-MARKET RESEARCH BRIEF
+// ===========================================================================
+// marketing/prompts.js has carried a complete research prompt — with a strict
+// JSON contract, a ban on invented competitor names and follower counts, and a
+// required groundingFlags array — that nothing ever called. prompts.js assigns
+// this lane to Gemini specifically (see `division`), so there is deliberately
+// no Claude leg here: research.js falls back to a deterministic template
+// instead, which keeps the app working keyless.
+
+// Gemini's responseSchema is the OpenAPI 3.0 subset: UPPERCASE type names and
+// no `additionalProperties`.
+const RESEARCH_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    marketSnapshot: { type: 'STRING' },
+    trendingAngles: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { angle: { type: 'STRING' }, why: { type: 'STRING' }, confidence: { type: 'STRING' } },
+        required: ['angle', 'why', 'confidence'],
+      },
+    },
+    seasonalHooks: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { hook: { type: 'STRING' }, window: { type: 'STRING' }, idea: { type: 'STRING' } },
+        required: ['hook', 'window', 'idea'],
+      },
+    },
+    competitorPlaybook: { type: 'ARRAY', items: { type: 'STRING' } },
+    contentGaps: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { gap: { type: 'STRING' }, opportunity: { type: 'STRING' } },
+        required: ['gap', 'opportunity'],
+      },
+    },
+    localNotes: { type: 'STRING' },
+    groundingFlags: { type: 'ARRAY', items: { type: 'STRING' } },
+  },
+  required: ['marketSnapshot', 'trendingAngles', 'seasonalHooks', 'competitorPlaybook', 'contentGaps', 'localNotes', 'groundingFlags'],
+  propertyOrdering: ['marketSnapshot', 'trendingAngles', 'seasonalHooks', 'competitorPlaybook', 'contentGaps', 'localNotes', 'groundingFlags'],
+};
+
+/**
+ * Grounded local-market brief, or null when keyless / on any failure — the
+ * caller substitutes a deterministic template, exactly like generateContent.
+ */
+async function researchBrief({ name, category, location, topic } = {}) {
+  if (!config.geminiEnabled) return null;
+  const vars = {
+    name: name || 'this business',
+    category: category || 'local business',
+    location: location || 'Tashkent',
+    topic: topic || 'evergreen local visibility and foot traffic',
+  };
+  try {
+    return await callGemini({
+      system: fill(prompts.research.researchSystemPrompt, vars),
+      user: fill(prompts.research.researchUserTemplate, vars),
+      schema: RESEARCH_SCHEMA,
+      maxTokens: 2200,
+      // Research wants consistency over flair; the copy step supplies the flair.
+      temperature: 0.4,
+    });
+  } catch (err) {
+    console.error('Gemini researchBrief failed, falling back:', err.message);
+    return null;
+  }
+}
+
 module.exports = {
   enabled: config.geminiEnabled,
   model: config.geminiTextModel,
   generateContent,
+  researchBrief,
+  RESEARCH_SCHEMA,
   generateMediaBrief,
   analyzeTemplate,
   // Deterministic helpers — used by the routes and exercised directly by tests.

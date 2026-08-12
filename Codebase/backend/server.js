@@ -18,6 +18,7 @@ const ig = require('./instagram');
 const places = require('./places');
 const competitorSources = require('./competitorSources');
 const { computeGaps } = require('./gaps');
+const research = require('./research');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
@@ -1727,6 +1728,49 @@ app.post('/api/competitors/refresh', verifyToken, scanLimiter, asyncRoute(async 
     if (created) added += 1; else updated += 1;
   }
   answer({ refreshed: found.length, added, updated });
+}));
+
+// The cached local-market brief. Free, and never generates — reading what was
+// already produced must not cost the owner an AI generation.
+app.get('/api/competitors/insights', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ brief: null, generatedAt: null });
+  res.json({ brief: profile.marketBrief || null, generatedAt: profile.marketBriefAt || null });
+});
+
+// Generate (or regenerate) it. Behind checkAiBudget and an explicit user
+// action, never on page load.
+//
+// This is INFERENCE about the category and location — the research prompt
+// forbids naming competitors — so the UI renders it apart from the measured
+// gaps, and groundingFlags are shown rather than hidden.
+app.post('/api/competitors/insights', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const competitors = db.competitors.listByProfile(profile.id).map(competitorRow);
+  const you = await buildYou(profile);
+  const posts = db.calendar.listByProfile(profile.id);
+  const gaps = computeGaps({
+    you,
+    competitors,
+    keywordPhrases: db.keywords.listByProfile(profile.id).map((k) => k.keyword_phrase).filter(Boolean),
+    publishedTexts: posts.filter((p) => p.status === 'posted').map((p) => p.post_text),
+  });
+
+  const brief = await research.generateMarketBrief({
+    name: profile.businessName,
+    category: profile.category,
+    location: profile.location,
+    topic: typeof req.body.topic === 'string' ? req.body.topic.trim().slice(0, 200) : '',
+    // Passed so the offline template's content gaps are derived from real
+    // arithmetic over this profile rather than invented.
+    gaps,
+  });
+
+  db.profiles.update(profile.id, { marketBrief: brief, marketBriefAt: brief.generatedAt });
+  db.usage.record({ userId: req.user.id, kind: 'research' });
+  res.json({ brief, generatedAt: brief.generatedAt });
 }));
 
 app.post('/api/competitors', verifyToken, (req, res) => {

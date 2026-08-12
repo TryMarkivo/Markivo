@@ -260,6 +260,43 @@ test('enrich on another profile\'s competitor answers 404', async () => {
   assert.strictEqual((await post(`/api/competitors/${mine.id}/enrich`, {}, otherToken)).status, 404);
 });
 
+test('GET /insights before any run returns nothing, and costs nothing', async () => {
+  const data = await (await get('/api/competitors/insights', token)).json();
+  assert.strictEqual(data.brief, null);
+  assert.strictEqual(data.generatedAt, null);
+});
+
+test('POST /insights keyless produces a full-contract brief with visible caveats', async () => {
+  const res = await post('/api/competitors/insights', {}, token);
+  assert.strictEqual(res.status, 200, 'a blank Gemini key degrades the answer, not the route');
+  const { brief } = await res.json();
+
+  assert.strictEqual(brief.engine, 'template');
+  for (const field of ['marketSnapshot', 'trendingAngles', 'seasonalHooks', 'competitorPlaybook', 'contentGaps', 'localNotes', 'groundingFlags']) {
+    assert.ok(field in brief, `the offline brief must satisfy the full contract: missing ${field}`);
+  }
+  assert.ok(brief.marketSnapshot.length > 40);
+  assert.ok(brief.groundingFlags.length > 0, 'an offline brief must declare that it is offline');
+  assert.match(brief.groundingFlags[0], /offline/i);
+
+  // The prompt bans naming competitors; the template must not either.
+  const playbook = brief.competitorPlaybook.join(' ');
+  assert.ok(!playbook.includes('Brew District'), 'the playbook describes patterns, never a named rival');
+
+  // Every angle it cannot verify is marked as such.
+  for (const a of brief.trendingAngles) {
+    assert.ok(['high', 'medium', 'low'].includes(a.confidence));
+  }
+});
+
+test('POST /insights caches, and GET returns the cached brief', async () => {
+  const first = await (await post('/api/competitors/insights', { topic: 'winter menu' }, token)).json();
+  const cached = await (await get('/api/competitors/insights', token)).json();
+  assert.strictEqual(cached.brief.engine, 'template');
+  assert.strictEqual(cached.generatedAt, first.generatedAt);
+  assert.deepStrictEqual(cached.brief.marketSnapshot, first.brief.marketSnapshot);
+});
+
 test('a competitor name in Cyrillic passes validation untouched', async () => {
   const res = await post('/api/competitors', { name: 'Кофейня Улица', rating: 4.2 }, token);
   assert.strictEqual(res.status, 200);
