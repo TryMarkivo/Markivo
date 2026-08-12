@@ -415,7 +415,7 @@ app.post('/api/competitors/analyze', verifyToken, checkAiBudget, asyncRoute(asyn
   const profile = requireProfile(req, res);
   if (!profile) return;
 
-  const competitors = db.competitors.listByProfile(profile.id);
+  const competitors = db.competitors.listByProfile(profile.id).filter((c) => c.source === 'manual');
   const posts = db.competitorPosts.listByProfile(profile.id, 400);
   const postsByCompetitor = {};
   for (const p of posts) (postsByCompetitor[p.competitorId] ||= []).push(p);
@@ -553,7 +553,7 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
   // competitors yet" until the owner tracks real ones (Places-found or
   // manually added via POST /api/competitors).
   const realCompetitors = sanitizeCompetitors(req.body.competitors);
-  realCompetitors.forEach((c) => db.competitors.add({ profileId: profile.id, ...c }));
+  realCompetitors.forEach((c) => db.competitors.add({ profileId: profile.id, source: 'places', ...c }));
 
   // Seed SEO keywords. (Still mocked — real rank tracking is a future
   // milestone; the phrases improve automatically now that Path A passes the
@@ -1628,7 +1628,11 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Active profile not found' });
 
-  const competitors = db.competitors.listByProfile(profile.id);
+  // Real rows only (manually tracked or Places-discovered) — legacy onboarding
+  // demo/benchmark seeds default to 'onboarding' (no explicit source) and must
+  // never resurface here.
+  const isRealCompetitor = (c) => c.source === 'manual' || c.source === 'places';
+  const competitors = db.competitors.listByProfile(profile.id).filter(isRealCompetitor);
   const keywords = db.keywords.listByProfile(profile.id);
   const cat = (profile.category || 'business').toLowerCase();
 
@@ -2016,7 +2020,7 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
   const calendarRows = db.calendar.listByProfile(profile.id);
   const snapshot = {
     stats: {
-      competitorCount: db.competitors.listByProfile(profile.id).length,
+      competitorCount: db.competitors.listByProfile(profile.id).filter((c) => c.source === 'manual' || c.source === 'places').length,
       keywords: db.keywords.listByProfile(profile.id).slice(0, 3).map((k) => k.keyword_phrase),
       scheduledPosts: calendarRows.filter((p) => p.status === 'scheduled').length,
       postedPosts: calendarRows.filter((p) => p.status === 'posted').length,

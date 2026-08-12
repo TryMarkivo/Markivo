@@ -78,7 +78,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['meta_instagram'];
 
   const recentPosts = db.calendar.listByProfile(profileId).slice(-5).map((p) => p.post_text).filter(Boolean);
-  const competitors = db.competitors.listByProfile(profileId).slice(0, 5).map((c) => c.competitor_name).filter(Boolean);
+  const competitors = db.competitors.listByProfile(profileId).filter((c) => c.source === 'manual' || c.source === 'places').slice(0, 5).map((c) => c.competitor_name).filter(Boolean);
 
   // One analyze+generate call counts as one AI generation against the allowance.
   if (user) db.usage.record({ userId: user.id, kind: 'autonomous' });
