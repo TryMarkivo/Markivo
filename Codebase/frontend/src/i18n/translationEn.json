@@ -721,41 +721,169 @@
     }
   },
   "competitors": {
+    "title": "Competitor Intel",
+    "subtitle": "What we can actually measure about the businesses you compete with.",
+    "loading": "Loading competitor intel…",
+    "loadError": "Couldn't load competitor intel.",
+    "saveError": "Couldn't save that competitor.",
+    "retry": "Retry",
+    "notReported": "not reported",
+    "perWeekShort": "{{value}} / wk",
+    "platform": {
+      "googleBusiness": "Google",
+      "instagram": "Instagram",
+      "telegram": "Telegram",
+      "facebook": "Facebook",
+      "tiktok": "TikTok",
+      "youtube": "YouTube"
+    },
     "benchmark": {
       "title": "Local Competitor Benchmark",
-      "subtitle": "How your channel infrastructure compares to nearby local brands",
+      "subtitle": "How your channels compare to the businesses nearby",
       "colName": "Brand Name",
       "colChannels": "Channels",
       "colCadence": "Cadence",
       "colFollowers": "Followers",
-      "you": "You (Active Profile)",
-      "connectedCount": "{{count}} Connected",
-      "perWeek": "{{count}} / week",
+      "connectedCount_one": "{{count}} connected",
+      "connectedCount_other": "{{count}} connected",
+      "perWeek": "{{value}} / week",
       "channelsCount_one": "{{count}} channel",
       "channelsCount_other": "{{count}} channels",
       "ratingSuffix": " · ★ {{rating}}"
     },
     "frequency": {
       "title": "Weekly Posting Frequency",
-      "subtitle": "Benchmark of content frequency across competing channels",
-      "axisLabel": "{{count}} / wk",
-      "you": "You",
-      "compA": "Comp A",
-      "compB": "Comp B",
-      "compC": "Global C"
+      "subtitle": "Only businesses with a known cadence appear here"
+    },
+    "chart": {
+      "empty": "No competitor has a posting cadence on file yet.",
+      "emptyHint": "Add one to a competitor and this benchmark appears. Nobody can measure it for you — Google Maps does not report how often a business posts.",
+      "unknownList_one": "{{count}} competitor has no posting cadence on file, so it is not charted.",
+      "unknownList_other": "{{count}} competitors have no posting cadence on file, so they are not charted.",
+      "basis": "Your figure counts what Markivo published. A competitor's is whatever you recorded for them."
+    },
+    "empty": {
+      "title": "No competitors tracked yet",
+      "body": "Add the businesses you actually compete with, or let Markivo find the nearby ones on Google Maps.",
+      "addBtn": "Add one manually",
+      "scanBtn": "Find nearby businesses"
+    },
+    "actions": {
+      "add": "Add competitor",
+      "edit": "Edit",
+      "remove": "Remove",
+      "removeConfirm": "Stop tracking {{name}}?",
+      "refresh": "Find nearby",
+      "refreshing": "Searching…",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved.",
+      "removed": "Removed.",
+      "enrich": "Read public numbers"
+    },
+    "refresh": {
+      "done_one": "Found {{count}} nearby — {{added}} new.",
+      "done_other": "Found {{count}} nearby — {{added}} new.",
+      "no_api_key": "Nearby search needs a Google Maps key, which is not configured. You can still add competitors by hand.",
+      "no_location": "Google Maps could not place this business, so nearby search has nothing to search around.",
+      "no_profile": "Finish setting up your business first.",
+      "failed": "Nearby search is unavailable right now."
+    },
+    "enrich": {
+      "done": "Updated from a public channel.",
+      "failed": "Nothing could be read for this competitor.",
+      "no_handle": "Add an Instagram handle or Telegram channel first.",
+      "no_telegram_bot": "Connect your Telegram bot first — Markivo reads public channels with it.",
+      "not_public": "That channel is not readable from here, so the number stays unknown.",
+      "auth_upgrade_required": "Instagram competitor numbers need a Facebook-linked account, which Markivo does not use yet."
+    },
+    "source": {
+      "google_places": "Maps",
+      "manual": "Yours"
+    },
+    "sourceHint": {
+      "google_places": "Found on Google Maps",
+      "manual": "Added by you"
+    },
+    "measuredBy": {
+      "telegram": "Read from their public Telegram channel"
+    },
+    "you": {
+      "cadenceHint": "Counts only what Markivo published."
+    },
+    "form": {
+      "addTitle": "Add a competitor",
+      "editTitle": "Edit competitor",
+      "name": "Business name",
+      "namePlaceholder": "e.g. Brew District",
+      "unknownHint": "Leave anything you do not know blank. A blank field is recorded as \"not reported\" — it never becomes a zero, and it never appears in a comparison.",
+      "rating": "Google rating",
+      "followers": "Followers",
+      "cadence": "Posts per week",
+      "platforms": "Channels they use",
+      "instagram": "Instagram handle",
+      "telegram": "Telegram channel",
+      "handlesHint": "A public Telegram channel lets Markivo read its subscriber count for you. Instagram needs an account upgrade before it can do the same.",
+      "address": "Address",
+      "notes": "Your notes",
+      "notesPlaceholder": "What do they do well? What do they miss?"
     },
     "gaps": {
-      "title": "Actionable AI Moat Recommendations",
-      "cadenceTitle": "Post Cadence Alert",
-      "cadenceTextKnown": "Your primary local competitor <1>{{name}}</1> posts average <3>{{count}} times</3> per week. You post <5>{{yourCount}} times</5>.",
-      "cadenceTextUnknown": "Your primary local competitor <1>{{name}}</1> is active on Google Maps{{ratingPart}}. Consistent posting is your fastest way to stand out locally.",
-      "cadenceRating": " with a ★ {{rating}} rating",
-      "nearbyFallback": "nearby",
-      "solutionLabel": "💡 Solution:",
-      "cadenceSolution": "Schedule at least 4 more AI posts in your Content Engine to close the visibility gap.",
-      "seoTitle": "SEO Keyword Gaps",
-      "seoText": "Nearby competitors are actively ranking for <1>{{category}}-relevant local search phrases</1> that your profiles never mention. You are completely missing this local search vector.",
-      "seoSolution": "Weave {{category}}-relevant local search phrases and the wording your ideal customers actually search for into your next generated Telegram content copy."
+      "measuredTitle": "What we measured",
+      "measuredSubtitle": "Derived from your own records and the numbers on file — no guesswork.",
+      "goToCalendar": "Open the calendar",
+      "goToConnections": "Manage channels",
+      "item": {
+        "cadenceBehind": {
+          "title": "You post less often",
+          "body": "{{name}} posts {{theirs}} times a week. You publish {{yours}} — a gap of {{delta}} posts."
+        },
+        "cadenceUnknown": {
+          "title": "Cadence unknown",
+          "body_one": "{{count}} competitor has no posting cadence recorded, so they sit out of the comparison.",
+          "body_other": "{{count}} competitors have no posting cadence recorded, so they sit out of the comparison."
+        },
+        "noPublishedPosts": {
+          "title": "Nothing published yet",
+          "body": "Markivo has published nothing in the last {{days}} days, so there is no output to compare."
+        },
+        "keywordsUnused": {
+          "title": "Unused search phrases",
+          "body_one": "{{count}} of your {{total}} target phrases never appears in a published post.",
+          "body_other": "{{count}} of your {{total}} target phrases never appear in a published post."
+        },
+        "channelGap": {
+          "title": "Channels you are missing",
+          "body_one": "Competitors use {{count}} channel you have not connected: {{platforms}}.",
+          "body_other": "Competitors use {{count}} channels you have not connected: {{platforms}}."
+        },
+        "ratingBehind": {
+          "title": "Rated below a neighbour",
+          "body": "{{name}} is rated ★ {{theirs}} against your ★ {{yours}} — {{delta}} higher."
+        },
+        "noCompetitors": {
+          "title": "Nobody tracked yet",
+          "body": "Add a competitor, or search for the businesses nearby, and this panel starts working."
+        }
+      }
+    },
+    "brief": {
+      "title": "Market brief",
+      "subtitle": "An AI read on your category and area. This is informed guesswork, not measurement.",
+      "analyze": "Generate",
+      "analyzing": "Thinking…",
+      "regenerate": "Regenerate",
+      "neverRun": "No brief yet. Generating one uses an AI generation from your monthly allowance.",
+      "done": "Market brief updated.",
+      "failed": "Couldn't generate a market brief.",
+      "groundingTitle": "Treat with caution",
+      "contentGaps": "Openings",
+      "seasonalHooks": "Seasonal hooks",
+      "competitorPlaybook": "What similar businesses typically do",
+      "engine": {
+        "gemini": "AI-researched",
+        "template": "Offline template"
+      }
     }
   },
   "agent": {

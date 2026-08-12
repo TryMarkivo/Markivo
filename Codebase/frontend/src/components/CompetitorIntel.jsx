@@ -1,151 +1,461 @@
-import { useTranslation, Trans } from 'react-i18next';
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import api from '../lib/api';
+import { benchmarkSeries, unknownCadenceCount, isUnknown, sourceOf, formatCount, formatCadence } from '../lib/competitors';
+import BenchmarkBars from './BenchmarkBars';
+import CompetitorEditor from './CompetitorEditor';
 import './CompetitorIntel.css';
 
-export default function CompetitorIntel({ stats, activeProfile }) {
-  const { t } = useTranslation();
-  const competitors = stats.competitors || [];
-  const category = activeProfile.category || 'Cafe';
+/**
+ * Competitor Intel.
+ *
+ * The panel is deliberately split in two, and the split is the point:
+ *
+ *   "What we measured" is arithmetic over records we hold — our own published
+ *   posts, ratings from Google Places, subscriber counts read from a public
+ *   channel, and figures the owner entered by hand. Every one of those can be
+ *   traced to a source, and the table badges which.
+ *
+ *   "Market brief" is a model's inference about the category and location. It
+ *   never names a competitor, it costs a generation, it only runs when asked,
+ *   and it renders its own caveats.
+ *
+ * Anything nobody measured shows as "not reported". It is never a zero, and it
+ * never enters a comparison — a fabricated cadence is a number an owner would
+ * act on.
+ */
+export default function CompetitorIntel({ activeProfile, onGoToCalendar, onGoToConnections }) {
+  const { t, i18n } = useTranslation();
+
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
+  const refresh = useCallback(() => setReloadToken((n) => n + 1), []);
+
+  const [busyId, setBusyId] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [editing, setEditing] = useState(null);     // null | {} (new) | row (edit)
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [noticeError, setNoticeError] = useState(false);
+
+  const [brief, setBrief] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  // Loading is only true for the first fetch. A refresh after a save keeps the
+  // current rows on screen rather than flashing a spinner over them.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [core, insights] = await Promise.all([
+          api.get('/api/competitors'),
+          api.get('/api/competitors/insights').catch(() => ({ brief: null })),
+        ]);
+        if (cancelled) return;
+        setLoadError('');
+        setData(core);
+        setBrief(insights.brief || null);
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || t('competitors.loadError', "Couldn't load competitor intel."));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeProfile?.id, reloadToken, t]);
+
+  const say = (message, isError = false) => { setNotice(message); setNoticeError(isError); };
+
+  const save = async (payload) => {
+    setSaving(true);
+    setFormError('');
+    try {
+      if (editing && editing.id) await api.put(`/api/competitors/${editing.id}`, payload);
+      else await api.post('/api/competitors', payload);
+      setEditing(null);
+      say(t('competitors.actions.saved', 'Saved.'));
+      refresh();
+    } catch (err) {
+      setFormError(err.message || t('competitors.saveError', "Couldn't save that competitor."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (row) => {
+    if (!window.confirm(t('competitors.actions.removeConfirm', { defaultValue: 'Stop tracking {{name}}?', name: row.name }))) return;
+    setBusyId(row.id);
+    try {
+      await api.del(`/api/competitors/${row.id}`);
+      say(t('competitors.actions.removed', 'Removed.'));
+      refresh();
+    } catch (err) {
+      say(err.message || t('competitors.saveError', "Couldn't save that competitor."), true);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const enrich = async (row) => {
+    setBusyId(row.id);
+    try {
+      const out = await api.post(`/api/competitors/${row.id}/enrich`, {});
+      const failed = Object.entries(out.report || {}).filter(([, r]) => !r.ok);
+      const measured = Object.values(out.report || {}).some((r) => r.ok);
+      if (measured) say(t('competitors.enrich.done', 'Updated from a public channel.'));
+      else if (failed.length) {
+        const [name, r] = failed[0];
+        say(t(`competitors.enrich.${r.reason}`, {
+          defaultValue: t('competitors.enrich.failed', 'Nothing could be read for this competitor.'),
+          source: t(`competitors.platform.${name}`, name),
+        }), true);
+      }
+      refresh();
+    } catch (err) {
+      say(err.message || t('competitors.enrich.failed', 'Nothing could be read for this competitor.'), true);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const findNearby = async () => {
+    setScanning(true);
+    try {
+      const out = await api.post('/api/competitors/refresh', {});
+      if (out.reason) say(t(`competitors.refresh.${out.reason}`, t('competitors.refresh.failed', 'Nearby search is unavailable right now.')), true);
+      else say(t('competitors.refresh.done', { defaultValue: 'Found {{count}} nearby — {{added}} new.', count: out.refreshed, added: out.added }));
+      refresh();
+    } catch (err) {
+      say(err.message || t('competitors.refresh.failed', 'Nearby search is unavailable right now.'), true);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const analyze = async () => {
+    setAnalyzing(true);
+    try {
+      const out = await api.post('/api/competitors/insights', {});
+      setBrief(out.brief);
+      say(t('competitors.brief.done', 'Market brief updated.'));
+    } catch (err) {
+      say(err.message || t('competitors.brief.failed', "Couldn't generate a market brief."), true);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="ci-loading">
+        <div className="spinner"></div>
+        <p className="text-muted">{t('competitors.loading', 'Loading competitor intel…')}</p>
+      </div>
+    );
+  }
+
+  const rows = data?.competitors || [];
+  const you = data?.you || null;
+  const gaps = data?.gaps || [];
+  const discovery = data?.discovery || { available: false, reason: null };
+  const series = benchmarkSeries(you, rows);
+  const unknownCount = unknownCadenceCount(rows);
+  const locale = i18n.language;
+
+  const notReported = <span className="ci-unreported">{t('competitors.notReported', 'not reported')}</span>;
+
+  const sourceChip = (row) => (
+    <span className={`ci-source-chip ci-source-${row.source}`} title={t(`competitors.sourceHint.${row.source}`, '')}>
+      {t(`competitors.source.${row.source}`, row.source)}
+    </span>
+  );
 
   return (
     <div className="competitor-intel-container animate-fade-in">
-      <div className="grid-2 main-intel-grids">
+      {/* ---------- HEADER ---------- */}
+      <div className="ci-header flex-between">
+        <div>
+          <h3>{t('competitors.title', 'Competitor Intel')}</h3>
+          <p className="panel-subtitle">
+            {t('competitors.subtitle', 'What we can actually measure about the businesses you compete with.')}
+          </p>
+        </div>
+        <div className="ci-header-actions">
+          <button className="btn btn-secondary" id="btn_ci_add" onClick={() => { setFormError(''); setEditing({}); }}>
+            <i className="fa-solid fa-plus"></i> {t('competitors.actions.add', 'Add competitor')}
+          </button>
+          <button
+            className="btn btn-primary" id="btn_ci_scan"
+            onClick={findNearby}
+            disabled={scanning || !discovery.available}
+            title={discovery.available ? '' : t(`competitors.refresh.${discovery.reason}`, '')}
+          >
+            <i className={`fa-solid ${scanning ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'}`}></i>{' '}
+            {scanning ? t('competitors.actions.refreshing', 'Searching…') : t('competitors.actions.refresh', 'Find nearby')}
+          </button>
+        </div>
+      </div>
 
-        {/* COMPETING BENCHMARK TABLE */}
-        <div className="benchmark-table-box glass-card">
-          <h3>{t('competitors.benchmark.title', 'Local Competitor Benchmark')}</h3>
-          <p className="panel-subtitle">{t('competitors.benchmark.subtitle', 'How your channel infrastructure compares to nearby local brands')}</p>
+      {!discovery.available && discovery.reason && (
+        <p className="ci-discovery-note text-muted">
+          <i className="fa-solid fa-circle-info"></i>{' '}
+          {t(`competitors.refresh.${discovery.reason}`, 'Nearby search is unavailable right now.')}
+        </p>
+      )}
 
-          <div className="competitor-list mt-20">
-            <div className="comp-header">
-              <span>{t('competitors.benchmark.colName', 'Brand Name')}</span>
-              <span>{t('competitors.benchmark.colChannels', 'Channels')}</span>
-              <span>{t('competitors.benchmark.colCadence', 'Cadence')}</span>
-              <span>{t('competitors.benchmark.colFollowers', 'Followers')}</span>
+      {loadError && (
+        <div className="auth-error-box" role="alert">
+          {loadError}{' '}
+          <button className="btn btn-secondary btn-sm" id="btn_ci_retry" onClick={refresh}>
+            {t('competitors.retry', 'Retry')}
+          </button>
+        </div>
+      )}
+
+      {notice && (
+        <div className={`ci-notice ${noticeError ? 'is-error' : ''}`} role="status">
+          {notice}
+          <button className="btn-close" onClick={() => setNotice('')} aria-label={t('common.close', 'Close')}>
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      )}
+
+      {/* ---------- EMPTY STATE ---------- */}
+      {rows.length === 0 ? (
+        <div className="ci-empty glass-card">
+          <i className="fa-solid fa-users-viewfinder"></i>
+          <h4>{t('competitors.empty.title', 'No competitors tracked yet')}</h4>
+          <p className="text-muted">
+            {t('competitors.empty.body', 'Add the businesses you actually compete with, or let Markivo find the nearby ones on Google Maps.')}
+          </p>
+          <div className="ci-empty-actions">
+            <button className="btn btn-secondary" id="btn_ci_empty_add" onClick={() => { setFormError(''); setEditing({}); }}>
+              {t('competitors.empty.addBtn', 'Add one manually')}
+            </button>
+            <button className="btn btn-primary" id="btn_ci_empty_scan" onClick={findNearby} disabled={scanning || !discovery.available}>
+              {t('competitors.empty.scanBtn', 'Find nearby businesses')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid-2 main-intel-grids">
+          {/* ---------- BENCHMARK TABLE ---------- */}
+          <div className="benchmark-table-box glass-card">
+            <h3>{t('competitors.benchmark.title', 'Local Competitor Benchmark')}</h3>
+            <p className="panel-subtitle">{t('competitors.benchmark.subtitle', 'How your channels compare to the businesses nearby')}</p>
+
+            <div className="competitor-list mt-20">
+              <div className="comp-header">
+                <span>{t('competitors.benchmark.colName', 'Brand Name')}</span>
+                <span>{t('competitors.benchmark.colChannels', 'Channels')}</span>
+                <span>{t('competitors.benchmark.colCadence', 'Cadence')}</span>
+                <span>{t('competitors.benchmark.colFollowers', 'Followers')}</span>
+                <span></span>
+              </div>
+
+              {you && (
+                <div className="comp-row active-brand">
+                  <span className="comp-name font-bold">
+                    <i className="fa-solid fa-circle-user text-accent"></i> {you.name}
+                    {you.rating != null && (
+                      <span className="text-muted">{t('competitors.benchmark.ratingSuffix', { defaultValue: ' · ★ {{rating}}', rating: you.rating })}</span>
+                    )}
+                  </span>
+                  <span className="comp-channels">
+                    {t('competitors.benchmark.connectedCount', { defaultValue: '{{count}} Connected', count: you.channels.connected })}
+                  </span>
+                  <span className="comp-cadence" title={t('competitors.you.cadenceHint', 'Counts only what Markivo published.')}>
+                    {t('competitors.benchmark.perWeek', { defaultValue: '{{value}} / week', value: formatCadence(you.postsPerWeek) })}
+                  </span>
+                  <span className="comp-followers text-accent font-bold">
+                    {you.followers != null ? formatCount(you.followers, locale) : notReported}
+                  </span>
+                  <span></span>
+                </div>
+              )}
+
+              {rows.map((row) => (
+                <div className="comp-row" key={row.id}>
+                  <span className="comp-name">
+                    {row.name}
+                    {row.rating != null && (
+                      <span className="text-muted">{t('competitors.benchmark.ratingSuffix', { defaultValue: ' · ★ {{rating}}', rating: row.rating })}</span>
+                    )}
+                    {sourceChip(row)}
+                  </span>
+                  <span className="comp-channels">
+                    {t('competitors.benchmark.channelsCount', { defaultValue: '{{count}} channels', count: row.platformCount })}
+                  </span>
+                  <span className="comp-cadence">
+                    {isUnknown(row, 'postsPerWeek')
+                      ? notReported
+                      : t('competitors.benchmark.perWeek', { defaultValue: '{{value}} / week', value: formatCadence(row.postsPerWeek) })}
+                  </span>
+                  <span className="comp-followers">
+                    {isUnknown(row, 'followers') ? notReported : (
+                      <>
+                        {formatCount(row.followers, locale)}
+                        {sourceOf(row, 'followers') === 'telegram' && (
+                          <i className="fa-brands fa-telegram ci-measured" title={t('competitors.measuredBy.telegram', 'Read from their public Telegram channel')}></i>
+                        )}
+                      </>
+                    )}
+                  </span>
+                  <span className="ci-row-actions">
+                    {(row.telegramChannel || row.instagramHandle) && (
+                      <button
+                        className="ci-icon-btn" id={`btn_ci_enrich_${row.id}`}
+                        onClick={() => enrich(row)} disabled={busyId === row.id}
+                        title={t('competitors.actions.enrich', 'Read public numbers')}
+                      >
+                        <i className={`fa-solid ${busyId === row.id ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
+                      </button>
+                    )}
+                    <button
+                      className="ci-icon-btn" id={`btn_ci_edit_${row.id}`}
+                      onClick={() => { setFormError(''); setEditing(row); }} disabled={busyId === row.id}
+                      title={t('competitors.actions.edit', 'Edit')}
+                    >
+                      <i className="fa-solid fa-pen"></i>
+                    </button>
+                    <button
+                      className="ci-icon-btn is-danger" id={`btn_ci_remove_${row.id}`}
+                      onClick={() => remove(row)} disabled={busyId === row.id}
+                      title={t('competitors.actions.remove', 'Remove')}
+                    >
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
+                  </span>
+                </div>
+              ))}
             </div>
+          </div>
 
-            {/* ACTIVE BUSINESS (YOU) */}
-            <div className="comp-row active-brand">
-              <span className="comp-name font-bold"><i className="fa-solid fa-circle-user text-accent"></i> {t('competitors.benchmark.you', 'You (Active Profile)')}</span>
-              <span className="comp-channels">{t('competitors.benchmark.connectedCount', { defaultValue: '{{count}} Connected', count: 3 })}</span>
-              <span className="comp-cadence">{t('competitors.benchmark.perWeek', { defaultValue: '{{count}} / week', count: 3 })}</span>
-              <span className="comp-followers text-accent font-bold">1,542</span>
+          {/* ---------- CADENCE CHART ---------- */}
+          <div className="frequency-chart-box glass-card">
+            <h3>{t('competitors.frequency.title', 'Weekly Posting Frequency')}</h3>
+            <p className="panel-subtitle">{t('competitors.frequency.subtitle', 'Only businesses with a known cadence appear here')}</p>
+            <div className="mt-20">
+              <BenchmarkBars series={series} unknownCount={unknownCount} />
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* COMPETITORS */}
-            {competitors.map((comp, idx) => (
-              <div key={idx} className="comp-row">
-                <span className="comp-name">
-                  {comp.name}
-                  {comp.rating != null && <span className="text-muted">{t('competitors.benchmark.ratingSuffix', { defaultValue: ' · ★ {{rating}}', rating: comp.rating })}</span>}
-                </span>
-                <span className="comp-channels">{t('competitors.benchmark.channelsCount', { defaultValue: '{{count}} channels', count: comp.platformCount })}</span>
-                <span className="comp-cadence">{comp.postsPerWeek != null ? t('competitors.benchmark.perWeek', { defaultValue: '{{count}} / week', count: comp.postsPerWeek }) : '—'}</span>
-                <span className="comp-followers">{comp.followers != null ? comp.followers.toLocaleString() : '—'}</span>
+      {/* ---------- MEASURED GAPS ---------- */}
+      {gaps.length > 0 && (
+        <div className="ci-section mt-30">
+          <h3>{t('competitors.gaps.measuredTitle', 'What we measured')}</h3>
+          <p className="panel-subtitle">{t('competitors.gaps.measuredSubtitle', 'Derived from your own records and the numbers on file — no guesswork.')}</p>
+
+          <div className="ci-gap-grid mt-20">
+            {gaps.map((g) => (
+              <div className={`gap-card glass-card sev-${g.severity}`} key={g.code}>
+                <div className="gap-header">
+                  <i className={`fa-solid ${g.severity === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-info'} gap-icon`}></i>
+                  <h4>{t(`competitors.gaps.item.${g.code}.title`, g.code)}</h4>
+                </div>
+                <p className="gap-desc">{t(`competitors.gaps.item.${g.code}.body`, { ...g.metrics, defaultValue: '' })}</p>
+                {(g.code === 'cadenceBehind' || g.code === 'noPublishedPosts' || g.code === 'keywordsUnused') && onGoToCalendar && (
+                  <button className="btn btn-secondary btn-sm" id={`btn_ci_fix_${g.code}`} onClick={onGoToCalendar}>
+                    {t('competitors.gaps.goToCalendar', 'Open the calendar')}
+                  </button>
+                )}
+                {g.code === 'channelGap' && onGoToConnections && (
+                  <button className="btn btn-secondary btn-sm" id="btn_ci_fix_channelGap" onClick={onGoToConnections}>
+                    {t('competitors.gaps.goToConnections', 'Manage channels')}
+                  </button>
+                )}
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        {/* POST FREQUENCY CHART USING Pure SVG Bar Graphs */}
-        <div className="frequency-chart-box glass-card">
-          <h3>{t('competitors.frequency.title', 'Weekly Posting Frequency')}</h3>
-          <p className="panel-subtitle">{t('competitors.frequency.subtitle', 'Benchmark of content frequency across competing channels')}</p>
-
-          <div className="svg-chart-container mt-20">
-            <svg viewBox="0 0 400 180" className="comp-bar-chart">
-              {/* Grid Lines */}
-              <line x1="50" y1="20" x2="380" y2="20" stroke="rgba(255,255,255,0.05)" />
-              <line x1="50" y1="60" x2="380" y2="60" stroke="rgba(255,255,255,0.05)" />
-              <line x1="50" y1="100" x2="380" y2="100" stroke="rgba(255,255,255,0.05)" />
-              <line x1="50" y1="140" x2="380" y2="140" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
-
-              {/* Y Axis Labels */}
-              <text x="40" y="24" fill="var(--text-muted)" fontSize="9" textAnchor="end">{t('competitors.frequency.axisLabel', { defaultValue: '{{count}} / wk', count: 20 })}</text>
-              <text x="40" y="64" fill="var(--text-muted)" fontSize="9" textAnchor="end">{t('competitors.frequency.axisLabel', { defaultValue: '{{count}} / wk', count: 10 })}</text>
-              <text x="40" y="104" fill="var(--text-muted)" fontSize="9" textAnchor="end">{t('competitors.frequency.axisLabel', { defaultValue: '{{count}} / wk', count: 5 })}</text>
-              <text x="40" y="144" fill="var(--text-muted)" fontSize="9" textAnchor="end">0</text>
-
-              {/* Bar 1: You */}
-              <rect x="80" y="116" width="36" height="24" rx="4" fill="var(--accent-primary)" />
-              <text x="98" y="110" fill="#fff" fontSize="9" textAnchor="middle">3</text>
-              <text x="98" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{t('competitors.frequency.you', 'You')}</text>
-
-              {/* Bar 2: Comp A */}
-              <rect x="160" y="44" width="36" height="96" rx="4" fill="rgba(255,255,255,0.08)" />
-              <text x="178" y="38" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">12</text>
-              <text x="178" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle" width="50">{t('competitors.frequency.compA', 'Comp A')}</text>
-
-              {/* Bar 3: Comp B */}
-              <rect x="240" y="76" width="36" height="64" rx="4" fill="rgba(255,255,255,0.08)" />
-              <text x="258" y="70" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">8</text>
-              <text x="258" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{t('competitors.frequency.compB', 'Comp B')}</text>
-
-              {/* Bar 4: Comp C */}
-              <rect x="320" y="20" width="36" height="120" rx="4" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" />
-              <text x="338" y="14" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">25</text>
-              <text x="338" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{t('competitors.frequency.compC', 'Global C')}</text>
-            </svg>
+      {/* ---------- MARKET BRIEF (inference — kept visually apart) ---------- */}
+      <div className="ci-section ci-brief mt-30">
+        <div className="flex-between">
+          <div>
+            <h3>{t('competitors.brief.title', 'Market brief')}</h3>
+            <p className="panel-subtitle">
+              {t('competitors.brief.subtitle', 'An AI read on your category and area. This is informed guesswork, not measurement.')}
+            </p>
           </div>
+          <button className="btn btn-secondary" id="btn_ci_analyze" onClick={analyze} disabled={analyzing}>
+            <i className={`fa-solid ${analyzing ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'}`}></i>{' '}
+            {analyzing
+              ? t('competitors.brief.analyzing', 'Thinking…')
+              : (brief ? t('competitors.brief.regenerate', 'Regenerate') : t('competitors.brief.analyze', 'Generate'))}
+          </button>
         </div>
 
+        {!brief ? (
+          <div className="ci-brief-empty glass-card mt-20">
+            <p className="text-muted">{t('competitors.brief.neverRun', 'No brief yet. Generating one uses an AI generation from your monthly allowance.')}</p>
+          </div>
+        ) : (
+          <div className="glass-card ci-brief-card mt-20">
+            <span className={`ci-engine-chip ${brief.engine === 'gemini' ? 'is-live' : 'is-local'}`}>
+              {brief.engine === 'gemini'
+                ? t('competitors.brief.engine.gemini', 'AI-researched')
+                : t('competitors.brief.engine.template', 'Offline template')}
+            </span>
+
+            <p className="ci-brief-snapshot">{brief.marketSnapshot}</p>
+
+            {brief.contentGaps?.length > 0 && (
+              <section>
+                <h4>{t('competitors.brief.contentGaps', 'Openings')}</h4>
+                <ul>
+                  {brief.contentGaps.map((g, i) => (
+                    <li key={i}><strong>{g.gap}</strong> — {g.opportunity}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {brief.seasonalHooks?.length > 0 && (
+              <section>
+                <h4>{t('competitors.brief.seasonalHooks', 'Seasonal hooks')}</h4>
+                <ul>
+                  {brief.seasonalHooks.map((h, i) => (
+                    <li key={i}><strong>{h.hook}</strong> <span className="text-muted">({h.window})</span> — {h.idea}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {brief.competitorPlaybook?.length > 0 && (
+              <section>
+                <h4>{t('competitors.brief.competitorPlaybook', 'What similar businesses typically do')}</h4>
+                <ul>{brief.competitorPlaybook.map((p, i) => <li key={i}>{p}</li>)}</ul>
+              </section>
+            )}
+
+            {/* The model's own declared caveats. Shown, never buried. */}
+            {brief.groundingFlags?.length > 0 && (
+              <section className="ci-grounding">
+                <h4><i className="fa-solid fa-triangle-exclamation"></i> {t('competitors.brief.groundingTitle', 'Treat with caution')}</h4>
+                <ul>{brief.groundingFlags.map((f, i) => <li key={i}>{f}</li>)}</ul>
+              </section>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* GAP OPPORTUNITIES */}
-      <div className="gap-analysis-row mt-30">
-        <h3>{t('competitors.gaps.title', 'Actionable AI Moat Recommendations')}</h3>
-
-        <div className="grid-2 gaps-grid mt-20">
-          <div className="gap-card glass-card">
-            <div className="gap-header">
-              <i className="fa-solid fa-triangle-exclamation text-danger gap-icon"></i>
-              <h4>{t('competitors.gaps.cadenceTitle', 'Post Cadence Alert')}</h4>
-            </div>
-            <p className="gap-desc">
-              {competitors[0]?.postsPerWeek != null ? (
-                <Trans
-                  i18nKey="competitors.gaps.cadenceTextKnown"
-                  defaults="Your primary local competitor <1>{{name}}</1> posts average <3>{{count}} times</3> per week. You post <5>{{yourCount}} times</5>."
-                  values={{ name: competitors[0].name, count: competitors[0].postsPerWeek, yourCount: 3 }}
-                  components={{ 1: <strong />, 3: <strong />, 5: <strong /> }}
-                />
-              ) : (
-                <Trans
-                  i18nKey="competitors.gaps.cadenceTextUnknown"
-                  defaults="Your primary local competitor <1>{{name}}</1> is active on Google Maps{{ratingPart}}. Consistent posting is your fastest way to stand out locally."
-                  values={{
-                    name: competitors[0]?.name || t('competitors.gaps.nearbyFallback', 'nearby'),
-                    ratingPart: competitors[0]?.rating != null
-                      ? t('competitors.gaps.cadenceRating', { defaultValue: ' with a ★ {{rating}} rating', rating: competitors[0].rating })
-                      : ''
-                  }}
-                  components={{ 1: <strong /> }}
-                />
-              )}
-            </p>
-            <div className="gap-recommendation">
-              <strong>{t('competitors.gaps.solutionLabel', '💡 Solution:')}</strong> {t('competitors.gaps.cadenceSolution', 'Schedule at least 4 more AI posts in your Content Engine to close the visibility gap.')}
-            </div>
-          </div>
-
-          <div className="gap-card glass-card">
-            <div className="gap-header">
-              <i className="fa-solid fa-magnifying-glass-plus text-success gap-icon"></i>
-              <h4>{t('competitors.gaps.seoTitle', 'SEO Keyword Gaps')}</h4>
-            </div>
-            <p className="gap-desc">
-              <Trans
-                i18nKey="competitors.gaps.seoText"
-                defaults='Nearby competitors are actively ranking for <1>{{category}}-relevant local search phrases</1> that your profiles never mention. You are completely missing this local search vector.'
-                values={{ category: category.toLowerCase() }}
-                components={{ 1: <strong /> }}
-              />
-            </p>
-            <div className="gap-recommendation">
-              <strong>{t('competitors.gaps.solutionLabel', '💡 Solution:')}</strong> {t('competitors.gaps.seoSolution', { defaultValue: 'Weave {{category}}-relevant local search phrases and the wording your ideal customers actually search for into your next generated Telegram content copy.', category: category.toLowerCase() })}
-            </div>
-          </div>
-        </div>
-      </div>
+      {editing && (
+        <CompetitorEditor
+          competitor={editing.id ? editing : null}
+          onSave={save}
+          onClose={() => { setEditing(null); setFormError(''); }}
+          busy={saving}
+          error={formError}
+        />
+      )}
     </div>
   );
 }

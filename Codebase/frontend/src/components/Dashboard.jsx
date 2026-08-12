@@ -186,11 +186,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             telegramSubscribers: { current: 890, change: 9.4 },
             tiktokFollowers: { current: 0, change: 0 }
           },
-          competitors: [
-            { name: 'District Cafe & Bakery', platformCount: 3, postsPerWeek: 6, rating: 4.4, followers: 2300 },
-            { name: 'Coffee House Central', platformCount: 4, postsPerWeek: 10, rating: 4.6, followers: 4100 },
-            { name: 'Local Roasters', platformCount: 2, postsPerWeek: 4, rating: 4.2, followers: 980 }
-          ],
+          // Competitor Intel fetches its own data and owns its error state, so
+          // the offline preview no longer invents rival businesses here. It used
+          // to, and because the offline banner is scoped to the analytics tab,
+          // those invented numbers were presented on the competitor tab as real.
+          competitors: [],
           // Phrases only. Rank tracking is not wired, so an offline preview must
           // not invent positions the owner might read as their real standing.
           seoKeywords: [
@@ -619,7 +619,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
           {/* TAB 4: COMPETITOR INTEL */}
           {activeTab === 'competitors' && (
-            <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} />
+            <CompetitorIntel
+              activeProfile={activeProfile}
+              onGoToCalendar={() => setActiveTab('calendar')}
+              onGoToConnections={() => setActiveTab('settings')}
+            />
           )}
 
           {/* TAB 5: SETTINGS (appearance + connections) */}

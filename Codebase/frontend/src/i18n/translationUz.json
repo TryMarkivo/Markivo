@@ -675,41 +675,169 @@
     }
   },
   "competitors": {
+    "title": "Raqobatchilar tahlili",
+    "subtitle": "Siz raqobatlashadigan bizneslar haqida haqiqatan o'lchay oladigan ma'lumotlar.",
+    "loading": "Raqobatchilar tahlili yuklanmoqda…",
+    "loadError": "Raqobatchilar tahlilini yuklab bo'lmadi.",
+    "saveError": "Raqobatchini saqlab bo'lmadi.",
+    "retry": "Qayta urinish",
+    "notReported": "ma'lumot yo'q",
+    "perWeekShort": "{{value}} / hafta",
+    "platform": {
+      "googleBusiness": "Google",
+      "instagram": "Instagram",
+      "telegram": "Telegram",
+      "facebook": "Facebook",
+      "tiktok": "TikTok",
+      "youtube": "YouTube"
+    },
     "benchmark": {
-      "title": "Mahalliy raqobatchilar benchmarki",
-      "subtitle": "Kanal infratuzilmangiz yaqin-atrofdagi mahalliy brendlar bilan solishtirganda qanday",
-      "colName": "Brend nomi",
+      "title": "Mahalliy raqobatchilar bilan taqqoslash",
+      "subtitle": "Kanallaringiz yaqin atrofdagi bizneslarga nisbatan qanday",
+      "colName": "Brend",
       "colChannels": "Kanallar",
       "colCadence": "Chastota",
       "colFollowers": "Obunachilar",
-      "you": "Siz (faol profil)",
-      "connectedCount": "{{count}} ta ulangan",
-      "perWeek": "haftasiga {{count}}",
+      "connectedCount_one": "{{count}} ta ulangan",
+      "connectedCount_other": "{{count}} ta ulangan",
+      "perWeek": "{{value}} / hafta",
       "channelsCount_one": "{{count}} ta kanal",
       "channelsCount_other": "{{count}} ta kanal",
       "ratingSuffix": " · ★ {{rating}}"
     },
     "frequency": {
       "title": "Haftalik post chastotasi",
-      "subtitle": "Raqobatchi kanallar bo'ylab kontent chastotasi solishtiruvi",
-      "axisLabel": "{{count}} / hafta",
-      "you": "Siz",
-      "compA": "Raqib A",
-      "compB": "Raqib B",
-      "compC": "Global C"
+      "subtitle": "Faqat chastotasi ma'lum bizneslar ko'rsatiladi"
+    },
+    "chart": {
+      "empty": "Hech bir raqobatchining post chastotasi kiritilmagan.",
+      "emptyHint": "Raqobatchiga uni kiriting — taqqoslash paydo bo'ladi. Buni avtomatik o'lchab bo'lmaydi: Google Xaritalar biznes qanchalik tez-tez post qilishini bildirmaydi.",
+      "unknownList_one": "{{count}} ta raqobatchining chastotasi kiritilmagan, shuning uchun u grafikda yo'q.",
+      "unknownList_other": "{{count}} ta raqobatchining chastotasi kiritilmagan, shuning uchun ular grafikda yo'q.",
+      "basis": "Sizning ko'rsatkichingiz Markivo e'lon qilganini hisoblaydi. Raqobatchiniki — siz yozib qo'yganingiz."
+    },
+    "empty": {
+      "title": "Hali raqobatchilar kuzatilmayapti",
+      "body": "Haqiqatan raqobatlashadigan bizneslarni qo'shing yoki Markivo Google Xaritalardan yaqinlarini topsin.",
+      "addBtn": "Qo'lda qo'shish",
+      "scanBtn": "Yaqindagilarni topish"
+    },
+    "actions": {
+      "add": "Raqobatchi qo'shish",
+      "edit": "Tahrirlash",
+      "remove": "O'chirish",
+      "removeConfirm": "{{name}} kuzatuvdan olinsinmi?",
+      "refresh": "Yaqindagilarni topish",
+      "refreshing": "Qidirilmoqda…",
+      "save": "Saqlash",
+      "saving": "Saqlanmoqda…",
+      "saved": "Saqlandi.",
+      "removed": "O'chirildi.",
+      "enrich": "Ochiq ma'lumotlarni o'qish"
+    },
+    "refresh": {
+      "done_one": "Yaqinda {{count}} ta topildi — {{added}} tasi yangi.",
+      "done_other": "Yaqinda {{count}} ta topildi — {{added}} tasi yangi.",
+      "no_api_key": "Yaqindagilarni qidirish uchun Google Maps kaliti kerak, u sozlanmagan. Raqobatchilarni qo'lda qo'shsangiz bo'ladi.",
+      "no_location": "Google Xaritalar bu biznesni aniqlay olmadi, shuning uchun atrofda qidirish uchun nuqta yo'q.",
+      "no_profile": "Avval biznes sozlamasini yakunlang.",
+      "failed": "Yaqindagilarni qidirish hozir ishlamayapti."
+    },
+    "enrich": {
+      "done": "Ochiq kanaldan yangilandi.",
+      "failed": "Bu raqobatchi bo'yicha hech narsa o'qib bo'lmadi.",
+      "no_handle": "Avval Instagram akkaunti yoki Telegram kanalini qo'shing.",
+      "no_telegram_bot": "Avval Telegram botingizni ulang — Markivo ochiq kanallarni shu orqali o'qiydi.",
+      "not_public": "Bu kanalni bu yerdan o'qib bo'lmaydi, shuning uchun qiymat noma'lumligicha qoladi.",
+      "auth_upgrade_required": "Instagram raqobatchi raqamlari uchun Facebook bilan bog'langan akkaunt kerak, Markivo hozircha uni ishlatmaydi."
+    },
+    "source": {
+      "google_places": "Xarita",
+      "manual": "Sizniki"
+    },
+    "sourceHint": {
+      "google_places": "Google Xaritalardan topilgan",
+      "manual": "Siz qo'shgansiz"
+    },
+    "measuredBy": {
+      "telegram": "Ularning ochiq Telegram kanalidan o'qildi"
+    },
+    "you": {
+      "cadenceHint": "Faqat Markivo e'lon qilganini hisoblaydi."
+    },
+    "form": {
+      "addTitle": "Raqobatchi qo'shish",
+      "editTitle": "Raqobatchini tahrirlash",
+      "name": "Biznes nomi",
+      "namePlaceholder": "masalan, Brew District",
+      "unknownHint": "Bilmagan narsangizni bo'sh qoldiring. Bo'sh maydon «ma'lumot yo'q» sifatida saqlanadi — u hech qachon nolga aylanmaydi va taqqoslashga tushmaydi.",
+      "rating": "Google reytingi",
+      "followers": "Obunachilar",
+      "cadence": "Haftasiga postlar",
+      "platforms": "Ular ishlatadigan kanallar",
+      "instagram": "Instagram akkaunti",
+      "telegram": "Telegram kanali",
+      "handlesHint": "Ochiq Telegram kanali bo'lsa, Markivo obunachilar sonini o'zi o'qiydi. Instagram uchun akkaunt yangilanishi kerak.",
+      "address": "Manzil",
+      "notes": "Sizning eslatmalaringiz",
+      "notesPlaceholder": "Ular nimani yaxshi qiladi? Nimani o'tkazib yuboradi?"
     },
     "gaps": {
-      "title": "Amaliy AI ustunlik tavsiyalari",
-      "cadenceTitle": "Post chastotasi ogohlantirishi",
-      "cadenceTextKnown": "Asosiy mahalliy raqobatchingiz <1>{{name}}</1> haftasiga o'rtacha <3>{{count}} marta</3> post joylaydi. Siz esa <5>{{yourCount}} marta</5> joylaysiz.",
-      "cadenceTextUnknown": "Asosiy mahalliy raqobatchingiz <1>{{name}}</1> Google Maps'da faol{{ratingPart}}. Muntazam post joylash — mahalliy darajada ajralib turishning eng tezkor yo'li.",
-      "cadenceRating": ", reytingi ★ {{rating}}",
-      "nearbyFallback": "yaqin-atrofdagi",
-      "solutionLabel": "💡 Yechim:",
-      "cadenceSolution": "Ko'rinish farqini yopish uchun Kontent dvigatelida kamida yana 4 ta AI post rejalashtiring.",
-      "seoTitle": "SEO kalit so'z bo'shliqlari",
-      "seoText": "Yaqin-atrofdagi raqobatchilar profillaringizda umuman tilga olinmaydigan <1>{{category}} bilan bog'liq mahalliy qidiruv so'rovlari</1> bo'yicha faol reytinglanmoqda. Siz bu mahalliy qidiruv yo'nalishini butunlay boy beryapsiz.",
-      "seoSolution": "Keyingi yaratilgan Telegram kontentingizga {{category}} bilan bog'liq mahalliy qidiruv iboralarini va ideal mijozlaringiz haqiqatda qidiradigan so'zlarni singdiring."
+      "measuredTitle": "Nimani o'lchadik",
+      "measuredSubtitle": "O'z yozuvlaringiz va kiritilgan raqamlar asosida — taxminsiz.",
+      "goToCalendar": "Kalendarni ochish",
+      "goToConnections": "Kanallarni boshqarish",
+      "item": {
+        "cadenceBehind": {
+          "title": "Siz kamroq post qilasiz",
+          "body": "{{name}} haftasiga {{theirs}} marta post qiladi. Siz — {{yours}}. Farq: {{delta}}."
+        },
+        "cadenceUnknown": {
+          "title": "Chastota noma'lum",
+          "body_one": "{{count}} ta raqobatchining chastotasi yozilmagan, shuning uchun u taqqoslashdan tashqarida.",
+          "body_other": "{{count}} ta raqobatchining chastotasi yozilmagan, shuning uchun ular taqqoslashdan tashqarida."
+        },
+        "noPublishedPosts": {
+          "title": "Hali hech narsa e'lon qilinmagan",
+          "body": "Oxirgi {{days}} kunda Markivo hech narsa e'lon qilmadi, shuning uchun taqqoslashga narsa yo'q."
+        },
+        "keywordsUnused": {
+          "title": "Ishlatilmagan iboralar",
+          "body_one": "{{total}} ta maqsadli iboradan {{count}} tasi e'lon qilingan postlarda umuman uchramaydi.",
+          "body_other": "{{total}} ta maqsadli iboradan {{count}} tasi e'lon qilingan postlarda umuman uchramaydi."
+        },
+        "channelGap": {
+          "title": "Yetishmayotgan kanallar",
+          "body_one": "Raqobatchilar siz ulamagan {{count}} ta kanaldan foydalanadi: {{platforms}}.",
+          "body_other": "Raqobatchilar siz ulamagan {{count}} ta kanaldan foydalanadi: {{platforms}}."
+        },
+        "ratingBehind": {
+          "title": "Qo'shni bizneslardan past reyting",
+          "body": "{{name}} ★ {{theirs}}, sizniki ★ {{yours}} — {{delta}} ga yuqori."
+        },
+        "noCompetitors": {
+          "title": "Hali hech kim kuzatilmayapti",
+          "body": "Raqobatchi qo'shing yoki yaqindagi bizneslarni toping — panel ishlay boshlaydi."
+        }
+      }
+    },
+    "brief": {
+      "title": "Bozor sharhi",
+      "subtitle": "Sun'iy intellektning kategoriya va hududingiz haqidagi qarashi. Bu o'lchov emas, asosli taxmin.",
+      "analyze": "Yaratish",
+      "analyzing": "O'ylanmoqda…",
+      "regenerate": "Yangilash",
+      "neverRun": "Hali sharh yo'q. Uni yaratish oylik limitdan bitta AI generatsiyasini oladi.",
+      "done": "Bozor sharhi yangilandi.",
+      "failed": "Bozor sharhini yaratib bo'lmadi.",
+      "groundingTitle": "Ehtiyot bo'ling",
+      "contentGaps": "Imkoniyatlar",
+      "seasonalHooks": "Mavsumiy sabablar",
+      "competitorPlaybook": "O'xshash bizneslar odatda nima qiladi",
+      "engine": {
+        "gemini": "AI tadqiq qilgan",
+        "template": "Oflayn shablon"
+      }
     }
   },
   "agent": {
