@@ -284,6 +284,9 @@ module.exports = {
   scanBusiness,
   findCompetitors,
   searchText,
+  // Exported so a competitor refresh can re-resolve a profile onboarded before
+  // lat/lng were persisted, without duplicating the field mapping.
+  mapPlace,
   sniffSocialLinks,
   humanizeType,
   mockScanResult,

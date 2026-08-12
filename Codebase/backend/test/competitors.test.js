@@ -188,6 +188,23 @@ test('DELETE removes the caller\'s own competitor', async () => {
   assert.strictEqual(after.find((c) => c.name === 'Brew District'), undefined);
 });
 
+test('POST /refresh keyless: 200 with a reason code, and nothing mutates', async () => {
+  const before = await listRows();
+  const res = await post('/api/competitors/refresh', {}, token);
+
+  assert.strictEqual(res.status, 200, 'a missing key degrades the answer, never the route');
+  const data = await res.json();
+  assert.strictEqual(data.refreshed, 0);
+  assert.strictEqual(data.added, 0);
+  assert.strictEqual(data.updated, 0);
+  assert.strictEqual(data.reason, 'no_api_key');
+  assert.match(data.reason, /^[a-z_]+$/, 'reason must be a translatable code');
+  assert.strictEqual(data.discovery.available, false);
+
+  const after = await listRows();
+  assert.strictEqual(after.length, before.length, 'a keyless refresh must not touch stored rows');
+});
+
 test('a competitor name in Cyrillic passes validation untouched', async () => {
   const res = await post('/api/competitors', { name: 'Кофейня Улица', rating: 4.2 }, token);
   assert.strictEqual(res.status, 200);

@@ -145,8 +145,20 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
         bgColor: '#131016',
         shape: 'rounded'
       },
+      // lat/lng/primaryType are what a later competitor refresh needs to re-run
+      // the nearby search. Dropping them here is why competitors used to be
+      // frozen at whatever the setup scan happened to find.
       ...(g?.found && g.placeId
-        ? { google: { placeId: g.placeId, rating: g.rating, reviewsCount: g.reviewsCount } }
+        ? {
+          google: {
+            placeId: g.placeId,
+            rating: g.rating,
+            reviewsCount: g.reviewsCount,
+            lat: g.location?.lat ?? null,
+            lng: g.location?.lng ?? null,
+            primaryType: g.primaryType || null,
+          },
+        }
         : {}),
       ...(scanResults?.competitors?.length ? { competitors: scanResults.competitors } : {}),
     };

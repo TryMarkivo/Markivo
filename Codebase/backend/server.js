@@ -285,6 +285,11 @@ const sanitizeCompetitors = (list) => (Array.isArray(list) ? list : [])
     platformsDetected: Array.isArray(c.platformsDetected)
       ? c.platformsDetected.slice(0, 6).map(String)
       : ['google'],
+    // Kept so a later refresh can match this row instead of duplicating it,
+    // and so the UI can badge where the row came from.
+    placeId: typeof c.placeId === 'string' ? c.placeId.slice(0, 128) : null,
+    address: typeof c.address === 'string' ? c.address.slice(0, 200) : null,
+    source: 'google_places',
   }));
 
 app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) => {
@@ -311,6 +316,11 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
     // reviews is exactly the case here — "★ 0" would be a rating we invented.
     googleRating: numOrNull(g.rating),
     googleReviewsCount: numOrNull(g.reviewsCount),
+    // Where the business physically is, and what Google calls it. Persisted so
+    // a competitor refresh can re-run the nearby search directly.
+    googleLat: numOrNull(g.lat),
+    googleLng: numOrNull(g.lng),
+    googlePrimaryType: typeof g.primaryType === 'string' ? g.primaryType.slice(0, 60) : null,
   });
 
   // Platform connections selected in the wizard.
@@ -1522,6 +1532,87 @@ app.get('/api/competitors', verifyToken, (req, res) => {
     discovery: discoveryState(profile, rows),
   });
 });
+
+// Re-query Google Places for nearby businesses and merge them in.
+//
+// Registered BEFORE /api/competitors/:id so the literal path wins the match.
+//
+// Cost envelope: ONE upstream call in steady state. A profile onboarded before
+// lat/lng were persisted needs one extra searchText to re-resolve itself, and
+// that answer is stored, so the second refresh is back to a single call. Same
+// guardrail places.js documents at the top of the file.
+app.post('/api/competitors/refresh', verifyToken, scanLimiter, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const answer = (extra) => {
+    const rows = db.competitors.listByProfile(profile.id);
+    res.json({
+      refreshed: 0, added: 0, updated: 0, reason: null, ...extra,
+      competitors: rows.map(competitorRow),
+      discovery: discoveryState(db.profiles.findById(profile.id), rows),
+    });
+  };
+
+  // A missing key is not an error: the tab keeps working on manual entries and
+  // discovery simply reports why the button is disabled.
+  if (!places.isLive()) return answer({ reason: 'no_api_key' });
+
+  let { googleLat: lat, googleLng: lng, googlePrimaryType: primaryType } = profile;
+  let excludePlaceId = profile.googlePlaceId || undefined;
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !primaryType) {
+    try {
+      const data = await places.searchText({
+        textQuery: [profile.businessName, profile.location].filter(Boolean).join(', '),
+      });
+      const top = Array.isArray(data.places) && data.places.length ? places.mapPlace(data.places[0]) : null;
+      if (top && top.location && top.primaryType) {
+        lat = top.location.lat;
+        lng = top.location.lng;
+        primaryType = top.primaryType;
+        excludePlaceId = excludePlaceId || top.placeId;
+        db.profiles.update(profile.id, {
+          googleLat: lat, googleLng: lng, googlePrimaryType: primaryType,
+          ...(profile.googlePlaceId ? {} : { googlePlaceId: top.placeId }),
+        });
+      }
+    } catch (err) {
+      console.error('Competitor refresh: business re-resolve failed:', err.status || '', err.message);
+      return res.status(502).json({ error: 'Business discovery is temporarily unavailable. Please try again shortly.' });
+    }
+  }
+
+  // Still unresolved — the business is not findable on Maps. Honest no-op.
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !primaryType) {
+    return answer({ reason: 'no_location' });
+  }
+
+  let found;
+  try {
+    found = await places.findCompetitors({ lat, lng, primaryType, excludePlaceId });
+  } catch (err) {
+    console.error('Competitor refresh failed:', err.status || '', err.message);
+    return res.status(502).json({ error: 'Business discovery is temporarily unavailable. Please try again shortly.' });
+  }
+
+  let added = 0;
+  let updated = 0;
+  for (const c of found) {
+    if (!c.placeId) continue; // without a placeId there is nothing to dedup on
+    const { created } = db.competitors.upsertByPlaceId({
+      profileId: profile.id,
+      placeId: c.placeId,
+      competitorName: c.competitorName,
+      rating: c.rating,
+      address: c.address,
+      platformsDetected: c.platformsDetected || ['google'],
+      source: 'google_places',
+    });
+    if (created) added += 1; else updated += 1;
+  }
+  answer({ refreshed: found.length, added, updated });
+}));
 
 app.post('/api/competitors', verifyToken, (req, res) => {
   const profile = requireProfile(req, res);

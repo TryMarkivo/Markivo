@@ -193,6 +193,31 @@ test('construct keeps explicit null competitor metrics null, never 0', async () 
   assert.strictEqual(c.rating, null, 'unrated place must stay null, not 0');
 });
 
+// Path A resolves lat/lng/primaryType during the scan but used to drop them on
+// submit, which is why competitors could never be refreshed afterwards.
+test('construct persists the scan location and competitor placeIds', async () => {
+  const token = await register('geo');
+  const res = await post('/api/onboarding/construct', {
+    businessName: 'Geo Cafe',
+    google: { placeId: 'pid_geo', rating: 4.2, reviewsCount: 30, lat: 41.311, lng: 69.279, primaryType: 'coffee_shop' },
+    competitors: [
+      { competitorName: 'Nearby One', rating: 4.4, placeId: 'pid_n1', address: 'Mirzo 3', platformsDetected: ['google'] },
+    ],
+  }, token);
+  assert.strictEqual(res.status, 200);
+  const { profile } = await res.json();
+  assert.strictEqual(profile.googleLat, 41.311);
+  assert.strictEqual(profile.googleLng, 69.279);
+  assert.strictEqual(profile.googlePrimaryType, 'coffee_shop');
+
+  // The competitor keeps the identity a later refresh needs to match on.
+  const { competitors } = await (await fetch(`${base}/api/competitors`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const row = competitors.find((c) => c.name === 'Nearby One');
+  assert.strictEqual(row.placeId, 'pid_n1');
+  assert.strictEqual(row.address, 'Mirzo 3');
+  assert.strictEqual(row.source, 'google_places');
+});
+
 test('construct without competitors keeps the legacy benchmark seeds (Path B regression)', async () => {
   const token = await register('seedcomp');
   const res = await post('/api/onboarding/construct', { businessName: 'Scratch Biz' }, token);
