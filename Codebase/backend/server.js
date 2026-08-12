@@ -20,8 +20,13 @@ const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
 const metaDeletion = require('./metaDeletion');
+const competitorFetch = require('./competitorFetch');
+const competitorAnalytics = require('./competitorAnalytics');
 const { limitFor } = require('./postLimits');
-const { validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate } = require('./validators');
+const {
+  validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate,
+  validateAddCompetitor, validateCompetitorSource,
+} = require('./validators');
 
 const db = createDb(config.dbPath);
 const app = express();
@@ -242,6 +247,230 @@ app.post('/api/discovery/competitors', verifyToken, scanLimiter, asyncRoute(asyn
 }));
 
 // ==========================================
+// 3.28 COMPETITOR INTELLIGENCE ROUTER (/api/competitors)
+//   Manual "paste a competitor's profile link" flow — there is no official
+//   API for discovering a stranger's social profiles. Each link is fetched
+//   best-effort (competitorFetch.js) and degrades honestly per platform (see
+//   that file's header comment); posting-cadence/content-mix NUMBERS are
+//   always computed deterministically from stored posts (competitorAnalytics
+//   .js) — only the qualitative trend narrative below needs AI.
+// ==========================================
+
+// Fetch one source now (unless a recent-enough fetch already exists and this
+// isn't a forced refresh), persist its posts, and return the updated row.
+// Never throws — competitorFetch.fetchCompetitorSource already degrades to a
+// normalized "not found" result on any failure.
+async function fetchAndStoreSource(source, { competitorId, profileId, force = false } = {}) {
+  if (!force && source.lastFetchedAt) {
+    const ageMs = Date.now() - new Date(source.lastFetchedAt).getTime();
+    if (ageMs < config.competitorFetchCooldownMs) return source;
+  }
+  // Instagram gets real post content only when THIS business has its own
+  // Instagram connected via the Facebook-Login "Meta" connector (Business
+  // Discovery reads through the caller's own account, not the bespoke
+  // Instagram-Login connection) — absent that, competitorFetch falls back to
+  // the public-page scrape on its own.
+  const fetchOpts = {};
+  if (source.platform === 'instagram') {
+    const conn = db.connections.findByProfile(profileId, 'meta_instagram');
+    if (conn && conn.accessToken) {
+      fetchOpts.metaIgUserId = (conn.meta && conn.meta.igUserId) || conn.accountId;
+      fetchOpts.metaAccessToken = conn.accessToken;
+    }
+  }
+  const result = await competitorFetch.fetchCompetitorSource(source.platform, source.url, fetchOpts);
+  db.competitorPosts.replaceForSource(source.id, {
+    competitorId, profileId, platform: source.platform, posts: result.posts,
+  });
+  return db.competitorSources.update(source.id, {
+    handle: result.handle,
+    displayName: result.displayName,
+    followersCount: result.followerCount,
+    status: result.found ? 'ok' : (result.error ? 'error' : 'empty'),
+    partial: result.partial,
+    error: result.error,
+    lastFetchedAt: new Date().toISOString(),
+  });
+}
+
+// Roll per-source data up onto the parent competitors row (followers summed
+// across platforms, cadence from real posts) so /api/dashboard/stats keeps
+// reading one flat row per competitor with no extra join.
+function rollUpCompetitorStats(competitorId) {
+  const competitor = db.competitors.findById(competitorId);
+  if (!competitor) return null;
+  const sources = db.competitorSources.listByCompetitor(competitorId);
+  const posts = db.competitorPosts.listByCompetitor(competitorId, 200);
+  const stats = competitorAnalytics.statsForCompetitor(competitor, posts);
+  const followers = sources.reduce((sum, s) => sum + (s.followersCount || 0), 0);
+  return db.competitors.update(competitorId, {
+    followersCount: sources.some((s) => s.followersCount != null) ? followers : null,
+    postsPerWeek: stats.postsPerWeek,
+    platformsDetected: sources.map((s) => s.platform),
+  });
+}
+
+const competitorWithSources = (competitor) => ({
+  ...competitor,
+  sources: db.competitorSources.listByCompetitor(competitor.id),
+});
+
+app.post('/api/competitors', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const error = validateAddCompetitor(req.body);
+  if (error) return res.status(400).json({ error });
+
+  const name = typeof req.body.name === 'string' && req.body.name.trim() ? req.body.name.trim().slice(0, 120) : null;
+  const sources = req.body.sources;
+
+  const competitor = db.competitors.add({
+    profileId: profile.id,
+    competitorName: name,
+    rating: null,
+    followersCount: null,
+    postsPerWeek: null,
+    platformsDetected: sources.map((s) => String(s.platform).toLowerCase()),
+    source: 'manual',
+  });
+
+  const createdSources = [];
+  for (const s of sources) {
+    const row = db.competitorSources.add({
+      competitorId: competitor.id, profileId: profile.id,
+      platform: String(s.platform).toLowerCase(), url: String(s.url).trim(),
+    });
+    createdSources.push(await fetchAndStoreSource(row, { competitorId: competitor.id, profileId: profile.id, force: true }));
+  }
+
+  if (!name) {
+    const named = createdSources.find((s) => s.displayName) || createdSources.find((s) => s.handle);
+    const label = named ? (named.displayName || `@${named.handle}`) : `${sources[0].platform} competitor`;
+    db.competitors.update(competitor.id, { competitorName: label.slice(0, 120) });
+  }
+
+  const finalCompetitor = rollUpCompetitorStats(competitor.id);
+  res.status(201).json({ competitor: { ...finalCompetitor, sources: createdSources } });
+}));
+
+app.get('/api/competitors', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ competitors: [] });
+  // Only manually-added (paste-a-link) rows — onboarding's demo/benchmark
+  // seeds live in the same table but have no fetched sources, and mixing
+  // them into this management list would be confusing, not just incomplete.
+  const competitors = db.competitors.listByProfile(profile.id)
+    .filter((c) => c.source === 'manual')
+    .map(competitorWithSources);
+  res.json({ competitors });
+});
+
+app.post('/api/competitors/:id/sources', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const competitor = db.competitors.findById(req.params.id);
+  if (!competitor || competitor.profileId !== profile.id) return res.status(404).json({ error: 'Competitor not found' });
+
+  const error = validateCompetitorSource(req.body);
+  if (error) return res.status(400).json({ error });
+
+  const row = db.competitorSources.add({
+    competitorId: competitor.id, profileId: profile.id,
+    platform: String(req.body.platform).toLowerCase(), url: String(req.body.url).trim(),
+  });
+  const updated = await fetchAndStoreSource(row, { competitorId: competitor.id, profileId: profile.id, force: true });
+  const finalCompetitor = rollUpCompetitorStats(competitor.id);
+  res.status(201).json({ competitor: { ...finalCompetitor, sources: db.competitorSources.listByCompetitor(competitor.id) }, source: updated });
+}));
+
+app.post('/api/competitors/:id/refresh', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const competitor = db.competitors.findById(req.params.id);
+  if (!competitor || competitor.profileId !== profile.id) return res.status(404).json({ error: 'Competitor not found' });
+
+  const sources = db.competitorSources.listByCompetitor(competitor.id);
+  const force = req.body?.force === true;
+  const refreshed = [];
+  for (const s of sources) {
+    refreshed.push(await fetchAndStoreSource(s, { competitorId: competitor.id, profileId: profile.id, force }));
+  }
+  const finalCompetitor = rollUpCompetitorStats(competitor.id);
+  res.json({ competitor: { ...finalCompetitor, sources: refreshed } });
+}));
+
+app.delete('/api/competitors/:id', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const competitor = db.competitors.findById(req.params.id);
+  if (!competitor || competitor.profileId !== profile.id) return res.status(404).json({ error: 'Competitor not found' });
+  db.competitors.remove(competitor.id);
+  res.json({ success: true });
+});
+
+// Deterministic stats (cadence, content-type mix) are always computed fresh
+// from stored posts — no AI, no budget cost. The AI call only adds the
+// qualitative narrative on top, and is skipped when there's no real data yet.
+app.post('/api/competitors/analyze', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const competitors = db.competitors.listByProfile(profile.id);
+  const posts = db.competitorPosts.listByProfile(profile.id, 400);
+  const postsByCompetitor = {};
+  for (const p of posts) (postsByCompetitor[p.competitorId] ||= []).push(p);
+  const competitorStats = competitorAnalytics.buildCompetitorStats(competitors, postsByCompetitor);
+  const sampleCaptions = posts
+    .filter((p) => p.caption)
+    .slice(0, 40)
+    .map((p) => ({
+      competitorName: competitors.find((c) => c.id === p.competitorId)?.competitor_name,
+      platform: p.platform,
+      caption: p.caption,
+    }));
+
+  // Manually-tracked competitors (has at least one fetch attempt) — passed
+  // separately from competitorStats so the fallback message can say WHICH
+  // competitors are tracked and WHY there's still no content trend (e.g.
+  // Instagram/Facebook never expose posts publicly) instead of a blanket
+  // "nothing tracked" message when something clearly is.
+  const trackedCompetitors = competitors
+    .filter((c) => c.source === 'manual')
+    .map((c) => ({
+      name: c.competitor_name,
+      followerCount: c.followers_count,
+      platforms: db.competitorSources.listByCompetitor(c.id).map((s) => s.platform),
+    }));
+
+  const analysis = await ai.analyzeCompetitorTrends({
+    businessName: profile.businessName,
+    category: profile.category,
+    brandTone: profile.brandTone,
+    competitorStats,
+    sampleCaptions,
+    trackedCompetitors,
+  });
+  const insight = db.competitorInsights.add({ profileId: profile.id, analysis });
+  db.usage.record({ userId: req.user.id, kind: 'competitor_trends' });
+  res.json({ insight, competitorStats });
+}));
+
+app.get('/api/competitors/trends', verifyToken, (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.json({ insight: null });
+  res.json({ insight: db.competitorInsights.latestByProfile(profile.id) });
+});
+
+// Short one-line digest of the latest trend analysis, for MediaStudio's
+// "use competitor trends" toggle — passed as ai.js ctx.trends.
+function competitorTrendsDigest(insight) {
+  const a = insight?.analysis;
+  if (!a || !a.analysis) return null;
+  const parts = [a.analysis, (a.themes || []).length ? `Themes: ${a.themes.join('; ')}.` : null, a.recommendation ? `Recommendation: ${a.recommendation}` : null];
+  return parts.filter(Boolean).join(' ').slice(0, 800) || null;
+}
+
+// ==========================================
 // 3.3 GUIDED SETUP WIZARD ROUTER (/api/onboarding)
 // ==========================================
 app.post('/api/onboarding/slogans', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
@@ -319,15 +548,12 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
     }
   });
 
-  // Competitors: real nearby businesses from the discovery scan when Path A
-  // provides them; otherwise the benchmark seeds (Path B / keyless mode).
+  // Competitors: only real nearby businesses from the discovery scan (Path A).
+  // No fake benchmark seeds — Competitor Intel now honestly shows "no
+  // competitors yet" until the owner tracks real ones (Places-found or
+  // manually added via POST /api/competitors).
   const realCompetitors = sanitizeCompetitors(req.body.competitors);
-  const competitorRows = realCompetitors.length ? realCompetitors : [
-    { competitorName: 'Local Competitor A', rating: 4.5, followersCount: 2400, postsPerWeek: 10, platformsDetected: ['instagram', 'telegram'] },
-    { competitorName: 'District Roasters B', rating: 4.7, followersCount: 4100, postsPerWeek: 8, platformsDetected: ['google', 'instagram'] },
-    { competitorName: 'Global Competitor C', rating: 4.8, followersCount: 95000, postsPerWeek: 22, platformsDetected: ['google', 'instagram', 'telegram', 'tiktok'] },
-  ];
-  competitorRows.forEach((c) => db.competitors.add({ profileId: profile.id, ...c }));
+  realCompetitors.forEach((c) => db.competitors.add({ profileId: profile.id, ...c }));
 
   // Seed SEO keywords. (Still mocked — real rank tracking is a future
   // milestone; the phrases improve automatically now that Path A passes the
@@ -1406,6 +1632,14 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   const keywords = db.keywords.listByProfile(profile.id);
   const cat = (profile.category || 'business').toLowerCase();
 
+  // Real posting cadence — actually-posted calendar rows in the trailing 7
+  // days. Feeds the Competitor Intel benchmark's "You" row/chart honestly
+  // instead of a hardcoded number.
+  const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const yourPostsPerWeek = db.calendar.listByProfile(profile.id)
+    .filter((p) => p.status === 'posted' && p.scheduled_time >= weekAgoIso).length;
+  const yourChannelsConnected = db.platforms.listByProfile(profile.id).filter((p) => p.isConnected).length;
+
   // Telegram subscribers: REAL count when the integration is on and a chat is
   // linked; the demo number otherwise (other metrics await their integrations).
   let telegramSubscribers = { current: 980, change: 11.2 };
@@ -1457,9 +1691,11 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
 
   res.json({
     metrics,
-    competitors: (competitors.length ? competitors : [
-      { competitor_name: 'District Roasters B', platforms_detected: ['google', 'instagram', 'telegram', 'tiktok'], posts_per_week: 8, rating: 4.6, followers_count: 4100 },
-    ]).map((c) => ({
+    yourPostsPerWeek,
+    yourChannelsConnected,
+    // Real rows only — no fake fallback competitor. An honestly empty array
+    // means exactly that: nothing tracked yet.
+    competitors: competitors.map((c) => ({
       name: c.competitor_name,
       platformCount: (c.platforms_detected || []).length,
       postsPerWeek: c.posts_per_week,
@@ -1619,7 +1855,13 @@ app.post('/api/media/brief', verifyToken, checkAiBudget, asyncRoute(async (req, 
   if (!['full', 'guided'].includes(mode)) return res.status(400).json({ error: 'Mode must be "full" or "guided"' });
   if (topic.length < 2 || topic.length > 200) return res.status(400).json({ error: 'Topic must be 2-200 characters' });
 
-  const brief = await ai.generateMediaBrief({ kind, mode, topic, profile });
+  // Optional: ground the brief in the latest competitor trend analysis
+  // (Competitor Intel tab). Silently ignored if none has been run yet.
+  const trends = req.body.useTrends
+    ? competitorTrendsDigest(db.competitorInsights.latestByProfile(profile.id))
+    : null;
+
+  const brief = await ai.generateMediaBrief({ kind, mode, topic, profile, trends });
   const row = db.media.add({ profileId: profile.id, kind, mode, topic, brief, status: 'brief' });
   db.usage.record({ userId: req.user.id, kind: 'media' });
   res.json({ id: row.id, brief });

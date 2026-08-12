@@ -84,4 +84,49 @@ function validateMeUpdate(body = {}) {
   ]);
 }
 
-module.exports = { isNonEmptyString, isEmail, firstError, validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate };
+// Competitor Intelligence: manual "paste a profile link" flow. One regex per
+// platform, loose enough to accept the common URL shapes people actually
+// paste (with/without protocol, trailing slash, query string).
+const PLATFORM_URL_RE = {
+  instagram: /^(https?:\/\/)?(www\.)?instagram\.com\/([A-Za-z0-9_.]{2,30})\/?/i,
+  tiktok: /^(https?:\/\/)?(www\.)?tiktok\.com\/@([A-Za-z0-9_.]{2,30})\/?/i,
+  youtube: /^(https?:\/\/)?(www\.)?youtube\.com\/(@[A-Za-z0-9_.-]{2,60}|channel\/[A-Za-z0-9_-]{10,40}|c\/[A-Za-z0-9_.-]{2,60})\/?/i,
+  facebook: /^(https?:\/\/)?(www\.)?facebook\.com\/([A-Za-z0-9.]{2,60})\/?/i,
+};
+const SUPPORTED_PLATFORMS = Object.keys(PLATFORM_URL_RE);
+
+const isValidCompetitorUrl = (platform, url) =>
+  typeof platform === 'string' && typeof url === 'string' &&
+  !!PLATFORM_URL_RE[platform.toLowerCase()] &&
+  PLATFORM_URL_RE[platform.toLowerCase()].test(url.trim());
+
+// Add a competitor with one or more platform links, e.g.
+// { name, sources: [{ platform: 'instagram', url: '...' }, ...] }
+function validateAddCompetitor(body = {}) {
+  const { name, sources } = body;
+  const list = Array.isArray(sources) ? sources : [];
+  return firstError([
+    [name == null || (typeof name === 'string' && name.trim().length <= 120), 'Competitor name must be 120 characters or fewer'],
+    [list.length >= 1, 'At least one platform link is required'],
+    [list.length <= SUPPORTED_PLATFORMS.length, `A competitor can have at most ${SUPPORTED_PLATFORMS.length} platform links`],
+    [list.every((s) => s && typeof s.platform === 'string' && SUPPORTED_PLATFORMS.includes(s.platform.toLowerCase())),
+      `Each platform must be one of: ${SUPPORTED_PLATFORMS.join(', ')}`],
+    [list.every((s) => s && isValidCompetitorUrl(s.platform, s.url)),
+      'Each link must be a valid profile URL for its platform (e.g. instagram.com/handle, tiktok.com/@handle, youtube.com/@handle, facebook.com/page)'],
+  ]);
+}
+
+// Add a single extra platform link to an existing competitor.
+function validateCompetitorSource(body = {}) {
+  const { platform, url } = body;
+  return firstError([
+    [typeof platform === 'string' && SUPPORTED_PLATFORMS.includes(platform.toLowerCase()), `Platform must be one of: ${SUPPORTED_PLATFORMS.join(', ')}`],
+    [isValidCompetitorUrl(platform, url), 'A valid profile URL for that platform is required'],
+  ]);
+}
+
+module.exports = {
+  isNonEmptyString, isEmail, firstError, validateRegister, validateLogin, validateScan, validateCompetitors,
+  validateProfileUpdate, validateMeUpdate, validateAddCompetitor, validateCompetitorSource,
+  isValidCompetitorUrl, SUPPORTED_PLATFORMS,
+};

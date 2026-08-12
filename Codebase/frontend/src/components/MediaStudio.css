@@ -110,6 +110,38 @@
   color: var(--accent-primary);
 }
 
+/* Competitor-trend context toggle */
+.trend-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.trend-toggle input {
+  accent-color: var(--accent-primary);
+}
+
+.trend-toggle-hint {
+  flex-basis: 100%;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.trend-toggle-empty {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
 /* ----- 3. Brief panel + output ----- */
 .media-brief-panel,
 .media-upload-panel,

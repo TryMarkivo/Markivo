@@ -132,6 +132,20 @@ const config = {
   scanRateLimit: parseInt(process.env.SCAN_RATE_LIMIT, 10) || 10,
   scanRateWindowMs: (parseInt(process.env.SCAN_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
 
+  // --- Competitor Intelligence (public-page fetchers + YouTube Data API) ---
+  // Instagram/TikTok/Facebook have no official API for reading a stranger's
+  // public posts, so those fetchers do a best-effort public-page GET/parse
+  // (see backend/competitorFetch.js) and degrade honestly when a platform
+  // blocks or renders nothing server-side. YouTube has a real public search/
+  // list API — with no key that fetcher also degrades to a page-meta scrape.
+  // Key: https://console.cloud.google.com/apis/library/youtube.googleapis.com
+  youtubeDataApiKey: process.env.YOUTUBE_DATA_API_KEY || '',
+  competitorFetchTimeoutMs: parseInt(process.env.COMPETITOR_FETCH_TIMEOUT_MS, 10) || 8000,
+  // Don't re-fetch a competitor source more often than this (ms) unless the
+  // caller explicitly forces a refresh — keeps us polite to platforms we have
+  // no partnership with and keeps /api/competitors fast.
+  competitorFetchCooldownMs: (parseInt(process.env.COMPETITOR_FETCH_COOLDOWN_MIN, 10) || 60) * 60 * 1000,
+
   // --- Instagram (Instagram API with Instagram Login) — "Connect Instagram" ---
   // Uses the Instagram **Business Login** flow (instagram.com auth →
   // api.instagram.com / graph.instagram.com), NOT Facebook Login. Credentials
@@ -193,6 +207,9 @@ config.aiEnabled = !!config.anthropicApiKey;
 config.textEngine = config.geminiEnabled ? 'gemini' : (config.aiEnabled ? 'anthropic' : 'template');
 // Instagram connect goes live only when both Instagram app credentials are set.
 config.instagramEnabled = !!(config.instagramAppId && config.instagramAppSecret);
+// YouTube competitor-content fetching goes live only with a Data API key;
+// otherwise that one fetcher also degrades to a public-page scrape.
+config.youtubeDataApiEnabled = !!config.youtubeDataApiKey;
 
 // Public base URL for assets Instagram must fetch (image_url for publishing) and
 // other outward links. Instagram fetches images server-side, so localhost is not

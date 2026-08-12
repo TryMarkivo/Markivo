@@ -48,6 +48,14 @@ services:
       # server-side, so this must be publicly reachable (never localhost) for
       # publishing to work. Defaults to the redirect URI's origin if unset.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      # --- Meta (Facebook Login) — generic connector + Competitor Intel
+      # Instagram Business Discovery. Blank keeps both in sandbox/fallback mode.
+      META_CLIENT_ID: ${META_CLIENT_ID:-}
+      META_CLIENT_SECRET: ${META_CLIENT_SECRET:-}
+      # --- Competitor Intelligence — YouTube Data API v3. Blank falls back to
+      # a public channel-page scrape.
+      YOUTUBE_DATA_API_KEY: ${YOUTUBE_DATA_API_KEY:-}
+      COMPETITOR_FETCH_COOLDOWN_MIN: ${COMPETITOR_FETCH_COOLDOWN_MIN:-}
     volumes:
       - markivo-db:/app/database
       - markivo-uploads:/app/uploads

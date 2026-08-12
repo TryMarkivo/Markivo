@@ -488,7 +488,7 @@ const FULL_BRIEF_SCHEMA = {
 // ai.generateMediaBrief can fall through to Claude and then to its template.
 async function generateMediaBrief(ctx) {
   if (!config.geminiEnabled) return null;
-  const { kind = 'image', mode = 'guided', topic, profile } = ctx;
+  const { kind = 'image', mode = 'guided', topic, profile, trends } = ctx;
   const guided = mode === 'guided';
   const video = kind === 'video';
 
@@ -497,7 +497,11 @@ async function generateMediaBrief(ctx) {
     `Category: ${profile?.category || 'general'}\n` +
     `Business description: ${profile?.description || 'n/a'}\n` +
     `Target audience: ${profile?.targetAudience || 'local customers'}\n` +
-    `Brand tone: ${profile?.brandTone || 'Cozy & Warm'}\n`;
+    `Brand tone: ${profile?.brandTone || 'Cozy & Warm'}\n` +
+    (trends
+      ? `\nCOMPETITOR TREND CONTEXT (real data from tracked competitors — let it inform the concept/shot ` +
+        `choices, do not quote it back verbatim):\n${String(trends).slice(0, 600)}\n`
+      : '');
 
   const guidedSystem = video
     ? 'You are a professional videographer directing a small-business owner who is filming this ' +

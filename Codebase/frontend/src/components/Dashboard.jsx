@@ -609,7 +609,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
           {/* TAB 4: COMPETITOR INTEL */}
           {activeTab === 'competitors' && (
-            <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} />
+            <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} onGoToMedia={() => setActiveTab('media')} />
           )}
 
           {/* TAB 5: SETTINGS (appearance + connections) */}

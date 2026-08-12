@@ -57,6 +57,12 @@ export default function MediaStudio({ activeProfile }) {
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
 
+  // Competitor trend context — an optional toggle that grounds the brief in
+  // the latest Competitor Intel analysis (backend/ai.js ctx.trends). Only
+  // shown as usable once an analysis actually exists.
+  const [trendInsight, setTrendInsight] = useState(null);
+  const [useTrends, setUseTrends] = useState(false);
+
   // Publish flow — opens once a photo/video is actually finished.
   const [publishOpen, setPublishOpen] = useState(false);
 
@@ -77,6 +83,9 @@ export default function MediaStudio({ activeProfile }) {
 
   useEffect(() => {
     loadLibrary();
+    api.get('/api/competitors/trends')
+      .then((data) => setTrendInsight(data.insight))
+      .catch(() => {});
   }, [loadLibrary]);
 
   const handleBrief = async (e) => {
@@ -86,7 +95,7 @@ export default function MediaStudio({ activeProfile }) {
     setError(null);
     setCopied(false);
     try {
-      const data = await api.post('/api/media/brief', { kind, mode, topic });
+      const data = await api.post('/api/media/brief', { kind, mode, topic, useTrends: useTrends && !!trendInsight?.analysis });
       setBriefId(data.id);
       setBrief(data.brief);
       setBriefMode(mode);
@@ -255,6 +264,32 @@ export default function MediaStudio({ activeProfile }) {
     </div>
   );
 
+  // Only offered once a Competitor Intel analysis actually exists — no point
+  // showing a toggle for context that doesn't exist yet.
+  const trendToggle = trendInsight?.analysis ? (
+    <label className="trend-toggle" htmlFor="chk_use_trends">
+      <input
+        type="checkbox"
+        id="chk_use_trends"
+        checked={useTrends}
+        onChange={(e) => setUseTrends(e.target.checked)}
+      />
+      <span>
+        <i className="fa-solid fa-chart-line"></i> {t('media.trends.toggleLabel', 'Use competitor trends')}
+      </span>
+      {useTrends && (
+        <span className="trend-toggle-hint">
+          {t('media.trends.hint', { defaultValue: '"{{recommendation}}"', recommendation: (trendInsight.analysis.recommendation || trendInsight.analysis.analysis || '').slice(0, 100) })}
+        </span>
+      )}
+    </label>
+  ) : (
+    <p className="trend-toggle-empty">
+      <i className="fa-solid fa-circle-info"></i>{' '}
+      {t('media.trends.none', 'No competitor trend analysis yet — run one from the Competitor Intel tab to ground your briefs in what actually works nearby.')}
+    </p>
+  );
+
   // Shot list rows arrive as objects from the production brief, but older saved
   // briefs stored plain strings — render both.
   const renderShot = (shot, i) => {
@@ -361,6 +396,10 @@ export default function MediaStudio({ activeProfile }) {
             <div className="form-group">
               <label className="form-label">{t('media.brief.kindLabel', 'Media type')}</label>
               {kindToggle}
+            </div>
+
+            <div className="form-group">
+              {trendToggle}
             </div>
 
             <div className="form-group">
@@ -475,6 +514,10 @@ export default function MediaStudio({ activeProfile }) {
             <div className="form-group">
               <label className="form-label">{t('media.brief.kindLabel', 'Media type')}</label>
               {kindToggle}
+            </div>
+
+            <div className="form-group">
+              {trendToggle}
             </div>
 
             <form onSubmit={handleBrief} className="guided-ask-row">

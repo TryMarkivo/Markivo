@@ -72,6 +72,57 @@ module.exports = function createDb(dbPath) {
       platforms_detected TEXT
     );
 
+    -- One row per platform link a business pastes for a tracked competitor
+    -- (manual entry — there is no official API for discovering a stranger's
+    -- social profiles). Fetched content lands in competitor_posts below;
+    -- status/partial/error describe how the last fetch went so the UI can be
+    -- honest about thin data instead of pretending it's complete.
+    CREATE TABLE IF NOT EXISTS competitor_sources (
+      id              TEXT PRIMARY KEY,
+      competitor_id   TEXT NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
+      profile_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform        TEXT NOT NULL,
+      url             TEXT NOT NULL,
+      handle          TEXT,
+      display_name    TEXT,
+      followers_count INTEGER,
+      status          TEXT DEFAULT 'pending',
+      partial         INTEGER DEFAULT 0,
+      error           TEXT,
+      last_fetched_at TEXT,
+      created_at      TEXT NOT NULL
+    );
+
+    -- One row per post/video pulled from a competitor_sources fetch. A fetch
+    -- replaces every row for its source (competitorPosts.replaceForSource) so
+    -- the table always reflects the latest read, never a stale accumulation.
+    CREATE TABLE IF NOT EXISTS competitor_posts (
+      id             TEXT PRIMARY KEY,
+      source_id      TEXT NOT NULL REFERENCES competitor_sources(id) ON DELETE CASCADE,
+      competitor_id  TEXT NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
+      profile_id     TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform       TEXT NOT NULL,
+      external_id    TEXT,
+      kind           TEXT,
+      caption        TEXT,
+      thumbnail_url  TEXT,
+      posted_at      TEXT,
+      like_count     INTEGER,
+      comment_count  INTEGER,
+      view_count     INTEGER,
+      fetched_at     TEXT NOT NULL
+    );
+
+    -- Latest (and historical) AI trend-analysis runs over a profile's tracked
+    -- competitors. analysis is a JSON blob: { analysis, themes, recommendation,
+    -- cadence[], contentTypes[] } — see ai.js#analyzeCompetitorTrends.
+    CREATE TABLE IF NOT EXISTS competitor_insights (
+      id         TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      analysis   TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS keywords (
       id            TEXT PRIMARY KEY,
       profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -279,6 +330,11 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_ai_usage_user_time ON ai_usage(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_platforms_profile ON platforms(profile_id);
     CREATE INDEX IF NOT EXISTS idx_competitors_profile ON competitors(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_competitor_sources_competitor ON competitor_sources(competitor_id);
+    CREATE INDEX IF NOT EXISTS idx_competitor_sources_profile ON competitor_sources(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_competitor_posts_source ON competitor_posts(source_id);
+    CREATE INDEX IF NOT EXISTS idx_competitor_posts_competitor ON competitor_posts(competitor_id, posted_at);
+    CREATE INDEX IF NOT EXISTS idx_competitor_insights_profile ON competitor_insights(profile_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_keywords_profile ON keywords(profile_id);
     CREATE INDEX IF NOT EXISTS idx_calendar_profile ON calendar(profile_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_profile ON approvals(profile_id);
@@ -317,6 +373,11 @@ module.exports = function createDb(dbPath) {
   // scheduled-post worker clone a post forward once it goes out.
   addColumn('calendar', 'tag TEXT');
   addColumn('calendar', 'repeat_rule TEXT');
+  // Manually-added competitors (paste-a-link flow) vs. the onboarding-seeded
+  // benchmark rows — lets the UI show "no competitors tracked yet" honestly
+  // instead of treating the onboarding seeds as real tracked competitors.
+  addColumn('competitors', 'created_at TEXT');
+  addColumn('competitors', 'source TEXT');
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -347,6 +408,24 @@ module.exports = function createDb(dbPath) {
     id: r.id, profileId: r.profile_id, competitor_name: r.competitor_name, rating: r.rating,
     followers_count: r.followers_count, posts_per_week: r.posts_per_week,
     platforms_detected: r.platforms_detected ? JSON.parse(r.platforms_detected) : [],
+    created_at: r.created_at || null, source: r.source || 'onboarding',
+  };
+  const mapCompetitorSource = (r) => r && {
+    id: r.id, competitorId: r.competitor_id, profileId: r.profile_id, platform: r.platform,
+    url: r.url, handle: r.handle || null, displayName: r.display_name || null, followersCount: r.followers_count,
+    status: r.status, partial: !!r.partial, error: r.error || null,
+    lastFetchedAt: r.last_fetched_at, created_at: r.created_at,
+  };
+  const mapCompetitorPost = (r) => r && {
+    id: r.id, sourceId: r.source_id, competitorId: r.competitor_id, profileId: r.profile_id,
+    platform: r.platform, externalId: r.external_id, kind: r.kind, caption: r.caption,
+    thumbnailUrl: r.thumbnail_url, postedAt: r.posted_at, likeCount: r.like_count,
+    commentCount: r.comment_count, viewCount: r.view_count, fetched_at: r.fetched_at,
+  };
+  const mapCompetitorInsight = (r) => r && {
+    id: r.id, profileId: r.profile_id,
+    analysis: r.analysis ? JSON.parse(r.analysis) : null,
+    created_at: r.created_at,
   };
   const mapKeyword = (r) => r && {
     id: r.id, profileId: r.profile_id, keyword_phrase: r.keyword_phrase,
@@ -577,15 +656,154 @@ module.exports = function createDb(dbPath) {
           id: id(), profile_id: c.profileId, competitor_name: c.competitorName,
           rating: c.rating, followers_count: c.followersCount, posts_per_week: c.postsPerWeek,
           platforms_detected: JSON.stringify(c.platformsDetected || []),
+          created_at: now(), source: c.source || 'onboarding',
         };
         sqlite.prepare(
-          `INSERT INTO competitors (id, profile_id, competitor_name, rating, followers_count, posts_per_week, platforms_detected)
-           VALUES (@id, @profile_id, @competitor_name, @rating, @followers_count, @posts_per_week, @platforms_detected)`
+          `INSERT INTO competitors (id, profile_id, competitor_name, rating, followers_count, posts_per_week, platforms_detected, created_at, source)
+           VALUES (@id, @profile_id, @competitor_name, @rating, @followers_count, @posts_per_week, @platforms_detected, @created_at, @source)`
         ).run(row);
         return mapCompetitor(row);
       },
       listByProfile(profileId) {
         return sqlite.prepare('SELECT * FROM competitors WHERE profile_id = ?').all(profileId).map(mapCompetitor);
+      },
+      findById(competitorId) {
+        return mapCompetitor(sqlite.prepare('SELECT * FROM competitors WHERE id = ?').get(competitorId));
+      },
+      // Partial update: only keys present in `fields` are written. Used after a
+      // fetch refresh to roll aggregate rating/followers/cadence up onto the
+      // parent row so /api/dashboard/stats stays cheap (no join needed there).
+      update(competitorId, fields = {}) {
+        const colFor = {
+          competitorName: 'competitor_name', rating: 'rating', followersCount: 'followers_count',
+          postsPerWeek: 'posts_per_week', platformsDetected: 'platforms_detected',
+        };
+        const sets = [];
+        const params = { competitorId };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          let value = fields[key];
+          if (key === 'platformsDetected') value = JSON.stringify(value || []);
+          sets.push(`${col} = @${key}`);
+          params[key] = value;
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE competitors SET ${sets.join(', ')} WHERE id = @competitorId`).run(params);
+        }
+        return this.findById(competitorId);
+      },
+      remove(competitorId) {
+        sqlite.prepare('DELETE FROM competitors WHERE id = ?').run(competitorId);
+      },
+    },
+
+    // Platform links pasted for a tracked competitor. One row per (competitor,
+    // platform) — see the competitor_sources table comment for why this exists
+    // separately from the thin `competitors` benchmark row.
+    competitorSources: {
+      add(s) {
+        const row = {
+          id: id(), competitor_id: s.competitorId, profile_id: s.profileId, platform: s.platform,
+          url: s.url, handle: s.handle || null, display_name: s.displayName || null,
+          followers_count: s.followersCount ?? null,
+          status: s.status || 'pending', partial: s.partial ? 1 : 0, error: s.error || null,
+          last_fetched_at: s.lastFetchedAt || null, created_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO competitor_sources (id, competitor_id, profile_id, platform, url, handle, display_name, followers_count, status, partial, error, last_fetched_at, created_at)
+           VALUES (@id, @competitor_id, @profile_id, @platform, @url, @handle, @display_name, @followers_count, @status, @partial, @error, @last_fetched_at, @created_at)`
+        ).run(row);
+        return mapCompetitorSource(row);
+      },
+      listByCompetitor(competitorId) {
+        return sqlite.prepare('SELECT * FROM competitor_sources WHERE competitor_id = ? ORDER BY created_at')
+          .all(competitorId).map(mapCompetitorSource);
+      },
+      listByProfile(profileId) {
+        return sqlite.prepare('SELECT * FROM competitor_sources WHERE profile_id = ?')
+          .all(profileId).map(mapCompetitorSource);
+      },
+      findById(sourceId) {
+        return mapCompetitorSource(sqlite.prepare('SELECT * FROM competitor_sources WHERE id = ?').get(sourceId));
+      },
+      update(sourceId, fields = {}) {
+        const colFor = {
+          handle: 'handle', displayName: 'display_name', followersCount: 'followers_count', status: 'status',
+          partial: 'partial', error: 'error', lastFetchedAt: 'last_fetched_at',
+        };
+        const sets = [];
+        const params = { sourceId };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          let value = fields[key];
+          if (key === 'partial') value = value ? 1 : 0;
+          sets.push(`${col} = @${key}`);
+          params[key] = value;
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE competitor_sources SET ${sets.join(', ')} WHERE id = @sourceId`).run(params);
+        }
+        return this.findById(sourceId);
+      },
+      remove(sourceId) {
+        sqlite.prepare('DELETE FROM competitor_sources WHERE id = ?').run(sourceId);
+      },
+    },
+
+    // Posts/videos pulled from a competitor_sources fetch.
+    competitorPosts: {
+      // A fetch REPLACES every row for its source in one transaction — the
+      // simplest correct way to keep re-fetching idempotent, no per-post
+      // de-dupe bookkeeping needed.
+      replaceForSource(sourceId, { competitorId, profileId, platform, posts = [] }) {
+        const del = sqlite.prepare('DELETE FROM competitor_posts WHERE source_id = ?');
+        const insert = sqlite.prepare(
+          `INSERT INTO competitor_posts (id, source_id, competitor_id, profile_id, platform, external_id, kind, caption, thumbnail_url, posted_at, like_count, comment_count, view_count, fetched_at)
+           VALUES (@id, @source_id, @competitor_id, @profile_id, @platform, @external_id, @kind, @caption, @thumbnail_url, @posted_at, @like_count, @comment_count, @view_count, @fetched_at)`
+        );
+        const tx = sqlite.transaction((rows) => {
+          del.run(sourceId);
+          const fetchedAt = now();
+          for (const p of rows) {
+            insert.run({
+              id: id(), source_id: sourceId, competitor_id: competitorId, profile_id: profileId, platform,
+              external_id: p.externalId || null, kind: p.kind || null,
+              caption: p.caption ? String(p.caption).slice(0, 2000) : null,
+              thumbnail_url: p.thumbnailUrl || null, posted_at: p.postedAt || null,
+              like_count: Number.isFinite(p.likeCount) ? p.likeCount : null,
+              comment_count: Number.isFinite(p.commentCount) ? p.commentCount : null,
+              view_count: Number.isFinite(p.viewCount) ? p.viewCount : null,
+              fetched_at: fetchedAt,
+            });
+          }
+        });
+        tx(posts);
+      },
+      listByCompetitor(competitorId, limit = 60) {
+        return sqlite.prepare(
+          'SELECT * FROM competitor_posts WHERE competitor_id = ? ORDER BY posted_at DESC LIMIT ?'
+        ).all(competitorId, limit).map(mapCompetitorPost);
+      },
+      listByProfile(profileId, limit = 300) {
+        return sqlite.prepare(
+          'SELECT * FROM competitor_posts WHERE profile_id = ? ORDER BY posted_at DESC LIMIT ?'
+        ).all(profileId, limit).map(mapCompetitorPost);
+      },
+    },
+
+    // Stored AI trend-analysis runs (ai.js#analyzeCompetitorTrends output).
+    competitorInsights: {
+      add({ profileId, analysis }) {
+        const row = { id: id(), profile_id: profileId, analysis: JSON.stringify(analysis), created_at: now() };
+        sqlite.prepare(
+          `INSERT INTO competitor_insights (id, profile_id, analysis, created_at) VALUES (@id, @profile_id, @analysis, @created_at)`
+        ).run(row);
+        return mapCompetitorInsight(row);
+      },
+      latestByProfile(profileId) {
+        return mapCompetitorInsight(sqlite.prepare(
+          'SELECT * FROM competitor_insights WHERE profile_id = ? ORDER BY created_at DESC LIMIT 1'
+        ).get(profileId));
       },
     },
 

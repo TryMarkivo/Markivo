@@ -167,11 +167,12 @@ function templateAgentAct({ query, profile, telegram, lang, history }) {
 }
 
 // Media Studio fallback: a concrete, profile-tailored brief without any key.
-function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile }) {
+function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile, trends }) {
   const name = profile?.businessName || 'your business';
   const category = (profile?.category || 'business').toLowerCase();
   const tone = profile?.brandTone || 'Cozy & Warm';
   const subject = (topic && topic.trim()) || `your ${category}`;
+  const trendTip = trends ? [`Trend note: ${String(trends).slice(0, 160)}`] : [];
 
   // Guided = the owner is holding the camera, so the fallback still has to be a
   // real production brief. Shape matches the Gemini guided schemas exactly
@@ -247,7 +248,7 @@ function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile })
         ],
         audio: 'Capture clean ambient sound close to the subject; add trending or licensed music in the platform editor afterwards, and duck it under any spoken line.',
         postProcessing: 'Trim every clip to its strongest 2-4 seconds, lift shadows slightly, add burned-in captions, export vertical 9:16 at 1080x1920.',
-        tips: [...tips, 'Keep each clip under 5 seconds; fast cuts hold attention.'],
+        tips: [...tips, 'Keep each clip under 5 seconds; fast cuts hold attention.', ...trendTip],
       };
     }
 
@@ -267,7 +268,7 @@ function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile })
         { name: 'Human element', framing: 'Close', angle: 'Over the shoulder', direction: 'Hands reaching for or holding it — movement makes a still photo feel alive.' },
       ],
       postProcessing: 'Straighten, crop to 4:5 for feed, lift shadows and add a touch of warmth; keep the edit consistent across every photo in the set.',
-      tips,
+      tips: [...tips, ...trendTip],
     };
   }
 
@@ -277,7 +278,8 @@ function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile })
     kind,
     concept:
       `A scroll-stopping ${kind} built around ${subject}: the ${tone.toLowerCase()} world of ${name}, ` +
-      `told through one bold ${category} moment that makes viewers want to visit.`,
+      `told through one bold ${category} moment that makes viewers want to visit.` +
+      (trends ? ` Inspired by a current trend: ${String(trends).slice(0, 140)}.` : ''),
     caption: `✨ ${subject} — now at ${name}! Come see it for yourself. ${cleanTag(name)} ${cleanTag(category)}`,
     visualSpec: {
       composition: `Rule-of-thirds with ${subject} on the right intersection and clean negative space left for a text overlay`,
@@ -474,6 +476,124 @@ async function analyzeAndPlan(ctx) {
   } catch (err) {
     console.error('AI analyzeAndPlan failed, using template:', err.message);
     return templateAutonomousPlan(ctx);
+  }
+}
+
+// Competitor Intelligence: turn real (deterministic) competitor posting stats
+// plus a sample of their captions into a short trend narrative + one concrete
+// recommendation. The NUMBERS (cadence, video share) always come from
+// competitorAnalytics.js, computed straight from stored posts — this function
+// only adds the qualitative read a model is good at, and is skipped entirely
+// (falls to the template) when there is no competitor data to reason about,
+// so it never invents a trend from nothing.
+const COMPETITOR_TRENDS_SCHEMA = {
+  type: 'object',
+  properties: {
+    analysis: { type: 'string' },
+    themes: { type: 'array', items: { type: 'string' } },
+    recommendation: { type: 'string' },
+  },
+  required: ['analysis', 'themes', 'recommendation'],
+  additionalProperties: false,
+};
+
+function templateCompetitorTrends(ctx) {
+  const { businessName, competitorStats = [], trackedCompetitors = [] } = ctx;
+  const withData = competitorStats.filter((s) => s.postCount > 0);
+  if (!withData.length) {
+    // Nothing tracked at all yet.
+    if (!trackedCompetitors.length) {
+      return {
+        analysis: `No competitors tracked yet for ${businessName || 'your business'} — add one in Competitor Intel to start tracking trends.`,
+        themes: [],
+        recommendation: 'Add a competitor by pasting their Instagram, TikTok, YouTube, or Facebook profile link.',
+      };
+    }
+    // Tracked, but no platform returned real post content yet. Reasons
+    // differ by platform: Facebook structurally never exposes posts publicly
+    // (no discovery API exists for it here); Instagram CAN return real posts
+    // via Business Discovery, but only once this business has its own
+    // Instagram connected via Settings → Connections (Meta) AND the
+    // competitor is a public Business/Creator account — so it needs a
+    // "how to fix" message, not a flat "impossible" one. Anything else (TikTok/
+    // YouTube) not returning data is just a fetch that failed or was blocked.
+    const names = trackedCompetitors.map((c) => c.name).filter(Boolean).slice(0, 3).join(', ');
+    const platformsSeen = new Set(trackedCompetitors.flatMap((c) => c.platforms || []));
+    const onlyFacebook = platformsSeen.size > 0 && [...platformsSeen].every((p) => p === 'facebook');
+    const hasInstagram = platformsSeen.has('instagram');
+    const prefix = `${trackedCompetitors.length} competitor${trackedCompetitors.length === 1 ? ' is' : 's are'} tracked` +
+      `${names ? ` (${names})` : ''}, but none of their linked platforms have returned post content yet.`;
+
+    if (onlyFacebook) {
+      return {
+        analysis: `${prefix} Facebook only exposes profile info publicly (no captions or videos), so content trends aren't available from that alone.`,
+        themes: [],
+        recommendation: 'For real content-trend analysis, also track this competitor on Instagram (once your own Instagram is connected via Settings → Connections), YouTube, or TikTok.',
+      };
+    }
+    if (hasInstagram) {
+      return {
+        analysis: `${prefix} For Instagram specifically, real post content needs YOUR OWN Instagram connected via Settings → Connections (Meta) — once it is, captions and engagement become available for competitors that are public Business or Creator accounts.`,
+        themes: [],
+        recommendation: 'Connect your Instagram via Settings → Connections (Meta), or track this competitor on YouTube or TikTok instead.',
+      };
+    }
+    return {
+      analysis: `${prefix} A fetch may have failed or been blocked — try refreshing, or track the same competitor on another platform.`,
+      themes: [],
+      recommendation: 'Try "Refresh" on the tracked competitor, or add their YouTube or TikTok profile as a second source.',
+    };
+  }
+  const avgCadence = Math.round((withData.reduce((sum, s) => sum + (s.postsPerWeek || 0), 0) / withData.length) * 10) / 10;
+  const avgVideoShare = Math.round(withData.reduce((sum, s) => sum + (s.videoSharePercent || 0), 0) / withData.length);
+  const videoLeaning = avgVideoShare >= 50;
+  return {
+    analysis:
+      `Across ${withData.length} tracked competitor${withData.length === 1 ? '' : 's'}, average posting cadence is ` +
+      `${avgCadence} posts/week and about ${avgVideoShare}% of their content is video.`,
+    themes: [videoLeaning ? 'Short-form video is the dominant format among your competitors' : 'A mix of photo and video content is common among your competitors'],
+    recommendation: videoLeaning
+      ? 'Consider a short filmable video this week — your competitors are leaning heavily on video.'
+      : 'A strong photo post is a safe next move — most of your competitors are not out-posting you on video yet.',
+  };
+}
+
+async function analyzeCompetitorTrends(ctx) {
+  const { businessName, category, brandTone, competitorStats = [], sampleCaptions = [] } = ctx;
+  const withData = competitorStats.filter((s) => s.postCount > 0);
+  if (!client || !withData.length) return templateCompetitorTrends(ctx);
+  try {
+    const parsed = await anthropic.completeJSON({
+      model: config.aiContentModel,
+      system:
+        "You are Markivo's competitive-intelligence analyst for a small business. Given REAL posting-cadence " +
+        'and content-type data for its tracked competitors, plus sample captions, identify the dominant content ' +
+        'trends and recommend ONE concrete next move for this business. Be specific and grounded only in the data ' +
+        'given — never invent statistics not present in it. Respond as JSON only.',
+      prompt:
+        `Business: ${businessName || 'a local business'}\n` +
+        `Category: ${category || 'general'}\n` +
+        `Brand tone: ${brandTone || 'Cozy & Warm'}\n\n` +
+        `Competitor stats:\n${withData.map((s) =>
+          `- ${s.competitorName || 'Competitor'}: ${s.postsPerWeek ?? 'unknown'} posts/week, ${s.videoSharePercent}% video, ${s.postCount} posts tracked`
+        ).join('\n')}\n\n` +
+        `Sample recent captions:\n${sampleCaptions.slice(0, 15).map((c) =>
+          `- [${c.competitorName || 'competitor'} / ${c.platform}] ${String(c.caption || '').slice(0, 140)}`
+        ).join('\n') || 'none'}\n\n` +
+        'Return a short "analysis" (2-3 sentences), a "themes" array (2-4 short bullet phrases), and one ' +
+        'concrete "recommendation" sentence for what this business should post next.',
+      schema: COMPETITOR_TRENDS_SCHEMA,
+      maxTokens: 900,
+    });
+    if (!parsed || !parsed.analysis) return templateCompetitorTrends(ctx);
+    return {
+      analysis: String(parsed.analysis).slice(0, 1000),
+      themes: (parsed.themes || []).slice(0, 6).map((t) => String(t).slice(0, 200)),
+      recommendation: String(parsed.recommendation || '').slice(0, 500),
+    };
+  } catch (err) {
+    console.error('AI analyzeCompetitorTrends failed, using template:', err.message);
+    return templateCompetitorTrends(ctx);
   }
 }
 
@@ -931,11 +1051,20 @@ const profileLines = (profile) =>
     ? `\nBRAND BRIEF (match this exactly; never invent prices, hours, products, or numbers not stated here):\n${brand.briefDigest(profile.brandBrief, profile)}\n`
     : '');
 
+// Short digest line for an optional competitor-trend recommendation (from
+// ai.js#analyzeCompetitorTrends, or a caller-supplied string). Instructs the
+// model to use it as inspiration, not to quote it back verbatim.
+const trendsLine = (trends) =>
+  trends
+    ? `\nCOMPETITOR TREND CONTEXT (real data from this business's tracked competitors — let it inform the ` +
+      `concept and shot choices, do not quote it back verbatim):\n${String(trends).slice(0, 600)}\n`
+    : '';
+
 // Media briefs, in provider order: Gemini -> Claude -> deterministic template.
 // Gemini leads here because the guided brief is a big structured document
 // (staging, camera, script, movements) and its schema support handles it well.
 async function generateMediaBrief(ctx) {
-  const { kind, mode, topic, profile } = ctx;
+  const { kind, mode, topic, profile, trends } = ctx;
   const guided = mode === 'guided';
   // Full-mode briefs carry the render-engine status whichever engine wrote
   // them, so the Media Studio's render section behaves identically.
@@ -971,7 +1100,7 @@ async function generateMediaBrief(ctx) {
       messages: [
         {
           role: 'user',
-          content: profileLines(profile) + `Media kind: ${kind}\nWhat they want to shoot: ${topic}`,
+          content: profileLines(profile) + trendsLine(trends) + `Media kind: ${kind}\nWhat they want to shoot: ${topic}`,
         },
       ],
       output_config: {
@@ -1137,6 +1266,7 @@ module.exports = {
   generateSlogans,
   agentAct,
   analyzeAndPlan,
+  analyzeCompetitorTrends,
   generateMediaBrief,
   generateEditPlan,
   generateLogos,
@@ -1145,6 +1275,7 @@ module.exports = {
   templateSlogans,
   templateAgentAct,
   templateAutonomousPlan,
+  templateCompetitorTrends,
   templateMediaBrief,
   templateEditPlan,
 };

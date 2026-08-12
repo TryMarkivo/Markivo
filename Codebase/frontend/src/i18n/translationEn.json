@@ -609,6 +609,11 @@
       "image": "Image",
       "video": "Video"
     },
+    "trends": {
+      "toggleLabel": "Use competitor trends",
+      "hint": "\"{{recommendation}}\"",
+      "none": "No competitor trend analysis yet — run one from the Competitor Intel tab to ground your briefs in what actually works nearby."
+    },
     "brief": {
       "title": "Creative brief",
       "subtitle": "Tell the AI what this media should be about",
@@ -740,7 +745,47 @@
       "you": "You",
       "compA": "Comp A",
       "compB": "Comp B",
-      "compC": "Global C"
+      "compC": "Global C",
+      "empty": "Add a tracked competitor below and fetch their content to see a real cadence comparison here."
+    },
+    "tracked": {
+      "title": "Tracked Competitors",
+      "subtitle": "Paste a competitor's profile link to pull their real content and posting habits",
+      "addCta": "Add competitor",
+      "empty": "No competitors tracked yet — add one by pasting their Instagram, TikTok, YouTube, or Facebook profile link.",
+      "unnamed": "Unnamed competitor",
+      "refresh": "Refresh",
+      "remove": "Remove",
+      "partial": "partial",
+      "partialHintInstagram": "No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account.",
+      "partialHintNoApi": "This platform only exposes profile info publicly — no captions or videos, so it can't feed trend analysis.",
+      "partialHintGeneric": "Profile found, but no posts could be read this time — try Refresh.",
+      "noFollowerData": "no data"
+    },
+    "addModal": {
+      "title": "Add a Competitor",
+      "hint": "Paste one or more of their public profile links. We'll pull whatever is publicly visible — some platforms give more than others.",
+      "nameLabel": "Competitor name (optional)",
+      "namePlaceholder": "e.g. Sunrise Cafe",
+      "platform": {
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "youtube": "YouTube",
+        "facebook": "Facebook"
+      },
+      "needOneLink": "Add at least one profile link",
+      "adding": "Adding & fetching…",
+      "submitCta": "Add competitor"
+    },
+    "trends": {
+      "title": "Competitor Trends",
+      "subtitle": "What's working for the businesses you're tracking",
+      "analyzeCta": "Analyze trends",
+      "analyzing": "Analyzing…",
+      "needData": "Add and fetch at least one competitor first",
+      "empty": "Add at least one competitor with fetched content, then analyze to see trends.",
+      "recommendationLabel": "💡 Recommendation:",
+      "generateCta": "Generate content from this →"
     },
     "gaps": {
       "title": "Actionable AI Moat Recommendations",

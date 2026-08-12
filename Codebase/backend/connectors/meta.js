@@ -405,4 +405,38 @@ const instagram = {
   },
 };
 
-module.exports = { instagram, facebook };
+// ---------------------------------------------------------------------------
+// Business Discovery — read a PUBLIC Business/Creator account's own recent
+// media (captions, engagement) via the Graph API feature built for exactly
+// this (competitor/benchmark analysis): no scraping, no login as them, no
+// authorization needed FROM them. Requires the CALLING business's OWN
+// meta_instagram connection (the OAuth above) — the target does not have to
+// grant us anything, but does have to be a public Business or Creator
+// account itself (personal accounts are not queryable this way).
+//   GET /{caller-ig-user-id}?fields=business_discovery.username({target}){...}
+// Docs: https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/business-discovery
+// [UNVERIFIED] full field list for business_discovery.media in the current
+// API version — comments_count/like_count/id are docs-confirmed at write
+// time; caption/media_type/timestamp/permalink are the commonly-documented
+// IG Media node fields but weren't freshly re-verified against this exact
+// endpoint. An unsupported field can fail the WHOLE call — callers must treat
+// any failure here as "unavailable" and fall back, never surface it raw.
+async function businessDiscovery(callerIgUserId, targetUsername, accessToken, { fetchImpl = fetch, limit = 25 } = {}) {
+  const mediaFields = 'caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count';
+  const fields = `business_discovery.username(${targetUsername}){username,name,profile_picture_url,followers_count,media_count,media.limit(${limit}){${mediaFields}}}`;
+  const params = new URLSearchParams({ fields, access_token: accessToken });
+  let res;
+  try {
+    res = await fetchImpl(`${GRAPH}/${callerIgUserId}?${params.toString()}`, { method: 'GET' });
+  } catch (err) {
+    throw new ConnectorError('meta_instagram', `Could not reach Instagram Business Discovery (${err.message}).`, 502);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.business_discovery) {
+    const msg = data && data.error && data.error.message ? data.error.message : 'business_discovery unavailable for this account';
+    throw new ConnectorError('meta_instagram', `Business Discovery failed: ${msg}`, res.status || 400);
+  }
+  return data.business_discovery;
+}
+
+module.exports = { instagram, facebook, businessDiscovery };

@@ -163,7 +163,7 @@ test('construct stores google identity and real competitors replace the seeds', 
   assert.strictEqual(stats.competitors[0].postsPerWeek, null); // honest nulls survive the API
 });
 
-test('construct without competitors keeps the legacy benchmark seeds (Path B regression)', async () => {
+test('construct without competitors leaves the benchmark honestly empty (no fake seeds)', async () => {
   const token = await register('seedcomp');
   const res = await post('/api/onboarding/construct', { businessName: 'Scratch Biz' }, token);
   assert.strictEqual(res.status, 200);
@@ -171,18 +171,17 @@ test('construct without competitors keeps the legacy benchmark seeds (Path B reg
   assert.strictEqual(profile.googlePlaceId, null);
 
   const stats = await (await fetch(`${base}/api/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } })).json();
-  assert.strictEqual(stats.competitors.length, 3);
-  assert.ok(stats.competitors.some((c) => c.name === 'District Roasters B'));
+  assert.deepStrictEqual(stats.competitors, []);
 });
 
-test('construct sanitizes malformed competitor payloads to the seeds', async () => {
+test('construct sanitizes malformed competitor payloads down to nothing (honest empty, not fake seeds)', async () => {
   const token = await register('badcomp');
   const res = await post('/api/onboarding/construct', {
     businessName: 'Sanitize Biz',
-    competitors: [{ rating: 5 }, 'junk', null], // no usable names → fall back to seeds
+    competitors: [{ rating: 5 }, 'junk', null], // no usable names → nothing survives sanitization
   }, token);
   assert.strictEqual(res.status, 200);
 
   const stats = await (await fetch(`${base}/api/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } })).json();
-  assert.strictEqual(stats.competitors.length, 3);
+  assert.deepStrictEqual(stats.competitors, []);
 });

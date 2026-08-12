@@ -600,6 +600,11 @@
       "image": "Rasm",
       "video": "Video"
     },
+    "trends": {
+      "toggleLabel": "Raqobatchilar trendlaridan foydalanish",
+      "hint": "\"{{recommendation}}\"",
+      "none": "Hali raqobatchilar trend tahlili yo'q — atrofda haqiqatan ishlayotgan narsaga asoslanish uchun Raqobatchilar Tahlili bo'limida tahlil ishga tushiring."
+    },
     "brief": {
       "title": "Ijodiy brif",
       "subtitle": "AIga bu media nima haqida bo'lishi kerakligini ayting",
@@ -694,7 +699,47 @@
       "you": "Siz",
       "compA": "Raqib A",
       "compB": "Raqib B",
-      "compC": "Global C"
+      "compC": "Global C",
+      "empty": "Haqiqiy chastota solishtiruvini ko'rish uchun quyida raqobatchi qo'shing va uning kontentini yuklab oling."
+    },
+    "tracked": {
+      "title": "Kuzatilayotgan raqobatchilar",
+      "subtitle": "Raqobatchining haqiqiy kontenti va post odatlarini olish uchun uning profil havolasini joylashtiring",
+      "addCta": "Raqobatchi qo'shish",
+      "empty": "Hali kuzatilayotgan raqobatchi yo'q — Instagram, TikTok, YouTube yoki Facebook profil havolasini joylashtirib birini qo'shing.",
+      "unnamed": "Nomsiz raqobatchi",
+      "refresh": "Yangilash",
+      "remove": "O'chirish",
+      "partial": "qisman",
+      "partialHintInstagram": "Hali post kontenti yo'q — bu yerda haqiqiy sarlavha va faollik ma'lumotlarini ochish uchun Sozlamalar → Ulanishlar (Meta) bo'limida o'z Instagram'ingizni ulang va bu raqobatchi ochiq Biznes yoki Ijodkor akkaunti ekanligiga ishonch hosil qiling.",
+      "partialHintNoApi": "Bu platforma faqat profil ma'lumotlarini ochiq ko'rsatadi — sarlavha yoki video yo'q, shuning uchun trend tahliliga material bera olmaydi.",
+      "partialHintGeneric": "Profil topildi, lekin postlarni o'qib bo'lmadi — «Yangilash»ni sinab ko'ring.",
+      "noFollowerData": "ma'lumot yo'q"
+    },
+    "addModal": {
+      "title": "Raqobatchi qo'shish",
+      "hint": "Uning bitta yoki bir nechta ochiq profil havolasini joylashtiring. Ochiq ko'rinadigan hamma narsani olamiz — ba'zi platformalar boshqalariga qaraganda ko'proq ma'lumot beradi.",
+      "nameLabel": "Raqobatchi nomi (ixtiyoriy)",
+      "namePlaceholder": "masalan, Sunrise Cafe",
+      "platform": {
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "youtube": "YouTube",
+        "facebook": "Facebook"
+      },
+      "needOneLink": "Kamida bitta profil havolasini qo'shing",
+      "adding": "Qo'shilmoqda va yuklanmoqda…",
+      "submitCta": "Raqobatchi qo'shish"
+    },
+    "trends": {
+      "title": "Raqobatchilar trendlari",
+      "subtitle": "Siz kuzatayotgan bizneslarda nima ishlayapti",
+      "analyzeCta": "Trendlarni tahlil qilish",
+      "analyzing": "Tahlil qilinmoqda…",
+      "needData": "Avval kamida bitta raqobatchini qo'shing va yuklab oling",
+      "empty": "Trendlarni ko'rish uchun kontenti yuklab olingan kamida bitta raqobatchi qo'shing, so'ng tahlil qiling.",
+      "recommendationLabel": "💡 Tavsiya:",
+      "generateCta": "Shundan kontent yaratish →"
     },
     "gaps": {
       "title": "Amaliy AI ustunlik tavsiyalari",

@@ -1,10 +1,101 @@
-import { useTranslation, Trans } from 'react-i18next';
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import api from '../lib/api';
+import { PLATFORM_META } from '../lib/platforms';
+import AddCompetitorModal from './AddCompetitorModal';
 import './CompetitorIntel.css';
 
-export default function CompetitorIntel({ stats, activeProfile }) {
+// competitor_sources platform keys -> the icon/colour catalogue already used
+// for connected channels (which keys 'instagram'/'facebook' as
+// 'meta_instagram'/'meta_facebook').
+const iconFor = (platform) => PLATFORM_META[platform === 'instagram' ? 'meta_instagram' : platform === 'facebook' ? 'meta_facebook' : platform];
+
+// Facebook has no official "read a stranger's Page" API here yet — bio and
+// follower count only, structurally, not a bug. Instagram is different: real
+// post content IS available via Business Discovery, but only once THIS
+// business has its own Instagram connected through Settings → Connections
+// (the Meta/Facebook-Login card) and the competitor is itself a public
+// Business/Creator account — worth explaining inline rather than leaving a
+// bare "partial" badge to guess at.
+const NO_POST_API_PLATFORMS = new Set(['facebook']);
+
+export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
   const { t } = useTranslation();
-  const competitors = stats.competitors || [];
-  const category = activeProfile.category || 'Cafe';
+  const benchmarkCompetitors = stats.competitors || [];
+  const yourPostsPerWeek = stats.yourPostsPerWeek ?? 0;
+  const yourChannelsConnected = stats.yourChannelsConnected
+    ?? Object.values(activeProfile.platforms || {}).filter(Boolean).length;
+  const yourFollowers = stats.metrics?.instagramFollowers?.current ?? null;
+
+  // Manually-tracked competitors (paste-a-link + fetched sources) — a
+  // separate, richer fetch than the coarse benchmark list above.
+  const [competitors, setCompetitors] = useState([]);
+  // Only meaningful for the very first paint (whether to show the empty
+  // state before the first fetch resolves) — set once, never reset to true.
+  const [loadingList, setLoadingList] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+  const [refreshingId, setRefreshingId] = useState(null);
+  const [insight, setInsight] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const loadCompetitors = useCallback(() => {
+    api.get('/api/competitors')
+      .then((data) => setCompetitors(data.competitors || []))
+      .catch(() => {})
+      .finally(() => setLoadingList(false));
+  }, []);
+
+  const loadTrends = useCallback(() => {
+    api.get('/api/competitors/trends').then((data) => setInsight(data.insight)).catch(() => {});
+  }, []);
+
+  useEffect(() => { loadCompetitors(); loadTrends(); }, [loadCompetitors, loadTrends]);
+
+  const handleRefresh = async (id) => {
+    setRefreshingId(id);
+    setError(null);
+    try {
+      await api.post(`/api/competitors/${id}/refresh`, {});
+      loadCompetitors();
+    } catch (err) {
+      setError(err.message);
+    }
+    setRefreshingId(null);
+  };
+
+  const handleRemove = async (id) => {
+    setError(null);
+    try {
+      await api.del(`/api/competitors/${id}`);
+      loadCompetitors();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const data = await api.post('/api/competitors/analyze', {});
+      setInsight(data.insight);
+    } catch (err) {
+      setError(err.message);
+    }
+    setAnalyzing(false);
+  };
+
+  const trackedWithData = competitors.filter((c) => (c.sources || []).some((s) => s.status === 'ok'));
+
+  // Chart bars — ONLY competitors with a real, measured cadence. Never
+  // invented: a competitor with no fetched posts simply doesn't get a bar.
+  const chartCompetitors = [...competitors]
+    .filter((c) => c.posts_per_week != null)
+    .sort((a, b) => (b.posts_per_week || 0) - (a.posts_per_week || 0))
+    .slice(0, 4);
+  const maxCadence = Math.max(1, yourPostsPerWeek, ...chartCompetitors.map((c) => c.posts_per_week || 0));
+  const barHeight = (value) => Math.round((value / maxCadence) * 110);
 
   return (
     <div className="competitor-intel-container animate-fade-in">
@@ -23,16 +114,16 @@ export default function CompetitorIntel({ stats, activeProfile }) {
               <span>{t('competitors.benchmark.colFollowers', 'Followers')}</span>
             </div>
 
-            {/* ACTIVE BUSINESS (YOU) */}
+            {/* ACTIVE BUSINESS (YOU) — real numbers, no invented placeholders */}
             <div className="comp-row active-brand">
               <span className="comp-name font-bold"><i className="fa-solid fa-circle-user text-accent"></i> {t('competitors.benchmark.you', 'You (Active Profile)')}</span>
-              <span className="comp-channels">{t('competitors.benchmark.connectedCount', { defaultValue: '{{count}} Connected', count: 3 })}</span>
-              <span className="comp-cadence">{t('competitors.benchmark.perWeek', { defaultValue: '{{count}} / week', count: 3 })}</span>
-              <span className="comp-followers text-accent font-bold">1,542</span>
+              <span className="comp-channels">{t('competitors.benchmark.connectedCount', { defaultValue: '{{count}} Connected', count: yourChannelsConnected })}</span>
+              <span className="comp-cadence">{t('competitors.benchmark.perWeek', { defaultValue: '{{count}} / week', count: yourPostsPerWeek })}</span>
+              <span className="comp-followers text-accent font-bold">{yourFollowers != null ? yourFollowers.toLocaleString() : '—'}</span>
             </div>
 
             {/* COMPETITORS */}
-            {competitors.map((comp, idx) => (
+            {benchmarkCompetitors.map((comp, idx) => (
               <div key={idx} className="comp-row">
                 <span className="comp-name">
                   {comp.name}
@@ -46,106 +137,172 @@ export default function CompetitorIntel({ stats, activeProfile }) {
           </div>
         </div>
 
-        {/* POST FREQUENCY CHART USING Pure SVG Bar Graphs */}
+        {/* POST FREQUENCY CHART — real fetched cadence, or an honest empty state */}
         <div className="frequency-chart-box glass-card">
           <h3>{t('competitors.frequency.title', 'Weekly Posting Frequency')}</h3>
           <p className="panel-subtitle">{t('competitors.frequency.subtitle', 'Benchmark of content frequency across competing channels')}</p>
 
-          <div className="svg-chart-container mt-20">
-            <svg viewBox="0 0 400 180" className="comp-bar-chart">
-              {/* Grid Lines */}
-              <line x1="50" y1="20" x2="380" y2="20" stroke="rgba(255,255,255,0.05)" />
-              <line x1="50" y1="60" x2="380" y2="60" stroke="rgba(255,255,255,0.05)" />
-              <line x1="50" y1="100" x2="380" y2="100" stroke="rgba(255,255,255,0.05)" />
-              <line x1="50" y1="140" x2="380" y2="140" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
+          {chartCompetitors.length === 0 ? (
+            <div className="empty-state mt-20">
+              {t('competitors.frequency.empty', 'Add a tracked competitor below and fetch their content to see a real cadence comparison here.')}
+            </div>
+          ) : (
+            <div className="svg-chart-container mt-20">
+              <svg viewBox="0 0 400 180" className="comp-bar-chart">
+                <line x1="50" y1="20" x2="380" y2="20" stroke="rgba(255,255,255,0.05)" />
+                <line x1="50" y1="60" x2="380" y2="60" stroke="rgba(255,255,255,0.05)" />
+                <line x1="50" y1="100" x2="380" y2="100" stroke="rgba(255,255,255,0.05)" />
+                <line x1="50" y1="140" x2="380" y2="140" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
 
-              {/* Y Axis Labels */}
-              <text x="40" y="24" fill="var(--text-muted)" fontSize="9" textAnchor="end">{t('competitors.frequency.axisLabel', { defaultValue: '{{count}} / wk', count: 20 })}</text>
-              <text x="40" y="64" fill="var(--text-muted)" fontSize="9" textAnchor="end">{t('competitors.frequency.axisLabel', { defaultValue: '{{count}} / wk', count: 10 })}</text>
-              <text x="40" y="104" fill="var(--text-muted)" fontSize="9" textAnchor="end">{t('competitors.frequency.axisLabel', { defaultValue: '{{count}} / wk', count: 5 })}</text>
-              <text x="40" y="144" fill="var(--text-muted)" fontSize="9" textAnchor="end">0</text>
+                {/* Bar 1: You (always shown) */}
+                <rect x="70" y={140 - barHeight(yourPostsPerWeek)} width="36" height={barHeight(yourPostsPerWeek) || 2} rx="4" fill="var(--accent-primary)" />
+                <text x="88" y={140 - barHeight(yourPostsPerWeek) - 6} fill="#fff" fontSize="9" textAnchor="middle">{yourPostsPerWeek}</text>
+                <text x="88" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{t('competitors.frequency.you', 'You')}</text>
 
-              {/* Bar 1: You */}
-              <rect x="80" y="116" width="36" height="24" rx="4" fill="var(--accent-primary)" />
-              <text x="98" y="110" fill="#fff" fontSize="9" textAnchor="middle">3</text>
-              <text x="98" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{t('competitors.frequency.you', 'You')}</text>
-
-              {/* Bar 2: Comp A */}
-              <rect x="160" y="44" width="36" height="96" rx="4" fill="rgba(255,255,255,0.08)" />
-              <text x="178" y="38" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">12</text>
-              <text x="178" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle" width="50">{t('competitors.frequency.compA', 'Comp A')}</text>
-
-              {/* Bar 3: Comp B */}
-              <rect x="240" y="76" width="36" height="64" rx="4" fill="rgba(255,255,255,0.08)" />
-              <text x="258" y="70" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">8</text>
-              <text x="258" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{t('competitors.frequency.compB', 'Comp B')}</text>
-
-              {/* Bar 4: Comp C */}
-              <rect x="320" y="20" width="36" height="120" rx="4" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" />
-              <text x="338" y="14" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">25</text>
-              <text x="338" y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{t('competitors.frequency.compC', 'Global C')}</text>
-            </svg>
-          </div>
+                {chartCompetitors.map((c, i) => {
+                  const x = 140 + i * 70;
+                  const v = c.posts_per_week || 0;
+                  const h = barHeight(v) || 2;
+                  return (
+                    <g key={c.id}>
+                      <rect x={x} y={140 - h} width="36" height={h} rx="4" fill="rgba(255,255,255,0.08)" />
+                      <text x={x + 18} y={140 - h - 6} fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{v}</text>
+                      <text x={x + 18} y="158" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">
+                        {(c.competitor_name || '?').slice(0, 10)}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          )}
         </div>
 
       </div>
 
-      {/* GAP OPPORTUNITIES */}
-      <div className="gap-analysis-row mt-30">
-        <h3>{t('competitors.gaps.title', 'Actionable AI Moat Recommendations')}</h3>
-
-        <div className="grid-2 gaps-grid mt-20">
-          <div className="gap-card glass-card">
-            <div className="gap-header">
-              <i className="fa-solid fa-triangle-exclamation text-danger gap-icon"></i>
-              <h4>{t('competitors.gaps.cadenceTitle', 'Post Cadence Alert')}</h4>
-            </div>
-            <p className="gap-desc">
-              {competitors[0]?.postsPerWeek != null ? (
-                <Trans
-                  i18nKey="competitors.gaps.cadenceTextKnown"
-                  defaults="Your primary local competitor <1>{{name}}</1> posts average <3>{{count}} times</3> per week. You post <5>{{yourCount}} times</5>."
-                  values={{ name: competitors[0].name, count: competitors[0].postsPerWeek, yourCount: 3 }}
-                  components={{ 1: <strong />, 3: <strong />, 5: <strong /> }}
-                />
-              ) : (
-                <Trans
-                  i18nKey="competitors.gaps.cadenceTextUnknown"
-                  defaults="Your primary local competitor <1>{{name}}</1> is active on Google Maps{{ratingPart}}. Consistent posting is your fastest way to stand out locally."
-                  values={{
-                    name: competitors[0]?.name || t('competitors.gaps.nearbyFallback', 'nearby'),
-                    ratingPart: competitors[0]?.rating != null
-                      ? t('competitors.gaps.cadenceRating', { defaultValue: ' with a ★ {{rating}} rating', rating: competitors[0].rating })
-                      : ''
-                  }}
-                  components={{ 1: <strong /> }}
-                />
-              )}
-            </p>
-            <div className="gap-recommendation">
-              <strong>{t('competitors.gaps.solutionLabel', '💡 Solution:')}</strong> {t('competitors.gaps.cadenceSolution', 'Schedule at least 4 more AI posts in your Content Engine to close the visibility gap.')}
-            </div>
+      {/* TRACKED COMPETITORS — add-by-link management */}
+      <div className="tracked-competitors-row mt-30">
+        <div className="flex-between mb-10">
+          <div>
+            <h3>{t('competitors.tracked.title', 'Tracked Competitors')}</h3>
+            <p className="panel-subtitle">{t('competitors.tracked.subtitle', "Paste a competitor's profile link to pull their real content and posting habits")}</p>
           </div>
+          <button className="btn btn-primary" onClick={() => setAddOpen(true)} id="btn_add_competitor">
+            <i className="fa-solid fa-plus"></i> {t('competitors.tracked.addCta', 'Add competitor')}
+          </button>
+        </div>
 
-          <div className="gap-card glass-card">
-            <div className="gap-header">
-              <i className="fa-solid fa-magnifying-glass-plus text-success gap-icon"></i>
-              <h4>{t('competitors.gaps.seoTitle', 'SEO Keyword Gaps')}</h4>
-            </div>
-            <p className="gap-desc">
-              <Trans
-                i18nKey="competitors.gaps.seoText"
-                defaults='Nearby competitors are actively ranking for <1>{{category}}-relevant local search phrases</1> that your profiles never mention. You are completely missing this local search vector.'
-                values={{ category: category.toLowerCase() }}
-                components={{ 1: <strong /> }}
-              />
-            </p>
-            <div className="gap-recommendation">
-              <strong>{t('competitors.gaps.solutionLabel', '💡 Solution:')}</strong> {t('competitors.gaps.seoSolution', { defaultValue: 'Weave {{category}}-relevant local search phrases and the wording your ideal customers actually search for into your next generated Telegram content copy.', category: category.toLowerCase() })}
-            </div>
+        {error && <div className="auth-error-box mb-20" role="alert">{error}</div>}
+
+        {!loadingList && competitors.length === 0 && (
+          <div className="empty-state glass-card">
+            {t('competitors.tracked.empty', 'No competitors tracked yet — add one by pasting their Instagram, TikTok, YouTube, or Facebook profile link.')}
           </div>
+        )}
+
+        <div className="tracked-competitor-list">
+          {competitors.map((c) => (
+            <div key={c.id} className="tracked-competitor-card glass-card">
+              <div className="flex-between">
+                <span className="font-bold">{c.competitor_name || t('competitors.tracked.unnamed', 'Unnamed competitor')}</span>
+                <div className="flex-gap-8">
+                  <button
+                    type="button"
+                    className="btn-icon"
+                    onClick={() => handleRefresh(c.id)}
+                    disabled={refreshingId === c.id}
+                    title={t('competitors.tracked.refresh', 'Refresh')}
+                    aria-label={t('competitors.tracked.refresh', 'Refresh')}
+                  >
+                    <i className={`fa-solid fa-arrows-rotate ${refreshingId === c.id ? 'fa-spin' : ''}`}></i>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-icon"
+                    onClick={() => handleRemove(c.id)}
+                    title={t('competitors.tracked.remove', 'Remove')}
+                    aria-label={t('competitors.tracked.remove', 'Remove')}
+                  >
+                    <i className="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+              <div className="tracked-source-chips mt-10">
+                {(c.sources || []).map((s) => {
+                  const meta = iconFor(s.platform);
+                  const partialHint = s.error
+                    ? s.error
+                    : s.platform === 'instagram'
+                      ? t('competitors.tracked.partialHintInstagram', 'No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account.')
+                      : NO_POST_API_PLATFORMS.has(s.platform)
+                        ? t('competitors.tracked.partialHintNoApi', 'This platform only exposes profile info publicly — no captions or videos, so it can\'t feed trend analysis.')
+                        : t('competitors.tracked.partialHintGeneric', 'Profile found, but no posts could be read this time — try Refresh.');
+                  return (
+                    <span key={s.id} className={`source-chip status-${s.status}`} title={s.partial ? partialHint : (s.error || '')}>
+                      <i className={meta?.icon || 'fa-solid fa-link'} style={{ color: meta?.color }}></i>
+                      {s.followersCount != null ? s.followersCount.toLocaleString() : t('competitors.tracked.noFollowerData', 'no data')}
+                      {s.partial && <span className="partial-badge">{t('competitors.tracked.partial', 'partial')}</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
+
+      {/* COMPETITOR TRENDS — AI narrative on top of the deterministic stats above */}
+      <div className="trends-row mt-30">
+        <div className="flex-between mb-10">
+          <div>
+            <h3>{t('competitors.trends.title', 'Competitor Trends')}</h3>
+            <p className="panel-subtitle">{t('competitors.trends.subtitle', "What's working for the businesses you're tracking")}</p>
+          </div>
+          <button
+            className="btn btn-secondary"
+            onClick={handleAnalyze}
+            disabled={analyzing || !trackedWithData.length}
+            id="btn_analyze_trends"
+            title={!trackedWithData.length ? t('competitors.trends.needData', 'Add and fetch at least one competitor first') : ''}
+          >
+            {analyzing ? t('competitors.trends.analyzing', 'Analyzing…') : t('competitors.trends.analyzeCta', 'Analyze trends')}
+          </button>
+        </div>
+
+        {!insight?.analysis && (
+          <div className="empty-state glass-card">
+            {t('competitors.trends.empty', 'Add at least one competitor with fetched content, then analyze to see trends.')}
+          </div>
+        )}
+
+        {insight?.analysis && (
+          <div className="trends-card glass-card">
+            <p className="gap-desc">{insight.analysis.analysis}</p>
+            {(insight.analysis.themes || []).length > 0 && (
+              <ul className="trend-themes">
+                {insight.analysis.themes.map((theme, i) => <li key={i}>{theme}</li>)}
+              </ul>
+            )}
+            {insight.analysis.recommendation && (
+              <div className="gap-recommendation">
+                <strong>{t('competitors.trends.recommendationLabel', '💡 Recommendation:')}</strong> {insight.analysis.recommendation}
+              </div>
+            )}
+            {onGoToMedia && (
+              <button className="btn btn-primary mt-10" onClick={onGoToMedia} id="btn_generate_from_trend">
+                {t('competitors.trends.generateCta', 'Generate content from this →')}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {addOpen && (
+        <AddCompetitorModal
+          onClose={() => setAddOpen(false)}
+          onAdded={() => { setAddOpen(false); loadCompetitors(); }}
+        />
+      )}
     </div>
   );
 }
