@@ -343,15 +343,16 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
     }
   });
 
-  // Competitors: real nearby businesses from the discovery scan when Path A
-  // provides them; otherwise the benchmark seeds (Path B / keyless mode).
-  const realCompetitors = sanitizeCompetitors(req.body.competitors);
-  const competitorRows = realCompetitors.length ? realCompetitors : [
-    { competitorName: 'Local Competitor A', rating: 4.5, followersCount: 2400, postsPerWeek: 10, platformsDetected: ['instagram', 'telegram'] },
-    { competitorName: 'District Roasters B', rating: 4.7, followersCount: 4100, postsPerWeek: 8, platformsDetected: ['google', 'instagram'] },
-    { competitorName: 'Global Competitor C', rating: 4.8, followersCount: 95000, postsPerWeek: 22, platformsDetected: ['google', 'instagram', 'telegram', 'tiktok'] },
-  ];
-  competitorRows.forEach((c) => db.competitors.add({ profileId: profile.id, ...c }));
+  // Competitors: only the real nearby businesses the discovery scan found.
+  //
+  // This used to fall back to three invented benchmarks ('Local Competitor A',
+  // 'District Roasters B', 'Global Competitor C') carrying invented follower
+  // counts and cadences, which the dashboard then presented as this owner's
+  // actual local competition. Path B and keyless mode now start empty and the
+  // tab shows a real empty state with an "add" and a "find nearby" action —
+  // an honest blank beats a populated fiction.
+  sanitizeCompetitors(req.body.competitors)
+    .forEach((c) => db.competitors.add({ profileId: profile.id, ...c }));
 
   // Target search phrases, derived from the real category and audience.
   //
@@ -1893,9 +1894,9 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
 
   res.json({
     metrics,
-    competitors: (competitors.length ? competitors : [
-      { competitorName: 'District Roasters B', platformsDetected: ['google', 'instagram', 'telegram', 'tiktok'], postsPerWeek: 8, rating: 4.6, followersCount: 4100 },
-    ]).map((c) => ({
+    // No demo substitution: an empty list means this business has no
+    // competitors on file, and Competitor Intel says so directly.
+    competitors: competitors.map((c) => ({
       name: c.competitorName,
       platformCount: (c.platformsDetected || []).length,
       postsPerWeek: c.postsPerWeek,

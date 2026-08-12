@@ -88,6 +88,18 @@ test('GET before onboarding answers an empty envelope, not a 404', async () => {
   assert.strictEqual(data.discovery.available, false);
 });
 
+// Onboarding no longer seeds invented benchmarks, so a brand-new business
+// genuinely starts at zero and the panel must say so rather than look broken.
+test('a freshly onboarded business starts with no competitors and a noCompetitors gap', async () => {
+  const fresh = await register('freshbiz');
+  await post('/api/onboarding/construct', { businessName: 'Fresh Biz', category: 'Cafe' }, fresh);
+
+  const data = await (await get('/api/competitors', fresh)).json();
+  assert.deepStrictEqual(data.competitors, [], 'no seeded placeholders');
+  assert.deepStrictEqual(data.gaps.map((g) => g.code), ['noCompetitors']);
+  assert.ok(data.you, 'the "you" row still renders — we know things about ourselves');
+});
+
 test('keyless discovery reports a reason CODE, not a sentence', async () => {
   const { discovery } = await (await get('/api/competitors', token)).json();
   assert.strictEqual(discovery.available, false);
