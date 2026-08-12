@@ -17,6 +17,7 @@ const tg = require('./telegram');
 const ig = require('./instagram');
 const places = require('./places');
 const competitorSources = require('./competitorSources');
+const { computeGaps } = require('./gaps');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
@@ -1495,6 +1496,98 @@ const discoveryState = (profile, rows) => {
   return { available: reason === null, reason, lastRefreshedAt: stamps.length ? stamps[stamps.length - 1] : null };
 };
 
+// How far back "your" cadence is measured. Four weeks smooths a quiet week
+// without averaging away a business that only recently started posting.
+const YOU_SAMPLE_DAYS = 28;
+
+/**
+ * Real follower/subscriber counts from the connected platforms, or null.
+ *
+ * /api/dashboard/stats substitutes demo numbers when a platform is not
+ * connected. The competitor benchmark must NOT: a made-up "you" figure sitting
+ * in a row beside real competitors is a direct comparison an owner would act
+ * on. So this returns the raw truth and each caller decides what to do with a
+ * null — stats keeps its demo fallback, the benchmark says "not reported".
+ */
+async function liveFollowers(profile) {
+  const out = { instagram: { value: null, live: false }, telegram: { value: null, live: false } };
+
+  if (config.telegramEnabled) {
+    const conn = db.telegram.findByProfile(profile.id);
+    if (conn && conn.chatId) {
+      try {
+        const n = await tg.getChatMemberCount(conn.botToken, conn.chatId);
+        if (Number.isFinite(n)) out.telegram = { value: n, live: true };
+      } catch (err) {
+        console.warn('getChatMemberCount failed:', err.message);
+      }
+    }
+  }
+
+  if (config.instagramEnabled) {
+    const conn = db.instagram.findByProfile(profile.id);
+    if (conn && conn.accessToken) {
+      try {
+        const acct = await ig.getAccountStats(conn.accessToken);
+        if (Number.isFinite(acct.followers)) out.instagram = { value: acct.followers, live: true };
+      } catch (err) {
+        console.warn('getAccountStats failed:', err.message);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The "you" row of the benchmark, measured entirely from our own records.
+ *
+ * postsPerWeek counts what MARKIVO published — a zero here is a fact, not an
+ * unknown, which is the opposite of a competitor's null. "Connected" means we
+ * hold working credentials, not that a box was ticked in the setup wizard.
+ */
+async function buildYou(profile) {
+  const followers = await liveFollowers(profile);
+
+  const keys = [];
+  const tgConn = db.telegram.findByProfile(profile.id);
+  if (config.telegramEnabled && tgConn && tgConn.chatId) keys.push('telegram');
+  const igConn = db.instagram.findByProfile(profile.id);
+  if (config.instagramEnabled && igConn && igConn.accessToken) keys.push('instagram');
+  for (const c of db.connections.listByProfile(profile.id)) {
+    if (c.status === 'connected' && !keys.includes(c.platform)) keys.push(c.platform);
+  }
+
+  const since = Date.now() - YOU_SAMPLE_DAYS * 86400000;
+  const posts = db.calendar.listByProfile(profile.id);
+  const published = posts.filter((p) => p.status === 'posted' && Date.parse(p.scheduled_time) >= since);
+  const upcoming = posts.filter((p) => p.status === 'scheduled' && Date.parse(p.scheduled_time) >= Date.now());
+
+  // Whichever connected platform actually reports a number; null if none does.
+  const followerValue = followers.instagram.live ? followers.instagram.value
+    : (followers.telegram.live ? followers.telegram.value : null);
+
+  return {
+    name: profile.businessName,
+    channels: {
+      connected: keys.length,
+      keys,
+      selectedAtSetup: db.platforms.listByProfile(profile.id).filter((p) => p.isConnected).length,
+    },
+    postsPerWeek: Math.round((published.length / YOU_SAMPLE_DAYS) * 7 * 100) / 100,
+    postsPerWeekBasis: 'markivo',
+    publishedCount: published.length,
+    sampleDays: YOU_SAMPLE_DAYS,
+    scheduledUpcoming: upcoming.length,
+    followers: followerValue,
+    followersLive: followerValue != null,
+    rating: profile.googleRating ?? null,
+    unavailable: [
+      followerValue == null && 'followers',
+      profile.googleRating == null && 'rating',
+    ].filter(Boolean),
+  };
+}
+
 // Ownership in one place, mirroring ownedTemplate.
 const ownedCompetitor = (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
@@ -1520,19 +1613,30 @@ const applyManualSources = (existing, fields) => {
 
 // No profile yet (pre-onboarding) is not an error — answer an empty envelope,
 // the same way GET /api/templates does.
-app.get('/api/competitors', verifyToken, (req, res) => {
+app.get('/api/competitors', verifyToken, asyncRoute(async (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) {
     return res.json({ competitors: [], you: null, gaps: [], discovery: discoveryState(null, []) });
   }
   const rows = db.competitors.listByProfile(profile.id);
+  const competitors = rows.map(competitorRow);
+  const you = await buildYou(profile);
+
+  const posts = db.calendar.listByProfile(profile.id);
   res.json({
-    competitors: rows.map(competitorRow),
-    you: null,
-    gaps: [],
+    competitors,
+    you,
+    gaps: computeGaps({
+      you,
+      competitors,
+      keywordPhrases: db.keywords.listByProfile(profile.id).map((k) => k.keyword_phrase).filter(Boolean),
+      // Coverage is measured against what we actually published, so the answer
+      // is always true regardless of what any ranking API would claim.
+      publishedTexts: posts.filter((p) => p.status === 'posted').map((p) => p.post_text),
+    }),
     discovery: discoveryState(profile, rows),
   });
-});
+}));
 
 // Re-query Google Places for nearby businesses and merge them in.
 //
@@ -1702,36 +1806,18 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   const keywords = db.keywords.listByProfile(profile.id);
   const cat = (profile.category || 'business').toLowerCase();
 
-  // Telegram subscribers: REAL count when the integration is on and a chat is
-  // linked; the demo number otherwise (other metrics await their integrations).
-  let telegramSubscribers = { current: 980, change: 11.2 };
-  if (config.telegramEnabled) {
-    const conn = db.telegram.findByProfile(profile.id);
-    if (conn && conn.chatId) {
-      try {
-        telegramSubscribers = { current: await tg.getChatMemberCount(conn.botToken, conn.chatId), change: 0, live: true };
-      } catch (err) {
-        console.warn('getChatMemberCount failed, using demo number:', err.message);
-      }
-    }
-  }
-
-  // Instagram followers: same pattern — REAL count once an account is
-  // connected, the demo number otherwise.
-  let instagramFollowers = { current: 1542, change: 15.6 };
-  if (config.instagramEnabled) {
-    const conn = db.instagram.findByProfile(profile.id);
-    if (conn && conn.accessToken) {
-      try {
-        const acct = await ig.getAccountStats(conn.accessToken);
-        if (Number.isFinite(acct.followers)) {
-          instagramFollowers = { current: acct.followers, change: 0, live: true };
-        }
-      } catch (err) {
-        console.warn('getAccountStats failed, using demo number:', err.message);
-      }
-    }
-  }
+  // REAL counts when a platform is connected; the demo numbers otherwise. The
+  // lookup itself lives in liveFollowers so /api/competitors can share it — but
+  // the benchmark there reports a null as "not reported" rather than falling
+  // back to a demo figure, because a fabricated "you" row would invite a
+  // direct comparison against real competitors.
+  const live = await liveFollowers(profile);
+  const telegramSubscribers = live.telegram.live
+    ? { current: live.telegram.value, change: 0, live: true }
+    : { current: 980, change: 11.2 };
+  const instagramFollowers = live.instagram.live
+    ? { current: live.instagram.value, change: 0, live: true }
+    : { current: 1542, change: 15.6 };
 
   const metrics = {
     googleViews: { current: 4320, change: 12.4, live: false },

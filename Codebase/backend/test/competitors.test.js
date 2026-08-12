@@ -188,6 +188,36 @@ test('DELETE removes the caller\'s own competitor', async () => {
   assert.strictEqual(after.find((c) => c.name === 'Brew District'), undefined);
 });
 
+test('the "you" row is measured from our own records, with honest nulls', async () => {
+  const { you } = await (await get('/api/competitors', token)).json();
+
+  assert.strictEqual(you.name, 'Noir Coffee');
+  assert.strictEqual(you.postsPerWeekBasis, 'markivo');
+  assert.strictEqual(you.sampleDays, 28);
+  // Our own output is knowable, so 0 here is a fact — unlike a competitor null.
+  assert.strictEqual(typeof you.postsPerWeek, 'number');
+  assert.strictEqual(you.publishedCount, 0);
+
+  // No platform is actually connected in this suite.
+  assert.strictEqual(you.followers, null, 'no connection means not reported, not a demo number');
+  assert.strictEqual(you.followersLive, false);
+  assert.ok(you.unavailable.includes('followers'));
+
+  // A wizard checkbox is not a connection.
+  assert.strictEqual(you.channels.connected, 0);
+  assert.ok(you.channels.selectedAtSetup >= 1, 'what was picked at setup is still reported, separately');
+});
+
+test('gaps arrive as translatable codes with metrics', async () => {
+  const { gaps } = await (await get('/api/competitors', token)).json();
+  assert.ok(gaps.length > 0, 'a profile with competitors produces at least one gap');
+  for (const g of gaps) {
+    assert.match(g.code, /^[a-zA-Z]+$/, 'a code, never a server-assembled sentence');
+    assert.ok(['warn', 'info'].includes(g.severity));
+    assert.strictEqual(typeof g.metrics, 'object');
+  }
+});
+
 test('POST /refresh keyless: 200 with a reason code, and nothing mutates', async () => {
   const before = await listRows();
   const res = await post('/api/competitors/refresh', {}, token);
