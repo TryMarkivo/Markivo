@@ -33,6 +33,45 @@ test('profiles + platforms: create and read back with JSON logo', () => {
   db.close();
 });
 
+// Pins the camelCase mapper. autonomous.js reads `c.competitorName` and ends in
+// .filter(Boolean), so a mapper field rename would degrade it to an empty list
+// silently rather than throwing — this is the assertion that catches that.
+test('competitors: camelCase mapper round-trip, unknown metrics stay null', () => {
+  const db = createDb(':memory:');
+  const u = db.users.create({ email: 'c@b.com', passwordHash: 'h', fullName: 'C' });
+  const p = db.profiles.create({ userId: u.id, businessName: 'Noir', category: 'Cafe' });
+
+  db.competitors.add({
+    profileId: p.id, competitorName: 'Rival Cafe', rating: 4.4,
+    followersCount: null, postsPerWeek: null, platformsDetected: ['google'],
+  });
+  db.competitors.add({
+    profileId: p.id, competitorName: 'Bistro Nine', rating: null,
+    followersCount: 2400, postsPerWeek: 6, platformsDetected: ['google', 'instagram'],
+  });
+
+  const rows = db.competitors.listByProfile(p.id);
+  assert.strictEqual(rows.length, 2);
+
+  const rival = rows.find((c) => c.competitorName === 'Rival Cafe');
+  assert.ok(rival, 'competitorName must be camelCase');
+  assert.strictEqual(rival.rating, 4.4);
+  assert.strictEqual(rival.followersCount, null, 'unknown followers stay null, not 0');
+  assert.strictEqual(rival.postsPerWeek, null, 'unknown cadence stays null, not 0');
+  assert.deepStrictEqual(rival.platformsDetected, ['google']);
+
+  const bistro = rows.find((c) => c.competitorName === 'Bistro Nine');
+  assert.strictEqual(bistro.rating, null, 'unrated competitor stays null, not 0');
+  assert.strictEqual(bistro.followersCount, 2400);
+  assert.deepStrictEqual(bistro.platformsDetected, ['google', 'instagram']);
+
+  // The exact expression autonomous.js uses to feed competitor names to the AI.
+  const names = rows.slice(0, 5).map((c) => c.competitorName).filter(Boolean);
+  assert.deepStrictEqual(names.sort(), ['Bistro Nine', 'Rival Cafe']);
+
+  db.close();
+});
+
 test('profiles: google discovery fields round-trip and migration is idempotent', () => {
   const os = require('os');
   const path = require('path');

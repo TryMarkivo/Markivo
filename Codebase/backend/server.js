@@ -1466,13 +1466,13 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   res.json({
     metrics,
     competitors: (competitors.length ? competitors : [
-      { competitor_name: 'District Roasters B', platforms_detected: ['google', 'instagram', 'telegram', 'tiktok'], posts_per_week: 8, rating: 4.6, followers_count: 4100 },
+      { competitorName: 'District Roasters B', platformsDetected: ['google', 'instagram', 'telegram', 'tiktok'], postsPerWeek: 8, rating: 4.6, followersCount: 4100 },
     ]).map((c) => ({
-      name: c.competitor_name,
-      platformCount: (c.platforms_detected || []).length,
-      postsPerWeek: c.posts_per_week,
+      name: c.competitorName,
+      platformCount: (c.platformsDetected || []).length,
+      postsPerWeek: c.postsPerWeek,
       rating: c.rating,
-      followers: c.followers_count,
+      followers: c.followersCount,
     })),
     seoKeywords: keywords.length ? keywords : [
       { keyword_phrase: `best ${cat} in tashkent`, avg_position: 8, volume: 'High' },

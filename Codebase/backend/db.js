@@ -343,10 +343,16 @@ module.exports = function createDb(dbPath) {
     isConnected: !!r.is_connected, accountHandle: r.account_handle,
     followersCount: r.followers_count, created_at: r.created_at,
   };
+  // Every metric uses `?? null`, never `|| 0`: a competitor's unknown follower
+  // count or cadence must reach the API as null so the UI can say "not
+  // reported" instead of a number nobody measured.
   const mapCompetitor = (r) => r && {
-    id: r.id, profileId: r.profile_id, competitor_name: r.competitor_name, rating: r.rating,
-    followers_count: r.followers_count, posts_per_week: r.posts_per_week,
-    platforms_detected: r.platforms_detected ? JSON.parse(r.platforms_detected) : [],
+    id: r.id, profileId: r.profile_id,
+    competitorName: r.competitor_name,
+    rating: r.rating ?? null,
+    followersCount: r.followers_count ?? null,
+    postsPerWeek: r.posts_per_week ?? null,
+    platformsDetected: r.platforms_detected ? JSON.parse(r.platforms_detected) : [],
   };
   const mapKeyword = (r) => r && {
     id: r.id, profileId: r.profile_id, keyword_phrase: r.keyword_phrase,
