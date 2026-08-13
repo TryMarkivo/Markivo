@@ -96,7 +96,9 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
           </div>
           <div className="hero-channels animate-fade-in">
             <span><i className="fa-brands fa-google"></i> Google</span>
-            <span><i className="fa-brands fa-instagram"></i> Instagram</span>
+            {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                <span><i className="fa-brands fa-instagram"></i> Instagram</span>
+            */}
             <span><i className="fa-brands fa-telegram"></i> Telegram</span>
             <span><i className="fa-brands fa-tiktok"></i> TikTok</span>
           </div>
@@ -124,11 +126,13 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
                   <span className="stat-value text-accent">+12.4%</span>
                   <div className="stat-chart-mini"><i className="fa-solid fa-chart-area"></i></div>
                 </div>
-                <div className="preview-stat-card">
-                  <span className="stat-label">{t('landing.preview.statInstagram', 'Instagram Growth')}</span>
-                  <span className="stat-value text-purple">+15.6%</span>
-                  <div className="stat-chart-mini"><i className="fa-solid fa-chart-line"></i></div>
-                </div>
+                {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                    <div className="preview-stat-card">
+                    <span className="stat-label">{t('landing.preview.statInstagram', 'Instagram Growth')}</span>
+                    <span className="stat-value text-purple">+15.6%</span>
+                    <div className="stat-chart-mini"><i className="fa-solid fa-chart-line"></i></div>
+                    </div>
+                */}
               </div>
               <div className="preview-post-box glass-card">
                 <div className="post-header">
@@ -238,11 +242,15 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
             <h3>{t('landing.features.inboxTitle', 'Inbox agent')}</h3>
             <p>{t('landing.features.inboxText', 'Gmail summarized, sorted and auto-replied — and it learns your answers as it goes.')}</p>
           </div>
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-gold"><i className="fa-solid fa-magnifying-glass-chart"></i></div>
-            <h3>{t('landing.features.seoTitle', 'SEO + AI search')}</h3>
-            <p>{t('landing.features.seoText', 'Rank on Google — and surface inside ChatGPT & Perplexity, where your customers now search.')}</p>
-          </div>
+          {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+              The SEO + AI search feature card.
+
+              <div className="feature-card glass-card">
+              <div className="feature-icon icon-gold"><i className="fa-solid fa-magnifying-glass-chart"></i></div>
+              <h3>{t('landing.features.seoTitle', 'SEO + AI search')}</h3>
+              <p>{t('landing.features.seoText', 'Rank on Google — and surface inside ChatGPT & Perplexity, where your customers now search.')}</p>
+              </div>
+          */}
           <div className="feature-card glass-card">
             <div className="feature-icon icon-purple"><i className="fa-solid fa-users-viewfinder"></i></div>
             <h3>{t('landing.features.intelTitle', 'Competitor intel')}</h3>

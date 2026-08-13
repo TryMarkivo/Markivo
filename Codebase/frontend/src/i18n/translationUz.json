@@ -50,7 +50,22 @@
     "registerCta": "Ro'yxatdan o'tish",
     "fullNamePlaceholder": "masalan, Alisher Usmanov",
     "emailPlaceholder": "name@business.com",
-    "newToMarkivo": "Markivo'da yangimisiz?"
+    "newToMarkivo": "Markivo'da yangimisiz?",
+    "continue": "Davom etish",
+    "business": {
+      "title": "Biznesingiz haqida gapirib bering",
+      "subtitle": "Markiv bundan shablon emas, sizning ovozingizda kontent yozish uchun foydalanadi.",
+      "name": "Biznes nomi",
+      "namePlaceholder": "masalan: Noir Cafe",
+      "category": "Soha / Toifa",
+      "description": "Biznesingiz nima bilan shug'ullanadi?",
+      "descriptionPlaceholder": "masalan: Ikkinchi qavatda tinch ish joyi bo'lgan spesialti qahvaxona.",
+      "audience": "Maqsadli auditoriya",
+      "audiencePlaceholder": "masalan: masofaviy ishlovchilar va talabalar",
+      "tone": "Muloqot ohangi",
+      "optional": "(ixtiyoriy)",
+      "finish": "Sozlashni yakunlash"
+    }
   },
   "usage": {
     "label": "AI generatsiyalar",
@@ -136,10 +151,10 @@
       "contentText": "Suratga olish bo'yicha maslahatlar, foto va videoni avtomatik yaxshilash hamda har bir platformaga moslangan AI video.",
       "inboxTitle": "Pochta agenti",
       "inboxText": "Gmail xatlari qisqacha bayon qilinadi, saralanadi va avtomatik javob beriladi — u javoblaringizdan o'rganib boradi.",
-      "seoTitle": "SEO + AI qidiruv",
-      "seoText": "Google'da yuqori o'rinlarga chiqing — hamda mijozlaringiz endi qidirayotgan ChatGPT va Perplexity ichida ko'rining.",
       "intelTitle": "Raqobatchilar tahlili",
-      "intelText": "Raqobatchilarning postlari, o'sishi va bo'shliqlarini avtomatik kuzating — va ularga qarshi yurishlarni oling."
+      "intelText": "Raqobatchilarning postlari, o'sishi va bo'shliqlarini avtomatik kuzating — va ularga qarshi yurishlarni oling.",
+      "_DISABLED_seoTitle": "SEO + AI qidiruv",
+      "_DISABLED_seoText": "Google'da yuqori o'rinlarga chiqing — hamda mijozlaringiz endi qidirayotgan ChatGPT va Perplexity ichida ko'rining."
     },
     "pricing": {
       "title": "Konvertatsiya qiladigan freemium — uchta oddiy tarif.",
@@ -257,7 +272,6 @@
       "step2Cta": "Logotipga o'tish",
       "step3Title": "Logotipni sozlang",
       "step3Subtitle": "O'z logotipingizdan foydalaning yoki dvigatelimiz uni brendingizga moslab yaratsin.",
-      "shapeLabel": "Emblema shakli",
       "iconLabel": "Belgi-ramz",
       "colorLabel": "Rang mavzulari",
       "logoPreviewTitle": "Vektorli SVG maket",
@@ -332,12 +346,6 @@
       "playful": "O'ynoqi va quvnoq",
       "luxury": "Hashamatli va premium"
     },
-    "shapes": {
-      "circle": "doira",
-      "square": "kvadrat",
-      "hexagon": "oltiburchak",
-      "shield": "qalqon"
-    },
     "channels": {
       "googleTitle": "Google Business Profile",
       "googleOauth": "Biznes profilingizni boshqarish uchun OAuth orqali ulaning",
@@ -397,11 +405,11 @@
       "logGoogle": "Google Business Profile endpointlari sozlanmoqda...",
       "logInstagram": "Instagram biznes profili tuzilmasi yaratilmoqda...",
       "logTelegram": "Xavfsiz Telegram kanal webhook boti o'rnatilmoqda...",
-      "logSeo": "SEO semantik metama'lumotlari va Toshkent kalit so'z teglari jamlanmoqda...",
       "logCalendar": "Dastlabki kalendar AI post qoralamalari rejalashtirilmoqda...",
       "statusSuccess": "MUVAFFAQIYATLI",
       "statusRunning": "BAJARILMOQDA",
-      "statusPending": "KUTILMOQDA"
+      "statusPending": "KUTILMOQDA",
+      "_DISABLED_logSeo": "SEO semantik metama'lumotlari va Toshkent kalit so'z teglari jamlanmoqda..."
     },
     "mockSlogans": {
       "cozy1": "Kuningiz uchun shinam burchak.",
@@ -465,18 +473,6 @@
       "changePositive": "+{{change}}%",
       "drillDown": "{{platform}} boʻyicha batafsil statistikani koʻrsatish"
     },
-    "seo": {
-      "title": "Mahalliy SEO reytinglari",
-      "subtitle": "Biznesingiz Toshkent qidiruv natijalarida qanday o'rinda",
-      "keywordCol": "Qidiruv so'zi",
-      "positionCol": "O'rtacha o'rin",
-      "volumeCol": "Hajm",
-      "volume": {
-        "high": "Yuqori",
-        "medium": "O'rtacha",
-        "veryHigh": "Juda yuqori"
-      }
-    },
     "aiSearch": {
       "title": "AI qidiruvdagi ko'rinish",
       "subtitle": "Modellar sizni oddiy chat so'rovlarida qanday tavsiya qiladi",
@@ -487,6 +483,18 @@
       "perplexityCitations": "Perplexity iqtiboslari",
       "active": "Faol",
       "rankTop10": "Top 10"
+    },
+    "_DISABLED_seo": {
+      "title": "Mahalliy SEO reytinglari",
+      "subtitle": "Biznesingiz Toshkent qidiruv natijalarida qanday o'rinda",
+      "keywordCol": "Qidiruv so'zi",
+      "positionCol": "O'rtacha o'rin",
+      "volumeCol": "Hajm",
+      "volume": {
+        "high": "Yuqori",
+        "medium": "O'rtacha",
+        "veryHigh": "Juda yuqori"
+      }
     }
   },
   "contentEngine": {
@@ -711,10 +719,10 @@
       "refresh": "Yangilash",
       "remove": "O'chirish",
       "partial": "qisman",
-      "partialHintInstagram": "Hali post kontenti yo'q — bu yerda haqiqiy sarlavha va faollik ma'lumotlarini ochish uchun Sozlamalar → Ulanishlar (Meta) bo'limida o'z Instagram'ingizni ulang va bu raqobatchi ochiq Biznes yoki Ijodkor akkaunti ekanligiga ishonch hosil qiling.",
       "partialHintNoApi": "Bu platforma faqat profil ma'lumotlarini ochiq ko'rsatadi — sarlavha yoki video yo'q, shuning uchun trend tahliliga material bera olmaydi.",
       "partialHintGeneric": "Profil topildi, lekin postlarni o'qib bo'lmadi — «Yangilash»ni sinab ko'ring.",
-      "noFollowerData": "ma'lumot yo'q"
+      "noFollowerData": "ma'lumot yo'q",
+      "_DISABLED_partialHintInstagram": "Hali post kontenti yo'q — bu yerda haqiqiy sarlavha va faollik ma'lumotlarini ochish uchun Sozlamalar → Ulanishlar (Meta) bo'limida o'z Instagram'ingizni ulang va bu raqobatchi ochiq Biznes yoki Ijodkor akkaunti ekanligiga ishonch hosil qiling."
     },
     "addModal": {
       "title": "Raqobatchi qo'shish",
@@ -842,55 +850,6 @@
     "pillFinishSetup": "Telegram · sozlashni yakunlang",
     "pillConnect": "Telegram · ulash"
   },
-  "instagram": {
-    "setupTitle": "Instagram'ni ulash",
-    "intro": "Markivo siz nomingizdan post joylashi uchun Instagram Business akkauntingizni ulang. Avtorizatsiya uchun Meta'ga o'tasiz — bu taxminan bir daqiqa oladi.",
-    "step1": "Quyidagi tugmani bosing — sizni Meta'ning xavfsiz tizimiga yo'naltiramiz.",
-    "step2": "Instagram Business akkauntingizga bog'langan Facebook sahifasini tanlang va ruxsat bering.",
-    "step3": "Ulangan holda shu yerga qaytasiz. ✓",
-    "requirement": "Instagram akkauntingiz Facebook sahifasiga bog'langan <1>Business yoki Creator</1> akkaunt bo'lishi kerak.",
-    "connecting": "Meta'ga yo'naltirilmoqda…",
-    "connectCta": "Instagram'ni ulash ✦",
-    "doneTitle": "Instagram ulandi!",
-    "doneText": "<1>{{handle}}</1> sifatida ulandi.",
-    "yourAccount": "akkauntingiz",
-    "disconnectCta": "Uzish",
-    "noticeConnected": "Instagram ulandi ✓",
-    "noticeError": "Instagram'ni ulab bo'lmadi — qayta urinib ko'ring.",
-    "errors": {
-      "denied": "Instagram ulanishi bekor qilindi.",
-      "missing_code": "Instagram avtorizatsiya kodini qaytarmadi. Qayta urinib ko'ring.",
-      "bad_state": "Ulanish sessiyasi muddati tugadi. Qayta urinib ko'ring.",
-      "no_profile": "Instagram'ni ulashdan oldin onboardingni yakunlang.",
-      "exchange_failed": "Meta ulanishni rad etdi. Instagram'ingiz Facebook sahifasiga bog'langan Business akkaunt ekanini tekshiring.",
-      "not_configured": "Instagram ulanishi hali sozlanmagan."
-    },
-    "pillTitleSoon": "Instagram ulanishi tez orada",
-    "pillTitleConnected": "@{{username}} sifatida ulangan",
-    "pillTitleConnect": "Instagram'ni ulash uchun bosing",
-    "pillSoon": "Instagram · tez orada",
-    "pillConnected": "Instagram · @{{username}}",
-    "pillConnectedGeneric": "Instagram · ulangan",
-    "pillConnect": "Instagram · ulash",
-    "createPostCta": "Post yaratish",
-    "composer": {
-      "title": "Yangi Instagram posti",
-      "hint": "{{handle}} ga joylanadi. Instagram media talab qiladi — JPEG rasm yoki MP4 video (Reel) ishlating. Maksimal 8MB.",
-      "pick": "Rasm yoki video tanlang",
-      "change": "Faylni almashtirish",
-      "caption": "Izoh",
-      "captionPh": "Izoh yozing… #hashtaglar mumkin",
-      "tooLarge": "Fayl juda katta — maksimal 8MB.",
-      "uploading": "Yuklanmoqda…",
-      "publishing": "Joylanmoqda…",
-      "publishingVideo": "Joylanmoqda… (video bir daqiqa olishi mumkin)",
-      "publish": "Instagram'ga joylash ✦",
-      "publishedTitle": "Instagram'ga joylandi!",
-      "publishedTo": "{{handle}} ga joylandi.",
-      "viewPost": "Instagram'da postni ko'rish ↗",
-      "another": "Yana joylash"
-    }
-  },
   "settings": {
     "title": "Sozlamalar",
     "saved": "Saqlandi! Biznes profilingiz yangilandi.",
@@ -970,7 +929,21 @@
       "post_scheduled": "Post rejalashtirildi",
       "approval_created": "Tasdig'ingizga yuborildi",
       "skipped": "To'xtatildi",
-      "error": "Xato"
+      "error": "Xato",
+      "context_needed": "Ko'proq kontekst kerak",
+      "context_answered": "Siz Avtopilotga javob berdingiz"
+    },
+    "context": {
+      "title": "Avtopilot to'xtatildi — unga biroz ko'proq kontekst kerak",
+      "blurb": "Markiv hali kanalingiz haqida arziydigan post yozish uchun yetarli ma'lumotga ega emas, shuning uchun u shablon reklama joylashtirish o'rniga to'xtadi.",
+      "paused": "Avtopilotga post joylashtirishdan oldin ko'proq kontekst kerak.",
+      "answerLabel": "Sizning javobingiz",
+      "answerPh": "masalan: Ish kunlari ertalabki mijozlar ko'proq bo'lishini xohlaymiz — soat 11:00 gacha kirishga undaydigan chegirma posti.",
+      "send": "Avtopilotga yuborish",
+      "sending": "Yuborilmoqda…",
+      "thanks": "Rahmat — Avtopilot buni keyingi ishga tushirishda hisobga oladi.",
+      "answerError": "Javobingizni saqlab bo'lmadi.",
+      "hint": "Avtopilot buni eslab qoladi — faqat bir marta javob berasiz."
     }
   },
   "templates": {
@@ -1060,7 +1033,6 @@
     "notReported": "maʼlumot yoʻq",
     "engagementUnavailable": "faollik maʼlumoti yoʻq",
     "hasMedia": "Media bor",
-    "engagementNote": "Har bir post uchun layk va izohlar faqat ulangan Instagram Business yoki Creator akkauntlarida mavjud. Bu kanal ularni bermaydi.",
     "stat": {
       "followers": "Obunachilar",
       "following": "Obunalar",
@@ -1078,6 +1050,57 @@
       "linkTelegram": "Aʼzolar sonini jonli koʻrish uchun Telegram kanalini bogʻlang.",
       "telegramError": "Telegram javob bermadi ({{error}}).",
       "noIntegration": "Bu kanalda hali jonli integratsiya yoʻq, shuning uchun faqat Markivo rejalashtirgan narsalar koʻrsatiladi."
+    },
+    "_DISABLED_engagementNote": "Har bir post uchun layk va izohlar faqat ulangan Instagram Business yoki Creator akkauntlarida mavjud. Bu kanal ularni bermaydi."
+  },
+  "_DISABLED_instagram": {
+    "setupTitle": "Instagram'ni ulash",
+    "intro": "Markivo siz nomingizdan post joylashi uchun Instagram Business akkauntingizni ulang. Avtorizatsiya uchun Meta'ga o'tasiz — bu taxminan bir daqiqa oladi.",
+    "step1": "Quyidagi tugmani bosing — sizni Meta'ning xavfsiz tizimiga yo'naltiramiz.",
+    "step2": "Instagram Business akkauntingizga bog'langan Facebook sahifasini tanlang va ruxsat bering.",
+    "step3": "Ulangan holda shu yerga qaytasiz. ✓",
+    "requirement": "Instagram akkauntingiz Facebook sahifasiga bog'langan <1>Business yoki Creator</1> akkaunt bo'lishi kerak.",
+    "connecting": "Meta'ga yo'naltirilmoqda…",
+    "connectCta": "Instagram'ni ulash ✦",
+    "doneTitle": "Instagram ulandi!",
+    "doneText": "<1>{{handle}}</1> sifatida ulandi.",
+    "yourAccount": "akkauntingiz",
+    "disconnectCta": "Uzish",
+    "noticeConnected": "Instagram ulandi ✓",
+    "noticeError": "Instagram'ni ulab bo'lmadi — qayta urinib ko'ring.",
+    "errors": {
+      "denied": "Instagram ulanishi bekor qilindi.",
+      "missing_code": "Instagram avtorizatsiya kodini qaytarmadi. Qayta urinib ko'ring.",
+      "bad_state": "Ulanish sessiyasi muddati tugadi. Qayta urinib ko'ring.",
+      "no_profile": "Instagram'ni ulashdan oldin onboardingni yakunlang.",
+      "exchange_failed": "Meta ulanishni rad etdi. Instagram'ingiz Facebook sahifasiga bog'langan Business akkaunt ekanini tekshiring.",
+      "not_configured": "Instagram ulanishi hali sozlanmagan."
+    },
+    "pillTitleSoon": "Instagram ulanishi tez orada",
+    "pillTitleConnected": "@{{username}} sifatida ulangan",
+    "pillTitleConnect": "Instagram'ni ulash uchun bosing",
+    "pillSoon": "Instagram · tez orada",
+    "pillConnected": "Instagram · @{{username}}",
+    "pillConnectedGeneric": "Instagram · ulangan",
+    "pillConnect": "Instagram · ulash",
+    "createPostCta": "Post yaratish",
+    "composer": {
+      "title": "Yangi Instagram posti",
+      "hint": "{{handle}} ga joylanadi. Instagram media talab qiladi — JPEG rasm yoki MP4 video (Reel) ishlating. Maksimal 8MB.",
+      "pick": "Rasm yoki video tanlang",
+      "change": "Faylni almashtirish",
+      "caption": "Izoh",
+      "captionPh": "Izoh yozing… #hashtaglar mumkin",
+      "tooLarge": "Fayl juda katta — maksimal 8MB.",
+      "uploading": "Yuklanmoqda…",
+      "publishing": "Joylanmoqda…",
+      "publishingVideo": "Joylanmoqda… (video bir daqiqa olishi mumkin)",
+      "publish": "Instagram'ga joylash ✦",
+      "publishedTitle": "Instagram'ga joylandi!",
+      "publishedTo": "{{handle}} ga joylandi.",
+      "viewPost": "Instagram'da postni ko'rish ↗",
+      "another": "Yana joylash"
     }
-  }
+  },
+  "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable."
 }

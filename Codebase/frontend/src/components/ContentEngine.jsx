@@ -87,12 +87,18 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
   const platformMeta = platformKey ? metaFor(platformKey) : null;
   // The name /api/content/* speaks ('instagram'), not the connector key
   // ('meta_instagram').
-  const generationKey = platformMeta ? platformMeta.generationKey : 'instagram';
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13 (fallback was 'instagram')
+  const generationKey = platformMeta ? platformMeta.generationKey : 'tiktok';
   const isTelegram = platformKey === 'telegram';
   const telegramReady = !!(tgStatus?.connected && tgStatus?.chat);
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
   // Instagram has no text-only post type: without media the backend can only
   // record a simulated post, which is what made "Post Now" look broken here.
-  const needsMedia = generationKey === 'instagram';
+  // It was the only platform with this constraint, so with Instagram gone the
+  // media requirement never applies. The two copy strings guarded by this flag
+  // are now unreachable rather than removed.
+  // const needsMedia = generationKey === 'instagram';
+  const needsMedia = false;
 
   const fmtDateInput = (d) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

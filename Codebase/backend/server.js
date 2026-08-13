@@ -11,10 +11,12 @@ const config = require('./config');
 const createDb = require('./db');
 const ai = require('./ai');
 const brand = require('./brand');
+const businessContext = require('./businessContextService');
 const gemini = require('./gemini');
 const billing = require('./billing');
 const tg = require('./telegram');
-const ig = require('./instagram');
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// const ig = require('./instagram');
 const places = require('./places');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
@@ -265,19 +267,21 @@ async function fetchAndStoreSource(source, { competitorId, profileId, force = fa
     const ageMs = Date.now() - new Date(source.lastFetchedAt).getTime();
     if (ageMs < config.competitorFetchCooldownMs) return source;
   }
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
   // Instagram gets real post content only when THIS business has its own
   // Instagram connected via the Facebook-Login "Meta" connector (Business
   // Discovery reads through the caller's own account, not the bespoke
   // Instagram-Login connection) — absent that, competitorFetch falls back to
-  // the public-page scrape on its own.
+  // the public-page scrape on its own. With Meta disabled, the scrape is now
+  // the ONLY path, so these options would be ignored anyway.
   const fetchOpts = {};
-  if (source.platform === 'instagram') {
-    const conn = db.connections.findByProfile(profileId, 'meta_instagram');
-    if (conn && conn.accessToken) {
-      fetchOpts.metaIgUserId = (conn.meta && conn.meta.igUserId) || conn.accountId;
-      fetchOpts.metaAccessToken = conn.accessToken;
-    }
-  }
+  // if (source.platform === 'instagram') {
+  //   const conn = db.connections.findByProfile(profileId, 'meta_instagram');
+  //   if (conn && conn.accessToken) {
+  //     fetchOpts.metaIgUserId = (conn.meta && conn.meta.igUserId) || conn.accountId;
+  //     fetchOpts.metaAccessToken = conn.accessToken;
+  //   }
+  // }
   const result = await competitorFetch.fetchCompetitorSource(source.platform, source.url, fetchOpts);
   db.competitorPosts.replaceForSource(source.id, {
     competitorId, profileId, platform: source.platform, posts: result.posts,
@@ -475,7 +479,18 @@ function competitorTrendsDigest(insight) {
 // ==========================================
 app.post('/api/onboarding/slogans', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
   const { businessName, category, tone, description } = req.body;
-  const slogans = await ai.generateSlogans({ businessName, category, tone, description });
+
+  // Ground the slogans in this business's stored context cell when there is
+  // one. There deliberately isn't one during the wizard — slogans are asked for
+  // at step 2, before `construct` runs — so a missing cell is normal, not an
+  // error, and the call degrades to the profile fields it was given. From
+  // settings (post-onboarding) the cell exists and grounds the output.
+  const profile = db.profiles.findByUserId(req.user.id);
+  const digest = profile
+    ? businessContext.contextDigest(businessContext.getBusinessContext(db, profile.id))
+    : '';
+
+  const slogans = await ai.generateSlogans({ businessName, category, tone, description, digest });
   db.usage.record({ userId: req.user.id, kind: 'slogans' });
   res.json({ slogans });
 }));
@@ -555,19 +570,21 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
   const realCompetitors = sanitizeCompetitors(req.body.competitors);
   realCompetitors.forEach((c) => db.competitors.add({ profileId: profile.id, source: 'places', ...c }));
 
-  // Seed SEO keywords. (Still mocked — real rank tracking is a future
-  // milestone; the phrases improve automatically now that Path A passes the
-  // real Google category in.) The third phrase derives from the profile's
-  // audience/category instead of a hardcoded niche.
-  const cat = safeCategory.toLowerCase();
-  const audiencePhrase = (typeof audience === 'string' && audience.trim())
-    ? `${cat} for ${audience.trim().toLowerCase().slice(0, 60)}`
-    : `top rated ${cat}`;
-  [
-    { keywordPhrase: `best ${cat} in tashkent`, avgPosition: 8, volume: 'High' },
-    { keywordPhrase: `${cat} near me`, avgPosition: 12, volume: 'Very High' },
-    { keywordPhrase: `${audiencePhrase} ${location || 'tashkent'}`, avgPosition: 4, volume: 'Medium' },
-  ].forEach((k) => db.keywords.add({ profileId: profile.id, ...k }));
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // Mocked SEO keyword seeding at onboarding.
+  // // Seed SEO keywords. (Still mocked — real rank tracking is a future
+  // // milestone; the phrases improve automatically now that Path A passes the
+  // // real Google category in.) The third phrase derives from the profile's
+  // // audience/category instead of a hardcoded niche.
+  // const cat = safeCategory.toLowerCase();
+  // const audiencePhrase = (typeof audience === 'string' && audience.trim())
+  //   ? `${cat} for ${audience.trim().toLowerCase().slice(0, 60)}`
+  //   : `top rated ${cat}`;
+  // [
+  //   { keywordPhrase: `best ${cat} in tashkent`, avgPosition: 8, volume: 'High' },
+  //   { keywordPhrase: `${cat} near me`, avgPosition: 12, volume: 'Very High' },
+  //   { keywordPhrase: `${audiencePhrase} ${location || 'tashkent'}`, avgPosition: 4, volume: 'Medium' },
+  // ].forEach((k) => db.keywords.add({ profileId: profile.id, ...k }));
 
   // Seed an inaugural scheduled post — a generic welcome from the business
   // name + category (uz/ru flavour kept, no business-type assumptions).
@@ -597,6 +614,18 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
   } catch (err) {
     console.error('Brand brief generation failed at onboarding (non-fatal):', err.message);
   }
+
+  // The per-business context cell — built ONCE, here, and re-read by every
+  // later generation for this business (slogans, Autopilot). Keyless it stores
+  // a deterministic template cell, so the row always exists. Never throws.
+  await businessContext.createBusinessContext(db, profile.id, {
+    businessName,
+    category: safeCategory,
+    description,
+    tone: tone || 'Cozy & Warm',
+    audience,
+    location: isOnline ? 'Online / Remote' : (location || 'Tashkent'),
+  });
 
   // Return the profile WITH a platforms map so the dashboard can render
   // immediately without a follow-up fetch.
@@ -838,35 +867,36 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
-  // Instagram publishes for real when connected AND media is supplied (imageUrl,
-  // videoUrl, or mediaId) — Instagram has no text-only post type.
-  if (platform === 'instagram' && config.instagramEnabled) {
-    const conn = db.instagram.findByProfile(profile.id);
-    if (conn && conn.igUserId) {
-      const media = resolveInstagramMedia(profile, req.body);
-      if (media.imageUrl || media.videoUrl) {
-        try {
-          const result = await executeInstagramPost(profile, { ...media, caption: postText });
-          return res.json({ success: true, simulated: false, ...result });
-        } catch (err) {
-          return res.status(400).json({ error: err.message });
-        }
-      }
-      // Connected but unpublishable. Silently filing this as a "posted" calendar
-      // row is how the composer used to look broken — the owner pressed Post and
-      // nothing ever reached Instagram. Say exactly what is missing instead.
-      if (!config.publicBaseUrl) {
-        return res.status(400).json({
-          error: 'Instagram fetches post media from a public URL, and PUBLIC_BASE_URL is not configured on the server, so publishing is unavailable.',
-          reason: 'no_public_base_url',
-        });
-      }
-      return res.status(400).json({
-        error: 'Instagram posts must include a photo or video — attach one and post again.',
-        reason: 'media_required',
-      });
-    }
-  }
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // // Instagram publishes for real when connected AND media is supplied (imageUrl,
+  // // videoUrl, or mediaId) — Instagram has no text-only post type.
+  // if (platform === 'instagram' && config.instagramEnabled) {
+  //   const conn = db.instagram.findByProfile(profile.id);
+  //   if (conn && conn.igUserId) {
+  //     const media = resolveInstagramMedia(profile, req.body);
+  //     if (media.imageUrl || media.videoUrl) {
+  //       try {
+  //         const result = await executeInstagramPost(profile, { ...media, caption: postText });
+  //         return res.json({ success: true, simulated: false, ...result });
+  //       } catch (err) {
+  //         return res.status(400).json({ error: err.message });
+  //       }
+  //     }
+  //     // Connected but unpublishable. Silently filing this as a "posted" calendar
+  //     // row is how the composer used to look broken — the owner pressed Post and
+  //     // nothing ever reached Instagram. Say exactly what is missing instead.
+  //     if (!config.publicBaseUrl) {
+  //       return res.status(400).json({
+  //         error: 'Instagram fetches post media from a public URL, and PUBLIC_BASE_URL is not configured on the server, so publishing is unavailable.',
+  //         reason: 'no_public_base_url',
+  //       });
+  //     }
+  //     return res.status(400).json({
+  //       error: 'Instagram posts must include a photo or video — attach one and post again.',
+  //       reason: 'media_required',
+  //     });
+  //   }
+  // }
 
   const post = db.calendar.add({
     profileId: profile.id,
@@ -1347,143 +1377,146 @@ app.post('/api/telegram/post', verifyToken, telegramGate, asyncRoute(async (req,
   }
 }));
 
-// ==========================================
-// 3.4 INSTAGRAM (Meta Graph) OAUTH CONNECT
-// ------------------------------------------
-//   Owner clicks "Connect Instagram" → we mint a signed `state` and hand back
-//   Meta's auth-dialog URL; the browser goes to Meta, authorizes, and Meta
-//   redirects to our callback with ?code=&state=. The callback (a top-level
-//   browser navigation with NO auth header) recovers identity from `state`,
-//   exchanges the code for a long-lived token, and stores it encrypted.
-// ==========================================
-const instagramGate = (req, res, next) => {
-  if (!config.instagramEnabled) {
-    return res.status(503).json({
-      error: 'Instagram connection is coming soon — Meta credentials are not configured yet.',
-      comingSoon: true,
-    });
-  }
-  next();
-};
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// // ==========================================
+// // 3.4 INSTAGRAM (Meta Graph) OAUTH CONNECT
+// // ------------------------------------------
+// //   Owner clicks "Connect Instagram" → we mint a signed `state` and hand back
+// //   Meta's auth-dialog URL; the browser goes to Meta, authorizes, and Meta
+// //   redirects to our callback with ?code=&state=. The callback (a top-level
+// //   browser navigation with NO auth header) recovers identity from `state`,
+// //   exchanges the code for a long-lived token, and stores it encrypted.
+// // ==========================================
+// const instagramGate = (req, res, next) => {
+//   if (!config.instagramEnabled) {
+//     return res.status(503).json({
+//       error: 'Instagram connection is coming soon — Meta credentials are not configured yet.',
+//       comingSoon: true,
+//     });
+//   }
+//   next();
+// };
+//
+// // Signed, short-lived state carrying the user/profile through the OAuth round
+// // trip (doubles as CSRF protection — the callback rejects anything it didn't
+// // sign). Reuses the JWT machinery already used for access tokens.
+// const signOauthState = (user, profile) =>
+//   jwt.sign({ uid: user.id, pid: profile.id, purpose: 'ig_oauth' }, config.jwtSecret, { expiresIn: '10m' });
+//
+// const verifyOauthState = (state) => {
+//   const payload = jwt.verify(state, config.jwtSecret);
+//   if (payload.purpose !== 'ig_oauth') throw new Error('wrong token purpose');
+//   return payload;
+// };
+//
+// app.get('/api/instagram/connect', verifyToken, instagramGate, (req, res) => {
+//   const profile = requireProfile(req, res);
+//   if (!profile) return;
+//   const authUrl = ig.buildAuthUrl(signOauthState(req.user, profile));
+//   res.json({ authUrl });
+// });
+//
+// // PUBLIC (no verifyToken) — Meta redirects the browser here. Identity rides in
+// // `state`. Always ends in a redirect back to the SPA; never leaks raw errors.
+// app.get('/api/instagram/oauth/callback', asyncRoute(async (req, res) => {
+//   const back = (params) => res.redirect(`${config.appUrl}/?${new URLSearchParams(params).toString()}`);
+//
+//   if (!config.instagramEnabled) return back({ instagram: 'error', reason: 'not_configured' });
+//   if (req.query.error) return back({ instagram: 'error', reason: 'denied' });
+//
+//   const { code, state } = req.query;
+//   if (!code || !state) return back({ instagram: 'error', reason: 'missing_code' });
+//
+//   let payload;
+//   try {
+//     payload = verifyOauthState(String(state));
+//   } catch {
+//     return back({ instagram: 'error', reason: 'bad_state' });
+//   }
+//
+//   const profile = db.profiles.findById(payload.pid);
+//   if (!profile) return back({ instagram: 'error', reason: 'no_profile' });
+//
+//   try {
+//     const short = await ig.exchangeCodeForToken(String(code));
+//     const long = await ig.exchangeForLongLivedToken(short.accessToken);
+//     const account = await ig.resolveAccount(long.accessToken);
+//     const tokenExpiresAt = long.expiresIn
+//       ? new Date(Date.now() + long.expiresIn * 1000).toISOString()
+//       : null;
+//
+//     db.instagram.upsert({ profileId: profile.id, accessToken: long.accessToken, tokenExpiresAt, ...account });
+//     db.platforms.setConnected(profile.id, 'instagram', account.igUsername ? `@${account.igUsername}` : (account.accountName || null));
+//     return back({ instagram: 'connected' });
+//   } catch (err) {
+//     console.warn(`Instagram callback failed: ${err.message}`);
+//     return back({ instagram: 'error', reason: 'exchange_failed' });
+//   }
+// }));
+//
+// app.get('/api/instagram/status', verifyToken, (req, res) => {
+//   if (!config.instagramEnabled) return res.json({ connected: false, comingSoon: true });
+//   const profile = db.profiles.findByUserId(req.user.id);
+//   if (!profile) return res.json({ connected: false });
+//   const conn = db.instagram.findByProfile(profile.id);
+//   if (!conn) return res.json({ connected: false });
+//   res.json({
+//     connected: true,
+//     username: conn.igUsername,
+//     accountName: conn.accountName,
+//     expiresAt: conn.tokenExpiresAt,
+//   });
+// });
+//
+// app.post('/api/instagram/disconnect', verifyToken, (req, res) => {
+//   const profile = db.profiles.findByUserId(req.user.id);
+//   if (!profile) return res.status(404).json({ error: 'Business profile not found' });
+//   db.instagram.remove(profile.id);
+//   db.platforms.setConnected(profile.id, 'instagram', null, false);
+//   res.json({ success: true });
+// });
 
-// Signed, short-lived state carrying the user/profile through the OAuth round
-// trip (doubles as CSRF protection — the callback rejects anything it didn't
-// sign). Reuses the JWT machinery already used for access tokens.
-const signOauthState = (user, profile) =>
-  jwt.sign({ uid: user.id, pid: profile.id, purpose: 'ig_oauth' }, config.jwtSecret, { expiresIn: '10m' });
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// // Resolve post media to a PUBLIC URL Instagram can fetch server-side. Accepts an
+// // explicit imageUrl/videoUrl (used as-is) or a mediaId whose uploaded/rendered
+// // file we expose via the public base (the dev tunnel). The media row's `kind`
+// // decides image vs video. Returns { imageUrl, videoUrl, mediaType } — all '' when
+// // nothing is resolvable.
+// function resolveInstagramMedia(profile, body = {}) {
+//   const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
+//   const videoUrl = typeof body.videoUrl === 'string' ? body.videoUrl.trim() : '';
+//   if (imageUrl) return { imageUrl, videoUrl: '', mediaType: '' };
+//   if (videoUrl) return { imageUrl: '', videoUrl, mediaType: 'REELS' };
+//   if (body.mediaId) {
+//     const m = db.media.findById(String(body.mediaId));
+//     if (m && m.profileId === profile.id && m.filePath && config.publicBaseUrl) {
+//       const url = `${config.publicBaseUrl}/${m.filePath.replace(/^\/+/, '')}`;
+//       if (m.kind === 'video') return { imageUrl: '', videoUrl: url, mediaType: 'REELS' };
+//       return { imageUrl: url, videoUrl: '', mediaType: '' };
+//     }
+//   }
+//   return { imageUrl: '', videoUrl: '', mediaType: '' };
+// }
 
-const verifyOauthState = (state) => {
-  const payload = jwt.verify(state, config.jwtSecret);
-  if (payload.purpose !== 'ig_oauth') throw new Error('wrong token purpose');
-  return payload;
-};
-
-app.get('/api/instagram/connect', verifyToken, instagramGate, (req, res) => {
-  const profile = requireProfile(req, res);
-  if (!profile) return;
-  const authUrl = ig.buildAuthUrl(signOauthState(req.user, profile));
-  res.json({ authUrl });
-});
-
-// PUBLIC (no verifyToken) — Meta redirects the browser here. Identity rides in
-// `state`. Always ends in a redirect back to the SPA; never leaks raw errors.
-app.get('/api/instagram/oauth/callback', asyncRoute(async (req, res) => {
-  const back = (params) => res.redirect(`${config.appUrl}/?${new URLSearchParams(params).toString()}`);
-
-  if (!config.instagramEnabled) return back({ instagram: 'error', reason: 'not_configured' });
-  if (req.query.error) return back({ instagram: 'error', reason: 'denied' });
-
-  const { code, state } = req.query;
-  if (!code || !state) return back({ instagram: 'error', reason: 'missing_code' });
-
-  let payload;
-  try {
-    payload = verifyOauthState(String(state));
-  } catch {
-    return back({ instagram: 'error', reason: 'bad_state' });
-  }
-
-  const profile = db.profiles.findById(payload.pid);
-  if (!profile) return back({ instagram: 'error', reason: 'no_profile' });
-
-  try {
-    const short = await ig.exchangeCodeForToken(String(code));
-    const long = await ig.exchangeForLongLivedToken(short.accessToken);
-    const account = await ig.resolveAccount(long.accessToken);
-    const tokenExpiresAt = long.expiresIn
-      ? new Date(Date.now() + long.expiresIn * 1000).toISOString()
-      : null;
-
-    db.instagram.upsert({ profileId: profile.id, accessToken: long.accessToken, tokenExpiresAt, ...account });
-    db.platforms.setConnected(profile.id, 'instagram', account.igUsername ? `@${account.igUsername}` : (account.accountName || null));
-    return back({ instagram: 'connected' });
-  } catch (err) {
-    console.warn(`Instagram callback failed: ${err.message}`);
-    return back({ instagram: 'error', reason: 'exchange_failed' });
-  }
-}));
-
-app.get('/api/instagram/status', verifyToken, (req, res) => {
-  if (!config.instagramEnabled) return res.json({ connected: false, comingSoon: true });
-  const profile = db.profiles.findByUserId(req.user.id);
-  if (!profile) return res.json({ connected: false });
-  const conn = db.instagram.findByProfile(profile.id);
-  if (!conn) return res.json({ connected: false });
-  res.json({
-    connected: true,
-    username: conn.igUsername,
-    accountName: conn.accountName,
-    expiresAt: conn.tokenExpiresAt,
-  });
-});
-
-app.post('/api/instagram/disconnect', verifyToken, (req, res) => {
-  const profile = db.profiles.findByUserId(req.user.id);
-  if (!profile) return res.status(404).json({ error: 'Business profile not found' });
-  db.instagram.remove(profile.id);
-  db.platforms.setConnected(profile.id, 'instagram', null, false);
-  res.json({ success: true });
-});
-
-// Resolve post media to a PUBLIC URL Instagram can fetch server-side. Accepts an
-// explicit imageUrl/videoUrl (used as-is) or a mediaId whose uploaded/rendered
-// file we expose via the public base (the dev tunnel). The media row's `kind`
-// decides image vs video. Returns { imageUrl, videoUrl, mediaType } — all '' when
-// nothing is resolvable.
-function resolveInstagramMedia(profile, body = {}) {
-  const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
-  const videoUrl = typeof body.videoUrl === 'string' ? body.videoUrl.trim() : '';
-  if (imageUrl) return { imageUrl, videoUrl: '', mediaType: '' };
-  if (videoUrl) return { imageUrl: '', videoUrl, mediaType: 'REELS' };
-  if (body.mediaId) {
-    const m = db.media.findById(String(body.mediaId));
-    if (m && m.profileId === profile.id && m.filePath && config.publicBaseUrl) {
-      const url = `${config.publicBaseUrl}/${m.filePath.replace(/^\/+/, '')}`;
-      if (m.kind === 'video') return { imageUrl: '', videoUrl: url, mediaType: 'REELS' };
-      return { imageUrl: url, videoUrl: '', mediaType: '' };
-    }
-  }
-  return { imageUrl: '', videoUrl: '', mediaType: '' };
-}
-
-// Shared executor — used by the direct post route AND /api/content/post-now.
-// Publishes an image OR video (Reels) post for real and records it. Video
-// containers are polled to FINISHED inside ig.publishMediaPost before publishing.
-async function executeInstagramPost(profile, { imageUrl, videoUrl, mediaType, caption }) {
-  const conn = db.instagram.findByProfile(profile.id);
-  if (!conn) throw new Error('Instagram is not connected');
-  if (!conn.igUserId) throw new Error('This Instagram connection has no linked account id — reconnect Instagram');
-  if (!imageUrl && !videoUrl) throw new Error('An image or video is required — Instagram does not support text-only posts');
-  const { mediaId, permalink } = await ig.publishMediaPost(conn, { imageUrl, videoUrl, mediaType, caption });
-  db.calendar.add({
-    profileId: profile.id,
-    platform: 'instagram',
-    postText: caption || '',
-    scheduledTime: new Date().toISOString(),
-    status: 'posted',
-  });
-  return { mediaId, permalink, username: conn.igUsername };
-}
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// // Shared executor — used by the direct post route AND /api/content/post-now.
+// // Publishes an image OR video (Reels) post for real and records it. Video
+// // containers are polled to FINISHED inside ig.publishMediaPost before publishing.
+// async function executeInstagramPost(profile, { imageUrl, videoUrl, mediaType, caption }) {
+//   const conn = db.instagram.findByProfile(profile.id);
+//   if (!conn) throw new Error('Instagram is not connected');
+//   if (!conn.igUserId) throw new Error('This Instagram connection has no linked account id — reconnect Instagram');
+//   if (!imageUrl && !videoUrl) throw new Error('An image or video is required — Instagram does not support text-only posts');
+//   const { mediaId, permalink } = await ig.publishMediaPost(conn, { imageUrl, videoUrl, mediaType, caption });
+//   db.calendar.add({
+//     profileId: profile.id,
+//     platform: 'instagram',
+//     postText: caption || '',
+//     scheduledTime: new Date().toISOString(),
+//     status: 'posted',
+//   });
+//   return { mediaId, permalink, username: conn.igUsername };
+// }
 
 // Generic connector executor — used by the approval gate AND Autopilot to
 // publish a post to ANY registered platform (Instagram/Facebook/TikTok/Google
@@ -1604,22 +1637,23 @@ app.post('/api/connect/:key/disconnect', verifyToken, asyncRoute(async (req, res
   res.json({ success: true, status: await adapter.status({ db, profile }) });
 }));
 
-app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (req, res) => {
-  const profile = requireProfile(req, res);
-  if (!profile) return;
-  const caption = typeof req.body.caption === 'string' ? req.body.caption.trim() : '';
-  if (caption.length > 2200) return res.status(400).json({ error: 'Caption must be 2200 characters or fewer' });
-  const media = resolveInstagramMedia(profile, req.body);
-  if (!media.imageUrl && !media.videoUrl) {
-    return res.status(400).json({ error: 'Provide an imageUrl, videoUrl, or a mediaId with an uploaded file — Instagram posts require an image or video.' });
-  }
-  try {
-    const result = await executeInstagramPost(profile, { ...media, caption });
-    res.json({ success: true, ...result });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-}));
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// app.post('/api/instagram/post', verifyToken, instagramGate, asyncRoute(async (req, res) => {
+//   const profile = requireProfile(req, res);
+//   if (!profile) return;
+//   const caption = typeof req.body.caption === 'string' ? req.body.caption.trim() : '';
+//   if (caption.length > 2200) return res.status(400).json({ error: 'Caption must be 2200 characters or fewer' });
+//   const media = resolveInstagramMedia(profile, req.body);
+//   if (!media.imageUrl && !media.videoUrl) {
+//     return res.status(400).json({ error: 'Provide an imageUrl, videoUrl, or a mediaId with an uploaded file — Instagram posts require an image or video.' });
+//   }
+//   try {
+//     const result = await executeInstagramPost(profile, { ...media, caption });
+//     res.json({ success: true, ...result });
+//   } catch (err) {
+//     res.status(400).json({ error: err.message });
+//   }
+// }));
 
 // ==========================================
 // 3.5 DASHBOARD METRICS ROUTER
@@ -1633,8 +1667,10 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   // never resurface here.
   const isRealCompetitor = (c) => c.source === 'manual' || c.source === 'places';
   const competitors = db.competitors.listByProfile(profile.id).filter(isRealCompetitor);
-  const keywords = db.keywords.listByProfile(profile.id);
-  const cat = (profile.category || 'business').toLowerCase();
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // const keywords = db.keywords.listByProfile(profile.id);
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // const cat = (profile.category || 'business').toLowerCase();
 
   // Real posting cadence — actually-posted calendar rows in the trailing 7
   // days. Feeds the Competitor Intel benchmark's "You" row/chart honestly
@@ -1661,19 +1697,23 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   // Instagram followers: same pattern — REAL count once an account is
   // connected, the demo number otherwise.
   let instagramFollowers = { current: 1542, change: 15.6 };
-  if (config.instagramEnabled) {
-    const conn = db.instagram.findByProfile(profile.id);
-    if (conn && conn.accessToken) {
-      try {
-        const acct = await ig.getAccountStats(conn.accessToken);
-        if (Number.isFinite(acct.followers)) {
-          instagramFollowers = { current: acct.followers, change: 0, live: true };
-        }
-      } catch (err) {
-        console.warn('getAccountStats failed, using demo number:', err.message);
-      }
-    }
-  }
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // Real follower count from a connected Instagram. `instagramFollowers`
+  // above stays LIVE and keeps its demo value — metrics.instagramFollowers
+  // is part of the dashboard payload contract (metric-history.test.js).
+  // if (config.instagramEnabled) {
+  //   const conn = db.instagram.findByProfile(profile.id);
+  //   if (conn && conn.accessToken) {
+  //     try {
+  //       const acct = await ig.getAccountStats(conn.accessToken);
+  //       if (Number.isFinite(acct.followers)) {
+  //         instagramFollowers = { current: acct.followers, change: 0, live: true };
+  //       }
+  //     } catch (err) {
+  //       console.warn('getAccountStats failed, using demo number:', err.message);
+  //     }
+  //   }
+  // }
 
   const metrics = {
     googleViews: { current: 4320, change: 12.4, live: false },
@@ -1706,9 +1746,12 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
       rating: c.rating,
       followers: c.followers_count,
     })),
-    seoKeywords: keywords.length ? keywords : [
-      { keyword_phrase: `best ${cat} in tashkent`, avg_position: 8, volume: 'High' },
-    ],
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // The seoKeywords payload field, and the `cat` local below that only
+    // existed to build its placeholder. Dashboard.jsx no longer reads it.
+    // seoKeywords: keywords.length ? keywords : [
+    //   { keyword_phrase: `best ${cat} in tashkent`, avg_position: 8, volume: 'High' },
+    // ],
     aiPresence: { perplexityScore: 78, chatgptRank: 'Top 5', sourcesCitedCount: 4 },
   });
 }));
@@ -1773,42 +1816,47 @@ app.get('/api/dashboard/platform/:key', verifyToken, asyncRoute(async (req, res)
     notice: null,
   };
 
-  if (key === 'instagram') {
-    const conn = config.instagramEnabled ? db.instagram.findByProfile(profile.id) : null;
-    if (!conn || !conn.accessToken) {
-      payload.notice = { code: 'connectInstagram' };
-      payload.unavailable = ['followers', 'engagement'];
-    } else {
-      payload.connected = true;
-      try {
-        const [acct, media] = await Promise.all([
-          ig.getAccountStats(conn.accessToken),
-          ig.getRecentMedia(conn.accessToken, 12),
-        ]);
-        payload.live = true;
-        payload.account = {
-          name: acct.accountName || conn.accountName,
-          handle: acct.username || conn.igUsername,
-          url: acct.username ? `https://instagram.com/${acct.username}` : null,
-          type: acct.accountType,
-        };
-        payload.headline = [
-          { key: 'followers', value: acct.followers },
-          { key: 'following', value: acct.following },
-          { key: 'posts', value: acct.mediaCount },
-        ];
-        payload.posts = media;
-        // Personal accounts do not report these; say which, do not zero them.
-        const missing = payload.headline.filter((h) => h.value === null).map((h) => h.key);
-        if (missing.length) payload.unavailable = missing;
-        if (media.some((m) => m.likes === null)) payload.unavailable.push('engagement');
-      } catch (err) {
-        // A dead/expired token must not blank the panel — our own rows still show.
-        payload.notice = { code: 'instagramError', error: err.message };
-        payload.unavailable = ['followers', 'engagement'];
-      }
-    }
-  } else if (key === 'telegram') {
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // Instagram drill-down. The `else if` that followed is promoted to a plain
+  // `if` below so the chain does not dangle. PLATFORM_METRIC.instagram stays
+  // registered, so /api/dashboard/platform/instagram still answers 200 with
+  // connected:false rather than 404-ing.
+  // if (key === 'instagram') {
+  //   const conn = config.instagramEnabled ? db.instagram.findByProfile(profile.id) : null;
+  //   if (!conn || !conn.accessToken) {
+  //     payload.notice = { code: 'connectInstagram' };
+  //     payload.unavailable = ['followers', 'engagement'];
+  //   } else {
+  //     payload.connected = true;
+  //     try {
+  //       const [acct, media] = await Promise.all([
+  //         ig.getAccountStats(conn.accessToken),
+  //         ig.getRecentMedia(conn.accessToken, 12),
+  //       ]);
+  //       payload.live = true;
+  //       payload.account = {
+  //         name: acct.accountName || conn.accountName,
+  //         handle: acct.username || conn.igUsername,
+  //         url: acct.username ? `https://instagram.com/${acct.username}` : null,
+  //         type: acct.accountType,
+  //       };
+  //       payload.headline = [
+  //         { key: 'followers', value: acct.followers },
+  //         { key: 'following', value: acct.following },
+  //         { key: 'posts', value: acct.mediaCount },
+  //       ];
+  //       payload.posts = media;
+  //       // Personal accounts do not report these; say which, do not zero them.
+  //       const missing = payload.headline.filter((h) => h.value === null).map((h) => h.key);
+  //       if (missing.length) payload.unavailable = missing;
+  //       if (media.some((m) => m.likes === null)) payload.unavailable.push('engagement');
+  //     } catch (err) {
+  //       // A dead/expired token must not blank the panel — our own rows still show.
+  //       payload.notice = { code: 'instagramError', error: err.message };
+  //       payload.unavailable = ['followers', 'engagement'];
+  //     }
+  //   }
+  if (key === 'telegram') {
     const conn = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
     if (!conn || !conn.chatId) {
       payload.notice = { code: 'linkTelegram' };
@@ -2021,7 +2069,10 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
   const snapshot = {
     stats: {
       competitorCount: db.competitors.listByProfile(profile.id).filter((c) => c.source === 'manual' || c.source === 'places').length,
-      keywords: db.keywords.listByProfile(profile.id).slice(0, 3).map((k) => k.keyword_phrase),
+      // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+      // Top SEO keywords in the agent snapshot. ai.js reads
+      // (snapshot.stats?.keywords || []), so its absence is safe.
+      // keywords: db.keywords.listByProfile(profile.id).slice(0, 3).map((k) => k.keyword_phrase),
       scheduledPosts: calendarRows.filter((p) => p.status === 'scheduled').length,
       postedPosts: calendarRows.filter((p) => p.status === 'posted').length,
     },
@@ -2316,6 +2367,48 @@ app.get('/api/autonomous/activity', verifyToken, (req, res) => {
   res.json({ activity: db.autonomous.listActivity(profile.id, limit) });
 });
 
+// The open "Autopilot needs more context" question, if any, plus the last
+// answer the owner gave (which stays in force for future runs). No
+// autonomousGate: /status and /activity are readable in a deployment where the
+// feature is off too, so the panel can render a coherent state either way.
+app.get('/api/autonomous/context-request', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  res.json({
+    request: db.autonomous.pendingContextRequest(profile.id),
+    lastAnswer: db.autonomous.latestAnsweredContext(profile.id),
+  });
+});
+
+// Answer it. Clears the pause and re-arms the cadence so the next tick runs
+// with the new context instead of waiting out a whole cycle.
+app.post('/api/autonomous/context-request/answer', verifyToken, autonomousGate, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const answer = typeof req.body.answer === 'string' ? req.body.answer.trim() : '';
+  if (!answer) return res.status(400).json({ error: 'An answer is required.' });
+  if (answer.length > 2000) return res.status(400).json({ error: 'Answer must be 2000 characters or fewer.' });
+
+  const requestId = typeof req.body.requestId === 'string' ? req.body.requestId : null;
+  const updated = db.autonomous.answerContextRequest({ profileId: profile.id, requestId, answer });
+  if (!updated) return res.status(404).json({ error: 'There is no open context request for this business.' });
+
+  db.autonomous.logActivity({
+    profileId: profile.id,
+    kind: 'context_answered',
+    summary: answer.slice(0, 140),
+    payload: { requestId: updated.id },
+  });
+
+  const cfg = db.autonomous.getConfig(profile.id);
+  if (cfg && cfg.enabled) {
+    db.autonomous.setRun(profile.id, { lastRunAt: cfg.lastRunAt, nextRunAt: new Date().toISOString() });
+  }
+
+  res.json({ request: updated, config: db.autonomous.getConfig(profile.id) });
+});
+
 // "Run now" — user-initiated, budget-checked. Runs one Autopilot cycle for this
 // business immediately (ignores the cadence timer).
 app.post('/api/autonomous/run', verifyToken, autonomousGate, checkAiBudget, asyncRoute(async (req, res) => {
@@ -2417,69 +2510,79 @@ app.delete('/api/me', verifyToken, (req, res) => {
   });
 });
 
-// PUBLIC — Meta POSTs a form-encoded `signed_request` here when a user removes
-// the app. Authenticity is the HMAC signature over the payload, so no session
-// is involved; `express.urlencoded` is mounted only on this route because the
-// rest of the API is JSON.
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// !! COMPLIANCE NOTE !!  This is the URL registered in the Meta App Dashboard
+// as the app's Data Deletion Request URL. While it is commented out that URL
+// 404s: Meta's automated app checks will fail, and a user who removes the app
+// gets no erasure and no confirmation code. Before shipping this, put the Meta
+// app in Development mode or clear that URL in the App Dashboard.
 //
-// The signature is keyed by the app secret of whichever Meta app sent it — the
-// Facebook app and the Instagram-login app have different secrets, so both are
-// tried before rejecting.
-app.post(
-  '/api/meta/data-deletion',
-  express.urlencoded({ extended: false }),
-  (req, res) => {
-    const secretsToTry = [
-      config.connectors.meta.clientSecret,
-      config.instagramAppSecret,
-    ].filter(Boolean);
-
-    if (secretsToTry.length === 0) {
-      return res.status(501).json({ error: 'Data deletion callback is not configured' });
-    }
-
-    let payload = null;
-    let lastError = null;
-    for (const secret of secretsToTry) {
-      try {
-        payload = metaDeletion.parseSignedRequest(req.body.signed_request, secret);
-        break;
-      } catch (err) {
-        lastError = err;
-      }
-    }
-    if (!payload) {
-      // Do not echo the parser's reason back to the caller.
-      console.warn(`Meta data-deletion callback rejected: ${lastError && lastError.message}`);
-      return res.status(400).json({ error: 'Invalid signed_request' });
-    }
-
-    const metaUserId = payload.user_id ? String(payload.user_id) : '';
-    const userIds = db.connections.findUserIdsByMetaUserId(metaUserId);
-
-    let filesRemoved = 0;
-    for (const userId of userIds) filesRemoved += eraseUser(userId).filesRemoved;
-
-    // An unmatched id is a normal outcome — the person may have connected only
-    // Telegram, or already deleted their account. Meta still requires a 200
-    // with a trackable code, so the request is logged either way.
-    const code = metaDeletion.newConfirmationCode();
-    db.deletionRequests.create({
-      confirmationCode: code,
-      source: 'meta',
-      externalUserId: metaUserId || null,
-      status: userIds.length > 0 ? 'completed' : 'no_match',
-      detail: userIds.length > 0
-        ? `Erased ${userIds.length} account(s) and ${filesRemoved} uploaded file(s).`
-        : 'No Markivo account is linked to this Meta user id — nothing was stored.',
-    });
-
-    res.json({
-      url: `${config.appUrl}/data-deletion.html?code=${code}`,
-      confirmation_code: code,
-    });
-  }
-);
+// DELETE /api/me (self-serve deletion) and GET /api/data-deletion/status stay
+// LIVE — they are not Meta-specific.
+//
+// // PUBLIC — Meta POSTs a form-encoded `signed_request` here when a user removes
+// // the app. Authenticity is the HMAC signature over the payload, so no session
+// // is involved; `express.urlencoded` is mounted only on this route because the
+// // rest of the API is JSON.
+// //
+// // The signature is keyed by the app secret of whichever Meta app sent it — the
+// // Facebook app and the Instagram-login app have different secrets, so both are
+// // tried before rejecting.
+// app.post(
+//   '/api/meta/data-deletion',
+//   express.urlencoded({ extended: false }),
+//   (req, res) => {
+//     const secretsToTry = [
+//       config.connectors.meta.clientSecret,
+//       config.instagramAppSecret,
+//     ].filter(Boolean);
+//
+//     if (secretsToTry.length === 0) {
+//       return res.status(501).json({ error: 'Data deletion callback is not configured' });
+//     }
+//
+//     let payload = null;
+//     let lastError = null;
+//     for (const secret of secretsToTry) {
+//       try {
+//         payload = metaDeletion.parseSignedRequest(req.body.signed_request, secret);
+//         break;
+//       } catch (err) {
+//         lastError = err;
+//       }
+//     }
+//     if (!payload) {
+//       // Do not echo the parser's reason back to the caller.
+//       console.warn(`Meta data-deletion callback rejected: ${lastError && lastError.message}`);
+//       return res.status(400).json({ error: 'Invalid signed_request' });
+//     }
+//
+//     const metaUserId = payload.user_id ? String(payload.user_id) : '';
+//     const userIds = db.connections.findUserIdsByMetaUserId(metaUserId);
+//
+//     let filesRemoved = 0;
+//     for (const userId of userIds) filesRemoved += eraseUser(userId).filesRemoved;
+//
+//     // An unmatched id is a normal outcome — the person may have connected only
+//     // Telegram, or already deleted their account. Meta still requires a 200
+//     // with a trackable code, so the request is logged either way.
+//     const code = metaDeletion.newConfirmationCode();
+//     db.deletionRequests.create({
+//       confirmationCode: code,
+//       source: 'meta',
+//       externalUserId: metaUserId || null,
+//       status: userIds.length > 0 ? 'completed' : 'no_match',
+//       detail: userIds.length > 0
+//         ? `Erased ${userIds.length} account(s) and ${filesRemoved} uploaded file(s).`
+//         : 'No Markivo account is linked to this Meta user id — nothing was stored.',
+//     });
+//
+//     res.json({
+//       url: `${config.appUrl}/data-deletion.html?code=${code}`,
+//       confirmation_code: code,
+//     });
+//   }
+// );
 
 // PUBLIC — lets someone check a deletion by its confirmation code. Returns only
 // the status and date; never the erased account's details.
@@ -2535,27 +2638,32 @@ async function runScheduledPostsTick() {
     // the owner attached in the composer. Instagram has no text-only post type,
     // so a row without media can never publish — leave it scheduled rather than
     // flipping it to 'failed', since attaching media later makes it valid.
-    if (row.platform === 'instagram') {
-      if (!config.instagramEnabled || !row.mediaId) continue;
-      const profile = db.profiles.findById(row.profileId);
-      const conn = profile ? db.instagram.findByProfile(profile.id) : null;
-      if (!profile || !conn || !conn.igUserId) continue;
-      const media = resolveInstagramMedia(profile, { mediaId: row.mediaId });
-      if (!media.imageUrl && !media.videoUrl) continue;
-      try {
-        // ig.publishMediaPost directly, NOT executeInstagramPost — that helper
-        // inserts a NEW calendar row; here the row exists and just flips status.
-        await ig.publishMediaPost(conn, { ...media, caption: row.post_text });
-        db.calendar.setStatus(row.id, 'posted');
-        scheduleNextOccurrence(row);
-        posted += 1;
-      } catch (err) {
-        db.calendar.setStatus(row.id, 'failed');
-        console.warn(`Scheduled instagram post ${row.id} failed:`, err.message);
-        failed += 1;
-      }
-      continue;
-    }
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // Scheduled Instagram posts. A due platform:'instagram' row now falls
+    // through to the generic connector branch below, finds no adapter, and is
+    // LEFT ALONE (still scheduled) rather than failed — same conservative
+    // outcome the original code chose for an unpublishable row.
+    // if (row.platform === 'instagram') {
+    //   if (!config.instagramEnabled || !row.mediaId) continue;
+    //   const profile = db.profiles.findById(row.profileId);
+    //   const conn = profile ? db.instagram.findByProfile(profile.id) : null;
+    //   if (!profile || !conn || !conn.igUserId) continue;
+    //   const media = resolveInstagramMedia(profile, { mediaId: row.mediaId });
+    //   if (!media.imageUrl && !media.videoUrl) continue;
+    //   try {
+    //     // ig.publishMediaPost directly, NOT executeInstagramPost — that helper
+    //     // inserts a NEW calendar row; here the row exists and just flips status.
+    //     await ig.publishMediaPost(conn, { ...media, caption: row.post_text });
+    //     db.calendar.setStatus(row.id, 'posted');
+    //     scheduleNextOccurrence(row);
+    //     posted += 1;
+    //   } catch (err) {
+    //     db.calendar.setStatus(row.id, 'failed');
+    //     console.warn(`Scheduled instagram post ${row.id} failed:`, err.message);
+    //     failed += 1;
+    //   }
+    //   continue;
+    // }
 
     if (row.platform === 'telegram') {
       // Flag off, or the profile hasn't linked a chat yet: leave it scheduled so

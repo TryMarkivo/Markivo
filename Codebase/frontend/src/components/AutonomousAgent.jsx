@@ -12,6 +12,8 @@ const KIND_META = {
   approval_created: { icon: 'fa-circle-check', key: 'approval_created', fallback: 'Queued for your approval' },
   skipped: { icon: 'fa-circle-pause', key: 'skipped', fallback: 'Paused' },
   error: { icon: 'fa-triangle-exclamation', key: 'error', fallback: 'Error' },
+  context_needed: { icon: 'fa-circle-question', key: 'context_needed', fallback: 'Needs more context' },
+  context_answered: { icon: 'fa-comment-dots', key: 'context_answered', fallback: 'You answered Autopilot' },
 };
 
 const FREQUENCIES = ['daily', 'weekly', 'test'];
@@ -33,20 +35,27 @@ export default function AutonomousAgent({ activeProfile }) {
   const [saved, setSaved] = useState({ enabled: false, platforms: [], frequency: 'daily', autoPublish: true });
   const [form, setForm] = useState({ enabled: false, platforms: [], frequency: 'daily', autoPublish: true });
 
+  // Autopilot's open "I need more context" question, if it paused on one.
+  const [contextRequest, setContextRequest] = useState(null);
+  const [contextAnswer, setContextAnswer] = useState('');
+  const [answering, setAnswering] = useState(false);
+
   // Load the current config + connectable channels + activity on mount.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [status, connect] = await Promise.all([
+        const [status, connect, ctx] = await Promise.all([
           api.get('/api/autonomous/status'),
           api.get('/api/connect/status').catch(() => ({ catalogue: [] })),
+          api.get('/api/autonomous/context-request').catch(() => ({ request: null })),
         ]);
         if (cancelled) return;
         setLoadError('');
         setFeatureEnabled(status.enabled !== false);
         setCatalogue(connect.catalogue || []);
         setActivity(status.activity || []);
+        setContextRequest(ctx.request || null);
         const cfg = {
           enabled: !!status.config?.enabled,
           platforms: (status.config?.platforms || []).slice().sort(),
@@ -102,14 +111,45 @@ export default function AutonomousAgent({ activeProfile }) {
     setNotice('');
     setNoticeError(false);
     try {
-      const { activity: fresh } = await api.post('/api/autonomous/run', {});
+      const { activity: fresh, result } = await api.post('/api/autonomous/run', {});
       if (fresh) setActivity(fresh);
-      setNotice(t('autopilot.ranNow', 'Autopilot ran — see the activity below.'));
+
+      // The run may have stopped on the context gate rather than posting —
+      // surface the question straight away instead of a misleading success note.
+      if (result && result.paused === 'needs-context') {
+        const ctx = await api.get('/api/autonomous/context-request').catch(() => ({ request: null }));
+        setContextRequest(ctx.request || null);
+        setNotice(t('autopilot.context.paused', 'Autopilot needs a bit more context before it can post.'));
+      } else {
+        setNotice(t('autopilot.ranNow', 'Autopilot ran — see the activity below.'));
+      }
     } catch (err) {
       setNotice(err.message || t('autopilot.runError', "Couldn't run Autopilot."));
       setNoticeError(true);
     } finally {
       setRunning(false);
+    }
+  };
+
+  // Answer the open context question. This is what unblocks a paused Autopilot.
+  const answerContext = async () => {
+    const answer = contextAnswer.trim();
+    if (!answer || answering) return;
+    setAnswering(true);
+    setNotice('');
+    setNoticeError(false);
+    try {
+      await api.post('/api/autonomous/context-request/answer', { answer, requestId: contextRequest?.id });
+      setContextRequest(null);
+      setContextAnswer('');
+      setNotice(t('autopilot.context.thanks', 'Thanks — Autopilot will use that on its next run.'));
+      const fresh = await api.get('/api/autonomous/activity').catch(() => null);
+      if (fresh?.activity) setActivity(fresh.activity);
+    } catch (err) {
+      setNotice(err.message || t('autopilot.context.answerError', "Couldn't save your answer."));
+      setNoticeError(true);
+    } finally {
+      setAnswering(false);
     }
   };
 
@@ -143,6 +183,53 @@ export default function AutonomousAgent({ activeProfile }) {
       </div>
 
       {loadError && <div className="ap-error">{loadError}</div>}
+
+      {/* CONTEXT GATE — Autopilot stopped rather than publish a generic ad.
+          First thing the owner sees, because nothing else runs until it clears. */}
+      {contextRequest && (
+        <div className="glass-card ap-context-banner" role="status">
+          <div className="ap-context-head">
+            <i className="fa-solid fa-circle-question ap-context-icon"></i>
+            <div>
+              <h4>{t('autopilot.context.title', 'Autopilot paused — it needs a bit more context')}</h4>
+              <p className="text-muted">
+                {contextRequest.rationale
+                  || t('autopilot.context.blurb', "Markiv doesn't know enough about your channel yet to write something worth posting, so it stopped instead of publishing a generic ad.")}
+              </p>
+            </div>
+          </div>
+
+          {contextRequest.questions?.length > 0 && (
+            <ul className="ap-context-questions">
+              {contextRequest.questions.map((q, i) => <li key={i}>{q}</li>)}
+            </ul>
+          )}
+
+          <label className="form-label" htmlFor="inp_ap_context">{t('autopilot.context.answerLabel', 'Your answer')}</label>
+          <textarea
+            id="inp_ap_context"
+            className="input-field ap-context-input"
+            rows={3}
+            value={contextAnswer}
+            onChange={(e) => setContextAnswer(e.target.value)}
+            maxLength={2000}
+            disabled={answering}
+            placeholder={t('autopilot.context.answerPh', 'e.g. We want more weekday-morning customers — a discount post that gets people to walk in before 11am.')}
+          />
+
+          <div className="ap-context-actions">
+            <button
+              className="btn btn-primary"
+              id="btn_ap_context_answer"
+              onClick={answerContext}
+              disabled={answering || !contextAnswer.trim()}
+            >
+              {answering ? t('autopilot.context.sending', 'Sending…') : t('autopilot.context.send', 'Send to Autopilot')}
+            </button>
+            <span className="ap-context-hint">{t('autopilot.context.hint', 'Autopilot remembers this — you only answer once.')}</span>
+          </div>
+        </div>
+      )}
 
       {/* MASTER ENABLE */}
       <div className="glass-card ap-toggle-card">

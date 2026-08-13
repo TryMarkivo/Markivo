@@ -380,6 +380,17 @@
   margin-bottom: 20px;
 }
 
+/* DISABLED: SEO/Meta temporarily off — see 2026-08-13 — the shared
+   selector lists below are split so .ai-search-panel keeps its styling. */
+.ai-search-panel {
+  padding: 24px;
+}
+
+.ai-search-panel h3 {
+  font-size: 1.1rem;
+}
+
+/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
 .seo-panel, .ai-search-panel {
   padding: 24px;
 }
@@ -387,7 +398,10 @@
 .seo-panel h3, .ai-search-panel h3 {
   font-size: 1.1rem;
 }
+*/
 
+/* DISABLED: SEO/Meta temporarily off — see 2026-08-13 — Local SEO Rankings panel styles. */
+/*
 .keywords-list {
   display: flex;
   flex-direction: column;
@@ -435,6 +449,7 @@
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+*/
 
 /* AI Ring score */
 .ai-score-ring-wrap {

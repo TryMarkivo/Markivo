@@ -20,6 +20,9 @@
 // is lost — the scheduled-post worker delivers it once the channel is ready.
 // ==========================================================================
 
+const autopilotContext = require('./autopilotContext');
+const geminiDefault = require('./gemini');
+
 const FREQ_MS = {
   test: 60 * 1000, // 1 minute — for demos and tests
   daily: 24 * 60 * 60 * 1000,
@@ -44,7 +47,7 @@ function withinBudget(db, config, userId, tier) {
 // Run Autopilot once for a single profile. Returns a small summary object.
 // `force` (manual "Run now") bypasses the dueness claim; worker-initiated runs
 // must win an atomic claim so overlapping ticks can't double-run a profile.
-async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}, profileId, nowMs = Date.now(), force = false }) {
+async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}, gemini = geminiDefault, profileId, nowMs = Date.now(), force = false }) {
   const profile = db.profiles.findById(profileId);
   const cfg = db.autonomous.getConfig(profileId);
   if (!profile || !cfg || !cfg.enabled) return { skipped: 'not-enabled' };
@@ -75,10 +78,24 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   const connected = new Set(db.connections.listByProfile(profileId).map((c) => c.platform));
   if (db.telegram.findByProfile(profileId)) connected.add('telegram');
   let platforms = (cfg.platforms || []).filter((p) => connected.size === 0 || connected.has(p));
-  if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['meta_instagram'];
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['meta_instagram'];
+  if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['tiktok'];
 
   const recentPosts = db.calendar.listByProfile(profileId).slice(-5).map((p) => p.post_text).filter(Boolean);
   const competitors = db.competitors.listByProfile(profileId).filter((c) => c.source === 'manual' || c.source === 'places').slice(0, 5).map((c) => c.competitor_name).filter(Boolean);
+
+  // CONTEXT GATE — a distinct, testable step, not a line in the generation
+  // prompt. Autopilot must not fire off a generic ad: before spending anything
+  // we check whether this channel actually gives us enough to say something
+  // worth saying. If it does not, the run HALTS here and the owner is asked.
+  // Runs BEFORE db.usage.record below, so a paused run costs the owner nothing.
+  // (The assessment itself is a cheap Flash call and is not metered, the same
+  // way the onboarding brand brief isn't.)
+  const gate = await autopilotContext.ensureContext({ db, gemini, profileId, platforms, nowMs });
+  if (!gate.ok) {
+    return { paused: 'needs-context', reason: gate.reason, requestId: gate.request ? gate.request.id : null };
+  }
 
   // One analyze+generate call counts as one AI generation against the allowance.
   if (user) db.usage.record({ userId: user.id, kind: 'autonomous' });
@@ -95,6 +112,11 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
       location: profile.location,
       recentPosts,
       competitors,
+      // The stored per-business context cell plus whatever the owner told us
+      // when Autopilot last asked, so generation is grounded in THIS business.
+      businessContext: gate.context.businessContext,
+      userContext: gate.context.userContext,
+      adType: gate.context.adType,
     });
   } catch (err) {
     db.autonomous.logActivity({ profileId, kind: 'error', summary: `Analysis failed: ${err.message}` });
@@ -128,11 +150,14 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
 
   for (let i = 0; i < plan.posts.length; i += 1) {
     const post = plan.posts[i];
-    const platform = String(post.platform || 'meta_instagram').toLowerCase();
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // const platform = String(post.platform || 'meta_instagram').toLowerCase();
+    const platform = String(post.platform || 'tiktok').toLowerCase();
 
     // Guard against a live model returning a platform key we can't act on (e.g.
-    // 'instagram' instead of 'meta_instagram'). Such a post would otherwise
-    // become an orphaned scheduled row or an un-executable approval. Skip it.
+    // a bare 'instagram', or a Meta key while Meta is disabled). Such a post
+    // would otherwise become an orphaned scheduled row or an un-executable
+    // approval. Skip it.
     if (platform !== 'telegram' && !connectors.get(platform)) {
       errors += 1;
       db.autonomous.logActivity({ profileId, kind: 'error', summary: `Skipped a post for unknown channel "${platform}".` });
@@ -183,12 +208,12 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
 
 // Scan for all due Autopilot profiles and run each. Called on an interval by the
 // server, and on demand by tests.
-async function runAutonomousTick({ db, ai, connectors, config, publishers, now = Date.now() }) {
+async function runAutonomousTick({ db, ai, connectors, config, publishers, gemini, now = Date.now() }) {
   const due = db.autonomous.dueProfiles(new Date(now).toISOString());
   const results = [];
   for (const profileId of due) {
     try {
-      results.push({ profileId, ...(await runProfileAutopilot({ db, ai, connectors, config, publishers, profileId, nowMs: now })) });
+      results.push({ profileId, ...(await runProfileAutopilot({ db, ai, connectors, config, publishers, gemini, profileId, nowMs: now })) });
     } catch (err) {
       db.autonomous.logActivity({ profileId, kind: 'error', summary: err.message });
       results.push({ profileId, error: err.message });

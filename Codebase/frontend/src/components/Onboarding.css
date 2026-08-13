@@ -230,7 +230,9 @@
 }
 
 .google { background: var(--surface-2); color: var(--text-primary); }
+/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
 .instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #fff; }
+*/
 .telegram { background: #0088cc; color: #fff; }
 .tiktok { background: #010101; color: #fff; border: 1px solid #25f4ee; }
 
@@ -562,11 +564,11 @@
   flex-wrap: wrap;
 }
 
-.shape-btn, .icon-btn {
+.icon-btn {
   text-transform: capitalize;
 }
 
-.shape-btn.active, .icon-btn.active {
+.icon-btn.active {
   background: var(--accent-primary);
   color: #000;
   border-color: var(--accent-primary);
@@ -626,10 +628,8 @@
   transition: var(--transition-normal);
 }
 
+/* Circle is the only emblem shape — the shape picker was removed. */
 .logo-canvas-shape.circle { border-radius: 50%; }
-.logo-canvas-shape.square { border-radius: 8px; }
-.logo-canvas-shape.hexagon { clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); border-radius: 0; }
-.logo-canvas-shape.shield { clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 100%, 0 50%); border-radius: 0; }
 
 .logo-canvas-icon {
   font-size: 1.8rem;

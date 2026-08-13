@@ -311,6 +311,43 @@ module.exports = function createDb(dbPath) {
       created_at TEXT NOT NULL
     );
 
+    -- Autopilot's "I need more context before I write this" halt. When the
+    -- channel assessment (autopilotContext.js) cannot name a concrete ad/post to
+    -- make, the run stops and one PENDING row is written here carrying the
+    -- questions to put to the owner. Their answer is durable business knowledge,
+    -- so it is kept and re-read on every later run — not consumed once.
+    CREATE TABLE IF NOT EXISTS autopilot_context_requests (
+      id          TEXT PRIMARY KEY,
+      profile_id  TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      status      TEXT NOT NULL DEFAULT 'pending',  -- 'pending'|'answered'|'superseded'|'expired'
+      questions   TEXT,                             -- JSON array of strings
+      rationale   TEXT,                             -- why context was judged insufficient
+      ad_type     TEXT,                             -- the ad/post kind the assessor proposed
+      answer      TEXT,                             -- the owner's free-text reply
+      answered_at TEXT,
+      source      TEXT,                             -- 'gemini' | 'heuristic'
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT
+    );
+
+    -- The per-business "memory cell". One row per profile (UNIQUE) holding the
+    -- distilled context Gemini derives from the owner's profile at creation
+    -- time. Gemini's API is stateless per call, so "memory" means: we store the
+    -- distillation ourselves and re-inject it into every later prompt for THIS
+    -- business. Keyed by profile_id so one business's context can never leak
+    -- into another's generation.
+    CREATE TABLE IF NOT EXISTS business_contexts (
+      id             TEXT PRIMARY KEY,
+      profile_id     TEXT NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
+      summary        TEXT,   -- what the business does, distilled
+      tone           TEXT,   -- voice/tone, normalized
+      audience       TEXT,   -- who it is for
+      selling_points TEXT,   -- JSON array of strings
+      source         TEXT,   -- 'gemini' | 'template'
+      created_at     TEXT NOT NULL,
+      updated_at     TEXT
+    );
+
     -- Data-deletion request log. Meta's data-deletion callback must hand the
     -- user a confirmation code they can quote back to check progress, so a
     -- request has to outlive the account it erased — this table therefore has
@@ -346,6 +383,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_instagram_profile ON instagram_connections(profile_id);
     CREATE INDEX IF NOT EXISTS idx_templates_profile_platform ON content_templates(profile_id, platform);
     CREATE INDEX IF NOT EXISTS idx_metric_history_lookup ON metric_history(profile_id, metric, day);
+    CREATE INDEX IF NOT EXISTS idx_autopilot_ctx_profile ON autopilot_context_requests(profile_id, status, created_at);
   `);
 
   // Additive migrations for databases created before a column existed.
@@ -478,6 +516,19 @@ module.exports = function createDb(dbPath) {
   const mapAutoActivity = (r) => r && {
     id: r.id, profileId: r.profile_id, kind: r.kind, summary: r.summary,
     payload: r.payload ? JSON.parse(r.payload) : null, created_at: r.created_at,
+  };
+  const mapContextRequest = (r) => r && {
+    id: r.id, profileId: r.profile_id, status: r.status,
+    questions: r.questions ? JSON.parse(r.questions) : [],
+    rationale: r.rationale, adType: r.ad_type,
+    answer: r.answer, answeredAt: r.answered_at, source: r.source,
+    created_at: r.created_at, updated_at: r.updated_at,
+  };
+  const mapBusinessContext = (r) => r && {
+    id: r.id, profileId: r.profile_id, summary: r.summary, tone: r.tone,
+    audience: r.audience,
+    sellingPoints: r.selling_points ? JSON.parse(r.selling_points) : [],
+    source: r.source, created_at: r.created_at, updated_at: r.updated_at,
   };
 
   return {
@@ -807,22 +858,27 @@ module.exports = function createDb(dbPath) {
       },
     },
 
-    keywords: {
-      add(k) {
-        const row = {
-          id: id(), profile_id: k.profileId, keyword_phrase: k.keywordPhrase,
-          avg_position: k.avgPosition, volume: k.volume,
-        };
-        sqlite.prepare(
-          `INSERT INTO keywords (id, profile_id, keyword_phrase, avg_position, volume)
-           VALUES (@id, @profile_id, @keyword_phrase, @avg_position, @volume)`
-        ).run(row);
-        return mapKeyword(row);
-      },
-      listByProfile(profileId) {
-        return sqlite.prepare('SELECT * FROM keywords WHERE profile_id = ?').all(profileId).map(mapKeyword);
-      },
-    },
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // The in-product SEO keyword feature is off, so nothing calls these. The
+    // `keywords` CREATE TABLE, its index and mapKeyword stay LIVE so existing
+    // databases keep their shape and re-enabling is a pure uncomment.
+    keywords: {},
+    // keywords: {
+    //   add(k) {
+    //     const row = {
+    //       id: id(), profile_id: k.profileId, keyword_phrase: k.keywordPhrase,
+    //       avg_position: k.avgPosition, volume: k.volume,
+    //     };
+    //     sqlite.prepare(
+    //       `INSERT INTO keywords (id, profile_id, keyword_phrase, avg_position, volume)
+    //        VALUES (@id, @profile_id, @keyword_phrase, @avg_position, @volume)`
+    //     ).run(row);
+    //     return mapKeyword(row);
+    //   },
+    //   listByProfile(profileId) {
+    //     return sqlite.prepare('SELECT * FROM keywords WHERE profile_id = ?').all(profileId).map(mapKeyword);
+    //   },
+    // },
 
     calendar: {
       add(post) {
@@ -1408,6 +1464,98 @@ module.exports = function createDb(dbPath) {
       listActivity(profileId, limit = 30) {
         return sqlite.prepare('SELECT * FROM autonomous_activity WHERE profile_id = ? ORDER BY created_at DESC LIMIT ?')
           .all(profileId, limit).map(mapAutoActivity);
+      },
+
+      // --- Context requests (Autopilot's "ask the owner" interrupt) ---
+      // One live question at a time: a fresh assessment supersedes the old ask
+      // so the owner never faces a stack of stale questions.
+      createContextRequest({ profileId, questions, rationale, adType, source }) {
+        sqlite.prepare(
+          `UPDATE autopilot_context_requests SET status = 'superseded', updated_at = ?
+           WHERE profile_id = ? AND status = 'pending'`
+        ).run(now(), profileId);
+        const row = {
+          id: id(), profile_id: profileId, status: 'pending',
+          questions: JSON.stringify(Array.isArray(questions) ? questions : []),
+          rationale: rationale == null ? null : String(rationale),
+          ad_type: adType == null ? null : String(adType),
+          answer: null, answered_at: null, source: source || null,
+          created_at: now(), updated_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO autopilot_context_requests
+             (id, profile_id, status, questions, rationale, ad_type, answer, answered_at, source, created_at, updated_at)
+           VALUES (@id, @profile_id, @status, @questions, @rationale, @ad_type, @answer, @answered_at, @source, @created_at, @updated_at)`
+        ).run(row);
+        return mapContextRequest(row);
+      },
+      pendingContextRequest(profileId) {
+        return mapContextRequest(sqlite.prepare(
+          `SELECT * FROM autopilot_context_requests WHERE profile_id = ? AND status = 'pending'
+           ORDER BY created_at DESC LIMIT 1`
+        ).get(profileId)) || null;
+      },
+      latestAnsweredContext(profileId) {
+        return mapContextRequest(sqlite.prepare(
+          `SELECT * FROM autopilot_context_requests WHERE profile_id = ? AND status = 'answered'
+           ORDER BY answered_at DESC LIMIT 1`
+        ).get(profileId)) || null;
+      },
+      // profile_id in the WHERE is the ownership check — never trust the id alone.
+      answerContextRequest({ profileId, requestId, answer }) {
+        const target = requestId
+          ? sqlite.prepare(`SELECT * FROM autopilot_context_requests WHERE id = ? AND profile_id = ? AND status = 'pending'`).get(requestId, profileId)
+          : sqlite.prepare(`SELECT * FROM autopilot_context_requests WHERE profile_id = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1`).get(profileId);
+        if (!target) return null;
+        const stamp = now();
+        sqlite.prepare(
+          `UPDATE autopilot_context_requests SET status = 'answered', answer = ?, answered_at = ?, updated_at = ? WHERE id = ?`
+        ).run(String(answer).slice(0, 2000), stamp, stamp, target.id);
+        return mapContextRequest(sqlite.prepare('SELECT * FROM autopilot_context_requests WHERE id = ?').get(target.id));
+      },
+      // An ignored question must not wedge Autopilot forever — the gate expires
+      // it after the TTL and re-assesses from scratch.
+      expireContextRequest(requestId) {
+        sqlite.prepare(`UPDATE autopilot_context_requests SET status = 'expired', updated_at = ? WHERE id = ?`)
+          .run(now(), requestId);
+      },
+      listContextRequests(profileId, limit = 10) {
+        return sqlite.prepare('SELECT * FROM autopilot_context_requests WHERE profile_id = ? ORDER BY created_at DESC LIMIT ?')
+          .all(profileId, limit).map(mapContextRequest);
+      },
+    },
+
+    // --- Per-business context cell (see businessContextService.js) ---
+    // Exactly one row per profile: UNIQUE(profile_id) is what makes this a
+    // "cell" rather than a pile of contexts, and what keeps one business's
+    // distilled context from ever being read for another.
+    businessContext: {
+      get(profileId) {
+        return mapBusinessContext(sqlite.prepare('SELECT * FROM business_contexts WHERE profile_id = ?').get(profileId)) || null;
+      },
+      upsert({ profileId, summary, tone, audience, sellingPoints, source }) {
+        const existing = sqlite.prepare('SELECT id FROM business_contexts WHERE profile_id = ?').get(profileId);
+        const p = {
+          profile_id: profileId,
+          summary: summary == null ? null : String(summary),
+          tone: tone == null ? null : String(tone),
+          audience: audience == null ? null : String(audience),
+          selling_points: JSON.stringify(Array.isArray(sellingPoints) ? sellingPoints : []),
+          source: source || null,
+          updated_at: now(),
+        };
+        if (existing) {
+          sqlite.prepare(
+            `UPDATE business_contexts SET summary=@summary, tone=@tone, audience=@audience,
+             selling_points=@selling_points, source=@source, updated_at=@updated_at WHERE profile_id=@profile_id`
+          ).run(p);
+        } else {
+          sqlite.prepare(
+            `INSERT INTO business_contexts (id, profile_id, summary, tone, audience, selling_points, source, created_at, updated_at)
+             VALUES (@id, @profile_id, @summary, @tone, @audience, @selling_points, @source, @created_at, @updated_at)`
+          ).run({ ...p, id: id(), created_at: now() });
+        }
+        return this.get(profileId);
       },
     },
   };

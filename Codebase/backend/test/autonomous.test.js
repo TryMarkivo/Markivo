@@ -13,6 +13,11 @@ process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 process.env.AUTONOMOUS_ENABLED = 'true';
 
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// These cases used 'meta_instagram' as the test platform. With the Meta
+// adapters out of the connector registry, they run against 'tiktok' instead —
+// same sandbox publish path (connectors/tiktok.js -> simulatedPublish), no
+// network. Swap back to 'meta_instagram' when Meta is re-enabled.
 const { app, db, runAutonomousTick } = require('../server');
 
 let server, base, access, profileId, userId;
@@ -54,16 +59,16 @@ after(() => {
 
 test('config: enabling Autopilot stores platforms and makes it due', async () => {
   const res = await put('/api/autonomous/config', {
-    enabled: true, platforms: ['meta_instagram'], frequency: 'test', autoPublish: true,
+    enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true,
   }, access);
   assert.equal(res.status, 200);
   const { config } = await res.json();
   assert.equal(config.enabled, true);
-  assert.deepEqual(config.platforms, ['meta_instagram']);
+  assert.deepEqual(config.platforms, ['tiktok']);
   assert.equal(config.autoPublish, true);
   // Bad platform keys are dropped by the validator.
-  const res2 = await put('/api/autonomous/config', { enabled: true, platforms: ['meta_instagram', 'not_a_platform'], frequency: 'test' }, access);
-  assert.deepEqual((await res2.json()).config.platforms, ['meta_instagram']);
+  const res2 = await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok', 'not_a_platform'], frequency: 'test' }, access);
+  assert.deepEqual((await res2.json()).config.platforms, ['tiktok']);
 });
 
 test('tick auto-publishes an organic post (sandbox) and never creates an ad', async () => {
@@ -72,7 +77,7 @@ test('tick auto-publishes an organic post (sandbox) and never creates an ad', as
 
   const posted = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted');
   assert.ok(posted.length >= 1, 'an organic post was published (sandbox-simulated)');
-  assert.ok(posted.some((p) => p.platform === 'meta_instagram'));
+  assert.ok(posted.some((p) => p.platform === 'tiktok'));
 
   // INVARIANT: Autopilot must never create or run a paid ad campaign.
   const approvals = db.approvals.listByProfile(profileId);
@@ -94,7 +99,7 @@ test('manual "Run now" publishes immediately and returns activity', async () => 
 test('queue mode creates PENDING organic approvals, never auto-approved', async () => {
   // Re-save config (enabling resets next_run_at to now, so it is due again).
   await put('/api/autonomous/config', {
-    enabled: true, platforms: ['meta_instagram', 'telegram'], frequency: 'test', autoPublish: false,
+    enabled: true, platforms: ['tiktok', 'telegram'], frequency: 'test', autoPublish: false,
   }, access);
 
   const before = db.approvals.listByProfile(profileId, 100).length;
@@ -112,7 +117,7 @@ test('queue mode creates PENDING organic approvals, never auto-approved', async 
 });
 
 test('a second overlapping tick does not double-run the same profile', async () => {
-  await put('/api/autonomous/config', { enabled: true, platforms: ['meta_instagram'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true }, access);
   const now = Date.now() + 20 * 60 * 1000; // safely past the cadence -> due
   const postedBefore = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted').length;
 
@@ -130,7 +135,7 @@ test('a second overlapping tick does not double-run the same profile', async () 
 test('Autopilot pauses when the monthly AI allowance is exhausted', async () => {
   // Disable then enable to deterministically re-arm next_run_at = now (due now).
   await put('/api/autonomous/config', { enabled: false }, access);
-  await put('/api/autonomous/config', { enabled: true, platforms: ['meta_instagram'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true }, access);
 
   // Exhaust the freemium allowance for this owner.
   const limit = require('../config').aiTierLimits.freemium;

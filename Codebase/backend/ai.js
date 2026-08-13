@@ -664,7 +664,14 @@ const SLOGAN_SCHEMA = {
   additionalProperties: false,
 };
 
+// Slogans are grounded in the business's STORED context cell when one exists
+// (`ctx.digest`, from businessContextService.contextDigest) rather than being
+// re-derived from raw profile columns. Same provider chain as generateContent:
+// Gemini -> keyless template -> Claude -> template on any failure.
 async function generateSlogans(ctx) {
+  const viaGemini = await gemini.generateSlogans({ digest: ctx.digest, businessName: ctx.businessName });
+  if (viaGemini) return viaGemini;
+
   if (!client) return templateSlogans(ctx);
   const { businessName, category, description, tone } = ctx;
   try {
@@ -676,6 +683,7 @@ async function generateSlogans(ctx) {
         {
           role: 'user',
           content:
+            (ctx.digest ? `${ctx.digest}\n\n` : '') +
             `Business: ${businessName || 'a local business'}\n` +
             `Category: ${category || 'general'}\n` +
             `Description: ${description || 'n/a'}\n` +

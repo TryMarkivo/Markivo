@@ -63,7 +63,9 @@ test('GET /api/connect/status lists EVERY platform with connect guidance', async
   const { catalogue, status } = await res.json();
 
   const keys = catalogue.map((c) => c.key);
-  assert.deepStrictEqual(keys, ['telegram', 'meta_instagram', 'meta_facebook', 'tiktok', 'google_business', 'youtube']);
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // assert.deepStrictEqual(keys, ['telegram', 'meta_instagram', 'meta_facebook', 'tiktok', 'google_business', 'youtube']);
+  assert.deepStrictEqual(keys, ['telegram', 'tiktok', 'google_business', 'youtube']);
 
   // Every entry carries what the Connections screen needs to explain itself.
   for (const c of catalogue) {
@@ -84,7 +86,8 @@ test('GET /api/connect/status still returns the catalogue with no profile', asyn
   const email = `nop${Date.now()}@markivo.uz`;
   const reg = await (await post('/api/auth/register', { email, password: 'secret123', fullName: 'No Profile' })).json();
   const data = await (await get('/api/connect/status', reg.accessToken)).json();
-  assert.strictEqual(data.catalogue.length, 6);
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13 (was 6 with Meta on)
+  assert.strictEqual(data.catalogue.length, 4);
   assert.deepStrictEqual(data.status, {});
 });
 

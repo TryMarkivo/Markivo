@@ -50,7 +50,22 @@
     "registerCta": "Зарегистрироваться",
     "fullNamePlaceholder": "напр. Алишер Усманов",
     "emailPlaceholder": "name@business.com",
-    "newToMarkivo": "Впервые в Markivo?"
+    "newToMarkivo": "Впервые в Markivo?",
+    "continue": "Продолжить",
+    "business": {
+      "title": "Расскажите о своём бизнесе",
+      "subtitle": "Markiv использует это, чтобы писать контент вашим голосом, а не шаблонным.",
+      "name": "Название бизнеса",
+      "namePlaceholder": "напр. Noir Cafe",
+      "category": "Отрасль / Категория",
+      "description": "Чем занимается ваш бизнес?",
+      "descriptionPlaceholder": "напр. Кофейня спешелти с тихой рабочей зоной на втором этаже.",
+      "audience": "Целевая аудитория",
+      "audiencePlaceholder": "напр. удалённые сотрудники и студенты",
+      "tone": "Тон общения",
+      "optional": "(необязательно)",
+      "finish": "Завершить настройку"
+    }
   },
   "usage": {
     "label": "ИИ-генерации",
@@ -136,10 +151,10 @@
       "contentText": "Советы по съёмке, автоулучшение фото и видео и ИИ-видео, адаптированное под каждую платформу.",
       "inboxTitle": "Агент для входящих",
       "inboxText": "Gmail с резюме, сортировкой и автоответами — и он учится на ваших ответах.",
-      "seoTitle": "SEO + ИИ-поиск",
-      "seoText": "Поднимайтесь в Google — и появляйтесь в ChatGPT и Perplexity, где теперь ищут ваши клиенты.",
       "intelTitle": "Разведка конкурентов",
-      "intelText": "Автоматически отслеживайте посты, рост и пробелы конкурентов — и получайте ходы для ответа."
+      "intelText": "Автоматически отслеживайте посты, рост и пробелы конкурентов — и получайте ходы для ответа.",
+      "_DISABLED_seoTitle": "SEO + ИИ-поиск",
+      "_DISABLED_seoText": "Поднимайтесь в Google — и появляйтесь в ChatGPT и Perplexity, где теперь ищут ваши клиенты."
     },
     "pricing": {
       "title": "Freemium, который конвертирует — три простых тарифа.",
@@ -257,7 +272,6 @@
       "step2Cta": "Перейти к логотипу",
       "step3Title": "Настройте логотип",
       "step3Subtitle": "Используйте свой логотип или позвольте нашему движку создать его под ваш бренд.",
-      "shapeLabel": "Форма эмблемы",
       "iconLabel": "Символ-иконка",
       "colorLabel": "Цветовые темы",
       "logoPreviewTitle": "Векторный SVG-макет",
@@ -332,12 +346,6 @@
       "playful": "Игривый и весёлый",
       "luxury": "Люксовый и премиальный"
     },
-    "shapes": {
-      "circle": "круг",
-      "square": "квадрат",
-      "hexagon": "шестиугольник",
-      "shield": "щит"
-    },
     "channels": {
       "googleTitle": "Google Business Profile",
       "googleOauth": "Подключите через OAuth, чтобы управлять своим бизнес-профилем",
@@ -401,11 +409,11 @@
       "logGoogle": "Настраиваем эндпоинты Google Business Profile...",
       "logInstagram": "Создаём структуру бизнес-профиля Instagram...",
       "logTelegram": "Настраиваем защищённого webhook-бота Telegram-канала...",
-      "logSeo": "Собираем семантические SEO-метаданные и ключевые теги Ташкента...",
       "logCalendar": "Планируем первые ИИ-черновики контент-календаря...",
       "statusSuccess": "УСПЕХ",
       "statusRunning": "ВЫПОЛНЯЕТСЯ",
-      "statusPending": "В ОЧЕРЕДИ"
+      "statusPending": "В ОЧЕРЕДИ",
+      "_DISABLED_logSeo": "Собираем семантические SEO-метаданные и ключевые теги Ташкента..."
     },
     "mockSlogans": {
       "cozy1": "Уютный уголок для вашего дня.",
@@ -469,18 +477,6 @@
       "changePositive": "+{{change}}%",
       "drillDown": "Показать подробную статистику {{platform}}"
     },
-    "seo": {
-      "title": "Локальные SEO-позиции",
-      "subtitle": "Как ваш бизнес ранжируется в поиске по Ташкенту",
-      "keywordCol": "Поисковый запрос",
-      "positionCol": "Сред. позиция",
-      "volumeCol": "Объём",
-      "volume": {
-        "high": "Высокий",
-        "medium": "Средний",
-        "veryHigh": "Очень высокий"
-      }
-    },
     "aiSearch": {
       "title": "Видимость в ИИ-поиске",
       "subtitle": "Как модели рекомендуют вас в обычных чат-запросах",
@@ -491,6 +487,18 @@
       "perplexityCitations": "Цитирования в Perplexity",
       "active": "Активно",
       "rankTop10": "Топ-10"
+    },
+    "_DISABLED_seo": {
+      "title": "Локальные SEO-позиции",
+      "subtitle": "Как ваш бизнес ранжируется в поиске по Ташкенту",
+      "keywordCol": "Поисковый запрос",
+      "positionCol": "Сред. позиция",
+      "volumeCol": "Объём",
+      "volume": {
+        "high": "Высокий",
+        "medium": "Средний",
+        "veryHigh": "Очень высокий"
+      }
     }
   },
   "contentEngine": {
@@ -717,10 +725,10 @@
       "refresh": "Обновить",
       "remove": "Удалить",
       "partial": "частично",
-      "partialHintInstagram": "Пока нет данных о постах — подключите свой Instagram в Настройках → Подключения (Meta), чтобы получать реальные подписи и вовлечённость, и убедитесь, что этот конкурент — публичный бизнес- или авторский аккаунт.",
       "partialHintNoApi": "Эта платформа публично показывает только данные профиля — без подписей и видео, поэтому она не может питать анализ трендов.",
       "partialHintGeneric": "Профиль найден, но посты прочитать не удалось — попробуйте «Обновить».",
-      "noFollowerData": "нет данных"
+      "noFollowerData": "нет данных",
+      "_DISABLED_partialHintInstagram": "Пока нет данных о постах — подключите свой Instagram в Настройках → Подключения (Meta), чтобы получать реальные подписи и вовлечённость, и убедитесь, что этот конкурент — публичный бизнес- или авторский аккаунт."
     },
     "addModal": {
       "title": "Добавить конкурента",
@@ -848,55 +856,6 @@
     "pillFinishSetup": "Telegram · завершите настройку",
     "pillConnect": "Telegram · подключить"
   },
-  "instagram": {
-    "setupTitle": "Подключить Instagram",
-    "intro": "Подключите бизнес-аккаунт Instagram, чтобы Markivo мог публиковать от вашего имени. Вы перейдёте в Meta для авторизации — это займёт около минуты.",
-    "step1": "Нажмите кнопку ниже — мы перенаправим вас на защищённый вход Meta.",
-    "step2": "Выберите страницу Facebook, связанную с вашим бизнес-аккаунтом Instagram, и разрешите доступ.",
-    "step3": "Вы вернётесь сюда уже подключённым. ✓",
-    "requirement": "Ваш Instagram должен быть аккаунтом <1>Business или Creator</1>, связанным со страницей Facebook.",
-    "connecting": "Переход в Meta…",
-    "connectCta": "Подключить Instagram ✦",
-    "doneTitle": "Instagram подключён!",
-    "doneText": "Подключено как <1>{{handle}}</1>.",
-    "yourAccount": "ваш аккаунт",
-    "disconnectCta": "Отключить",
-    "noticeConnected": "Instagram подключён ✓",
-    "noticeError": "Не удалось подключить Instagram — попробуйте ещё раз.",
-    "errors": {
-      "denied": "Подключение Instagram было отменено.",
-      "missing_code": "Instagram не вернул код авторизации. Попробуйте ещё раз.",
-      "bad_state": "Сессия подключения истекла. Попробуйте ещё раз.",
-      "no_profile": "Завершите онбординг перед подключением Instagram.",
-      "exchange_failed": "Meta отклонила подключение. Убедитесь, что ваш Instagram — бизнес-аккаунт, связанный со страницей Facebook.",
-      "not_configured": "Подключение Instagram ещё не настроено."
-    },
-    "pillTitleSoon": "Подключение Instagram скоро появится",
-    "pillTitleConnected": "Подключено как @{{username}}",
-    "pillTitleConnect": "Нажмите, чтобы подключить Instagram",
-    "pillSoon": "Instagram · скоро",
-    "pillConnected": "Instagram · @{{username}}",
-    "pillConnectedGeneric": "Instagram · подключён",
-    "pillConnect": "Instagram · подключить",
-    "createPostCta": "Создать публикацию",
-    "composer": {
-      "title": "Новая публикация в Instagram",
-      "hint": "Публикация в {{handle}}. Instagram требует медиа — используйте JPEG-изображение или MP4-видео (Reel). Максимум 8 МБ.",
-      "pick": "Выбрать изображение или видео",
-      "change": "Заменить файл",
-      "caption": "Подпись",
-      "captionPh": "Напишите подпись… #хештеги приветствуются",
-      "tooLarge": "Файл слишком большой — максимум 8 МБ.",
-      "uploading": "Загрузка…",
-      "publishing": "Публикация…",
-      "publishingVideo": "Публикация… (видео может занять минуту)",
-      "publish": "Опубликовать в Instagram ✦",
-      "publishedTitle": "Опубликовано в Instagram!",
-      "publishedTo": "Опубликовано в {{handle}}.",
-      "viewPost": "Открыть публикацию в Instagram ↗",
-      "another": "Опубликовать ещё"
-    }
-  },
   "settings": {
     "title": "Настройки",
     "saved": "Сохранено! Профиль бизнеса обновлён.",
@@ -976,7 +935,21 @@
       "post_scheduled": "Запланировал пост",
       "approval_created": "Отправлено на ваше одобрение",
       "skipped": "Приостановлено",
-      "error": "Ошибка"
+      "error": "Ошибка",
+      "context_needed": "Нужно больше контекста",
+      "context_answered": "Вы ответили Автопилоту"
+    },
+    "context": {
+      "title": "Автопилот приостановлен — ему нужно немного больше контекста",
+      "blurb": "Markiv пока недостаточно знает о вашем канале, чтобы написать что-то стоящее, поэтому он остановился вместо публикации шаблонной рекламы.",
+      "paused": "Автопилоту нужно больше контекста, прежде чем публиковать.",
+      "answerLabel": "Ваш ответ",
+      "answerPh": "напр. Хотим больше утренних будних клиентов — пост со скидкой, чтобы люди заходили до 11:00.",
+      "send": "Отправить Автопилоту",
+      "sending": "Отправка…",
+      "thanks": "Спасибо — Автопилот учтёт это при следующем запуске.",
+      "answerError": "Не удалось сохранить ваш ответ.",
+      "hint": "Автопилот это запомнит — ответить нужно только один раз."
     }
   },
   "templates": {
@@ -1066,7 +1039,6 @@
     "notReported": "нет данных",
     "engagementUnavailable": "нет данных о вовлечённости",
     "hasMedia": "Есть медиа",
-    "engagementNote": "Лайки и комментарии по каждому посту доступны только для подключённых аккаунтов Instagram Business или Creator. Этот канал их не предоставляет.",
     "stat": {
       "followers": "Подписчики",
       "following": "Подписки",
@@ -1084,6 +1056,57 @@
       "linkTelegram": "Привяжите канал Telegram, чтобы видеть количество участников в реальном времени.",
       "telegramError": "Telegram не ответил ({{error}}).",
       "noIntegration": "У этого канала пока нет живой интеграции, поэтому показано только то, что запланировал Markivo."
+    },
+    "_DISABLED_engagementNote": "Лайки и комментарии по каждому посту доступны только для подключённых аккаунтов Instagram Business или Creator. Этот канал их не предоставляет."
+  },
+  "_DISABLED_instagram": {
+    "setupTitle": "Подключить Instagram",
+    "intro": "Подключите бизнес-аккаунт Instagram, чтобы Markivo мог публиковать от вашего имени. Вы перейдёте в Meta для авторизации — это займёт около минуты.",
+    "step1": "Нажмите кнопку ниже — мы перенаправим вас на защищённый вход Meta.",
+    "step2": "Выберите страницу Facebook, связанную с вашим бизнес-аккаунтом Instagram, и разрешите доступ.",
+    "step3": "Вы вернётесь сюда уже подключённым. ✓",
+    "requirement": "Ваш Instagram должен быть аккаунтом <1>Business или Creator</1>, связанным со страницей Facebook.",
+    "connecting": "Переход в Meta…",
+    "connectCta": "Подключить Instagram ✦",
+    "doneTitle": "Instagram подключён!",
+    "doneText": "Подключено как <1>{{handle}}</1>.",
+    "yourAccount": "ваш аккаунт",
+    "disconnectCta": "Отключить",
+    "noticeConnected": "Instagram подключён ✓",
+    "noticeError": "Не удалось подключить Instagram — попробуйте ещё раз.",
+    "errors": {
+      "denied": "Подключение Instagram было отменено.",
+      "missing_code": "Instagram не вернул код авторизации. Попробуйте ещё раз.",
+      "bad_state": "Сессия подключения истекла. Попробуйте ещё раз.",
+      "no_profile": "Завершите онбординг перед подключением Instagram.",
+      "exchange_failed": "Meta отклонила подключение. Убедитесь, что ваш Instagram — бизнес-аккаунт, связанный со страницей Facebook.",
+      "not_configured": "Подключение Instagram ещё не настроено."
+    },
+    "pillTitleSoon": "Подключение Instagram скоро появится",
+    "pillTitleConnected": "Подключено как @{{username}}",
+    "pillTitleConnect": "Нажмите, чтобы подключить Instagram",
+    "pillSoon": "Instagram · скоро",
+    "pillConnected": "Instagram · @{{username}}",
+    "pillConnectedGeneric": "Instagram · подключён",
+    "pillConnect": "Instagram · подключить",
+    "createPostCta": "Создать публикацию",
+    "composer": {
+      "title": "Новая публикация в Instagram",
+      "hint": "Публикация в {{handle}}. Instagram требует медиа — используйте JPEG-изображение или MP4-видео (Reel). Максимум 8 МБ.",
+      "pick": "Выбрать изображение или видео",
+      "change": "Заменить файл",
+      "caption": "Подпись",
+      "captionPh": "Напишите подпись… #хештеги приветствуются",
+      "tooLarge": "Файл слишком большой — максимум 8 МБ.",
+      "uploading": "Загрузка…",
+      "publishing": "Публикация…",
+      "publishingVideo": "Публикация… (видео может занять минуту)",
+      "publish": "Опубликовать в Instagram ✦",
+      "publishedTitle": "Опубликовано в Instagram!",
+      "publishedTo": "Опубликовано в {{handle}}.",
+      "viewPost": "Открыть публикацию в Instagram ↗",
+      "another": "Опубликовать ещё"
     }
-  }
+  },
+  "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable."
 }

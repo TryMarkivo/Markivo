@@ -4,9 +4,10 @@
 // Commonly-documented caption limits as of writing; [UNVERIFIED] exact current
 // values — platforms change these without notice.
 export const PLATFORM_LIMITS = {
-  instagram: 2200,
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // instagram: 2200,
+  // meta_facebook: 63206,
   telegram: 4096,
-  meta_facebook: 63206,
   tiktok: 2200,
   google_business: 1500,
   youtube: 5000,

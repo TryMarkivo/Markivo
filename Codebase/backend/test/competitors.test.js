@@ -22,7 +22,8 @@ delete process.env.YOUTUBE_DATA_API_KEY;
 
 const competitorFetch = require('../competitorFetch');
 const competitorAnalytics = require('../competitorAnalytics');
-const metaConnector = require('../connectors/meta');
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// const metaConnector = require('../connectors/meta');
 const ai = require('../ai');
 const { validateAddCompetitor, validateCompetitorSource } = require('../validators');
 const { app } = require('../server');
@@ -77,56 +78,64 @@ test('fetchInstagram never throws on a network failure', async () => {
   assert.ok(result.error);
 });
 
-test('connectors/meta businessDiscovery parses the Graph API response and throws a ConnectorError on failure', async () => {
-  const ok = await metaConnector.businessDiscovery('caller_ig_id', 'rivalcafe', 'token_abc', {
-    fetchImpl: async (url) => {
-      const parsed = new URL(String(url));
-      assert.strictEqual(parsed.origin, 'https://graph.facebook.com');
-      assert.ok(parsed.searchParams.get('fields').includes('business_discovery.username(rivalcafe)'));
-      assert.strictEqual(parsed.searchParams.get('access_token'), 'token_abc');
-      return { ok: true, status: 200, json: async () => ({ business_discovery: { username: 'rivalcafe', followers_count: 500, media: { data: [] } } }) };
-    },
-  });
-  assert.strictEqual(ok.username, 'rivalcafe');
-  assert.strictEqual(ok.followers_count, 500);
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// Both cases below exercise Instagram Business Discovery, which is the only
+// source of real captions/engagement for a competitor. With connectors/meta.js
+// disabled there is no Graph call left to make, so they cannot pass. Restore
+// them together with connectors/meta.js.
+// test('connectors/meta businessDiscovery parses the Graph API response and throws a ConnectorError on failure', async () => {
+//   const ok = await metaConnector.businessDiscovery('caller_ig_id', 'rivalcafe', 'token_abc', {
+//     fetchImpl: async (url) => {
+//       const parsed = new URL(String(url));
+//       assert.strictEqual(parsed.origin, 'https://graph.facebook.com');
+//       assert.ok(parsed.searchParams.get('fields').includes('business_discovery.username(rivalcafe)'));
+//       assert.strictEqual(parsed.searchParams.get('access_token'), 'token_abc');
+//       return { ok: true, status: 200, json: async () => ({ business_discovery: { username: 'rivalcafe', followers_count: 500, media: { data: [] } } }) };
+//     },
+//   });
+//   assert.strictEqual(ok.username, 'rivalcafe');
+//   assert.strictEqual(ok.followers_count, 500);
+//
+//   await assert.rejects(
+//     () => metaConnector.businessDiscovery('caller_ig_id', 'rivalcafe', 'token_abc', {
+//       fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({ error: { message: 'target account has no permission' } }) }),
+//     }),
+//     /target account has no permission/
+//   );
+// });
+//
+// test('fetchInstagram uses real Business Discovery content when the caller has their own Instagram connected via Meta', async () => {
+//   const bdPayload = {
+//     business_discovery: {
+//       username: 'rivalcafe',
+//       name: 'Rival Cafe',
+//       followers_count: 8200,
+//       media_count: 150,
+//       media: {
+//         data: [
+//           { id: 'm1', caption: 'New seasonal menu!', media_type: 'VIDEO', media_url: 'https://x/v1.mp4', thumbnail_url: 'https://x/t1.jpg', timestamp: '2026-08-01T10:00:00+0000', like_count: 320, comments_count: 12 },
+//           { id: 'm2', caption: 'Morning brew', media_type: 'IMAGE', media_url: 'https://x/i2.jpg', timestamp: '2026-07-28T09:00:00+0000', like_count: 150, comments_count: 4 },
+//         ],
+//       },
+//     },
+//   };
+//   const fetchImpl = async () => ({ ok: true, status: 200, json: async () => bdPayload });
+//   const result = await competitorFetch.fetchCompetitorSource('instagram', 'https://instagram.com/rivalcafe', {
+//     fetchImpl, metaIgUserId: 'caller_ig_123', metaAccessToken: 'token_abc',
+//   });
+//   assert.strictEqual(result.found, true);
+//   assert.strictEqual(result.partial, false); // real content, not bio-only
+//   assert.strictEqual(result.followerCount, 8200);
+//   assert.strictEqual(result.posts.length, 2);
+//   assert.strictEqual(result.posts[0].kind, 'video');
+//   assert.strictEqual(result.posts[0].likeCount, 320);
+//   assert.strictEqual(result.posts[1].kind, 'photo');
+//   assert.strictEqual(result.posts[1].caption, 'Morning brew');
+// });
 
-  await assert.rejects(
-    () => metaConnector.businessDiscovery('caller_ig_id', 'rivalcafe', 'token_abc', {
-      fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({ error: { message: 'target account has no permission' } }) }),
-    }),
-    /target account has no permission/
-  );
-});
-
-test('fetchInstagram uses real Business Discovery content when the caller has their own Instagram connected via Meta', async () => {
-  const bdPayload = {
-    business_discovery: {
-      username: 'rivalcafe',
-      name: 'Rival Cafe',
-      followers_count: 8200,
-      media_count: 150,
-      media: {
-        data: [
-          { id: 'm1', caption: 'New seasonal menu!', media_type: 'VIDEO', media_url: 'https://x/v1.mp4', thumbnail_url: 'https://x/t1.jpg', timestamp: '2026-08-01T10:00:00+0000', like_count: 320, comments_count: 12 },
-          { id: 'm2', caption: 'Morning brew', media_type: 'IMAGE', media_url: 'https://x/i2.jpg', timestamp: '2026-07-28T09:00:00+0000', like_count: 150, comments_count: 4 },
-        ],
-      },
-    },
-  };
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => bdPayload });
-  const result = await competitorFetch.fetchCompetitorSource('instagram', 'https://instagram.com/rivalcafe', {
-    fetchImpl, metaIgUserId: 'caller_ig_123', metaAccessToken: 'token_abc',
-  });
-  assert.strictEqual(result.found, true);
-  assert.strictEqual(result.partial, false); // real content, not bio-only
-  assert.strictEqual(result.followerCount, 8200);
-  assert.strictEqual(result.posts.length, 2);
-  assert.strictEqual(result.posts[0].kind, 'video');
-  assert.strictEqual(result.posts[0].likeCount, 320);
-  assert.strictEqual(result.posts[1].kind, 'photo');
-  assert.strictEqual(result.posts[1].caption, 'Morning brew');
-});
-
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13 — the page scrape is now
+// the ONLY Instagram path, not a fallback, so the name below is historical.
+// The assertions are unchanged and still correct.
 test('fetchInstagram falls back to the page scrape when Business Discovery fails (e.g. target is a personal account)', async () => {
   const fetchImpl = async (url) => {
     if (String(url).startsWith('https://graph.facebook.com/')) {

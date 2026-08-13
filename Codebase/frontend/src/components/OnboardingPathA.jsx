@@ -32,7 +32,8 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
   // Checked statuses for platforms to connect
   const [connections, setConnections] = useState({
     googleBusiness: true,
-    instagram: true,
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // instagram: true,
     telegram: true,
     // Removed TikTok per MVP scope (Section 12)
   });
@@ -74,7 +75,8 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       // Pre-select only what the scan actually found — honesty over optimism.
       setConnections({
         googleBusiness: !!data.googleBusiness?.found,
-        instagram: !!data.instagram?.found,
+        // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+        // instagram: !!data.instagram?.found,
         // A comingSoon telegram detection is informational only — the integration is still gated.
         telegram: !!data.telegram?.found && !data.telegram?.comingSoon,
       });
@@ -352,44 +354,50 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
               </div>
             )}
 
-            {/* INSTAGRAM */}
-            {scanResults.instagram?.found ? (
-              <div className={`result-item glass-card ${connections.instagram ? 'active' : ''}`} onClick={() => handleConnectionToggle('instagram')} id="btn_verify_instagram">
+            {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                The Instagram scan-result card (found / not-found branches).
+                Inner markers neutralised so this block nests cleanly.
+
+                [/* INSTAGRAM *!/]
+                {scanResults.instagram?.found ? (
+                <div className={`result-item glass-card ${connections.instagram ? 'active' : ''}`} onClick={() => handleConnectionToggle('instagram')} id="btn_verify_instagram">
                 <div className="result-status">
-                  <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
-                  <div>
-                    <h4>
-                      {scanResults.instagram.source === 'website' && scanResults.instagram.handle
-                        ? atHandle(scanResults.instagram.handle)
-                        : t('onboarding.results.instagramTitle', 'Instagram Handle')}
-                    </h4>
-                    <p>{t('onboarding.channels.instagramOauth', 'Connect via OAuth to manage your Instagram account')}</p>
-                    {scanResults.instagram.source === 'website' && (
-                      <p className="result-meta">
-                        <i className="fa-solid fa-link"></i> {t('onboarding.results.foundViaWebsite', 'Detected from your website')}
-                      </p>
-                    )}
-                  </div>
+                <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
+                <div>
+                <h4>
+                {scanResults.instagram.source === 'website' && scanResults.instagram.handle
+                ? atHandle(scanResults.instagram.handle)
+                : t('onboarding.results.instagramTitle', 'Instagram Handle')}
+                </h4>
+                <p>{t('onboarding.channels.instagramOauth', 'Connect via OAuth to manage your Instagram account')}</p>
+                {scanResults.instagram.source === 'website' && (
+                <p className="result-meta">
+                <i className="fa-solid fa-link"></i> {t('onboarding.results.foundViaWebsite', 'Detected from your website')}
+                </p>
+                )}
+                </div>
                 </div>
                 <div className="checkbox-wrap">
-                  {connections.instagram ? (
-                    <i className="fa-solid fa-circle-check checked-icon"></i>
-                  ) : (
-                    <i className="fa-regular fa-circle unchecked-icon"></i>
-                  )}
+                {connections.instagram ? (
+                <i className="fa-solid fa-circle-check checked-icon"></i>
+                ) : (
+                <i className="fa-regular fa-circle unchecked-icon"></i>
+                )}
                 </div>
-              </div>
-            ) : (
-              <div className="result-item glass-card disabled" id="card_instagram_notfound">
+                </div>
+                ) : (
+                <div className="result-item glass-card disabled" id="card_instagram_notfound">
                 <div className="result-status">
-                  <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
-                  <div>
-                    <h4>{t('onboarding.results.instagramNotFoundTitle', 'Instagram not detected')}</h4>
-                    <p>{t('onboarding.results.instagramNotFoundText', 'No public account found automatically — you can connect it later from the dashboard.')}</p>
-                  </div>
+                <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
+                <div>
+                <h4>{t('onboarding.results.instagramNotFoundTitle', 'Instagram not detected')}</h4>
+                <p>{t('onboarding.results.instagramNotFoundText', 'No public account found automatically — you can connect it later from the dashboard.')}</p>
                 </div>
-              </div>
-            )}
+                </div>
+                </div>
+                )}
+
+            */}
 
             {/* TELEGRAM */}
             {scanResults.telegram?.found && scanResults.telegram?.comingSoon ? (

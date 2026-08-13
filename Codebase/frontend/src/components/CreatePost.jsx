@@ -43,7 +43,11 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
   const [initialPlatformApplied, setInitialPlatformApplied] = useState(!initialPlatform);
 
   const [tgStatus, setTgStatus] = useState(null);
-  const [igStatus, setIgStatus] = useState(null);
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // Was useState(null), resolved by an /api/instagram/status fetch. Seeded
+  // directly now so `loading` can still clear. setIgStatus is retained (unused)
+  // so restoring the fetch is a pure uncomment.
+  const [igStatus, setIgStatus] = useState({ connected: false }); // eslint-disable-line no-unused-vars
   const [catalogue, setCatalogue] = useState(null);
 
   const [selected, setSelected] = useState(editEvent ? [editEvent.platform] : []);
@@ -69,7 +73,11 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
 
   useEffect(() => {
     api.get('/api/telegram/status').then(setTgStatus).catch(() => setTgStatus({ connected: false }));
-    api.get('/api/instagram/status').then(setIgStatus).catch(() => setIgStatus({ connected: false }));
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // The route is gone. igStatus is initialised to { connected: false } at its
+    // declaration instead, because `loading` below waits on igStatus !== null —
+    // leaving it null here would hang the composer on its spinner forever.
+    // api.get('/api/instagram/status').then(setIgStatus).catch(() => setIgStatus({ connected: false }));
     api.get('/api/connect/status').then(setCatalogue).catch(() => setCatalogue({ catalogue: [], status: {} }));
   }, []);
 
@@ -116,16 +124,19 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
   const channels = useMemo(() => {
     if (loading) return [];
     const list = [];
-    if (igStatus?.connected) {
-      const m = metaFor('meta_instagram');
-      list.push({ key: 'instagram', label: 'Instagram', icon: m.icon, color: m.color, handle: igStatus.username ? `@${igStatus.username}` : igStatus.accountName });
-    }
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // if (igStatus?.connected) {
+    //   const m = metaFor('meta_instagram');
+    //   list.push({ key: 'instagram', label: 'Instagram', icon: m.icon, color: m.color, handle: igStatus.username ? `@${igStatus.username}` : igStatus.accountName });
+    // }
     if (tgStatus?.connected && tgStatus?.chat) {
       const m = metaFor('telegram');
       list.push({ key: 'telegram', label: 'Telegram', icon: m.icon, color: m.color, handle: tgStatus.chat.chatTitle });
     }
     for (const p of catalogue.catalogue || []) {
-      if (p.key === 'telegram' || p.key === 'meta_instagram') continue;
+      // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+      // if (p.key === 'telegram' || p.key === 'meta_instagram') continue;
+      if (p.key === 'telegram') continue;
       const s = catalogue.status[p.key];
       if (s?.connected) {
         const m = metaFor(p.key);
@@ -133,7 +144,9 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
       }
     }
     return list;
-  }, [loading, igStatus, tgStatus, catalogue]);
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13 (igStatus dropped
+    // from the deps with the Instagram channel it fed)
+  }, [loading, tgStatus, catalogue]);
 
   // A draft handed off from AI Generation or Edit Templates arrives with the
   // channel it was written for already known — pre-select it once, the
@@ -153,7 +166,9 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
     if (!editEvent) return null;
     const found = channels.find((c) => c.key === editEvent.platform);
     if (found) return found;
-    const m = metaFor(editEvent.platform === 'instagram' ? 'meta_instagram' : editEvent.platform);
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // const m = metaFor(editEvent.platform === 'instagram' ? 'meta_instagram' : editEvent.platform);
+    const m = metaFor(editEvent.platform);
     return { key: editEvent.platform, label: editEvent.platform, icon: m.icon, color: m.color, handle: null };
   }, [editEvent, channels]);
 
@@ -657,7 +672,12 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
                     const ch = editEvent ? editChannel : channels.find((c) => c.key === key);
                     const eff = effectiveFor(key);
                     const over = eff.text.length > limitFor(key);
-                    const kind = key === 'instagram' ? 'instagram' : key === 'telegram' ? 'telegram' : 'generic';
+                    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                    // The 'instagram' preview mock is unreachable now that no
+                    // Instagram channel can appear in `channels`. Its two JSX
+                    // branches below are left in place, guarded by this flag.
+                    // const kind = key === 'instagram' ? 'instagram' : key === 'telegram' ? 'telegram' : 'generic';
+                    const kind = key === 'telegram' ? 'telegram' : 'generic';
                     const media = eff.media && (
                       eff.media.kind === 'video'
                         ? <video src={api.mediaUrl(eff.media.url)} className="cp-preview-media" muted controls />

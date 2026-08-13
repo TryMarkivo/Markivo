@@ -5,8 +5,9 @@ import MediaStudio from './MediaStudio';
 import CompetitorIntel from './CompetitorIntel';
 import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
-import InstagramConnect from './InstagramConnect';
-import InstagramComposer from './InstagramComposer';
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// import InstagramConnect from './InstagramConnect';
+// import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
 import BusinessProfilePane from './BusinessProfilePane';
 import UpgradePane from './UpgradePane';
@@ -84,20 +85,22 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
-  const [igStatus, setIgStatus] = useState(null);
-  const [igModalOpen, setIgModalOpen] = useState(false);
-  const [igComposerOpen, setIgComposerOpen] = useState(false);
-  // Derive the OAuth round-trip notice once, from the URL the callback set us to
-  // (?instagram=connected|error&reason=…). A lazy initializer reads this external
-  // state during the first render; the effect below only handles side effects.
-  const [igNotice, setIgNotice] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const result = params.get('instagram');
-    if (!result) return '';
-    if (result === 'connected') return t('instagram.noticeConnected', 'Instagram connected ✓');
-    const reason = params.get('reason') || 'unknown';
-    return t(`instagram.errors.${reason}`, t('instagram.noticeError', 'Could not connect Instagram — please try again.'));
-  });
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // Instagram connect/composer/notice state.
+  // const [igStatus, setIgStatus] = useState(null);
+  // const [igModalOpen, setIgModalOpen] = useState(false);
+  // const [igComposerOpen, setIgComposerOpen] = useState(false);
+  // // Derive the OAuth round-trip notice once, from the URL the callback set us to
+  // // (?instagram=connected|error&reason=…). A lazy initializer reads this external
+  // // state during the first render; the effect below only handles side effects.
+  // const [igNotice, setIgNotice] = useState(() => {
+  //   const params = new URLSearchParams(window.location.search);
+  //   const result = params.get('instagram');
+  //   if (!result) return '';
+  //   if (result === 'connected') return t('instagram.noticeConnected', 'Instagram connected ✓');
+  //   const reason = params.get('reason') || 'unknown';
+  //   return t(`instagram.errors.${reason}`, t('instagram.noticeError', 'Could not connect Instagram — please try again.'));
+  // });
   const [usage, setUsage] = useState(null);
   const [statsOffline, setStatsOffline] = useState(false);
   // Which platform's drill-down is open, opened by clicking a metric's chart.
@@ -140,28 +143,32 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   };
   useEffect(refreshTelegramStatus, [activeProfile]);
 
-  const refreshInstagramStatus = () => {
-    api.get('/api/instagram/status')
-      .then(setIgStatus)
-      .catch(() => setIgStatus({ connected: false }));
-  };
-  useEffect(refreshInstagramStatus, [activeProfile]);
-
-  // Side effects for the OAuth return: refresh status on success, strip the
-  // query params, and auto-dismiss the notice. (The notice text itself is
-  // derived above, so nothing is set synchronously in this effect body.)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const result = params.get('instagram');
-    if (!result) return;
-    if (result === 'connected') refreshInstagramStatus();
-    params.delete('instagram');
-    params.delete('reason');
-    const qs = params.toString();
-    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
-    const timer = setTimeout(() => setIgNotice(''), 6000);
-    return () => clearTimeout(timer);
-  }, []);
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // Instagram status polling and the OAuth-return effect.
+  // igStatus stays declared below as a null constant so the remaining
+  // reads short-circuit cleanly.
+  // const refreshInstagramStatus = () => {
+  //   api.get('/api/instagram/status')
+  //     .then(setIgStatus)
+  //     .catch(() => setIgStatus({ connected: false }));
+  // };
+  // useEffect(refreshInstagramStatus, [activeProfile]);
+  //
+  // // Side effects for the OAuth return: refresh status on success, strip the
+  // // query params, and auto-dismiss the notice. (The notice text itself is
+  // // derived above, so nothing is set synchronously in this effect body.)
+  // useEffect(() => {
+  //   const params = new URLSearchParams(window.location.search);
+  //   const result = params.get('instagram');
+  //   if (!result) return;
+  //   if (result === 'connected') refreshInstagramStatus();
+  //   params.delete('instagram');
+  //   params.delete('reason');
+  //   const qs = params.toString();
+  //   window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+  //   const timer = setTimeout(() => setIgNotice(''), 6000);
+  //   return () => clearTimeout(timer);
+  // }, []);
 
   useEffect(() => {
     api.get('/api/usage').then(setUsage).catch(() => setUsage(null));
@@ -169,7 +176,9 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
   useEffect(() => {
     async function fetchStats() {
-      const cat = (activeProfile.category || 'business').toLowerCase();
+      // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+      // Only the seoKeywords offline fallback below used this.
+      // const cat = (activeProfile.category || 'business').toLowerCase();
       try {
         const data = await api.get('/api/dashboard/stats');
         setStats(data);
@@ -191,11 +200,12 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             { name: 'Coffee House Central', platformCount: 4, postsPerWeek: 10, rating: 4.6, followers: 4100 },
             { name: 'Local Roasters', platformCount: 2, postsPerWeek: 4, rating: 4.2, followers: 980 }
           ],
-          seoKeywords: [
-            { keyword_phrase: `best ${cat} in tashkent`, avg_position: 7, volume: 'High' },
-            { keyword_phrase: `${cat} workspace`, avg_position: 11, volume: 'Medium' },
-            { keyword_phrase: `${cat} near me`, avg_position: 15, volume: 'Very High' }
-          ],
+          // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+          // seoKeywords: [
+          //   { keyword_phrase: `best ${cat} in tashkent`, avg_position: 7, volume: 'High' },
+          //   { keyword_phrase: `${cat} workspace`, avg_position: 11, volume: 'Medium' },
+          //   { keyword_phrase: `${cat} near me`, avg_position: 15, volume: 'Very High' }
+          // ],
           aiPresence: {
             perplexityScore: 72,
             chatgptRank: 'Top 10',
@@ -221,11 +231,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const logoStyle = activeProfile.logo || { text: activeProfile.businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' };
 
   // Label maps for raw API/mock data values (fall back to raw value for unknown codes)
-  const volumeLabels = {
-    'High': t('dashboard.seo.volume.high', 'High'),
-    'Medium': t('dashboard.seo.volume.medium', 'Medium'),
-    'Very High': t('dashboard.seo.volume.veryHigh', 'Very High')
-  };
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // Only the Local SEO Rankings panel used these labels.
+  // const volumeLabels = {
+  //   'High': t('dashboard.seo.volume.high', 'High'),
+  //   'Medium': t('dashboard.seo.volume.medium', 'Medium'),
+  //   'Very High': t('dashboard.seo.volume.veryHigh', 'Very High')
+  // };
 
   // NOTE: the shell deliberately carries no fade animation. `fadeIn` runs with
   // `animation-fill-mode: forwards`, which leaves `transform: translateY(0)`
@@ -392,37 +404,45 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               {/* CONNECTED PLATFORMS */}
               <div className="channels-status-row">
                 <h3>{t('dashboard.activeInfrastructure', 'Your Active Infrastructure')}</h3>
-                {igNotice && (
-                  <div className="badge badge-success mb-10" style={{ display: 'block', padding: 8 }} role="status">{igNotice}</div>
-                )}
+                {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                    The Instagram OAuth-return notice banner.
+                    {igNotice && (
+                    <div className="badge badge-success mb-10" style={{ display: 'block', padding: 8 }} role="status">{igNotice}</div>
+                    )}
+                */}
                 <div className="channels-grid">
                   <div className={`channel-pill ${activeProfile.platforms.googleBusiness ? 'connected' : 'inactive'}`}>
                     <i className="fa-brands fa-google"></i> {t('dashboard.channels.google', 'Google Profile')}
                     <span className="dot"></span>
                   </div>
-                  <div
-                    className={`channel-pill ${igStatus?.connected ? 'connected' : 'inactive'}`}
-                    onClick={igStatus?.comingSoon ? undefined : () => setIgModalOpen(true)}
-                    style={{ cursor: igStatus?.comingSoon ? 'default' : 'pointer' }}
-                    title={
+                  {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                      The Instagram channel pill. Inner comment markers are
+                      neutralised so this block nests cleanly.
+
+                      <div
+                      className={`channel-pill ${igStatus?.connected ? 'connected' : 'inactive'}`}
+                      onClick={igStatus?.comingSoon ? undefined : () => setIgModalOpen(true)}
+                      style={{ cursor: igStatus?.comingSoon ? 'default' : 'pointer' }}
+                      title={
                       igStatus?.comingSoon
-                        ? t('instagram.pillTitleSoon', 'Instagram connection is coming soon')
-                        : igStatus?.connected
-                          ? t('instagram.pillTitleConnected', { defaultValue: 'Connected as @{{username}}', username: igStatus.username || igStatus.accountName || '' })
-                          : t('instagram.pillTitleConnect', 'Click to connect Instagram')
-                    }
-                    id="btn_instagram_pill"
-                  >
-                    <i className="fa-brands fa-instagram"></i>{' '}
-                    {igStatus?.comingSoon
+                      ? t('instagram.pillTitleSoon', 'Instagram connection is coming soon')
+                      : igStatus?.connected
+                      ? t('instagram.pillTitleConnected', { defaultValue: 'Connected as @{{username}}', username: igStatus.username || igStatus.accountName || '' })
+                      : t('instagram.pillTitleConnect', 'Click to connect Instagram')
+                      }
+                      id="btn_instagram_pill"
+                      >
+                      <i className="fa-brands fa-instagram"></i>[' ']
+                      {igStatus?.comingSoon
                       ? t('instagram.pillSoon', 'Instagram · soon')
                       : igStatus?.connected
-                        ? (igStatus.username
-                            ? t('instagram.pillConnected', { defaultValue: 'Instagram · @{{username}}', username: igStatus.username })
-                            : t('instagram.pillConnectedGeneric', 'Instagram · connected'))
-                        : t('instagram.pillConnect', 'Instagram · connect')}
-                    <span className="dot"></span>
-                  </div>
+                      ? (igStatus.username
+                      ? t('instagram.pillConnected', { defaultValue: 'Instagram · @{{username}}', username: igStatus.username })
+                      : t('instagram.pillConnectedGeneric', 'Instagram · connected'))
+                      : t('instagram.pillConnect', 'Instagram · connect')}
+                      <span className="dot"></span>
+                      </div>
+                  */}
                   <div
                     className={`channel-pill ${tgStatus?.connected && tgStatus?.chat ? 'connected' : 'inactive'}`}
                     onClick={tgStatus?.comingSoon ? undefined : () => setTgModalOpen(true)}
@@ -473,22 +493,26 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                   onDrill={() => setDetailPlatform('google')}
                 />
 
-                {/* INSTAGRAM FOLLOWERS */}
-                <StatCard
-                  id="btn_drill_instagram"
-                  label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
-                  platformName="Instagram"
-                  changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}
-                  value={stats.metrics.instagramFollowers.current.toLocaleString()}
-                  subtitle={`@${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`}
-                  color="var(--accent-purple)"
-                  history={stats.metrics.instagramFollowers.history}
-                  live={!!stats.metrics.instagramFollowers.live}
-                  connectable
-                  connected={!!igStatus?.connected}
-                  onConnect={() => setIgModalOpen(true)}
-                  onDrill={() => setDetailPlatform('instagram')}
-                />
+                {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                    Instagram Followers stat card. metrics.instagramFollowers is still
+                    returned by the API (dashboard payload contract) — only the card is gone.
+                    [/* INSTAGRAM FOLLOWERS *!/]
+                    <StatCard
+                    id="btn_drill_instagram"
+                    label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
+                    platformName="Instagram"
+                    changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}
+                    value={stats.metrics.instagramFollowers.current.toLocaleString()}
+                    subtitle={`@${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`}
+                    color="var(--accent-purple)"
+                    history={stats.metrics.instagramFollowers.history}
+                    live={!!stats.metrics.instagramFollowers.live}
+                    connectable
+                    connected={!!igStatus?.connected}
+                    onConnect={() => setIgModalOpen(true)}
+                    onDrill={() => setDetailPlatform('instagram')}
+                    />
+                */}
 
                 {/* TELEGRAM ACTIVE MEMBERS */}
                 <StatCard
@@ -509,31 +533,43 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               </div>
 
               {/* SEARCH PERFORMANCE ROW */}
-              <div className="grid-2 search-analytics-grid mt-30">
+              {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13 — grid-2 -> grid-1: with the SEO panel gone the AI Search panel would sit alone in a two-column row. */}
+              <div className="grid-1 search-analytics-grid mt-30">
                 
-                {/* SEO LOCAL KEYWORDS */}
-                <div className="seo-panel glass-card">
-                  <h3>{t('dashboard.seo.title', 'Local SEO Rankings')}</h3>
-                  <p className="panel-subtitle">{t('dashboard.seo.subtitle', 'How your business ranks in Tashkent search results')}</p>
+                {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                    The Local SEO Rankings panel. Commented out together with the
+                    backend seoKeywords payload (server.js) — stats.seoKeywords.map
+                    below was unguarded, so the two must move together.
+                    Inner comment markers are neutralised so this block nests. When
+                    re-enabling, restore them: "[/-star" back to a JSX comment open,
+                    "star-!/]" back to a JSX comment close, and "star-!/" back to a
+                    plain block-comment close.
 
-                  <div className="keywords-list">
+                    [/* SEO LOCAL KEYWORDS *!/]
+                    <div className="seo-panel glass-card">
+                    <h3>{t('dashboard.seo.title', 'Local SEO Rankings')}</h3>
+                    <p className="panel-subtitle">{t('dashboard.seo.subtitle', 'How your business ranks in Tashkent search results')}</p>
+
+                    <div className="keywords-list">
                     <div className="kw-header">
-                      <span>{t('dashboard.seo.keywordCol', 'Search Keyword')}</span>
-                      <span>{t('dashboard.seo.positionCol', 'Avg. Position')}</span>
-                      <span>{t('dashboard.seo.volumeCol', 'Volume')}</span>
+                    <span>{t('dashboard.seo.keywordCol', 'Search Keyword')}</span>
+                    <span>{t('dashboard.seo.positionCol', 'Avg. Position')}</span>
+                    <span>{t('dashboard.seo.volumeCol', 'Volume')}</span>
                     </div>
                     {stats.seoKeywords.map((kw, idx) => {
-                      const position = kw.avg_position ?? kw.position;
-                      return (
-                        <div key={idx} className="kw-row">
-                          <span className="kw-text">{kw.keyword_phrase || kw.keyword}</span>
-                          <span className={`kw-pos ${position <= 10 ? 'top-10' : ''}`}>#{position}</span>
-                          <span className="kw-volume">{volumeLabels[kw.volume] || kw.volume}</span>
-                        </div>
-                      );
+                    const position = kw.avg_position ?? kw.position;
+                    return (
+                    <div key={idx} className="kw-row">
+                    <span className="kw-text">{kw.keyword_phrase || kw.keyword}</span>
+                    <span className={`kw-pos ${position <= 10 ? 'top-10' : ''}`}>#{position}</span>
+                    <span className="kw-volume">{volumeLabels[kw.volume] || kw.volume}</span>
+                    </div>
+                    );
                     })}
-                  </div>
-                </div>
+                    </div>
+                    </div>
+
+                */}
 
                 {/* AI SEARCH PRESENCE INDEX */}
                 <div className="ai-search-panel glass-card">
@@ -634,24 +670,27 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         />
       )}
 
-      {/* --- INSTAGRAM CONNECT MODAL --- */}
-      {igModalOpen && (
-        <InstagramConnect
+      {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+          Instagram connect + composer modals.
+          [/* --- INSTAGRAM CONNECT MODAL --- *!/]
+          {igModalOpen && (
+          <InstagramConnect
           status={igStatus}
           onStatusChange={refreshInstagramStatus}
           onClose={() => setIgModalOpen(false)}
           onCompose={() => { setIgModalOpen(false); setIgComposerOpen(true); }}
-        />
-      )}
+          />
+          )}
 
-      {/* --- INSTAGRAM COMPOSER MODAL --- */}
-      {igComposerOpen && (
-        <InstagramComposer
+          [/* --- INSTAGRAM COMPOSER MODAL --- *!/]
+          {igComposerOpen && (
+          <InstagramComposer
           status={igStatus}
           onPosted={refreshInstagramStatus}
           onClose={() => setIgComposerOpen(false)}
-        />
-      )}
+          />
+          )}
+      */}
 
       {/* --- GENERIC CONNECT MODAL (e.g. Google Business, from a stat card's
            "Connect" hover button) --- */}

@@ -27,6 +27,9 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
     logoText: ''
   });
 
+  // `shape` is fixed at 'circle' — the emblem shape is no longer a user-facing
+  // option. It stays in the object because it is persisted in logoMetadata and
+  // read back by the dashboard's logo renderer.
   const [logoStyle, setLogoStyle] = useState({
     color: '#D4A373',
     bgColor: '#1A1816',
@@ -52,7 +55,8 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
   // Channels to create
   const [channels, setChannels] = useState({
     googleBusiness: true,
-    instagram: true,
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // instagram: true,
     telegram: true,
     // Removed TikTok and WhatsApp per MVP scope (Section 12)
     // tiktok: true,
@@ -74,16 +78,18 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       logs.push({ text: t('onboarding.pipeline.logGoogle', 'Configuring Google Business Profile endpoints...'), icon: 'fa-map-location-dot' });
     }
 
-    if (channels.instagram) {
-      logs.push({ text: t('onboarding.pipeline.logInstagram', 'Scaffolding Instagram Business profile structure...'), icon: 'fa-instagram' });
-    }
+    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+    // if (channels.instagram) {
+    //   logs.push({ text: t('onboarding.pipeline.logInstagram', 'Scaffolding Instagram Business profile structure...'), icon: 'fa-instagram' });
+    // }
 
     if (channels.telegram) {
       logs.push({ text: t('onboarding.pipeline.logTelegram', 'Establishing secure Telegram channel webhook bot...'), icon: 'fa-paper-plane' });
     }
 
     logs.push(
-      { text: t('onboarding.pipeline.logSeo', 'Compiling SEO semantic metadata and Tashkent keyword tags...'), icon: 'fa-tags' },
+      // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+      // { text: t('onboarding.pipeline.logSeo', 'Compiling SEO semantic metadata and Tashkent keyword tags...'), icon: 'fa-tags' },
       { text: t('onboarding.pipeline.logCalendar', 'Scheduling inaugural calendar AI post drafts...'), icon: 'fa-calendar-days' }
     );
 
@@ -218,14 +224,16 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
     reader.readAsDataURL(file);
   };
 
+  // Emblem shape is no longer a user-facing choice — every logo is a circle, so
+  // the presets only vary colour and icon.
   const triggerLogoPreset = (tone) => {
     const presets = {
       'Cozy & Warm': { color: '#D4A373', bgColor: '#1E1B18', shape: 'circle', icon: '☕' },
-      'Modern & Minimalist': { color: '#ffffff', bgColor: '#0f0f10', shape: 'square', icon: '✦' },
-      'Energetic & Fast-paced': { color: '#FF7F11', bgColor: '#0B0D1B', shape: 'hexagon', icon: '⚡' },
-      'Professional & Trustworthy': { color: '#3A86F0', bgColor: '#0E1726', shape: 'shield', icon: '🛡️' },
+      'Modern & Minimalist': { color: '#ffffff', bgColor: '#0f0f10', shape: 'circle', icon: '✦' },
+      'Energetic & Fast-paced': { color: '#FF7F11', bgColor: '#0B0D1B', shape: 'circle', icon: '⚡' },
+      'Professional & Trustworthy': { color: '#3A86F0', bgColor: '#0E1726', shape: 'circle', icon: '🛡️' },
       'Playful & Fun': { color: '#FF007F', bgColor: '#1A0E23', shape: 'circle', icon: '🎈' },
-      'Luxury & Premium': { color: '#E5C158', bgColor: '#0D0D0D', shape: 'shield', icon: '👑' }
+      'Luxury & Premium': { color: '#E5C158', bgColor: '#0D0D0D', shape: 'circle', icon: '👑' }
     };
     const sel = presets[tone] || presets['Cozy & Warm'];
     // Preserve a user-uploaded logo across tone changes; the AI svg is
@@ -666,22 +674,6 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">{t('onboarding.pathB.shapeLabel', 'Emblem Shape')}</label>
-                    <div className="flex-gap-8">
-                      {['circle', 'square', 'hexagon', 'shield'].map((shape) => (
-                        <button
-                          key={shape}
-                          type="button"
-                          className={`btn btn-secondary btn-sm shape-btn ${logoStyle.shape === shape ? 'active' : ''}`}
-                          onClick={() => setLogoStyle(p => ({ ...p, shape }))}
-                        >
-                          {t(`onboarding.shapes.${shape}`, shape)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="form-group">
                     <label className="form-label">{t('onboarding.pathB.iconLabel', 'Icon Symbol')}</label>
                     <div className="flex-gap-8">
                       {['☕', '✦', '⚡', '🛡️', '👑', '💄', '🍕', '💼'].map((symbol) => (
@@ -724,7 +716,7 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
                       />
                     ) : (
                       <>
-                        <div className={`logo-canvas-shape ${logoStyle.shape}`} style={{ borderColor: logoStyle.color, color: logoStyle.color }}>
+                        <div className="logo-canvas-shape circle" style={{ borderColor: logoStyle.color, color: logoStyle.color }}>
                           <span className="logo-canvas-icon">{logoStyle.icon}</span>
                         </div>
                         <h3 className="logo-canvas-text" style={{ color: logoStyle.color }}>{formData.logoText || formData.businessName}</h3>
@@ -768,19 +760,22 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               </div>
             </div>
 
-            {/* INSTAGRAM */}
-            <div className={`result-item glass-card ${channels.instagram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, instagram: !p.instagram }))} id="btn_select_instagram">
-              <div className="result-status">
+            {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                The Instagram channel card. Inner markers neutralised so this nests.
+
+                <div className={`result-item glass-card ${channels.instagram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, instagram: !p.instagram }))} id="btn_select_instagram">
+                <div className="result-status">
                 <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
                 <div>
-                  <h4>{t('onboarding.channels.instagramTitle', 'Instagram Creator Account')}</h4>
-                  <p>{t('onboarding.channels.instagramOauth', 'Connect via OAuth to manage your Instagram account')}</p>
+                <h4>{t('onboarding.channels.instagramTitle', 'Instagram Creator Account')}</h4>
+                <p>{t('onboarding.channels.instagramOauth', 'Connect via OAuth to manage your Instagram account')}</p>
                 </div>
-              </div>
-              <div className="checkbox-wrap">
+                </div>
+                <div className="checkbox-wrap">
                 <i className={`fa-solid ${channels.instagram ? 'fa-square-check checked-icon' : 'fa-square unchecked-icon'}`}></i>
-              </div>
-            </div>
+                </div>
+                </div>
+            */}
 
             {/* TELEGRAM */}
             <div className={`result-item glass-card ${channels.telegram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, telegram: !p.telegram }))} id="btn_select_telegram">

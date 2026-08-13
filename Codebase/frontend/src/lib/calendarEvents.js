@@ -34,12 +34,16 @@ export const toEditable = (ev) => ({
 });
 
 // Chip icon/colour for a day cell — Autopilot history gets a fixed robot
-// glyph; scheduled/posted rows resolve their real platform icon. 'instagram'
-// is the bespoke connection's key (not a connector-registry key), so it maps
-// to meta_instagram's visuals directly rather than falling through to the
-// generic share-icon fallback.
+// glyph; scheduled/posted rows resolve their real platform icon.
+//
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// 'instagram' (the bespoke connection's key) used to be aliased to
+// meta_instagram's visuals. With the Meta adapters gone there is nothing to
+// alias to, so any legacy instagram row falls through to the generic
+// share-icon fallback instead.
 export const chipMetaFor = (ev) => {
   if (isAutopilot(ev)) return { icon: 'fa-solid fa-robot', color: 'var(--accent-purple, #8338ec)' };
   const platform = ev.extendedProperties?.private?.platform || '';
-  return metaFor(platform === 'instagram' ? 'meta_instagram' : platform);
+  // return metaFor(platform === 'instagram' ? 'meta_instagram' : platform);
+  return metaFor(platform);
 };
