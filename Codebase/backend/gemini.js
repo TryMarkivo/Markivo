@@ -429,6 +429,195 @@ async function generateContent(ctx) {
 }
 
 // ===========================================================================
+// BUSINESS CONTEXT — the per-business memory cell
+// ===========================================================================
+//
+// Gemini's API is stateless per call, so there is no such thing as a Gemini-side
+// memory for a business. "Memory" here means: distil the owner's profile ONCE at
+// creation time, store that distillation ourselves keyed by business id (see
+// businessContextService.js), and re-inject it into every later prompt for that
+// business. This function is only the distillation step.
+
+const BUSINESS_CONTEXT_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    summary: { type: 'STRING' },
+    tone: { type: 'STRING' },
+    audience: { type: 'STRING' },
+    sellingPoints: { type: 'ARRAY', items: { type: 'STRING' } },
+  },
+  required: ['summary', 'tone', 'audience', 'sellingPoints'],
+  propertyOrdering: ['summary', 'tone', 'audience', 'sellingPoints'],
+};
+
+async function generateBusinessContext(profileData) {
+  if (!config.geminiEnabled) return null;
+  const { businessName, category, description, tone, audience, location } = profileData || {};
+
+  try {
+    const parsed = await callGemini({
+      // Low temperature: this is a distillation of what the owner already told
+      // us, not a creative act. Everything downstream reads from it, so drift
+      // here would compound across every generator.
+      temperature: 0.3,
+      maxTokens: 800,
+      system:
+        'You distil a small business into a compact working context that other ' +
+        'AI writers will rely on. Summarise ONLY what the owner actually told ' +
+        'you — never invent prices, hours, awards, locations, or numbers. If a ' +
+        'detail is missing, leave it out rather than guessing. Write the summary ' +
+        'as 2-3 plain sentences, the tone as a short phrase, the audience as one ' +
+        'sentence, and 3-5 concrete selling points. Respond as JSON only.',
+      user:
+        `Business name: ${businessName || 'a local business'}\n` +
+        `Category: ${category || 'general'}\n` +
+        `What the business does (owner's own words): ${description || 'n/a'}\n` +
+        `Stated tone/voice preference: ${tone || 'not specified'}\n` +
+        `Stated target audience: ${audience || 'not specified'}\n` +
+        `Location: ${location || 'not specified'}\n\n` +
+        'Produce the working context.',
+      schema: BUSINESS_CONTEXT_SCHEMA,
+    });
+    // A context with no summary is unusable downstream — treat it as a miss so
+    // the caller stores its deterministic template cell instead.
+    if (!parsed.summary) return null;
+    return {
+      summary: String(parsed.summary),
+      tone: String(parsed.tone || ''),
+      audience: String(parsed.audience || ''),
+      sellingPoints: (parsed.sellingPoints || []).filter(Boolean).map(String).slice(0, 6),
+    };
+  } catch (err) {
+    console.error('Gemini generateBusinessContext failed, falling back:', err.message);
+    return null;
+  }
+}
+
+// ===========================================================================
+// SLOGANS — grounded in the stored business context, not tone templates
+// ===========================================================================
+
+const SLOGAN_SCHEMA = {
+  type: 'OBJECT',
+  properties: { slogans: { type: 'ARRAY', items: { type: 'STRING' } } },
+  required: ['slogans'],
+  propertyOrdering: ['slogans'],
+};
+
+// `digest` is businessContextService.contextDigest(...) — the ONLY business
+// input. Passing the digest rather than raw profile columns is what keeps one
+// business's context from leaking into another's slogans.
+async function generateSlogans({ digest, businessName }) {
+  if (!config.geminiEnabled) return null;
+  if (!digest) return null; // no stored context yet — let the caller fall through
+
+  try {
+    const parsed = await callGemini({
+      maxTokens: 400,
+      temperature: 0.9,
+      system:
+        'You are a brand strategist. Generate exactly 3 short, memorable, ' +
+        'original brand slogans (max 6 words each) grounded in the business ' +
+        'context below. They must be specific to THIS business — reject anything ' +
+        'that would read the same for any company in the category. Never invent ' +
+        'prices, hours, or numbers. Respond as JSON only.',
+      user: `${digest}\n\nBusiness name: ${businessName || 'this business'}\n\nWrite the 3 slogans.`,
+      schema: SLOGAN_SCHEMA,
+    });
+    const slogans = (parsed.slogans || []).filter(Boolean).map(String).map((s) => s.trim()).filter(Boolean).slice(0, 3);
+    if (slogans.length !== 3) return null;
+    return slogans;
+  } catch (err) {
+    console.error('Gemini generateSlogans failed, falling back:', err.message);
+    return null;
+  }
+}
+
+// ===========================================================================
+// AUTOPILOT CONTEXT ASSESSMENT — "do we know enough to post right now?"
+// ===========================================================================
+//
+// This judges CONTEXT, not writing. It runs before Autopilot spends a
+// generation, so that a business we know nothing about gets a question rather
+// than a generic ad. See autopilotContext.js for the surrounding gate.
+
+const AD_CONTEXT_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    sufficient: { type: 'BOOLEAN' },
+    adType: { type: 'STRING' },
+    rationale: { type: 'STRING' },
+    questions: { type: 'ARRAY', items: { type: 'STRING' } },
+  },
+  required: ['sufficient', 'adType', 'rationale', 'questions'],
+  propertyOrdering: ['sufficient', 'adType', 'rationale', 'questions'],
+};
+
+const listOr = (arr, empty) => (Array.isArray(arr) && arr.length ? arr.join(', ') : empty);
+
+async function assessAdContext(signals) {
+  if (!config.geminiEnabled) return null;
+  const s = signals || {};
+  const profile = s.profile || {};
+  const bc = s.businessContext;
+
+  try {
+    const parsed = await callGemini({
+      // Near-deterministic: this is a judgement call that gates real publishing.
+      temperature: 0.2,
+      maxTokens: 800,
+      system:
+        "You decide whether Markivo's Autopilot knows enough about this business " +
+        'and its connected channel to write a promotional post that is right for ' +
+        'THIS moment — not a generic ad. Judge the CONTEXT, not the writing. Set ' +
+        'sufficient=true only when you can name a concrete adType that follows ' +
+        'from the evidence below (e.g. "weekday-morning offer for remote workers", ' +
+        '"new seasonal menu announcement"). If you cannot, set sufficient=false ' +
+        'and ask AT MOST 3 short, plain-language questions the owner can each ' +
+        'answer in one line — covering what kind of post they want right now, the ' +
+        'campaign goal, and the target action (visit / call / order / book / ' +
+        'follow). Never ask for anything already stated below. Respond as JSON only.',
+      user:
+        `Business: ${profile.businessName || 'unknown'}\n` +
+        `Category: ${profile.category || 'unknown'}\n` +
+        `Description: ${profile.description || 'none given'}\n` +
+        `Brand tone: ${profile.brandTone || 'unspecified'}\n` +
+        `Location: ${profile.location || 'unspecified'}\n\n` +
+        'STORED BUSINESS CONTEXT:\n' +
+        (bc
+          ? `${bc.summary || ''}\nTone: ${bc.tone || 'n/a'}\nAudience: ${bc.audience || 'n/a'}\n` +
+            `Selling points: ${listOr(bc.sellingPoints, 'none recorded')}\n`
+          : 'none stored yet\n') +
+        '\nOWNER-SUPPLIED CONTEXT (their answer to an earlier question):\n' +
+        `${(s.userContext && s.userContext.answer) || 'none given'}\n` +
+        `\nCONNECTED CHANNELS: ${listOr(s.connectedPlatforms, 'none connected')}\n` +
+        `Telegram linked: ${s.telegram && s.telegram.linked ? 'yes' : 'no'}\n` +
+        `Instagram linked: ${s.instagram && s.instagram.linked ? 'yes' : 'no'}\n` +
+        `\nLAST ${(s.recentPosts || []).length} POSTS:\n${listOr((s.recentPosts || []).map((p) => `- ${String(p).slice(0, 200)}`), '(nothing posted yet)')}\n` +
+        `\nTRACKED COMPETITORS: ${listOr(s.competitors, 'none tracked')}\n` +
+        `TARGET PLATFORMS FOR THIS RUN: ${listOr(s.targetPlatforms, 'none resolved')}\n\n` +
+        'Assess whether there is enough context to post right now.',
+      schema: AD_CONTEXT_SCHEMA,
+    });
+
+    const questions = (parsed.questions || []).filter(Boolean).map(String).map((q) => q.slice(0, 200)).slice(0, 3);
+    // "Not sufficient" with nothing to ask is an unusable verdict — it would
+    // pause Autopilot with no way for the owner to unblock it. Treat as a miss.
+    if (parsed.sufficient !== true && !questions.length) return null;
+    return {
+      sufficient: parsed.sufficient === true,
+      adType: String(parsed.adType || '').slice(0, 120),
+      rationale: String(parsed.rationale || '').slice(0, 500),
+      questions,
+      source: 'gemini',
+    };
+  } catch (err) {
+    console.error('Gemini assessAdContext failed, falling back:', err.message);
+    return null;
+  }
+}
+
+// ===========================================================================
 // MEDIA STUDIO — the guided shoot brief
 // ===========================================================================
 //
@@ -630,6 +819,9 @@ module.exports = {
   toGeminiSchema,
   callGeminiJSON,
   callGeminiWithTools,
+  generateBusinessContext,
+  generateSlogans,
+  assessAdContext,
   // Deterministic helpers — used by the routes and exercised directly by tests.
   normalizeLanguages,
   langInstructionFor,

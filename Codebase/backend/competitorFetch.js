@@ -1,5 +1,6 @@
 const config = require('./config');
-const meta = require('./connectors/meta');
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// const meta = require('./connectors/meta');
 
 // ===========================================================================
 // Competitor Intelligence — per-platform public-content readers.
@@ -98,33 +99,38 @@ const stripTags = (html) =>
 async function fetchInstagram(url, opts = {}) {
   const handle = url.match(/instagram\.com\/([A-Za-z0-9_.]{2,30})/i)?.[1] || null;
 
-  if (handle && opts.metaIgUserId && opts.metaAccessToken) {
-    try {
-      const bd = await meta.businessDiscovery(opts.metaIgUserId, handle, opts.metaAccessToken, { fetchImpl: opts.fetchImpl });
-      return normalizeResult({
-        found: true,
-        handle: bd.username || handle,
-        displayName: bd.name || null,
-        followerCount: Number.isFinite(+bd.followers_count) ? +bd.followers_count : null,
-        posts: (bd.media?.data || []).map((m) => {
-          const kind = /video|reel/i.test(m.media_type || '') ? 'video' : 'photo';
-          return {
-            externalId: m.id || null,
-            kind,
-            caption: m.caption || '',
-            thumbnailUrl: m.thumbnail_url || m.media_url || null,
-            postedAt: m.timestamp || null,
-            likeCount: Number.isFinite(+m.like_count) ? +m.like_count : null,
-            commentCount: Number.isFinite(+m.comments_count) ? +m.comments_count : null,
-            viewCount: null,
-          };
-        }),
-        partial: false,
-      });
-    } catch (err) {
-      console.warn(`Instagram Business Discovery failed for ${url}, falling back to page scrape:`, err.message);
-    }
-  }
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // The Business Discovery branch below is the only way to get real captions and
+  // engagement for an Instagram competitor. With it off, this function always
+  // degrades to the public-page scrape further down (follower count from
+  // og:description only, partial: true).
+  // if (handle && opts.metaIgUserId && opts.metaAccessToken) {
+  //   try {
+  //     const bd = await meta.businessDiscovery(opts.metaIgUserId, handle, opts.metaAccessToken, { fetchImpl: opts.fetchImpl });
+  //     return normalizeResult({
+  //       found: true,
+  //       handle: bd.username || handle,
+  //       displayName: bd.name || null,
+  //       followerCount: Number.isFinite(+bd.followers_count) ? +bd.followers_count : null,
+  //       posts: (bd.media?.data || []).map((m) => {
+  //         const kind = /video|reel/i.test(m.media_type || '') ? 'video' : 'photo';
+  //         return {
+  //           externalId: m.id || null,
+  //           kind,
+  //           caption: m.caption || '',
+  //           thumbnailUrl: m.thumbnail_url || m.media_url || null,
+  //           postedAt: m.timestamp || null,
+  //           likeCount: Number.isFinite(+m.like_count) ? +m.like_count : null,
+  //           commentCount: Number.isFinite(+m.comments_count) ? +m.comments_count : null,
+  //           viewCount: null,
+  //         };
+  //       }),
+  //       partial: false,
+  //     });
+  //   } catch (err) {
+  //     console.warn(`Instagram Business Discovery failed for ${url}, falling back to page scrape:`, err.message);
+  //   }
+  // }
 
   const res = await safeGet(url, opts);
   if (!res.ok) return normalizeResult({ handle, error: res.error || `Instagram responded ${res.status}` });

@@ -59,10 +59,21 @@ export default function App() {
   const [authForm, setAuthForm] = useState({ email: '', password: '', fullName: '' });
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  // Register is two steps in one card: 1 = credentials, 2 = business profile.
+  // Capturing the profile here means a new owner is fully set up the moment
+  // they sign up, instead of landing in a separate wizard first.
+  const [authStep, setAuthStep] = useState(1);
+  const [businessForm, setBusinessForm] = useState({
+    businessName: '', category: 'Cafe / Coffee Shop', description: '', audience: '', tone: 'Cozy & Warm',
+  });
   // Onboarding path targeted after auth (carried across subdomains via ?path).
   const [authPathTarget, setAuthPathTarget] = useState(() => (ROUTING_ENABLED ? qp().get('path') || 'B' : 'B'));
   // Set right before a login/register so the session effect routes us afterwards.
   const postAuthRef = useRef(false);
+  // True between "account created" and "business profile submitted". Setting the
+  // token at step 1 fires the session effect, which would otherwise route the
+  // half-registered user away from the card they are still filling in.
+  const midSignupRef = useRef(false);
   // True when the dashboard-subdomain profile load failed offline (show a retry).
   const [dashLoadFailed, setDashLoadFailed] = useState(false);
 
@@ -87,6 +98,26 @@ export default function App() {
       default:
         setAuthModalOpen(false);
         setView('landing');
+    }
+  };
+
+  const resetAuthForms = () => {
+    midSignupRef.current = false;
+    setAuthForm({ email: '', password: '', fullName: '' });
+    setBusinessForm({ businessName: '', category: 'Cafe / Coffee Shop', description: '', audience: '', tone: 'Cozy & Warm' });
+    setAuthStep(1);
+  };
+
+  // Abandoning the card at step 2 leaves a real account with no business
+  // profile. Release the mid-signup guard and hand the user to the existing
+  // wizard, which is exactly the "registered but not onboarded" path.
+  const abandonSignup = () => {
+    const wasMidSignup = midSignupRef.current;
+    resetAuthForms();
+    setAuthModalOpen(false);
+    if (wasMidSignup) {
+      postAuthRef.current = true;
+      go('onboarding', { path: authPathTarget === 'A' ? 'A' : 'B' });
     }
   };
 
@@ -117,6 +148,10 @@ export default function App() {
       }
       return;
     }
+
+    // Mid-signup: the account exists but the business step is still on screen.
+    // Routing now would abandon a form the user is actively filling in.
+    if (midSignupRef.current) return;
 
     let cancelled = false;
     (async () => {
@@ -165,12 +200,14 @@ export default function App() {
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close the single-origin auth modal on Escape for keyboard accessibility.
+  // abandonSignup is re-created every render; listing it would re-bind the
+  // listener on each one for no benefit, so the deps stay on the open flag.
   useEffect(() => {
     if (!authModalOpen) return;
-    const onKey = (e) => { if (e.key === 'Escape') setAuthModalOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') abandonSignup(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [authModalOpen]);
+  }, [authModalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Landing CTAs. `path` is 'A' | 'B' | 'dashboard' (the last means "go straight
   // to the dashboard" for a returning, onboarded user).
@@ -184,28 +221,69 @@ export default function App() {
 
   const openLogin = () => go('login', { mode: 'login' });
 
+  const authErrorFor = (err) => (err.isNetwork
+    ? t('auth.networkError', 'Could not reach the server. Please ensure the backend is running.')
+    : (err.message || t('auth.failed', 'Authentication failed')));
+
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
     setAuthLoading(true);
 
     try {
-      const data = authMode === 'register'
-        ? await api.register(authForm)
-        : await api.login({ email: authForm.email, password: authForm.password });
+      if (authMode === 'register') {
+        if (authStep === 1) {
+          // Create the account, then stay in the card for the business profile.
+          // postAuthRef is deliberately NOT set: letting the session effect route
+          // now would drop the user into a wizard mid-signup.
+          midSignupRef.current = true;
+          const data = await api.register(authForm);
+          setToken(data.accessToken || data.token);
+          setAuthStep(2);
+          return;
+        }
+        await submitBusinessProfile();
+        return;
+      }
 
+      const data = await api.login({ email: authForm.email, password: authForm.password });
       postAuthRef.current = true; // let the session effect route us next
       setAuthModalOpen(false);
       setAuthForm({ email: '', password: '', fullName: '' });
       setToken(data.accessToken || data.token); // triggers the session effect
     } catch (err) {
-      setAuthError(
-        err.isNetwork
-          ? t('auth.networkError', 'Could not reach the server. Please ensure the backend is running.')
-          : (err.message || t('auth.failed', 'Authentication failed'))
-      );
+      setAuthError(authErrorFor(err));
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  // Step 2 of register: persist the business profile and go straight to the
+  // dashboard. The backend builds this business's Gemini context cell as part
+  // of `construct`, so it exists before any content is ever generated.
+  const submitBusinessProfile = async () => {
+    const payload = { ...businessForm, onboardPath: 'Inline (Signup)' };
+    try {
+      const data = await api.post('/api/onboarding/construct', payload);
+      resetAuthForms();
+      setAuthModalOpen(false);
+      handleOnboardSuccess(data.profile);
+    } catch (err) {
+      // Offline: mirror the wizards' fallback so signup still lands somewhere
+      // coherent rather than trapping the user on step 2. The profile is local
+      // only — the session effect will re-fetch the real one once online.
+      if (err.isNetwork) {
+        resetAuthForms();
+        setAuthModalOpen(false);
+        handleOnboardSuccess({
+          ...payload,
+          targetAudience: payload.audience,
+          brandTone: payload.tone,
+          platforms: { googleBusiness: true, instagram: true, telegram: true },
+        });
+        return;
+      }
+      throw err;
     }
   };
 
@@ -215,6 +293,15 @@ export default function App() {
   };
 
   const patchAuthForm = (patch) => setAuthForm((p) => ({ ...p, ...patch }));
+  const patchBusinessForm = (patch) => setBusinessForm((p) => ({ ...p, ...patch }));
+
+  // Switching login <-> register always returns to step 1: the business step
+  // only makes sense straight after an account is created.
+  const switchAuthMode = (mode) => {
+    setAuthMode(mode);
+    setAuthStep(1);
+    setAuthError('');
+  };
 
   return (
     <div className="app-container">
@@ -250,12 +337,15 @@ export default function App() {
           <div className="auth-page" id="auth_page">
             <AuthCard
               mode={authMode}
+              step={authStep}
               error={authError}
               form={authForm}
               onChange={patchAuthForm}
+              businessForm={businessForm}
+              onBusinessChange={patchBusinessForm}
               loading={authLoading}
               onSubmit={handleAuthSubmit}
-              onSwitchMode={setAuthMode}
+              onSwitchMode={switchAuthMode}
             />
           </div>
         </>
@@ -312,17 +402,20 @@ export default function App() {
         <div
           className="auth-overlay animate-fade-in"
           id="auth_overlay_modal"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setAuthModalOpen(false); }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) abandonSignup(); }}
         >
           <AuthCard
             mode={authMode}
+            step={authStep}
             error={authError}
             form={authForm}
             onChange={patchAuthForm}
+            businessForm={businessForm}
+            onBusinessChange={patchBusinessForm}
             loading={authLoading}
             onSubmit={handleAuthSubmit}
-            onSwitchMode={setAuthMode}
-            onClose={() => setAuthModalOpen(false)}
+            onSwitchMode={switchAuthMode}
+            onClose={abandonSignup}
           />
         </div>
       )}

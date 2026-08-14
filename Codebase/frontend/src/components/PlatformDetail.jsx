@@ -8,7 +8,8 @@ import './PlatformDetail.css';
 // than reusing lib/platforms.js, which is keyed by CONNECTOR id
 // ('meta_instagram'); the dashboard metrics speak the plain platform name.
 const LOOK = {
-  instagram: { label: 'Instagram', icon: 'fa-brands fa-instagram', color: '#E1306C' },
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // instagram: { label: 'Instagram', icon: 'fa-brands fa-instagram', color: '#E1306C' },
   telegram: { label: 'Telegram', icon: 'fa-brands fa-telegram', color: 'var(--tg-blue, #229ED9)' },
   google: { label: 'Google Business', icon: 'fa-brands fa-google', color: '#4285F4' },
   tiktok: { label: 'TikTok', icon: 'fa-brands fa-tiktok', color: 'var(--text-primary)' },
@@ -54,7 +55,9 @@ export default function PlatformDetail({ platform, onClose, onGoToConnections })
     };
   }, [onClose]);
 
-  const unavailable = new Set(data?.unavailable || []);
+  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+  // Only the Instagram engagement footnote read this set.
+  // const unavailable = new Set(data?.unavailable || []);
 
   const fmtDate = (iso) => {
     if (!iso) return '';
@@ -241,15 +244,19 @@ export default function PlatformDetail({ platform, onClose, onGoToConnections })
               )}
             </section>
 
-            {/* Instagram-specific: only it can ever report per-post engagement,
-                so the Business/Creator caveat belongs on that panel alone. The
-                other channels already say why they have nothing, in `notice`. */}
-            {unavailable.has('engagement') && platform === 'instagram' && (
-              <p className="pd-footnote">
-                <i className="fa-solid fa-circle-info"></i>{' '}
+            {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                Instagram-specific: only it could ever report per-post
+                engagement, so the Business/Creator caveat belonged on that
+                panel alone. The other channels already say why they have
+                nothing, in `notice`. Inner markers neutralised so this nests.
+
+                {unavailable.has('engagement') && platform === 'instagram' && (
+                <p className="pd-footnote">
+                <i className="fa-solid fa-circle-info"></i>[' ']
                 {t('platformDetail.engagementNote', 'Per-post likes and comments are only available for connected Instagram Business or Creator accounts. This channel does not report them.')}
-              </p>
-            )}
+                </p>
+                )}
+            */}
           </div>
         )}
       </div>

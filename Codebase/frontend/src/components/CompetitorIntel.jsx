@@ -8,7 +8,11 @@ import './CompetitorIntel.css';
 // competitor_sources platform keys -> the icon/colour catalogue already used
 // for connected channels (which keys 'instagram'/'facebook' as
 // 'meta_instagram'/'meta_facebook').
-const iconFor = (platform) => PLATFORM_META[platform === 'instagram' ? 'meta_instagram' : platform === 'facebook' ? 'meta_facebook' : platform];
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// The Meta aliases are gone from PLATFORM_META, so instagram/facebook
+// competitors now fall through to the generic share-icon fallback.
+// const iconFor = (platform) => PLATFORM_META[platform === 'instagram' ? 'meta_instagram' : platform === 'facebook' ? 'meta_facebook' : platform];
+const iconFor = (platform) => PLATFORM_META[platform];
 
 // Facebook has no official "read a stranger's Page" API here yet — bio and
 // follower count only, structurally, not a bug. Instagram is different: real
@@ -17,7 +21,12 @@ const iconFor = (platform) => PLATFORM_META[platform === 'instagram' ? 'meta_ins
 // (the Meta/Facebook-Login card) and the competitor is itself a public
 // Business/Creator account — worth explaining inline rather than leaving a
 // bare "partial" badge to guess at.
-const NO_POST_API_PLATFORMS = new Set(['facebook']);
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// Instagram joins this set: Business Discovery was the only way to read a
+// competitor's captions, and it is disabled, so Instagram now genuinely
+// exposes profile info only — same as Facebook.
+// const NO_POST_API_PLATFORMS = new Set(['facebook']);
+const NO_POST_API_PLATFORMS = new Set(['facebook', 'instagram']);
 
 // Real engagement when the platform reports likes/comments; view count is the
 // honest fallback for platforms that only ever expose that publicly (Telegram)
@@ -241,13 +250,18 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
               <div className="tracked-source-chips mt-10">
                 {(c.sources || []).map((s) => {
                   const meta = iconFor(s.platform);
+                  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+                  // The Instagram branch told the owner to "connect your own
+                  // Instagram in Settings → Connections (Meta)" — advice they
+                  // can no longer follow, since that card is gone. Instagram
+                  // now falls through to the honest no-post-API message.
                   const partialHint = s.error
                     ? s.error
-                    : s.platform === 'instagram'
-                      ? t('competitors.tracked.partialHintInstagram', 'No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account.')
-                      : NO_POST_API_PLATFORMS.has(s.platform)
-                        ? t('competitors.tracked.partialHintNoApi', 'This platform only exposes profile info publicly — no captions or videos, so it can\'t feed trend analysis.')
-                        : t('competitors.tracked.partialHintGeneric', 'Profile found, but no posts could be read this time — try Refresh.');
+                    // : s.platform === 'instagram'
+                    //   ? t('competitors.tracked.partialHintInstagram', 'No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account.')
+                    : NO_POST_API_PLATFORMS.has(s.platform)
+                      ? t('competitors.tracked.partialHintNoApi', 'This platform only exposes profile info publicly — no captions or videos, so it can\'t feed trend analysis.')
+                      : t('competitors.tracked.partialHintGeneric', 'Profile found, but no posts could be read this time — try Refresh.');
                   return (
                     <span key={s.id} className={`source-chip status-${s.status}`} title={s.partial ? partialHint : (s.error || '')}>
                       <i className={meta?.icon || 'fa-solid fa-link'} style={{ color: meta?.color }}></i>

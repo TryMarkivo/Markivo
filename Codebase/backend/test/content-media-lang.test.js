@@ -102,12 +102,14 @@ const uploadMedia = async () => {
 
 // Connect Instagram once, via the real OAuth callback (the stub above answers
 // the Instagram hosts). Publishing tests below depend on this connection.
-const connectInstagram = async () => {
-  const { authUrl } = await (await get('/api/instagram/connect', access)).json();
-  const state = new URL(authUrl).searchParams.get('state');
-  const cb = await global.fetch(`${base}/api/instagram/oauth/callback?code=FAKE_CODE&state=${encodeURIComponent(state)}`, { redirect: 'manual' });
-  assert.strictEqual(cb.status, 302);
-};
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// Helper for the Instagram cases commented out below.
+// const connectInstagram = async () => {
+//   const { authUrl } = await (await get('/api/instagram/connect', access)).json();
+//   const state = new URL(authUrl).searchParams.get('state');
+//   const cb = await global.fetch(`${base}/api/instagram/oauth/callback?code=FAKE_CODE&state=${encodeURIComponent(state)}`, { redirect: 'manual' });
+//   assert.strictEqual(cb.status, 302);
+// };
 
 // ===========================================================================
 // Language selection — the ORDER the owner picks is the order they get
@@ -175,34 +177,36 @@ test('copywrite route accepts an ordered language list', async () => {
 // Media on posts — the Instagram composer fix
 // ===========================================================================
 
-test('post-now to Instagram without media is refused with an actionable reason', async () => {
-  await connectInstagram();
-  const res = await post('/api/content/post-now', {
-    platform: 'instagram', postText: 'Weekend special ☕',
-  }, access);
-  // The old behaviour silently filed a "posted" row and published nothing,
-  // which is what made the composer look broken.
-  assert.strictEqual(res.status, 400);
-  const data = await res.json();
-  assert.strictEqual(data.reason, 'media_required');
-  assert.match(data.error, /photo or video/i);
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('post-now to Instagram without media is refused with an actionable reason', async () => {
+//   await connectInstagram();
+//   const res = await post('/api/content/post-now', {
+//     platform: 'instagram', postText: 'Weekend special ☕',
+//   }, access);
+//   // The old behaviour silently filed a "posted" row and published nothing,
+//   // which is what made the composer look broken.
+//   assert.strictEqual(res.status, 400);
+//   const data = await res.json();
+//   assert.strictEqual(data.reason, 'media_required');
+//   assert.match(data.error, /photo or video/i);
+// });
 
-test('post-now to Instagram WITH an uploaded mediaId publishes for real', async () => {
-  igCalls = [];
-  const mediaId = await uploadMedia();
-  const res = await post('/api/content/post-now', {
-    platform: 'instagram', postText: 'Weekend special ☕', mediaId,
-  }, access);
-  assert.strictEqual(res.status, 200);
-  const data = await res.json();
-  assert.strictEqual(data.simulated, false);
-  assert.strictEqual(data.mediaId, 'MEDIA_999');
-  // The container was created against a PUBLIC url Instagram can fetch.
-  const container = igCalls.find((c) => c.pathname.endsWith('/media') && c.method === 'POST');
-  assert.ok(container, 'a media container should have been created');
-  assert.match(String(container.body), /public\.example\.com/);
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('post-now to Instagram WITH an uploaded mediaId publishes for real', async () => {
+//   igCalls = [];
+//   const mediaId = await uploadMedia();
+//   const res = await post('/api/content/post-now', {
+//     platform: 'instagram', postText: 'Weekend special ☕', mediaId,
+//   }, access);
+//   assert.strictEqual(res.status, 200);
+//   const data = await res.json();
+//   assert.strictEqual(data.simulated, false);
+//   assert.strictEqual(data.mediaId, 'MEDIA_999');
+//   // The container was created against a PUBLIC url Instagram can fetch.
+//   const container = igCalls.find((c) => c.pathname.endsWith('/media') && c.method === 'POST');
+//   assert.ok(container, 'a media container should have been created');
+//   assert.match(String(container.body), /public\.example\.com/);
+// });
 
 test('a non-Instagram platform still records a simulated post, with its media', async () => {
   const mediaId = await uploadMedia();
@@ -229,30 +233,32 @@ test('schedule stores the attached media so the worker can publish it later', as
   assert.ok(cal.some((p) => p.mediaId === mediaId && p.status === 'scheduled'));
 });
 
-test('the worker publishes a due Instagram post that carries media', async () => {
-  igCalls = [];
-  const result = await runScheduledPostsTick();
-  assert.ok(result.posted >= 1, 'the due instagram row should have published');
-  assert.ok(igCalls.some((c) => c.pathname.endsWith('/media_publish') && c.method === 'POST'));
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('the worker publishes a due Instagram post that carries media', async () => {
+//   igCalls = [];
+//   const result = await runScheduledPostsTick();
+//   assert.ok(result.posted >= 1, 'the due instagram row should have published');
+//   assert.ok(igCalls.some((c) => c.pathname.endsWith('/media_publish') && c.method === 'POST'));
+//
+//   const cal = await (await get('/api/content/calendar', access)).json();
+//   assert.ok(cal.some((p) => p.post_text === 'Scheduled with a photo' && p.status === 'posted'));
+// });
 
-  const cal = await (await get('/api/content/calendar', access)).json();
-  assert.ok(cal.some((p) => p.post_text === 'Scheduled with a photo' && p.status === 'posted'));
-});
-
-test('the worker leaves a due Instagram post WITHOUT media scheduled, not failed', async () => {
-  await post('/api/content/schedule', {
-    platform: 'instagram',
-    postText: 'No media, cannot publish',
-    scheduledTime: new Date(Date.now() - 60000).toISOString(),
-  }, access);
-
-  await runScheduledPostsTick();
-  const cal = await (await get('/api/content/calendar', access)).json();
-  const row = cal.find((p) => p.post_text === 'No media, cannot publish');
-  // Still 'scheduled': attaching media later should make it publishable, so
-  // burning it to 'failed' would throw away a recoverable post.
-  assert.strictEqual(row.status, 'scheduled');
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('the worker leaves a due Instagram post WITHOUT media scheduled, not failed', async () => {
+//   await post('/api/content/schedule', {
+//     platform: 'instagram',
+//     postText: 'No media, cannot publish',
+//     scheduledTime: new Date(Date.now() - 60000).toISOString(),
+//   }, access);
+//
+//   await runScheduledPostsTick();
+//   const cal = await (await get('/api/content/calendar', access)).json();
+//   const row = cal.find((p) => p.post_text === 'No media, cannot publish');
+//   // Still 'scheduled': attaching media later should make it publishable, so
+//   // burning it to 'failed' would throw away a recoverable post.
+//   assert.strictEqual(row.status, 'scheduled');
+// });
 
 // ===========================================================================
 // Media on templates

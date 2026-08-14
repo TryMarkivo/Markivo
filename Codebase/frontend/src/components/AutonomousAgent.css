@@ -209,6 +209,7 @@
 }
 .ap-activity-item.kind-error .ap-activity-icon { color: var(--accent-danger); }
 .ap-activity-item.kind-skipped .ap-activity-icon { color: var(--text-muted); }
+.ap-activity-item.kind-context_needed .ap-activity-icon { color: #f59e0b; }
 
 .ap-activity-body {
   display: flex;
@@ -257,6 +258,53 @@
   margin-top: 2px;
   flex-shrink: 0;
   opacity: 0.7;
+}
+
+/* Context-request banner. Amber, not --accent-danger: Autopilot stopping to ask
+   a question is blocking, but it is not an error the owner did something wrong. */
+.ap-context-banner {
+  padding: 20px 24px;
+  margin: 18px 0;
+  border-left: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.07);
+}
+.ap-context-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.ap-context-head h4 { margin: 0 0 4px; }
+.ap-context-head p { margin: 0; font-size: 0.85rem; }
+.ap-context-icon {
+  color: #f59e0b;
+  font-size: 1.3rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.ap-context-questions {
+  margin: 14px 0 12px;
+  padding-left: 22px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ap-context-input {
+  width: 100%;
+  margin-top: 4px;
+  resize: vertical;
+}
+.ap-context-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.ap-context-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 @media (max-width: 640px) {

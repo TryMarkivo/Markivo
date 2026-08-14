@@ -21,7 +21,10 @@ process.env.APP_URL = 'https://trymarkivo.com';
 
 const { app } = require('../server');
 const createDb = require('../db');
-const metaDeletion = require('../metaDeletion');
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// parseSignedRequest is commented out in metaDeletion.js, so nothing here uses
+// the module any more. The self-serve deletion cases below still pass.
+// const metaDeletion = require('../metaDeletion');
 
 let server, base;
 before(async () => {
@@ -60,58 +63,65 @@ async function makeUser(label) {
   return { email, token: reg.accessToken, refreshToken: reg.refreshToken };
 }
 
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
 // Build a signed_request exactly the way Meta does: base64url(HMAC-SHA256 over
 // the ENCODED payload) + '.' + base64url(payload JSON).
-function signRequest(payload, secret) {
-  const b64url = (buf) =>
-    Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  const encodedPayload = b64url(JSON.stringify(payload));
-  const sig = crypto.createHmac('sha256', secret).update(encodedPayload).digest();
-  return `${b64url(sig)}.${encodedPayload}`;
-}
+// function signRequest(payload, secret) {
+//   const b64url = (buf) =>
+//     Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+//   const encodedPayload = b64url(JSON.stringify(payload));
+//   const sig = crypto.createHmac('sha256', secret).update(encodedPayload).digest();
+//   return `${b64url(sig)}.${encodedPayload}`;
+// }
 
-const postForm = (p, form) =>
-  fetch(base + p, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(),
-  });
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// const postForm = (p, form) =>
+//   fetch(base + p, {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+//     body: new URLSearchParams(form).toString(),
+//   });
 
 // --- signed_request parsing -------------------------------------------------
 
-test('a correctly signed request decodes to its payload', () => {
-  const signed = signRequest({ user_id: '12345', algorithm: 'HMAC-SHA256' }, APP_SECRET);
-  const payload = metaDeletion.parseSignedRequest(signed, APP_SECRET);
-  assert.strictEqual(payload.user_id, '12345');
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('a correctly signed request decodes to its payload', () => {
+//   const signed = signRequest({ user_id: '12345', algorithm: 'HMAC-SHA256' }, APP_SECRET);
+//   const payload = metaDeletion.parseSignedRequest(signed, APP_SECRET);
+//   assert.strictEqual(payload.user_id, '12345');
+// });
 
-test('a request signed with the wrong secret is rejected', () => {
-  const signed = signRequest({ user_id: '12345' }, 'not_the_app_secret');
-  assert.throws(
-    () => metaDeletion.parseSignedRequest(signed, APP_SECRET),
-    /signature does not verify/
-  );
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('a request signed with the wrong secret is rejected', () => {
+//   const signed = signRequest({ user_id: '12345' }, 'not_the_app_secret');
+//   assert.throws(
+//     () => metaDeletion.parseSignedRequest(signed, APP_SECRET),
+//     /signature does not verify/
+//   );
+// });
 
-test('a tampered payload is rejected even though the signature is well-formed', () => {
-  const signed = signRequest({ user_id: '12345' }, APP_SECRET);
-  const [sig] = signed.split('.');
-  const forged = Buffer.from(JSON.stringify({ user_id: '99999' })).toString('base64')
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  assert.throws(() => metaDeletion.parseSignedRequest(`${sig}.${forged}`, APP_SECRET), /does not verify/);
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('a tampered payload is rejected even though the signature is well-formed', () => {
+//   const signed = signRequest({ user_id: '12345' }, APP_SECRET);
+//   const [sig] = signed.split('.');
+//   const forged = Buffer.from(JSON.stringify({ user_id: '99999' })).toString('base64')
+//     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+//   assert.throws(() => metaDeletion.parseSignedRequest(`${sig}.${forged}`, APP_SECRET), /does not verify/);
+// });
 
-test('malformed and missing signed_requests are rejected, not crashed on', () => {
-  assert.throws(() => metaDeletion.parseSignedRequest('', APP_SECRET), /missing/);
-  assert.throws(() => metaDeletion.parseSignedRequest('no-dot-here', APP_SECRET), /malformed/);
-  assert.throws(() => metaDeletion.parseSignedRequest('a.b.c', APP_SECRET), /malformed/);
-  assert.throws(() => metaDeletion.parseSignedRequest('AAAA.!!!notjson', APP_SECRET), /not valid JSON/);
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('malformed and missing signed_requests are rejected, not crashed on', () => {
+//   assert.throws(() => metaDeletion.parseSignedRequest('', APP_SECRET), /missing/);
+//   assert.throws(() => metaDeletion.parseSignedRequest('no-dot-here', APP_SECRET), /malformed/);
+//   assert.throws(() => metaDeletion.parseSignedRequest('a.b.c', APP_SECRET), /malformed/);
+//   assert.throws(() => metaDeletion.parseSignedRequest('AAAA.!!!notjson', APP_SECRET), /not valid JSON/);
+// });
 
-test('a non-HMAC-SHA256 algorithm claim is refused', () => {
-  const signed = signRequest({ user_id: '1', algorithm: 'PLAINTEXT' }, APP_SECRET);
-  assert.throws(() => metaDeletion.parseSignedRequest(signed, APP_SECRET), /unsupported algorithm/);
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('a non-HMAC-SHA256 algorithm claim is refused', () => {
+//   const signed = signRequest({ user_id: '1', algorithm: 'PLAINTEXT' }, APP_SECRET);
+//   assert.throws(() => metaDeletion.parseSignedRequest(signed, APP_SECRET), /unsupported algorithm/);
+// });
 
 // --- self-serve account deletion -------------------------------------------
 
@@ -145,61 +155,64 @@ test('the deleted account\'s access token can no longer reach the API', async ()
 
 // --- Meta callback ----------------------------------------------------------
 
-test('the callback erases the account linked to the Meta user id', async () => {
-  const user = await makeUser('metalinked');
-  const db = createDb(TMP_DB);
-  const dbUser = db.users.findByEmail(user.email);
-  const profile = db.profiles.findByUserId(dbUser.id);
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('the callback erases the account linked to the Meta user id', async () => {
+//   const user = await makeUser('metalinked');
+//   const db = createDb(TMP_DB);
+//   const dbUser = db.users.findByEmail(user.email);
+//   const profile = db.profiles.findByUserId(dbUser.id);
+//
+//   // Simulate a completed Meta connect: metaUserId is what the callback matches.
+//   db.connections.upsert({
+//     profileId: profile.id,
+//     platform: 'meta_facebook',
+//     status: 'connected',
+//     accountHandle: 'Noir Cafe Page',
+//     accountId: 'page_555',
+//     accessToken: 'page-token',
+//     meta: { pageId: 'page_555', metaUserId: 'meta_user_777' },
+//   });
+//
+//   const signed = signRequest({ user_id: 'meta_user_777', algorithm: 'HMAC-SHA256' }, APP_SECRET);
+//   const res = await postForm('/api/meta/data-deletion', { signed_request: signed });
+//   assert.strictEqual(res.status, 200);
+//   const body = await res.json();
+//
+//   // Meta requires exactly these two fields.
+//   assert.ok(body.confirmation_code, 'confirmation_code is required by Meta');
+//   assert.strictEqual(body.url, `https://trymarkivo.com/data-deletion.html?code=${body.confirmation_code}`);
+//
+//   const after = createDb(TMP_DB);
+//   assert.strictEqual(after.users.findByEmail(user.email), undefined);
+//
+//   const status = await (await get(`/api/data-deletion/status?code=${body.confirmation_code}`)).json();
+//   assert.strictEqual(status.status, 'completed');
+// });
 
-  // Simulate a completed Meta connect: metaUserId is what the callback matches.
-  db.connections.upsert({
-    profileId: profile.id,
-    platform: 'meta_facebook',
-    status: 'connected',
-    accountHandle: 'Noir Cafe Page',
-    accountId: 'page_555',
-    accessToken: 'page-token',
-    meta: { pageId: 'page_555', metaUserId: 'meta_user_777' },
-  });
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('an unknown Meta user id still returns a trackable code, marked no_match', async () => {
+//   const signed = signRequest({ user_id: 'nobody_here_9999' }, APP_SECRET);
+//   const res = await postForm('/api/meta/data-deletion', { signed_request: signed });
+//   assert.strictEqual(res.status, 200);
+//   const body = await res.json();
+//   assert.ok(body.confirmation_code);
+//
+//   const status = await (await get(`/api/data-deletion/status?code=${body.confirmation_code}`)).json();
+//   assert.strictEqual(status.status, 'no_match');
+// });
 
-  const signed = signRequest({ user_id: 'meta_user_777', algorithm: 'HMAC-SHA256' }, APP_SECRET);
-  const res = await postForm('/api/meta/data-deletion', { signed_request: signed });
-  assert.strictEqual(res.status, 200);
-  const body = await res.json();
-
-  // Meta requires exactly these two fields.
-  assert.ok(body.confirmation_code, 'confirmation_code is required by Meta');
-  assert.strictEqual(body.url, `https://trymarkivo.com/data-deletion.html?code=${body.confirmation_code}`);
-
-  const after = createDb(TMP_DB);
-  assert.strictEqual(after.users.findByEmail(user.email), undefined);
-
-  const status = await (await get(`/api/data-deletion/status?code=${body.confirmation_code}`)).json();
-  assert.strictEqual(status.status, 'completed');
-});
-
-test('an unknown Meta user id still returns a trackable code, marked no_match', async () => {
-  const signed = signRequest({ user_id: 'nobody_here_9999' }, APP_SECRET);
-  const res = await postForm('/api/meta/data-deletion', { signed_request: signed });
-  assert.strictEqual(res.status, 200);
-  const body = await res.json();
-  assert.ok(body.confirmation_code);
-
-  const status = await (await get(`/api/data-deletion/status?code=${body.confirmation_code}`)).json();
-  assert.strictEqual(status.status, 'no_match');
-});
-
-test('the callback rejects a badly signed request without erasing anything', async () => {
-  const user = await makeUser('untouched');
-  const signed = signRequest({ user_id: 'meta_user_777' }, 'wrong_secret');
-  const res = await postForm('/api/meta/data-deletion', { signed_request: signed });
-  assert.strictEqual(res.status, 400);
-  // The rejection reason is not leaked to the caller.
-  assert.strictEqual((await res.json()).error, 'Invalid signed_request');
-
-  const db = createDb(TMP_DB);
-  assert.ok(db.users.findByEmail(user.email), 'an unverified callback must not delete anything');
-});
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// test('the callback rejects a badly signed request without erasing anything', async () => {
+//   const user = await makeUser('untouched');
+//   const signed = signRequest({ user_id: 'meta_user_777' }, 'wrong_secret');
+//   const res = await postForm('/api/meta/data-deletion', { signed_request: signed });
+//   assert.strictEqual(res.status, 400);
+//   // The rejection reason is not leaked to the caller.
+//   assert.strictEqual((await res.json()).error, 'Invalid signed_request');
+//
+//   const db = createDb(TMP_DB);
+//   assert.ok(db.users.findByEmail(user.email), 'an unverified callback must not delete anything');
+// });
 
 test('the status endpoint refuses a missing or unknown code', async () => {
   assert.strictEqual((await get('/api/data-deletion/status')).status, 400);

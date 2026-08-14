@@ -20,7 +20,11 @@ const normalizeResult = (overrides = {}) => ({
   ...overrides,
 });
 
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13. connectors/meta.js
+// exports {} while disabled, so guard explicitly instead of surfacing a raw
+// "not a function" TypeError as this platform's error message.
 async function fetchMetaInstagram(conn, opts) {
+  if (!meta.ownMedia) return normalizeResult({ error: 'Instagram own-content reads are temporarily disabled' });
   if (!conn || !conn.accessToken) return normalizeResult({ error: 'Instagram is not connected' });
   const igUserId = (conn.meta && conn.meta.igUserId) || conn.accountId;
   try {
@@ -41,6 +45,7 @@ async function fetchMetaInstagram(conn, opts) {
 }
 
 async function fetchMetaFacebook(conn, opts) {
+  if (!meta.ownPagePosts) return normalizeResult({ error: 'Facebook own-content reads are temporarily disabled' });
   if (!conn || !conn.accessToken) return normalizeResult({ error: 'Facebook is not connected' });
   const pageId = (conn.meta && conn.meta.pageId) || conn.accountId;
   try {

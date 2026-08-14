@@ -665,7 +665,18 @@ const SLOGAN_SCHEMA = {
   additionalProperties: false,
 };
 
+// Slogans are grounded in the business's STORED context cell when one exists
+// (`ctx.digest`, from businessContextService.contextDigest) rather than being
+// re-derived from raw profile columns. Same provider chain as generateContent:
+// Gemini -> keyless template -> Claude -> template on any failure.
 async function generateSlogans(ctx) {
+  // Dedicated Gemini-native prompt (business-context digest) first, same
+  // provider-preference pattern as generateContent/generateMediaBrief; the
+  // dispatcher below is the fallback layer (Gemini again if the above failed
+  // for some reason, else Anthropic, else the template).
+  const viaGemini = await gemini.generateSlogans({ digest: ctx.digest, businessName: ctx.businessName });
+  if (viaGemini) return viaGemini;
+
   if (!providers.isLive) return templateSlogans(ctx);
   const { businessName, category, description, tone } = ctx;
   try {
@@ -673,6 +684,7 @@ async function generateSlogans(ctx) {
       model: config.aiContentModel,
       system: 'You are a brand strategist. Generate exactly 3 short, memorable, original English brand slogans (max 6 words each). Respond as JSON only.',
       prompt:
+        (ctx.digest ? `${ctx.digest}\n\n` : '') +
         `Business: ${businessName || 'a local business'}\n` +
         `Category: ${category || 'general'}\n` +
         `Description: ${description || 'n/a'}\n` +

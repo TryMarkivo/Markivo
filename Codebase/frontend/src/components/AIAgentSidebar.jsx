@@ -123,7 +123,11 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
           return;
         } else {
           agentReply = t('agent.fallback.generic', {
-            defaultValue: 'I understand you want to "{{query}}". I can draft copy, review competitor trends, or optimize your Google Profile keywords. Type \'create ad campaign\' or click the suggestions below to authorize external changes.',
+            // DISABLED: SEO/Meta temporarily off — see 2026-08-13
+            // The keyword-optimization offer is removed from the default reply;
+            // the SEO keyword feature is off, so promising it would be a lie.
+            // defaultValue: 'I understand you want to "{{query}}". I can draft copy, review competitor trends, or optimize your Google Profile keywords. Type \'create ad campaign\' or click the suggestions below to authorize external changes.',
+            defaultValue: 'I understand you want to "{{query}}". I can draft copy or review competitor trends. Type \'create ad campaign\' or click the suggestions below to authorize external changes.',
             query: text
           });
         }

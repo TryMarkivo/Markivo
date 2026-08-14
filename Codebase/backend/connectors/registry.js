@@ -7,13 +7,16 @@
 const telegram = require('./telegram');
 // Platform adapters land here as they are built (each self-contained, sandbox
 // fallback included). Until added, the framework still runs with Telegram only.
-const meta = require('./meta');
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// const meta = require('./meta');
 const tiktok = require('./tiktok');
 const googleBusiness = require('./googleBusiness');
 const youtube = require('./youtube');
 
 // Registration order doubles as display order in the dashboard.
-const ADAPTERS = [telegram, meta.instagram, meta.facebook, tiktok, googleBusiness, youtube];
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13
+// const ADAPTERS = [telegram, meta.instagram, meta.facebook, tiktok, googleBusiness, youtube];
+const ADAPTERS = [telegram, tiktok, googleBusiness, youtube];
 
 const byKey = new Map(ADAPTERS.map((a) => [a.key, a]));
 

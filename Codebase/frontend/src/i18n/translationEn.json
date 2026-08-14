@@ -50,7 +50,22 @@
     "registerCta": "Register Account",
     "fullNamePlaceholder": "e.g. Alisher Usmanov",
     "emailPlaceholder": "name@business.com",
-    "newToMarkivo": "New to Markivo?"
+    "newToMarkivo": "New to Markivo?",
+    "continue": "Continue",
+    "business": {
+      "title": "Tell us about your business",
+      "subtitle": "Markiv uses this to write content that sounds like you — not like a template.",
+      "name": "Business Name",
+      "namePlaceholder": "e.g. Noir Cafe",
+      "category": "Industry / Category",
+      "description": "What does your business do?",
+      "descriptionPlaceholder": "e.g. A specialty coffee shop with a quiet upstairs work area.",
+      "audience": "Target audience",
+      "audiencePlaceholder": "e.g. remote workers and students",
+      "tone": "Tone of voice",
+      "optional": "(optional)",
+      "finish": "Finish Setup"
+    }
   },
   "usage": {
     "label": "AI generations",
@@ -136,10 +151,10 @@
       "contentText": "Shoot tips, automatic photo & video enhancement, and AI-generated video tuned to each platform.",
       "inboxTitle": "Inbox agent",
       "inboxText": "Gmail summarized, sorted and auto-replied — and it learns your answers as it goes.",
-      "seoTitle": "SEO + AI search",
-      "seoText": "Rank on Google — and surface inside ChatGPT & Perplexity, where your customers now search.",
       "intelTitle": "Competitor intel",
-      "intelText": "Track rivals' posting, growth and gaps automatically — and get moves to counter them."
+      "intelText": "Track rivals' posting, growth and gaps automatically — and get moves to counter them.",
+      "_DISABLED_seoTitle": "SEO + AI search",
+      "_DISABLED_seoText": "Rank on Google — and surface inside ChatGPT & Perplexity, where your customers now search."
     },
     "pricing": {
       "title": "Freemium that converts — three simple tiers.",
@@ -257,7 +272,6 @@
       "step2Cta": "Continue to Logo",
       "step3Title": "Set Up Your Logo",
       "step3Subtitle": "Use your own logo, or let our engine design one tailored to your brand.",
-      "shapeLabel": "Emblem Shape",
       "iconLabel": "Icon Symbol",
       "colorLabel": "Color Themes",
       "logoPreviewTitle": "Vector SVG Blueprint",
@@ -332,12 +346,6 @@
       "playful": "Playful & Fun",
       "luxury": "Luxury & Premium"
     },
-    "shapes": {
-      "circle": "circle",
-      "square": "square",
-      "hexagon": "hexagon",
-      "shield": "shield"
-    },
     "channels": {
       "googleTitle": "Google Business Profile",
       "googleOauth": "Connect via OAuth to manage your Business Profile",
@@ -397,11 +405,11 @@
       "logGoogle": "Configuring Google Business Profile endpoints...",
       "logInstagram": "Scaffolding Instagram Business profile structure...",
       "logTelegram": "Establishing secure Telegram channel webhook bot...",
-      "logSeo": "Compiling SEO semantic metadata and Tashkent keyword tags...",
       "logCalendar": "Scheduling inaugural calendar AI post drafts...",
       "statusSuccess": "SUCCESS",
       "statusRunning": "RUNNING",
-      "statusPending": "PENDING"
+      "statusPending": "PENDING",
+      "_DISABLED_logSeo": "Compiling SEO semantic metadata and Tashkent keyword tags..."
     },
     "mockSlogans": {
       "cozy1": "A cozy corner for your day.",
@@ -466,18 +474,6 @@
       "changePositive": "+{{change}}%",
       "drillDown": "Show detailed {{platform}} statistics"
     },
-    "seo": {
-      "title": "Local SEO Rankings",
-      "subtitle": "How your business ranks in Tashkent search results",
-      "keywordCol": "Search Keyword",
-      "positionCol": "Avg. Position",
-      "volumeCol": "Volume",
-      "volume": {
-        "high": "High",
-        "medium": "Medium",
-        "veryHigh": "Very High"
-      }
-    },
     "aiSearch": {
       "title": "AI Search Visibility",
       "subtitle": "How models recommend you in natural chat queries",
@@ -488,6 +484,18 @@
       "perplexityCitations": "Perplexity Citations",
       "active": "Active",
       "rankTop10": "Top 10"
+    },
+    "_DISABLED_seo": {
+      "title": "Local SEO Rankings",
+      "subtitle": "How your business ranks in Tashkent search results",
+      "keywordCol": "Search Keyword",
+      "positionCol": "Avg. Position",
+      "volumeCol": "Volume",
+      "volume": {
+        "high": "High",
+        "medium": "Medium",
+        "veryHigh": "Very High"
+      }
     }
   },
   "contentEngine": {
@@ -757,10 +765,10 @@
       "refresh": "Refresh",
       "remove": "Remove",
       "partial": "partial",
-      "partialHintInstagram": "No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account.",
       "partialHintNoApi": "This platform only exposes profile info publicly — no captions or videos, so it can't feed trend analysis.",
       "partialHintGeneric": "Profile found, but no posts could be read this time — try Refresh.",
-      "noFollowerData": "no data"
+      "noFollowerData": "no data",
+      "_DISABLED_partialHintInstagram": "No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account."
     },
     "addModal": {
       "title": "Add a Competitor",
@@ -888,55 +896,6 @@
     "pillFinishSetup": "Telegram · finish setup",
     "pillConnect": "Telegram · connect"
   },
-  "instagram": {
-    "setupTitle": "Connect Instagram",
-    "intro": "Connect your Instagram Business account so Markivo can publish on your behalf. You'll be taken to Meta to authorize — it takes about a minute.",
-    "step1": "Click the button below — we send you to Meta's secure login.",
-    "step2": "Choose the Facebook Page linked to your Instagram Business account and approve access.",
-    "step3": "You'll land back here, connected. ✓",
-    "requirement": "Your Instagram must be a <1>Business or Creator</1> account linked to a Facebook Page.",
-    "connecting": "Redirecting to Meta…",
-    "connectCta": "Connect Instagram ✦",
-    "doneTitle": "Instagram is connected!",
-    "doneText": "Connected as <1>{{handle}}</1>.",
-    "yourAccount": "your account",
-    "disconnectCta": "Disconnect",
-    "noticeConnected": "Instagram connected ✓",
-    "noticeError": "Could not connect Instagram — please try again.",
-    "errors": {
-      "denied": "Instagram connection was cancelled.",
-      "missing_code": "Instagram didn't return an authorization code. Please try again.",
-      "bad_state": "Your connection session expired. Please try again.",
-      "no_profile": "Complete onboarding before connecting Instagram.",
-      "exchange_failed": "Meta rejected the connection. Check that your Instagram is a Business account linked to a Facebook Page.",
-      "not_configured": "Instagram connection isn't configured yet."
-    },
-    "pillTitleSoon": "Instagram connection is coming soon",
-    "pillTitleConnected": "Connected as @{{username}}",
-    "pillTitleConnect": "Click to connect Instagram",
-    "pillSoon": "Instagram · soon",
-    "pillConnected": "Instagram · @{{username}}",
-    "pillConnectedGeneric": "Instagram · connected",
-    "pillConnect": "Instagram · connect",
-    "createPostCta": "Create a post",
-    "composer": {
-      "title": "New Instagram post",
-      "hint": "Posts to {{handle}}. Instagram requires media — use a JPEG image or an MP4 video (Reel). Max 8MB.",
-      "pick": "Choose image or video",
-      "change": "Change file",
-      "caption": "Caption",
-      "captionPh": "Write a caption… #hashtags welcome",
-      "tooLarge": "File is too large — 8MB maximum.",
-      "uploading": "Uploading…",
-      "publishing": "Publishing…",
-      "publishingVideo": "Publishing… (video can take a minute)",
-      "publish": "Publish to Instagram ✦",
-      "publishedTitle": "Published to Instagram!",
-      "publishedTo": "Posted to {{handle}}.",
-      "viewPost": "View post on Instagram ↗",
-      "another": "Post another"
-    }
-  },
   "settings": {
     "title": "Settings",
     "saved": "Saved! Your business profile is updated.",
@@ -1016,7 +975,21 @@
       "post_scheduled": "Scheduled a post",
       "approval_created": "Queued for your approval",
       "skipped": "Paused",
-      "error": "Error"
+      "error": "Error",
+      "context_needed": "Needs more context",
+      "context_answered": "You answered Autopilot"
+    },
+    "context": {
+      "title": "Autopilot paused — it needs a bit more context",
+      "blurb": "Markiv doesn't know enough about your channel yet to write something worth posting, so it stopped instead of publishing a generic ad.",
+      "paused": "Autopilot needs a bit more context before it can post.",
+      "answerLabel": "Your answer",
+      "answerPh": "e.g. We want more weekday-morning customers — a discount post that gets people to walk in before 11am.",
+      "send": "Send to Autopilot",
+      "sending": "Sending…",
+      "thanks": "Thanks — Autopilot will use that on its next run.",
+      "answerError": "Couldn't save your answer.",
+      "hint": "Autopilot remembers this — you only answer once."
     }
   },
   "templates": {
@@ -1211,7 +1184,6 @@
     "notReported": "not reported",
     "engagementUnavailable": "engagement not reported",
     "hasMedia": "Has media",
-    "engagementNote": "Per-post likes and comments are only available for connected Instagram Business or Creator accounts. This channel does not report them.",
     "stat": {
       "followers": "Followers",
       "following": "Following",
@@ -1229,6 +1201,57 @@
       "linkTelegram": "Link a Telegram channel to see live member counts.",
       "telegramError": "Telegram did not answer ({{error}}).",
       "noIntegration": "This channel has no live integration yet, so only what Markivo scheduled for it is shown."
+    },
+    "_DISABLED_engagementNote": "Per-post likes and comments are only available for connected Instagram Business or Creator accounts. This channel does not report them."
+  },
+  "_DISABLED_instagram": {
+    "setupTitle": "Connect Instagram",
+    "intro": "Connect your Instagram Business account so Markivo can publish on your behalf. You'll be taken to Meta to authorize — it takes about a minute.",
+    "step1": "Click the button below — we send you to Meta's secure login.",
+    "step2": "Choose the Facebook Page linked to your Instagram Business account and approve access.",
+    "step3": "You'll land back here, connected. ✓",
+    "requirement": "Your Instagram must be a <1>Business or Creator</1> account linked to a Facebook Page.",
+    "connecting": "Redirecting to Meta…",
+    "connectCta": "Connect Instagram ✦",
+    "doneTitle": "Instagram is connected!",
+    "doneText": "Connected as <1>{{handle}}</1>.",
+    "yourAccount": "your account",
+    "disconnectCta": "Disconnect",
+    "noticeConnected": "Instagram connected ✓",
+    "noticeError": "Could not connect Instagram — please try again.",
+    "errors": {
+      "denied": "Instagram connection was cancelled.",
+      "missing_code": "Instagram didn't return an authorization code. Please try again.",
+      "bad_state": "Your connection session expired. Please try again.",
+      "no_profile": "Complete onboarding before connecting Instagram.",
+      "exchange_failed": "Meta rejected the connection. Check that your Instagram is a Business account linked to a Facebook Page.",
+      "not_configured": "Instagram connection isn't configured yet."
+    },
+    "pillTitleSoon": "Instagram connection is coming soon",
+    "pillTitleConnected": "Connected as @{{username}}",
+    "pillTitleConnect": "Click to connect Instagram",
+    "pillSoon": "Instagram · soon",
+    "pillConnected": "Instagram · @{{username}}",
+    "pillConnectedGeneric": "Instagram · connected",
+    "pillConnect": "Instagram · connect",
+    "createPostCta": "Create a post",
+    "composer": {
+      "title": "New Instagram post",
+      "hint": "Posts to {{handle}}. Instagram requires media — use a JPEG image or an MP4 video (Reel). Max 8MB.",
+      "pick": "Choose image or video",
+      "change": "Change file",
+      "caption": "Caption",
+      "captionPh": "Write a caption… #hashtags welcome",
+      "tooLarge": "File is too large — 8MB maximum.",
+      "uploading": "Uploading…",
+      "publishing": "Publishing…",
+      "publishingVideo": "Publishing… (video can take a minute)",
+      "publish": "Publish to Instagram ✦",
+      "publishedTitle": "Published to Instagram!",
+      "publishedTo": "Posted to {{handle}}.",
+      "viewPost": "View post on Instagram ↗",
+      "another": "Post another"
     }
-  }
+  },
+  "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable."
 }

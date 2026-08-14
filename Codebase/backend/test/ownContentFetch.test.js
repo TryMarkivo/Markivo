@@ -12,49 +12,22 @@ const ownContentFetch = require('../ownContentFetch');
 const jsonRes = (body, ok = true, status = 200) => async () => ({ ok, status, json: async () => body });
 const htmlRes = (text, ok = true, status = 200) => async () => ({ ok, status, text: async () => text });
 
-test('fetchOwnContent(meta_instagram) reads real captions via the own-media Graph edge', async () => {
-  const payload = {
-    data: [
-      { id: 'm1', caption: 'New seasonal menu!', media_type: 'IMAGE', timestamp: '2026-08-01T10:00:00+0000', like_count: 40, comments_count: 3 },
-      { id: 'm2', caption: 'Behind the scenes', media_type: 'VIDEO', timestamp: '2026-07-30T10:00:00+0000', like_count: 90, comments_count: 5 },
-    ],
-  };
+// DISABLED: SEO/Meta temporarily off — see 2026-08-13. connectors/meta.js
+// exports {} while disabled, so meta_instagram/meta_facebook always degrade
+// honestly regardless of connection state — there is no live/error-path to
+// exercise here until Meta is re-enabled.
+test('fetchOwnContent(meta_instagram) degrades honestly while Meta is disabled', async () => {
   const conn = { accessToken: 'tok', accountId: 'ig123', meta: { igUserId: 'ig123' } };
-  const result = await ownContentFetch.fetchOwnContent('meta_instagram', conn, null, { fetchImpl: jsonRes(payload) });
-  assert.strictEqual(result.found, true);
-  assert.strictEqual(result.partial, false);
-  assert.strictEqual(result.posts.length, 2);
-  assert.strictEqual(result.posts[0].caption, 'New seasonal menu!');
-  assert.strictEqual(result.posts[1].kind, 'video');
-});
-
-test('fetchOwnContent(meta_instagram) degrades honestly when not connected', async () => {
-  const result = await ownContentFetch.fetchOwnContent('meta_instagram', null, null, {});
+  const result = await ownContentFetch.fetchOwnContent('meta_instagram', conn, null, {});
   assert.strictEqual(result.found, false);
-  assert.ok(result.error);
+  assert.match(result.error, /temporarily disabled/);
 });
 
-test('fetchOwnContent(meta_instagram) never throws when the Graph API call fails', async () => {
-  const conn = { accessToken: 'tok', accountId: 'ig123' };
-  const result = await ownContentFetch.fetchOwnContent('meta_instagram', conn, null, {
-    fetchImpl: jsonRes({ error: { message: 'token expired' } }, false, 401),
-  });
-  assert.strictEqual(result.found, false);
-  assert.ok(result.error);
-});
-
-test('fetchOwnContent(meta_facebook) reads real Page posts with like/comment summaries', async () => {
-  const payload = {
-    data: [
-      { id: 'p1', message: 'We are open this weekend!', created_time: '2026-08-01T10:00:00+0000', likes: { summary: { total_count: 12 } }, comments: { summary: { total_count: 2 } } },
-    ],
-  };
+test('fetchOwnContent(meta_facebook) degrades honestly while Meta is disabled', async () => {
   const conn = { accessToken: 'tok', accountId: 'page123', meta: { pageId: 'page123' } };
-  const result = await ownContentFetch.fetchOwnContent('meta_facebook', conn, null, { fetchImpl: jsonRes(payload) });
-  assert.strictEqual(result.found, true);
-  assert.strictEqual(result.posts[0].caption, 'We are open this weekend!');
-  assert.strictEqual(result.posts[0].likeCount, 12);
-  assert.strictEqual(result.posts[0].commentCount, 2);
+  const result = await ownContentFetch.fetchOwnContent('meta_facebook', conn, null, {});
+  assert.strictEqual(result.found, false);
+  assert.match(result.error, /temporarily disabled/);
 });
 
 test('fetchOwnContent(youtube) reads real uploads via the OAuth-authenticated Data API', async () => {
