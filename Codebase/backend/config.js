@@ -146,6 +146,11 @@ const config = {
   // no partnership with and keeps /api/competitors fast.
   competitorFetchCooldownMs: (parseInt(process.env.COMPETITOR_FETCH_COOLDOWN_MIN, 10) || 60) * 60 * 1000,
 
+  // Same idea for Autopilot's own-connected-account reads (ownContentFetch.js)
+  // — don't re-hit Meta/YouTube/TikTok/Telegram on every tick, only once this
+  // long since the last successful read.
+  ownContentFetchCooldownMs: (parseInt(process.env.OWN_CONTENT_FETCH_COOLDOWN_MIN, 10) || 60) * 60 * 1000,
+
   // --- Instagram (Instagram API with Instagram Login) — "Connect Instagram" ---
   // Uses the Instagram **Business Login** flow (instagram.com auth →
   // api.instagram.com / graph.instagram.com), NOT Facebook Login. Credentials

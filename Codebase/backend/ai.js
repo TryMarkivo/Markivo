@@ -7,6 +7,7 @@ const rubric = require('./marketing/rubric');
 const marketing = require('./marketing/prompts');
 const preferences = require('./preferences');
 const gemini = require('./gemini');
+const providers = require('./providers/textEngine');
 
 // Shared Anthropic client (constructed once in providers/anthropic.js). Null in
 // keyless mode, so every function falls back to a smart template.
@@ -378,7 +379,7 @@ const STRATEGY_SCHEMA = {
 // inside `post`, matching the existing UI contract.
 async function refineDraft({ platform, draft, ctx, langNames }) {
   try {
-    const out = await anthropic.completeJSON({
+    const out = await providers.completeJSON({
       model: config.aiContentModel,
       system: rubric.refineSystemPrompt +
         '\n\nOUTPUT OVERRIDE: Return ONLY JSON {"post": string, "mediaTip": string, "hashtags": string[]}. ' +
@@ -428,40 +429,40 @@ const PLAN_SCHEMA = {
 };
 
 async function analyzeAndPlan(ctx) {
-  if (!client) return templateAutonomousPlan(ctx);
+  if (!providers.isLive) return templateAutonomousPlan(ctx);
   const {
     platforms = ['instagram'], businessName, category, description,
     brandTone, audience, location, recentPosts = [], competitors = [],
+    ownExternalActivity = [], competitorHighlights = [],
   } = ctx;
   const targets = platforms.length ? platforms : ['instagram'];
   try {
-    const msg = await client.messages.create({
+    const parsed = await providers.completeJSON({
       model: config.aiContentModel,
-      max_tokens: 2000,
       system:
         "You are Markivo's autonomous marketing strategist for a small business. " +
         'Briefly analyze the business and its recent activity, then write platform-native ' +
         'promotional posts — exactly one per requested platform. Each post must match the brand ' +
         'tone, be ready to publish as-is, include a light call to action, and avoid repeating the ' +
         'recent posts. Respond as JSON only.',
-      messages: [{
-        role: 'user',
-        content:
-          `Business: ${businessName || 'a local business'}\n` +
-          `Category: ${category || 'general'}\n` +
-          `Description: ${description || 'n/a'}\n` +
-          `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
-          `Audience: ${audience || 'local customers'}\n` +
-          `Location: ${location || 'Tashkent'}\n` +
-          `Recent posts (do NOT repeat): ${recentPosts.slice(0, 5).map((p) => `- ${String(p).slice(0, 80)}`).join('\n') || 'none yet'}\n` +
-          `Competitor signals: ${competitors.slice(0, 5).join(', ') || 'n/a'}\n` +
-          `Target platforms: ${targets.join(', ')}\n\n` +
-          `Return a short "analysis" (2-3 sentences on what to post and why) and a "posts" array ` +
-          `with exactly one post per target platform ({platform, topic, text}).`,
-      }],
-      output_config: { format: { type: 'json_schema', schema: PLAN_SCHEMA } },
+      prompt:
+        `Business: ${businessName || 'a local business'}\n` +
+        `Category: ${category || 'general'}\n` +
+        `Description: ${description || 'n/a'}\n` +
+        `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
+        `Audience: ${audience || 'local customers'}\n` +
+        `Location: ${location || 'Tashkent'}\n` +
+        `Recent posts (do NOT repeat): ${recentPosts.slice(0, 5).map((p) => `- ${String(p).slice(0, 80)}`).join('\n') || 'none yet'}\n` +
+        `Recently posted organically on your own channels, outside Markivo (do NOT repeat, but stay consistent with it): ${ownExternalActivity.slice(0, 5).join(' | ') || 'none found'}\n` +
+        `Competitor signals: ${competitors.slice(0, 5).join(', ') || 'n/a'}\n` +
+        `Real recent competitor posts (for inspiration, never copy): ${competitorHighlights.slice(0, 5).join(' | ') || 'none tracked with content yet'}\n` +
+        `Target platforms: ${targets.join(', ')}\n\n` +
+        `Return a short "analysis" (2-3 sentences on what to post and why) and a "posts" array ` +
+        `with exactly one post per target platform ({platform, topic, text}).`,
+      schema: PLAN_SCHEMA,
+      maxTokens: 2000,
     });
-    const parsed = JSON.parse(textOf(msg));
+    if (!parsed) return templateAutonomousPlan(ctx);
     const posts = (parsed.posts || [])
       .filter((p) => p && p.text)
       .map((p) => ({
@@ -561,9 +562,9 @@ function templateCompetitorTrends(ctx) {
 async function analyzeCompetitorTrends(ctx) {
   const { businessName, category, brandTone, competitorStats = [], sampleCaptions = [] } = ctx;
   const withData = competitorStats.filter((s) => s.postCount > 0);
-  if (!client || !withData.length) return templateCompetitorTrends(ctx);
+  if (!providers.isLive || !withData.length) return templateCompetitorTrends(ctx);
   try {
-    const parsed = await anthropic.completeJSON({
+    const parsed = await providers.completeJSON({
       model: config.aiContentModel,
       system:
         "You are Markivo's competitive-intelligence analyst for a small business. Given REAL posting-cadence " +
@@ -609,7 +610,7 @@ async function analyzeCompetitorTrends(ctx) {
 async function generateContent(ctx) {
   const viaGemini = await gemini.generateContent(ctx);
   if (viaGemini) return viaGemini;
-  if (!client) return templateContent(ctx);
+  if (!providers.isLive) return templateContent(ctx);
   const platform = ctx.platform || 'instagram';
   const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => LANG_NAMES[l]);
   const langNames = (langs.length ? langs : ['en']).map((l) => LANG_NAMES[l]).join(', ');
@@ -621,7 +622,7 @@ async function generateContent(ctx) {
 
   try {
     // 1. Strategy — decide angle, hook, single message, one CTA (cheap model).
-    const strategy = await anthropic.completeJSON({
+    const strategy = await providers.completeJSON({
       model: config.aiContentModel,
       system: marketing.pipeline.strategySystemPrompt +
         (rule ? `\n\nPLATFORM-NATIVE RULES for ${platform}:\n${JSON.stringify(rule)}` : '') +
@@ -632,7 +633,7 @@ async function generateContent(ctx) {
     });
 
     // 2. Draft — execute the strategy into a final platform-native post.
-    const draft = await anthropic.completeJSON({
+    const draft = await providers.completeJSON({
       model: config.aiContentModel,
       system: marketing.pipeline.draftSystemPrompt + (prefBlock ? `\n\n${prefBlock}` : ''),
       prompt: fill(marketing.pipeline.draftUserTemplate, {
@@ -665,28 +666,22 @@ const SLOGAN_SCHEMA = {
 };
 
 async function generateSlogans(ctx) {
-  if (!client) return templateSlogans(ctx);
+  if (!providers.isLive) return templateSlogans(ctx);
   const { businessName, category, description, tone } = ctx;
   try {
-    const msg = await client.messages.create({
+    const parsed = await providers.completeJSON({
       model: config.aiContentModel,
-      max_tokens: 400,
       system: 'You are a brand strategist. Generate exactly 3 short, memorable, original English brand slogans (max 6 words each). Respond as JSON only.',
-      messages: [
-        {
-          role: 'user',
-          content:
-            `Business: ${businessName || 'a local business'}\n` +
-            `Category: ${category || 'general'}\n` +
-            `Description: ${description || 'n/a'}\n` +
-            `Desired tone: ${tone || 'Cozy & Warm'}\n\n` +
-            'Return 3 slogans in the "slogans" array.',
-        },
-      ],
-      output_config: { format: { type: 'json_schema', schema: SLOGAN_SCHEMA } },
+      prompt:
+        `Business: ${businessName || 'a local business'}\n` +
+        `Category: ${category || 'general'}\n` +
+        `Description: ${description || 'n/a'}\n` +
+        `Desired tone: ${tone || 'Cozy & Warm'}\n\n` +
+        'Return 3 slogans in the "slogans" array.',
+      schema: SLOGAN_SCHEMA,
+      maxTokens: 400,
     });
-    const parsed = JSON.parse(textOf(msg));
-    const slogans = (parsed.slogans || []).slice(0, 3);
+    const slogans = (parsed?.slogans || []).slice(0, 3);
     return slogans.length ? slogans : templateSlogans(ctx);
   } catch (err) {
     console.error('AI generateSlogans failed, using template:', err.message);
@@ -712,7 +707,7 @@ const AGENT_LANG_RULE = {
  *   actions = { snapshot, listScheduled, schedulePost, draftContent }
  */
 async function agentAct(ctx) {
-  if (!client) return templateAgentAct(ctx);
+  if (!providers.isLive) return templateAgentAct(ctx);
   const { query, history = [], lang = 'en', profile, telegram, platforms = [], snapshot, actions = {}, preferences: ownerExamples = [] } = ctx;
   const agentPrefBlock = preferences.preferenceDigest(ownerExamples);
 
@@ -862,65 +857,141 @@ async function agentAct(ctx) {
         ? '\nTelegram: COMING SOON — the integration is not enabled in this version. If the owner asks to post to Telegram, say it is coming soon and offer to draft the post text meanwhile. Do not tell them to connect a bot.'
         : '\nTelegram: NOT connected. If the owner asks to post to Telegram, explain they can connect it from the dashboard Telegram card in about a minute (create a bot with @BotFather, paste the token, add the bot to their channel).');
 
-  try {
-    const request = () =>
-      client.messages.create({
-        model: config.aiAgentModel,
-        max_tokens: 1000,
-        system,
-        messages,
-        tools: tools.length ? tools : undefined,
-      });
-
-    let msg = await request();
-
-    // Tool-use loop (max 4 iterations). post_to_telegram EXITS immediately —
-    // it must go through the human approval gate, never a tool_result.
-    for (let i = 0; i < 4 && msg.stop_reason === 'tool_use'; i++) {
-      const toolUses = (msg.content || []).filter((b) => b.type === 'tool_use');
-      const tgUse = toolUses.find((b) => b.name === 'post_to_telegram');
-      if (tgUse && tgUse.input?.text) {
-        return { type: 'telegram_post', text: tgUse.input.text, note: tgUse.input.note };
-      }
-      // Generic publish → route through the approval gate, never a tool_result.
-      const ppUse = toolUses.find((b) => b.name === 'publish_post');
-      if (ppUse && ppUse.input?.text && ppUse.input?.platform) {
-        return { type: 'platform_post', platform: ppUse.input.platform, text: ppUse.input.text, note: ppUse.input.note };
-      }
-
-      messages.push({ role: 'assistant', content: msg.content });
-      const results = [];
-      for (const tu of toolUses) {
-        let out;
-        try {
-          out = await runTool(tu.name, tu.input || {});
-        } catch (err) {
-          out = { error: err.message };
-        }
-        results.push({
-          type: 'tool_result',
-          tool_use_id: tu.id,
-          content: typeof out === 'string' ? out : JSON.stringify(out ?? null),
-        });
-      }
-      messages.push({ role: 'user', content: results });
-      msg = await request();
+  // Provider order: Gemini -> Anthropic -> template, same convention used
+  // everywhere else in this file. Each provider gets its own try/catch so a
+  // Gemini failure falls through to Anthropic (if configured) rather than
+  // going straight to the template.
+  if (config.geminiEnabled) {
+    try {
+      const result = await runAgentGemini({ tools, messages, system, runTool });
+      if (result) return result;
+    } catch (err) {
+      console.warn('Gemini agentAct failed, falling back:', err.message);
     }
-
-    const toolUse = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'post_to_telegram');
-    if (toolUse && toolUse.input?.text) {
-      return { type: 'telegram_post', text: toolUse.input.text, note: toolUse.input.note };
-    }
-    const ppFinal = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'publish_post');
-    if (ppFinal && ppFinal.input?.text && ppFinal.input?.platform) {
-      return { type: 'platform_post', platform: ppFinal.input.platform, text: ppFinal.input.text, note: ppFinal.input.note };
-    }
-    const reply = textOf(msg);
-    return reply ? { type: 'reply', reply } : templateAgentAct(ctx);
-  } catch (err) {
-    console.error('AI agentAct failed, using template:', err.message);
-    return templateAgentAct(ctx);
   }
+  if (client) {
+    try {
+      const result = await runAgentAnthropic({ tools, messages, system, runTool });
+      if (result) return result;
+    } catch (err) {
+      console.error('AI agentAct failed, using template:', err.message);
+    }
+  }
+  return templateAgentAct(ctx);
+}
+
+// Anthropic tool-use loop (max 4 iterations). post_to_telegram/publish_post
+// EXIT immediately — they must go through the human approval gate, never a
+// tool_result. Returns the action object, or null for "no usable reply"
+// (caller falls through to the next provider / template).
+async function runAgentAnthropic({ tools, messages, system, runTool }) {
+  const request = () =>
+    client.messages.create({
+      model: config.aiAgentModel,
+      max_tokens: 1000,
+      system,
+      messages,
+      tools: tools.length ? tools : undefined,
+    });
+
+  let msg = await request();
+
+  for (let i = 0; i < 4 && msg.stop_reason === 'tool_use'; i++) {
+    const toolUses = (msg.content || []).filter((b) => b.type === 'tool_use');
+    const tgUse = toolUses.find((b) => b.name === 'post_to_telegram');
+    if (tgUse && tgUse.input?.text) {
+      return { type: 'telegram_post', text: tgUse.input.text, note: tgUse.input.note };
+    }
+    const ppUse = toolUses.find((b) => b.name === 'publish_post');
+    if (ppUse && ppUse.input?.text && ppUse.input?.platform) {
+      return { type: 'platform_post', platform: ppUse.input.platform, text: ppUse.input.text, note: ppUse.input.note };
+    }
+
+    messages.push({ role: 'assistant', content: msg.content });
+    const results = [];
+    for (const tu of toolUses) {
+      let out;
+      try {
+        out = await runTool(tu.name, tu.input || {});
+      } catch (err) {
+        out = { error: err.message };
+      }
+      results.push({
+        type: 'tool_result',
+        tool_use_id: tu.id,
+        content: typeof out === 'string' ? out : JSON.stringify(out ?? null),
+      });
+    }
+    messages.push({ role: 'user', content: results });
+    msg = await request();
+  }
+
+  const toolUse = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'post_to_telegram');
+  if (toolUse && toolUse.input?.text) {
+    return { type: 'telegram_post', text: toolUse.input.text, note: toolUse.input.note };
+  }
+  const ppFinal = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'publish_post');
+  if (ppFinal && ppFinal.input?.text && ppFinal.input?.platform) {
+    return { type: 'platform_post', platform: ppFinal.input.platform, text: ppFinal.input.text, note: ppFinal.input.note };
+  }
+  const reply = textOf(msg);
+  return reply ? { type: 'reply', reply } : null;
+}
+
+// Gemini's tool-calling equivalent, same short-circuit/loop contract as
+// runAgentAnthropic above, built on Gemini's functionCall/functionResponse
+// wire format. `messages` is the SAME provider-agnostic flat turn list
+// ([{role:'user'|'assistant', content: string}]) agentAct already built for
+// Anthropic — converted here to Gemini's {role, parts} shape.
+//
+// Verified live against the real API: a functionCall part carries a
+// thoughtSignature that MUST be echoed back verbatim in the next turn's
+// parts, or the API rejects the request — so the model's raw `content.parts`
+// is pushed back unmodified rather than reconstructed field-by-field.
+async function runAgentGemini({ tools, messages, system, runTool }) {
+  const contents = messages.map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+
+  let content = await gemini.callGeminiWithTools({ system, contents, tools });
+
+  for (let i = 0; i < 4; i++) {
+    const calls = (content.parts || []).filter((p) => p.functionCall);
+    if (!calls.length) break;
+
+    const tgCall = calls.find((c) => c.functionCall.name === 'post_to_telegram');
+    if (tgCall && tgCall.functionCall.args?.text) {
+      return { type: 'telegram_post', text: tgCall.functionCall.args.text, note: tgCall.functionCall.args.note };
+    }
+    const ppCall = calls.find((c) => c.functionCall.name === 'publish_post');
+    if (ppCall && ppCall.functionCall.args?.text && ppCall.functionCall.args?.platform) {
+      return { type: 'platform_post', platform: ppCall.functionCall.args.platform, text: ppCall.functionCall.args.text, note: ppCall.functionCall.args.note };
+    }
+
+    contents.push({ role: 'model', parts: content.parts });
+    const responses = [];
+    for (const c of calls) {
+      let out;
+      try {
+        out = await runTool(c.functionCall.name, c.functionCall.args || {});
+      } catch (err) {
+        out = { error: err.message };
+      }
+      responses.push({
+        functionResponse: {
+          name: c.functionCall.name,
+          id: c.functionCall.id,
+          response: (out !== null && typeof out === 'object') ? out : { result: out ?? null },
+        },
+      });
+    }
+    contents.push({ role: 'user', parts: responses });
+    content = await gemini.callGeminiWithTools({ system, contents, tools });
+  }
+
+  const reply = (content.parts || []).filter((p) => p.text).map((p) => p.text).join('').trim();
+  return reply ? { type: 'reply', reply } : null;
 }
 
 // ===========================================================================
@@ -1076,11 +1147,10 @@ async function generateMediaBrief(ctx) {
 
   const viaGemini = await gemini.generateMediaBrief(ctx);
   if (viaGemini) return withEngineStatus(viaGemini);
-  if (!client) return templateMediaBrief(ctx);
+  if (!providers.isLive) return templateMediaBrief(ctx);
   try {
-    const msg = await client.messages.create({
+    const parsed = await providers.completeJSON({
       model: config.aiContentModel,
-      max_tokens: 4000,
       system: guided
         ? (kind === 'video'
           ? 'You are a professional videographer directing a small-business owner who is filming this ' +
@@ -1097,22 +1167,13 @@ async function generateMediaBrief(ctx) {
         : "You are Markivo's creative director. Produce a generation-ready creative brief for an AI media engine: " +
           'a concept, a caption that includes hashtags derived from the business name and category, ' +
           'and a visual spec. Respond as JSON only.',
-      messages: [
-        {
-          role: 'user',
-          content: profileLines(profile) + trendsLine(trends) + `Media kind: ${kind}\nWhat they want to shoot: ${topic}`,
-        },
-      ],
-      output_config: {
-        format: {
-          type: 'json_schema',
-          schema: guided
-            ? (kind === 'video' ? MEDIA_BRIEF_GUIDED_VIDEO_SCHEMA : MEDIA_BRIEF_GUIDED_PHOTO_SCHEMA)
-            : MEDIA_BRIEF_FULL_SCHEMA,
-        },
-      },
+      prompt: profileLines(profile) + trendsLine(trends) + `Media kind: ${kind}\nWhat they want to shoot: ${topic}`,
+      schema: guided
+        ? (kind === 'video' ? MEDIA_BRIEF_GUIDED_VIDEO_SCHEMA : MEDIA_BRIEF_GUIDED_PHOTO_SCHEMA)
+        : MEDIA_BRIEF_FULL_SCHEMA,
+      maxTokens: 4000,
     });
-    const parsed = JSON.parse(textOf(msg));
+    if (!parsed) return templateMediaBrief(ctx);
     return withEngineStatus({ mode, kind, ...parsed });
   } catch (err) {
     console.error('AI generateMediaBrief failed, using template:', err.message);
@@ -1145,29 +1206,24 @@ const EDIT_PLAN_SCHEMA = {
 };
 
 async function generateEditPlan(ctx) {
-  if (!client) return templateEditPlan(ctx);
+  if (!providers.isLive) return templateEditPlan(ctx);
   const { instructions, media, profile } = ctx;
   try {
-    const msg = await client.messages.create({
+    const parsed = await providers.completeJSON({
       model: config.aiContentModel,
-      max_tokens: 1200,
       system:
         "You are Markivo's photo/video editor. Produce a concrete edit plan an editing engine can execute: " +
         '5-8 numbered steps, crop guidance, a colour grade, caption treatment, audio treatment, ' +
         'and per-platform export specs. Respond as JSON only.',
-      messages: [
-        {
-          role: 'user',
-          content:
-            profileLines(profile) +
-            `Media kind: ${media?.kind || 'video'}\n` +
-            `Original topic: ${media?.topic || 'n/a'}\n` +
-            `Owner's edit instructions: ${instructions}`,
-        },
-      ],
-      output_config: { format: { type: 'json_schema', schema: EDIT_PLAN_SCHEMA } },
+      prompt:
+        profileLines(profile) +
+        `Media kind: ${media?.kind || 'video'}\n` +
+        `Original topic: ${media?.topic || 'n/a'}\n` +
+        `Owner's edit instructions: ${instructions}`,
+      schema: EDIT_PLAN_SCHEMA,
+      maxTokens: 1200,
     });
-    const parsed = JSON.parse(textOf(msg));
+    if (!parsed) return templateEditPlan(ctx);
     return { ...parsed, engineStatus: 'awaiting_media_api' };
   } catch (err) {
     console.error('AI generateEditPlan failed, using template:', err.message);
@@ -1212,32 +1268,26 @@ const isSafeSvg = (svg) =>
 
 async function generateLogos(ctx) {
   const fallback = logogen.generateLogoVariants(ctx);
-  if (!client) return fallback;
+  if (!providers.isLive) return fallback;
   const { businessName, category, tone } = ctx;
   try {
-    const msg = await client.messages.create({
+    const parsed = await providers.completeJSON({
       model: config.aiContentModel,
-      max_tokens: 4000,
       system:
         'You are a senior logo designer producing safe, self-contained SVG. Generate exactly 4 distinct logo variants. ' +
         'Each svg must be a complete <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"> document using ONLY ' +
         'rect, circle, polygon, path, text, and g elements — no scripts, no event handlers, no links, no foreignObject, ' +
         'no external references. Respond as JSON only.',
-      messages: [
-        {
-          role: 'user',
-          content:
-            `Business: ${businessName || 'a local business'}\n` +
-            `Category: ${category || 'general'}\n` +
-            `Brand tone: ${tone || 'n/a'}\n\n` +
-            'Return 4 variants in "logos": a circle monogram, a rounded-square monogram with a category glyph, ' +
-            'a hexagon badge, and a wordmark bar. Include the palette {bg, fg, accent} actually used and a short style name for each.',
-        },
-      ],
-      output_config: { format: { type: 'json_schema', schema: LOGO_SCHEMA } },
+      prompt:
+        `Business: ${businessName || 'a local business'}\n` +
+        `Category: ${category || 'general'}\n` +
+        `Brand tone: ${tone || 'n/a'}\n\n` +
+        'Return 4 variants in "logos": a circle monogram, a rounded-square monogram with a category glyph, ' +
+        'a hexagon badge, and a wordmark bar. Include the palette {bg, fg, accent} actually used and a short style name for each.',
+      schema: LOGO_SCHEMA,
+      maxTokens: 4000,
     });
-    const parsed = JSON.parse(textOf(msg));
-    const candidates = Array.isArray(parsed.logos) ? parsed.logos : [];
+    const candidates = Array.isArray(parsed?.logos) ? parsed.logos : [];
     // Always exactly 4: per-slot, a candidate that fails sanitation is
     // replaced by the deterministic variant for that slot.
     return fallback.map((fb, i) => {

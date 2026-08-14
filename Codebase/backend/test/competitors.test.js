@@ -19,13 +19,17 @@ process.env.SCAN_RATE_LIMIT = '100';
 process.env.COMPETITOR_FETCH_TIMEOUT_MS = '500';
 delete process.env.ANTHROPIC_API_KEY;
 delete process.env.YOUTUBE_DATA_API_KEY;
+// Explicit '' (not delete): a real GEMINI_API_KEY in .env would otherwise make
+// analyzeCompetitorTrends hit the live API instead of the template this suite
+// asserts against.
+process.env.GEMINI_API_KEY = '';
 
 const competitorFetch = require('../competitorFetch');
 const competitorAnalytics = require('../competitorAnalytics');
 const metaConnector = require('../connectors/meta');
 const ai = require('../ai');
 const { validateAddCompetitor, validateCompetitorSource } = require('../validators');
-const { app } = require('../server');
+const { app, db } = require('../server');
 
 // ---------------------------------------------------------------------------
 // Unit: validators
@@ -44,6 +48,14 @@ test('validateCompetitorSource mirrors the same URL rules for a single link', ()
   assert.strictEqual(validateCompetitorSource({ platform: 'facebook', url: 'https://www.facebook.com/somepage' }), null);
   assert.ok(validateCompetitorSource({ platform: 'facebook', url: 'not-a-url' }));
   assert.ok(validateCompetitorSource({ platform: 'unknown', url: 'https://facebook.com/x' }));
+});
+
+test('validateCompetitorSource accepts public Telegram channel links, rejects private invite links', () => {
+  assert.strictEqual(validateCompetitorSource({ platform: 'telegram', url: 'https://t.me/somechannel' }), null);
+  assert.strictEqual(validateCompetitorSource({ platform: 'telegram', url: 't.me/s/somechannel' }), null);
+  assert.ok(validateCompetitorSource({ platform: 'telegram', url: 'https://t.me/+AbCdEf12345' })); // private invite link, unscrapeable
+  assert.ok(validateCompetitorSource({ platform: 'telegram', url: 'https://t.me/joinchat/AbCdEf12345' }));
+  assert.ok(validateCompetitorSource({ platform: 'telegram', url: 'not-a-url' }));
 });
 
 // ---------------------------------------------------------------------------
@@ -190,6 +202,81 @@ test('fetchFacebook parses page name + follower count from meta tags', async () 
   const result = await competitorFetch.fetchCompetitorSource('facebook', 'https://facebook.com/sunrisecafe', { fetchImpl: htmlRes(html) });
   assert.strictEqual(result.found, true);
   assert.strictEqual(result.followerCount, 4500);
+});
+
+test('fetchTelegram parses channel name, subscriber count, and recent posts from the public t.me/s/ preview', async () => {
+  const html = `
+    <div class="tgme_channel_info_header_title"><span dir="auto">Sunrise Cafe</span></div>
+    <div class="tgme_channel_info_counters">
+      <div class="tgme_channel_info_counter"><span class="counter_value">12.3K</span><span class="counter_type">subscribers</span></div>
+      <div class="tgme_channel_info_counter"><span class="counter_value">340</span><span class="counter_type">photos</span></div>
+    </div>
+    <div class="tgme_widget_message_wrap js-widget_message_wrap">
+      <div class="tgme_widget_message" data-post="sunrisecafe/101">
+        <div class="tgme_widget_message_photo_wrap" style="background-image:url('https://x/p1.jpg')"></div>
+        <div class="tgme_widget_message_text js-message_text" dir="auto">New seasonal menu is here! <br>Come try it.</div>
+        <span class="tgme_widget_message_views">4.5K</span>
+        <a class="tgme_widget_message_date"><time datetime="2026-08-01T10:00:00+00:00">10:00</time></a>
+      </div>
+    </div>
+    <div class="tgme_widget_message_wrap js-widget_message_wrap">
+      <div class="tgme_widget_message" data-post="sunrisecafe/100">
+        <div class="tgme_widget_message_text js-message_text" dir="auto">Morning brew ready.</div>
+        <span class="tgme_widget_message_views">2.1K</span>
+        <a class="tgme_widget_message_date"><time datetime="2026-07-30T09:00:00+00:00">09:00</time></a>
+      </div>
+    </div>
+  `;
+  const result = await competitorFetch.fetchCompetitorSource('telegram', 'https://t.me/sunrisecafe', { fetchImpl: htmlRes(html) });
+  assert.strictEqual(result.found, true);
+  assert.strictEqual(result.handle, 'sunrisecafe');
+  assert.strictEqual(result.displayName, 'Sunrise Cafe');
+  assert.strictEqual(result.followerCount, 12300);
+  assert.strictEqual(result.partial, false);
+  assert.strictEqual(result.posts.length, 2);
+  assert.strictEqual(result.posts[0].externalId, '101');
+  assert.strictEqual(result.posts[0].kind, 'photo');
+  assert.match(result.posts[0].caption, /New seasonal menu is here!/);
+  assert.strictEqual(result.posts[0].viewCount, 4500);
+  assert.strictEqual(result.posts[0].likeCount, null);
+  // The photo wrap's own CSS background-image is the post's image — Telegram's
+  // public preview has no <img src> for it.
+  assert.strictEqual(result.posts[0].thumbnailUrl, 'https://x/p1.jpg');
+  assert.strictEqual(result.posts[1].kind, 'text');
+  assert.strictEqual(result.posts[1].thumbnailUrl, null);
+});
+
+test('fetchTelegram never mistakes an inline emoji sprite\'s background-image for a post thumbnail', async () => {
+  // Telegram renders emoji inside captions as <img>/<span> with their OWN
+  // unrelated background-image (a sprite sheet) — a text post must stay
+  // thumbnailUrl: null even though "background-image:url(...)" appears
+  // somewhere in the chunk.
+  const html = `
+    <div class="tgme_widget_message_wrap js-widget_message_wrap">
+      <div class="tgme_widget_message" data-post="sunrisecafe/102">
+        <div class="tgme_widget_message_text js-message_text" dir="auto">
+          Big news <i class="emoji" style="background-image:url('https://cdn/emoji-sprite.png')"></i>
+        </div>
+        <a class="tgme_widget_message_date"><time datetime="2026-08-02T10:00:00+00:00">10:00</time></a>
+      </div>
+    </div>`;
+  const result = await competitorFetch.fetchCompetitorSource('telegram', 'https://t.me/sunrisecafe', { fetchImpl: htmlRes(html) });
+  assert.strictEqual(result.posts[0].kind, 'text');
+  assert.strictEqual(result.posts[0].thumbnailUrl, null);
+});
+
+test('fetchTelegram degrades honestly when the channel page has no messages (e.g. private or empty)', async () => {
+  const result = await competitorFetch.fetchCompetitorSource('telegram', 'https://t.me/s/ghostchannel', { fetchImpl: htmlRes('<html>no messages here</html>') });
+  assert.strictEqual(result.posts.length, 0);
+  assert.strictEqual(result.partial, true);
+  assert.strictEqual(result.handle, 'ghostchannel');
+});
+
+test('fetchTelegram never throws on a network failure', async () => {
+  const throwing = async () => { throw new Error('ECONNRESET'); };
+  const result = await competitorFetch.fetchCompetitorSource('telegram', 'https://t.me/ghost', { fetchImpl: throwing });
+  assert.strictEqual(result.found, false);
+  assert.ok(result.error);
 });
 
 test('fetchCompetitorSource degrades to a normalized result for an unsupported platform', async () => {
@@ -395,6 +482,53 @@ test('POST /api/competitors/analyze explains WHY when a tracked competitor has n
   assert.strictEqual(res.status, 200);
   const { insight } = await res.json();
   assert.match(insight.analysis.analysis, /SAT Station/);
+});
+
+test('POST /api/competitors/:id/sources adds a Telegram channel link and round-trips it through GET', async () => {
+  const token = await register('tgcomp');
+  await onboard(token);
+  const added = await (await post('/api/competitors', {
+    name: 'Rival Cafe',
+    sources: [{ platform: 'instagram', url: 'https://instagram.com/rivalcafe_tg_test' }],
+  }, token)).json();
+
+  const res = await post(`/api/competitors/${added.competitor.id}/sources`, { platform: 'telegram', url: 'https://t.me/rivalcafechannel' }, token);
+  assert.strictEqual(res.status, 201);
+  const body = await res.json();
+  assert.strictEqual(body.source.platform, 'telegram');
+  assert.ok(['ok', 'error', 'empty'].includes(body.source.status));
+
+  const list = await (await get('/api/competitors', token)).json();
+  const competitor = list.competitors.find((c) => c.id === added.competitor.id);
+  assert.ok(competitor.sources.some((s) => s.platform === 'telegram'));
+  // Recent posts ride along with the competitor payload now — the frontend
+  // Recent Posts panel reads this directly, no second round-trip.
+  assert.ok(Array.isArray(competitor.posts));
+});
+
+test('GET /api/competitors embeds real stored posts (caption, thumbnail, engagement) for the Recent Posts panel', async () => {
+  const token = await register('postsembed');
+  await onboard(token);
+  const added = await (await post('/api/competitors', {
+    name: 'Rival Cafe', sources: [{ platform: 'instagram', url: 'https://instagram.com/rivalcafe_embed_test' }],
+  }, token)).json();
+  const sourceId = added.competitor.sources[0].id;
+  const competitorId = added.competitor.id;
+
+  const seeded = [{
+    externalId: 'p1', kind: 'photo', caption: 'Our new latte', thumbnailUrl: 'https://x/latte.jpg',
+    postedAt: '2026-08-01T10:00:00Z', likeCount: 40, commentCount: 3, viewCount: null,
+  }];
+  db._raw.prepare(
+    'INSERT INTO competitor_posts (id, source_id, competitor_id, profile_id, platform, external_id, kind, caption, thumbnail_url, posted_at, like_count, comment_count, view_count, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  ).run('post_seed_1', sourceId, competitorId, added.competitor.profileId, 'instagram', seeded[0].externalId, seeded[0].kind, seeded[0].caption, seeded[0].thumbnailUrl, seeded[0].postedAt, seeded[0].likeCount, seeded[0].commentCount, seeded[0].viewCount, new Date().toISOString());
+
+  const list = await (await get('/api/competitors', token)).json();
+  const competitor = list.competitors.find((c) => c.id === competitorId);
+  assert.strictEqual(competitor.posts.length, 1);
+  assert.strictEqual(competitor.posts[0].caption, 'Our new latte');
+  assert.strictEqual(competitor.posts[0].thumbnailUrl, 'https://x/latte.jpg');
+  assert.strictEqual(competitor.posts[0].likeCount, 40);
 });
 
 test('/api/competitors/:id/sources 404s for a competitor that belongs to a different profile', async () => {

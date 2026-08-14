@@ -5,10 +5,12 @@ const path = require('path');
 const fs = require('fs');
 
 // Isolate DB + secret BEFORE requiring the app (config reads env at load).
-// No ANTHROPIC_API_KEY → the agent runs in template (keyless) mode.
+// No ANTHROPIC_API_KEY or GEMINI_API_KEY → the agent runs in template (keyless) mode.
 // TELEGRAM_ENABLED is deliberately NOT set → telegram stays coming-soon.
 const TMP_DB = path.join(os.tmpdir(), `markivo-agentmem-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
+process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 // Explicit 'false' (not delete): dotenv loads backend/.env at require time but

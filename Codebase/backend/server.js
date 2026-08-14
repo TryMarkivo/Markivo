@@ -22,6 +22,7 @@ const autonomous = require('./autonomous');
 const metaDeletion = require('./metaDeletion');
 const competitorFetch = require('./competitorFetch');
 const competitorAnalytics = require('./competitorAnalytics');
+const ownContentFetch = require('./ownContentFetch');
 const { limitFor } = require('./postLimits');
 const {
   validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate,
@@ -310,9 +311,14 @@ function rollUpCompetitorStats(competitorId) {
   });
 }
 
+// Recent posts ride along with every competitor payload (list/add/refresh) so
+// the frontend can render real captions/thumbnails/engagement without a
+// second round-trip — this is the same data /api/competitors/analyze already
+// reads from db.competitorPosts, just not aggregated into stats here.
 const competitorWithSources = (competitor) => ({
   ...competitor,
   sources: db.competitorSources.listByCompetitor(competitor.id),
+  posts: db.competitorPosts.listByCompetitor(competitor.id, 12),
 });
 
 app.post('/api/competitors', verifyToken, asyncRoute(async (req, res) => {
@@ -2268,7 +2274,7 @@ const autopilotPublishers = {
   },
 };
 const runAutopilotTick = (opts = {}) =>
-  autonomous.runAutonomousTick({ db, ai, connectors, config, publishers: autopilotPublishers, ...opts });
+  autonomous.runAutonomousTick({ db, ai, connectors, config, publishers: autopilotPublishers, ownContentFetch, ...opts });
 
 // Current Autopilot config + recent activity for the signed-in business.
 app.get('/api/autonomous/status', verifyToken, (req, res) => {
@@ -2323,7 +2329,7 @@ app.post('/api/autonomous/run', verifyToken, autonomousGate, checkAiBudget, asyn
   if (!profile) return;
   const cfg = db.autonomous.getConfig(profile.id);
   if (!cfg || !cfg.enabled) return res.status(400).json({ error: 'Enable Autopilot first, then run it.' });
-  const result = await autonomous.runProfileAutopilot({ db, ai, connectors, config, publishers: autopilotPublishers, profileId: profile.id, nowMs: Date.now(), force: true });
+  const result = await autonomous.runProfileAutopilot({ db, ai, connectors, config, publishers: autopilotPublishers, ownContentFetch, profileId: profile.id, nowMs: Date.now(), force: true });
   res.json({ result, activity: db.autonomous.listActivity(profile.id, 30) });
 }));
 

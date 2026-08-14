@@ -43,6 +43,55 @@ const SCOPES = [
 // Markivo builds every redirect URI as `<redirectBase>/api/connect/<key>/callback`.
 const redirectUri = (key) => `${config.connectors.redirectBase}/api/connect/${key}/callback`;
 
+// Own-channel recent uploads — Autopilot's "what has this business actually
+// posted" signal. Same shape as competitorFetch.js#fetchYouTubeViaApi (channel
+// -> uploads playlist -> playlistItems + video stats), but authenticated with
+// the connected OAuth token (youtube.readonly scope, already requested at
+// connect time) + mine=true instead of a public API key + forHandle/id.
+async function ownUploads(accessToken, { fetchImpl = fetch } = {}) {
+  const authHeaders = { Authorization: `Bearer ${accessToken}` };
+  const chRes = await fetchImpl(`${YT_CHANNELS_URL}?part=contentDetails&mine=true`, { headers: authHeaders });
+  if (!chRes.ok) throw new Error(`YouTube channels.list responded ${chRes.status}`);
+  const chData = await chRes.json();
+  const uploadsPlaylist = chData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (!uploadsPlaylist) return [];
+
+  const plRes = await fetchImpl(
+    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=20&playlistId=${uploadsPlaylist}`,
+    { headers: authHeaders }
+  );
+  if (!plRes.ok) return [];
+  const plData = await plRes.json();
+  const items = plData.items || [];
+  const videoIds = items.map((it) => it.contentDetails?.videoId).filter(Boolean);
+
+  let statsById = {};
+  if (videoIds.length) {
+    const vRes = await fetchImpl(
+      `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds.join(',')}`,
+      { headers: authHeaders }
+    );
+    if (vRes.ok) {
+      const vData = await vRes.json();
+      statsById = Object.fromEntries((vData.items || []).map((v) => [v.id, v.statistics || {}]));
+    }
+  }
+
+  return items.map((it) => {
+    const vid = it.contentDetails?.videoId;
+    const st = statsById[vid] || {};
+    return {
+      externalId: vid || null,
+      kind: 'video',
+      caption: it.snippet?.title || '',
+      postedAt: it.contentDetails?.videoPublishedAt || it.snippet?.publishedAt || null,
+      likeCount: Number.isFinite(+st.likeCount) ? +st.likeCount : null,
+      commentCount: Number.isFinite(+st.commentCount) ? +st.commentCount : null,
+      viewCount: Number.isFinite(+st.viewCount) ? +st.viewCount : null,
+    };
+  });
+}
+
 const adapter = {
   key: 'youtube',
   label: 'YouTube',
@@ -278,3 +327,4 @@ const adapter = {
 };
 
 module.exports = adapter;
+module.exports.ownUploads = ownUploads;

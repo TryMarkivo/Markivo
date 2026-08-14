@@ -136,7 +136,7 @@ async function verifyPostAccess(token, chatId, botUserId) {
       403
     );
   }
-  return { chatId: String(chat.id), chatTitle: chat.title || chat.username, chatType: chat.type };
+  return { chatId: String(chat.id), chatTitle: chat.title || chat.username, chatType: chat.type, chatUsername: chat.username || null };
 }
 
 const sendMessage = (token, chatId, text) =>

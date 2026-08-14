@@ -9,6 +9,8 @@ const fs = require('fs');
 // de-scoped (coming-soon) behavior of the Telegram feature flag.
 const TMP_DB = path.join(os.tmpdir(), `markivo-tggate-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
+process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 // Explicit 'false' (not delete): dotenv loads backend/.env at require time but

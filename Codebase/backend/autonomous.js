@@ -41,10 +41,43 @@ function withinBudget(db, config, userId, tier) {
   return db.usage.countThisMonth(userId) < config.aiTierLimits[t];
 }
 
+// Read back real content from the business's own connected accounts (best
+// effort, cooldown-gated so a frequent tick doesn't hammer Meta/YouTube/TikTok/
+// Telegram) plus real competitor content already collected by Competitor
+// Intel, and fold both into a short planning digest. Never throws — every
+// fetch failure just means that platform contributes nothing this round.
+async function gatherExternalActivity({ db, ownContentFetch, config, profileId, connectedPlatforms, tgConn, nowMs }) {
+  const cooldownMs = config.ownContentFetchCooldownMs;
+  for (const platform of connectedPlatforms) {
+    const conn = platform === 'telegram' ? null : db.connections.findByProfile(profileId, platform);
+    const source = db.ownContent.sourceFor(profileId, platform);
+    const stale = !source || !source.lastFetchedAt || (nowMs - new Date(source.lastFetchedAt).getTime()) > cooldownMs;
+    if (!stale) continue;
+    const result = await ownContentFetch.fetchOwnContent(platform, conn, tgConn);
+    db.ownContent.upsertSource({ profileId, platform, status: result.error ? 'error' : (result.found ? 'ok' : 'empty'), error: result.error });
+    if (result.posts && result.posts.length) db.ownContent.replacePosts(profileId, platform, result.posts);
+  }
+
+  const ownPosts = db.ownContent.listByProfile(profileId, 15);
+  const ownExternalActivity = ownPosts
+    .filter((p) => p.caption)
+    .slice(0, 8)
+    .map((p) => `[${p.platform}] ${String(p.caption).slice(0, 100)}`);
+
+  const competitorPosts = db.competitorPosts.listByProfile(profileId, 40).filter((p) => p.caption);
+  const competitors = db.competitors.listByProfile(profileId).filter((c) => c.source === 'manual' || c.source === 'places');
+  const nameById = Object.fromEntries(competitors.map((c) => [c.id, c.competitor_name]));
+  const competitorHighlights = competitorPosts
+    .slice(0, 8)
+    .map((p) => `${nameById[p.competitorId] || 'A competitor'}: "${String(p.caption).slice(0, 100)}"`);
+
+  return { ownExternalActivity, competitorHighlights, ownPostCount: ownPosts.length, competitorPostCount: competitorPosts.length };
+}
+
 // Run Autopilot once for a single profile. Returns a small summary object.
 // `force` (manual "Run now") bypasses the dueness claim; worker-initiated runs
 // must win an atomic claim so overlapping ticks can't double-run a profile.
-async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}, profileId, nowMs = Date.now(), force = false }) {
+async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}, ownContentFetch, profileId, nowMs = Date.now(), force = false }) {
   const profile = db.profiles.findById(profileId);
   const cfg = db.autonomous.getConfig(profileId);
   if (!profile || !cfg || !cfg.enabled) return { skipped: 'not-enabled' };
@@ -72,13 +105,32 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   // Target platforms: the owner's chosen set intersected with what's actually
   // connected (Telegram counts when a bot is linked). Fall back to the chosen
   // set, then to Instagram, so a keyless/sandbox setup still produces drafts.
+  const tgConn = db.telegram.findByProfile(profileId);
   const connected = new Set(db.connections.listByProfile(profileId).map((c) => c.platform));
-  if (db.telegram.findByProfile(profileId)) connected.add('telegram');
+  if (tgConn) connected.add('telegram');
   let platforms = (cfg.platforms || []).filter((p) => connected.size === 0 || connected.has(p));
   if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['meta_instagram'];
 
   const recentPosts = db.calendar.listByProfile(profileId).slice(-5).map((p) => p.post_text).filter(Boolean);
   const competitors = db.competitors.listByProfile(profileId).filter((c) => c.source === 'manual' || c.source === 'places').slice(0, 5).map((c) => c.competitor_name).filter(Boolean);
+
+  // Best-effort live read of real content: the business's own connected
+  // accounts (organic posts made outside Markivo) plus real fetched competitor
+  // posts (not just names) — see gatherExternalActivity above. Never throws;
+  // a total failure here just means the plan proceeds without this extra context.
+  let ownExternalActivity = [];
+  let competitorHighlights = [];
+  let externalActivityCounts = { ownPostCount: 0, competitorPostCount: 0 };
+  if (ownContentFetch) {
+    try {
+      const gathered = await gatherExternalActivity({ db, ownContentFetch, config, profileId, connectedPlatforms: connected, tgConn, nowMs });
+      ownExternalActivity = gathered.ownExternalActivity;
+      competitorHighlights = gathered.competitorHighlights;
+      externalActivityCounts = gathered;
+    } catch (err) {
+      db.autonomous.logActivity({ profileId, kind: 'error', summary: `Own/competitor content read failed: ${err.message}` });
+    }
+  }
 
   // One analyze+generate call counts as one AI generation against the allowance.
   if (user) db.usage.record({ userId: user.id, kind: 'autonomous' });
@@ -95,6 +147,8 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
       location: profile.location,
       recentPosts,
       competitors,
+      ownExternalActivity,
+      competitorHighlights,
     });
   } catch (err) {
     db.autonomous.logActivity({ profileId, kind: 'error', summary: `Analysis failed: ${err.message}` });
@@ -102,8 +156,16 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   }
 
   db.autonomous.logActivity({ profileId, kind: 'analysis', summary: plan.analysis, payload: { platforms } });
-
-  const tgConn = db.telegram.findByProfile(profileId);
+  if (externalActivityCounts.ownPostCount || externalActivityCounts.competitorPostCount) {
+    db.autonomous.logActivity({
+      profileId,
+      kind: 'external_content',
+      summary: `Grounded this plan in ${externalActivityCounts.ownPostCount} real post${externalActivityCounts.ownPostCount === 1 ? '' : 's'} from your own connected accounts and ${externalActivityCounts.competitorPostCount} from tracked competitors.`,
+      // The actual snippets that fed the prompt — otherwise they're used once
+      // and thrown away, leaving the owner with only a count in the summary.
+      payload: { ownExternalActivity: ownExternalActivity.slice(0, 5), competitorHighlights: competitorHighlights.slice(0, 5) },
+    });
+  }
 
   // Publish `text` to `platform` now, or report that it must be deferred.
   const publishNow = async (platform, text) => {
@@ -183,12 +245,12 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
 
 // Scan for all due Autopilot profiles and run each. Called on an interval by the
 // server, and on demand by tests.
-async function runAutonomousTick({ db, ai, connectors, config, publishers, now = Date.now() }) {
+async function runAutonomousTick({ db, ai, connectors, config, publishers, ownContentFetch, now = Date.now() }) {
   const due = db.autonomous.dueProfiles(new Date(now).toISOString());
   const results = [];
   for (const profileId of due) {
     try {
-      results.push({ profileId, ...(await runProfileAutopilot({ db, ai, connectors, config, publishers, profileId, nowMs: now })) });
+      results.push({ profileId, ...(await runProfileAutopilot({ db, ai, connectors, config, publishers, ownContentFetch, profileId, nowMs: now })) });
     } catch (err) {
       db.autonomous.logActivity({ profileId, kind: 'error', summary: err.message });
       results.push({ profileId, error: err.message });

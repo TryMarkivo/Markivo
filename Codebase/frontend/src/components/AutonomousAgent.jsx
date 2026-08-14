@@ -12,6 +12,7 @@ const KIND_META = {
   approval_created: { icon: 'fa-circle-check', key: 'approval_created', fallback: 'Queued for your approval' },
   skipped: { icon: 'fa-circle-pause', key: 'skipped', fallback: 'Paused' },
   error: { icon: 'fa-triangle-exclamation', key: 'error', fallback: 'Error' },
+  external_content: { icon: 'fa-database', key: 'external_content', fallback: 'Grounded in real content' },
 };
 
 const FREQUENCIES = ['daily', 'weekly', 'test'];
@@ -271,6 +272,16 @@ export default function AutonomousAgent({ activeProfile }) {
                   <div className="ap-activity-body">
                     <span className="ap-activity-kind">{t(`autopilot.kind.${m.key}`, m.fallback)}</span>
                     {a.summary && <span className="ap-activity-summary">{a.summary}</span>}
+                    {a.kind === 'external_content' && a.payload && (
+                      <ul className="ap-grounding-list">
+                        {(a.payload.ownExternalActivity || []).map((s, i) => (
+                          <li key={`own-${i}`}><i className="fa-solid fa-user"></i> {s}</li>
+                        ))}
+                        {(a.payload.competitorHighlights || []).map((s, i) => (
+                          <li key={`comp-${i}`}><i className="fa-solid fa-magnifying-glass"></i> {s}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <time className="ap-activity-time">{new Date(a.created_at).toLocaleString()}</time>
                 </li>

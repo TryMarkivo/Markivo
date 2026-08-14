@@ -439,4 +439,51 @@ async function businessDiscovery(callerIgUserId, targetUsername, accessToken, { 
   return data.business_discovery;
 }
 
-module.exports = { instagram, facebook, businessDiscovery };
+// ---------------------------------------------------------------------------
+// Own-account reads — Autopilot's "what has this business actually posted"
+// signal. Unlike businessDiscovery (reads a STRANGER's public account), these
+// read the CALLER's own connected Page/IG account directly with their own
+// token — a plain edge on the resource they already own, no special API
+// feature or extra permission beyond the pages_read_engagement/instagram_basic
+// scopes already requested at connect time (see META_SCOPES above).
+// ---------------------------------------------------------------------------
+
+// GET /{ig-user-id}/media — the account's own recent media, real captions +
+// engagement. Docs: https://developers.facebook.com/docs/instagram-api/guides/content-publishing
+async function ownMedia(igUserId, accessToken, { fetchImpl = fetch, limit = 25 } = {}) {
+  const fields = 'caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count';
+  const params = new URLSearchParams({ fields, access_token: accessToken, limit: String(limit) });
+  let res;
+  try {
+    res = await fetchImpl(`${GRAPH}/${igUserId}/media?${params.toString()}`, { method: 'GET' });
+  } catch (err) {
+    throw new ConnectorError('meta_instagram', `Could not reach Instagram to read your own posts (${err.message}).`, 502);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data && data.error && data.error.message ? data.error.message : 'could not read your Instagram media';
+    throw new ConnectorError('meta_instagram', `Instagram own-media read failed: ${msg}`, res.status || 400);
+  }
+  return Array.isArray(data.data) ? data.data : [];
+}
+
+// GET /{page-id}/posts — the Page's own recent posts, with like/comment
+// summaries. Docs: https://developers.facebook.com/docs/pages-api/posts
+async function ownPagePosts(pageId, accessToken, { fetchImpl = fetch, limit = 25 } = {}) {
+  const fields = 'message,created_time,permalink_url,likes.summary(true),comments.summary(true)';
+  const params = new URLSearchParams({ fields, access_token: accessToken, limit: String(limit) });
+  let res;
+  try {
+    res = await fetchImpl(`${GRAPH}/${pageId}/posts?${params.toString()}`, { method: 'GET' });
+  } catch (err) {
+    throw new ConnectorError('meta_facebook', `Could not reach Facebook to read your own posts (${err.message}).`, 502);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data && data.error && data.error.message ? data.error.message : 'could not read your Page posts';
+    throw new ConnectorError('meta_facebook', `Facebook own-posts read failed: ${msg}`, res.status || 400);
+  }
+  return Array.isArray(data.data) ? data.data : [];
+}
+
+module.exports = { instagram, facebook, businessDiscovery, ownMedia, ownPagePosts };

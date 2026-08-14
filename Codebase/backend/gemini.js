@@ -56,6 +56,74 @@ async function callGemini({ system, user, schema, maxTokens = 1500, temperature 
   return schema ? JSON.parse(text) : text;
 }
 
+// Convert a standard (lowercase-type) JSON schema — as used throughout ai.js
+// for Anthropic's output_config — into Gemini's OpenAPI-3.0 subset: UPPERCASE
+// type names, no additionalProperties, plus propertyOrdering. Recursive, so
+// ai.js's schemas (and Anthropic tool input_schemas) never need a second,
+// hand-maintained Gemini twin.
+const TYPE_MAP = { object: 'OBJECT', array: 'ARRAY', string: 'STRING', number: 'NUMBER', integer: 'INTEGER', boolean: 'BOOLEAN' };
+
+function toGeminiSchema(schema) {
+  if (!schema || typeof schema !== 'object') return schema;
+  const out = { type: TYPE_MAP[schema.type] || schema.type };
+  if (schema.description) out.description = schema.description;
+  if (schema.enum) out.enum = schema.enum;
+  if (schema.type === 'object' && schema.properties) {
+    out.properties = Object.fromEntries(
+      Object.entries(schema.properties).map(([k, v]) => [k, toGeminiSchema(v)])
+    );
+    out.propertyOrdering = Object.keys(schema.properties);
+    if (schema.required) out.required = schema.required;
+  }
+  if (schema.type === 'array' && schema.items) out.items = toGeminiSchema(schema.items);
+  return out;
+}
+
+// Single-turn structured JSON completion using an already-lowercase (Anthropic-
+// style) schema — converts it, then delegates to callGemini above.
+async function callGeminiJSON({ system, prompt, schema, maxTokens, temperature } = {}) {
+  return callGemini({ system, user: prompt, schema: toGeminiSchema(schema), maxTokens, temperature });
+}
+
+// Low-level tool-calling primitive for the multi-turn agent loop
+// (ai.js#agentAct). Unlike callGemini, this does NOT extract text — the caller
+// needs to inspect content.parts for functionCall vs text parts and drive its
+// own loop, exactly like it already does against Anthropic's tool-use API.
+// `tools` is the SAME Anthropic-shaped array ai.js already builds ({ name,
+// description, input_schema }); converted to Gemini's functionDeclarations here
+// so there is one source of truth for what tools exist.
+async function callGeminiWithTools({ system, contents, tools, maxTokens = 1000, temperature } = {}) {
+  if (!config.geminiEnabled) throw new Error('Gemini is not configured');
+
+  const body = {
+    contents,
+    tools: [{
+      functionDeclarations: (tools || []).map((t) => ({
+        name: t.name,
+        description: t.description,
+        parameters: toGeminiSchema(t.input_schema),
+      })),
+    }],
+    generationConfig: { maxOutputTokens: maxTokens, ...(temperature != null ? { temperature } : {}) },
+  };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
+
+  const url = `${API_HOST}/models/${encodeURIComponent(config.geminiTextModel)}:generateContent`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.geminiApiKey },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(config.geminiTimeoutMs),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = (data.error && data.error.message) || `HTTP ${res.status}`;
+    throw new Error(`Gemini request failed: ${msg}`);
+  }
+  return (((data.candidates || [])[0] || {}).content) || { parts: [], role: 'model' };
+}
+
 // ===========================================================================
 // TEMPLATE PRIMITIVES (deterministic — no AI, shared by every code path)
 // ===========================================================================
@@ -558,6 +626,10 @@ module.exports = {
   generateContent,
   generateMediaBrief,
   analyzeTemplate,
+  // Low-level primitives shared by providers/textEngine.js and ai.js#agentAct.
+  toGeminiSchema,
+  callGeminiJSON,
+  callGeminiWithTools,
   // Deterministic helpers — used by the routes and exercised directly by tests.
   normalizeLanguages,
   langInstructionFor,

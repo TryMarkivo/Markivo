@@ -92,6 +92,7 @@ const PLATFORM_URL_RE = {
   tiktok: /^(https?:\/\/)?(www\.)?tiktok\.com\/@([A-Za-z0-9_.]{2,30})\/?/i,
   youtube: /^(https?:\/\/)?(www\.)?youtube\.com\/(@[A-Za-z0-9_.-]{2,60}|channel\/[A-Za-z0-9_-]{10,40}|c\/[A-Za-z0-9_.-]{2,60})\/?/i,
   facebook: /^(https?:\/\/)?(www\.)?facebook\.com\/([A-Za-z0-9.]{2,60})\/?/i,
+  telegram: /^(https?:\/\/)?(www\.)?t\.me\/(s\/)?(?!joinchat\/|\+)([A-Za-z0-9_]{5,32})\/?/i,
 };
 const SUPPORTED_PLATFORMS = Object.keys(PLATFORM_URL_RE);
 
@@ -112,7 +113,7 @@ function validateAddCompetitor(body = {}) {
     [list.every((s) => s && typeof s.platform === 'string' && SUPPORTED_PLATFORMS.includes(s.platform.toLowerCase())),
       `Each platform must be one of: ${SUPPORTED_PLATFORMS.join(', ')}`],
     [list.every((s) => s && isValidCompetitorUrl(s.platform, s.url)),
-      'Each link must be a valid profile URL for its platform (e.g. instagram.com/handle, tiktok.com/@handle, youtube.com/@handle, facebook.com/page)'],
+      'Each link must be a valid profile URL for its platform (e.g. instagram.com/handle, tiktok.com/@handle, youtube.com/@handle, facebook.com/page, t.me/channelname)'],
   ]);
 }
 

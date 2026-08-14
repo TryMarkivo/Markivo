@@ -74,6 +74,14 @@ const metaTag = (html, prop) => {
   return m ? decodeHtmlEntities(m[1]) : null;
 };
 
+// Strip HTML tags down to plain text (message bodies carry <br>, <a>, <span dir>
+// etc.) — collapse whitespace after so multi-line captions read cleanly.
+const stripTags = (html) =>
+  decodeHtmlEntities(String(html).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' '))
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]*/g, '\n')
+    .trim();
+
 // --- Instagram -------------------------------------------------------------
 // Real per-post content IS available here, but only through the official
 // Business Discovery API (connectors/meta.js) — which requires the CALLING
@@ -305,7 +313,67 @@ async function fetchFacebook(url, opts = {}) {
   });
 }
 
-const FETCHERS = { instagram: fetchInstagram, tiktok: fetchTikTok, youtube: fetchYouTube, facebook: fetchFacebook };
+// --- Telegram ------------------------------------------------------------
+// Telegram has no API for reading a channel you don't administer, but every
+// PUBLIC channel/group renders a login-free HTML preview at t.me/s/<name> —
+// the same page Telegram itself uses for link previews. It server-renders the
+// channel header (name, subscriber count) and the last ~20 posts (text, view
+// count, timestamp, photo/video presence) with no JS required, so a plain GET
+// + regex parse is reliable here (more so than the JSON-blob digging TikTok
+// needs). Reactions/comments are not part of this page, so those stay null —
+// never invented.
+async function fetchTelegram(url, opts = {}) {
+  const handle = url.match(/t\.me\/(?:s\/)?(?!joinchat\/|\+)([A-Za-z0-9_]{5,32})/i)?.[1] || null;
+  if (!handle) return normalizeResult({ error: 'Could not read a channel name from that link' });
+
+  const res = await safeGet(`https://t.me/s/${handle}`, opts);
+  if (!res.ok) return normalizeResult({ handle, error: res.error || `Telegram responded ${res.status}` });
+
+  const titleMatch = res.text.match(/tgme_channel_info_header_title[^>]*>\s*<span[^>]*>([\s\S]*?)<\/span>/i);
+  const displayName = titleMatch ? stripTags(titleMatch[1]) || null : null;
+
+  const counterBlocks = [...res.text.matchAll(/<span class="counter_value">([^<]+)<\/span>\s*<span class="counter_type">([^<]+)<\/span>/gi)];
+  const subscriberBlock = counterBlocks.find(([, , type]) => /subscribers|members/i.test(type));
+  const followerCount = subscriberBlock ? parseCompactNumber(subscriberBlock[1]) : null;
+
+  let posts = [];
+  try {
+    const chunks = res.text.split('<div class="tgme_widget_message_wrap').slice(1);
+    posts = chunks.slice(0, 30).map((chunk) => {
+      const externalId = chunk.match(/data-post="[^/]+\/(\d+)"/i)?.[1] || null;
+      const textMatch = chunk.match(/tgme_widget_message_text[^>]*>([\s\S]*?)<\/div>/i);
+      const caption = textMatch ? stripTags(textMatch[1]) : '';
+      const postedAt = chunk.match(/<time[^>]*datetime="([^"]+)"/i)?.[1] || null;
+      const viewCount = parseCompactNumber(chunk.match(/tgme_widget_message_views">([^<]+)</i)?.[1]);
+      const kind = /tgme_widget_message_video_player|tgme_widget_message_roundvideo/i.test(chunk)
+        ? 'video'
+        : /tgme_widget_message_photo_wrap/i.test(chunk)
+          ? 'photo'
+          : 'text';
+      // Telegram's public preview has no <img src> for photo/video posts — the
+      // image is a CSS background-image on the *_photo_wrap/*_video_wrap link's
+      // OWN style attribute. Scoped to that one tag ([^>]* can't cross a '>')
+      // so it never picks up an unrelated background-image, like the emoji
+      // sprite spans Telegram renders inline inside plain-text captions.
+      const thumbnailUrl = chunk.match(/tgme_widget_message_(?:photo|video)_wrap[^>]*background-image:url\('([^']+)'\)/i)?.[1] || null;
+      return {
+        externalId, kind, caption,
+        thumbnailUrl, postedAt,
+        likeCount: null, commentCount: null, viewCount,
+      };
+    }).filter((p) => p.externalId);
+  } catch (err) {
+    console.warn(`Telegram markup parse fallback for ${url}:`, err.message);
+  }
+
+  return normalizeResult({
+    found: !!(displayName || followerCount != null || posts.length),
+    handle, displayName, followerCount, posts,
+    partial: posts.length === 0,
+  });
+}
+
+const FETCHERS = { instagram: fetchInstagram, tiktok: fetchTikTok, youtube: fetchYouTube, facebook: fetchFacebook, telegram: fetchTelegram };
 
 // Single entry point used by the routes. Never throws — a fetcher failing
 // (bad markup, network error, unknown platform) degrades to a normalized
@@ -324,5 +392,7 @@ async function fetchCompetitorSource(platform, url, opts = {}) {
 module.exports = {
   fetchCompetitorSource,
   parseCompactNumber,
+  fetchTelegram,
+  fetchTikTok,
   SUPPORTED_PLATFORMS: Object.keys(FETCHERS),
 };

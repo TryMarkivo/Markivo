@@ -123,6 +123,35 @@ module.exports = function createDb(dbPath) {
       created_at TEXT NOT NULL
     );
 
+    -- Live-fetched content read back from the business's OWN connected
+    -- accounts (Autopilot's "what has this business actually posted, on and
+    -- off Markivo" signal) — one row per platform, mirroring competitor_sources.
+    -- Replaced wholesale on each fetch, same as competitor_posts.
+    CREATE TABLE IF NOT EXISTS own_content_sources (
+      id              TEXT PRIMARY KEY,
+      profile_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform        TEXT NOT NULL,
+      status          TEXT DEFAULT 'pending',
+      followers_count INTEGER,
+      last_fetched_at TEXT,
+      error           TEXT,
+      created_at      TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS own_content_posts (
+      id             TEXT PRIMARY KEY,
+      profile_id     TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      platform       TEXT NOT NULL,
+      external_id    TEXT,
+      kind           TEXT,
+      caption        TEXT,
+      posted_at      TEXT,
+      like_count     INTEGER,
+      comment_count  INTEGER,
+      view_count     INTEGER,
+      fetched_at     TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS keywords (
       id            TEXT PRIMARY KEY,
       profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -335,6 +364,8 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_competitor_posts_source ON competitor_posts(source_id);
     CREATE INDEX IF NOT EXISTS idx_competitor_posts_competitor ON competitor_posts(competitor_id, posted_at);
     CREATE INDEX IF NOT EXISTS idx_competitor_insights_profile ON competitor_insights(profile_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_own_content_sources_profile ON own_content_sources(profile_id, platform);
+    CREATE INDEX IF NOT EXISTS idx_own_content_posts_profile ON own_content_posts(profile_id, posted_at);
     CREATE INDEX IF NOT EXISTS idx_keywords_profile ON keywords(profile_id);
     CREATE INDEX IF NOT EXISTS idx_calendar_profile ON calendar(profile_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_profile ON approvals(profile_id);
@@ -378,6 +409,10 @@ module.exports = function createDb(dbPath) {
   // instead of treating the onboarding seeds as real tracked competitors.
   addColumn('competitors', 'created_at TEXT');
   addColumn('competitors', 'source TEXT');
+  // Public @username of the linked chat, when it has one — lets Autopilot read
+  // the channel's own recent posts via the same public t.me/s/ preview used
+  // for Telegram competitor tracking (private channels/groups have none).
+  addColumn('telegram_connections', 'chat_username TEXT');
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -426,6 +461,17 @@ module.exports = function createDb(dbPath) {
     id: r.id, profileId: r.profile_id,
     analysis: r.analysis ? JSON.parse(r.analysis) : null,
     created_at: r.created_at,
+  };
+  const mapOwnContentSource = (r) => r && {
+    id: r.id, profileId: r.profile_id, platform: r.platform, status: r.status,
+    followersCount: r.followers_count, lastFetchedAt: r.last_fetched_at,
+    error: r.error || null, created_at: r.created_at,
+  };
+  const mapOwnContentPost = (r) => r && {
+    id: r.id, profileId: r.profile_id, platform: r.platform, externalId: r.external_id,
+    kind: r.kind, caption: r.caption, postedAt: r.posted_at,
+    likeCount: r.like_count, commentCount: r.comment_count, viewCount: r.view_count,
+    fetched_at: r.fetched_at,
   };
   const mapKeyword = (r) => r && {
     id: r.id, profileId: r.profile_id, keyword_phrase: r.keyword_phrase,
@@ -807,6 +853,66 @@ module.exports = function createDb(dbPath) {
       },
     },
 
+    // Live reads of the business's OWN connected accounts (Autopilot's
+    // "what has this business actually posted, on and off Markivo" signal).
+    // One source row + a replaceable post set per (profile, platform), mirroring
+    // competitorSources/competitorPosts above.
+    ownContent: {
+      upsertSource({ profileId, platform, status, followersCount, error }) {
+        const existing = sqlite.prepare('SELECT id FROM own_content_sources WHERE profile_id = ? AND platform = ?').get(profileId, platform);
+        const lastFetchedAt = now();
+        if (existing) {
+          sqlite.prepare(
+            'UPDATE own_content_sources SET status = ?, followers_count = ?, last_fetched_at = ?, error = ? WHERE id = ?'
+          ).run(status || 'pending', followersCount ?? null, lastFetchedAt, error || null, existing.id);
+          return mapOwnContentSource(sqlite.prepare('SELECT * FROM own_content_sources WHERE id = ?').get(existing.id));
+        }
+        const row = {
+          id: id(), profile_id: profileId, platform, status: status || 'pending',
+          followers_count: followersCount ?? null, last_fetched_at: lastFetchedAt, error: error || null, created_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO own_content_sources (id, profile_id, platform, status, followers_count, last_fetched_at, error, created_at)
+           VALUES (@id, @profile_id, @platform, @status, @followers_count, @last_fetched_at, @error, @created_at)`
+        ).run(row);
+        return mapOwnContentSource(row);
+      },
+      sourceFor(profileId, platform) {
+        return mapOwnContentSource(sqlite.prepare('SELECT * FROM own_content_sources WHERE profile_id = ? AND platform = ?').get(profileId, platform));
+      },
+      // A fetch REPLACES every row for (profile, platform) — same idempotent
+      // pattern as competitorPosts.replaceForSource.
+      replacePosts(profileId, platform, posts = []) {
+        const del = sqlite.prepare('DELETE FROM own_content_posts WHERE profile_id = ? AND platform = ?');
+        const insert = sqlite.prepare(
+          `INSERT INTO own_content_posts (id, profile_id, platform, external_id, kind, caption, posted_at, like_count, comment_count, view_count, fetched_at)
+           VALUES (@id, @profile_id, @platform, @external_id, @kind, @caption, @posted_at, @like_count, @comment_count, @view_count, @fetched_at)`
+        );
+        const tx = sqlite.transaction((rows) => {
+          del.run(profileId, platform);
+          const fetchedAt = now();
+          for (const p of rows) {
+            insert.run({
+              id: id(), profile_id: profileId, platform,
+              external_id: p.externalId || null, kind: p.kind || null,
+              caption: p.caption ? String(p.caption).slice(0, 2000) : null,
+              posted_at: p.postedAt || null,
+              like_count: Number.isFinite(p.likeCount) ? p.likeCount : null,
+              comment_count: Number.isFinite(p.commentCount) ? p.commentCount : null,
+              view_count: Number.isFinite(p.viewCount) ? p.viewCount : null,
+              fetched_at: fetchedAt,
+            });
+          }
+        });
+        tx(posts);
+      },
+      listByProfile(profileId, limit = 100) {
+        return sqlite.prepare(
+          'SELECT * FROM own_content_posts WHERE profile_id = ? ORDER BY posted_at DESC LIMIT ?'
+        ).all(profileId, limit).map(mapOwnContentPost);
+      },
+    },
+
     keywords: {
       add(k) {
         const row = {
@@ -1096,10 +1202,10 @@ module.exports = function createDb(dbPath) {
         }
         return this.findByProfile(profileId);
       },
-      setChat(profileId, { chatId, chatTitle, chatType }) {
+      setChat(profileId, { chatId, chatTitle, chatType, chatUsername }) {
         sqlite.prepare(
-          'UPDATE telegram_connections SET chat_id = ?, chat_title = ?, chat_type = ?, updated_at = ? WHERE profile_id = ?'
-        ).run(chatId, chatTitle || null, chatType || null, now(), profileId);
+          'UPDATE telegram_connections SET chat_id = ?, chat_title = ?, chat_type = ?, chat_username = ?, updated_at = ? WHERE profile_id = ?'
+        ).run(chatId, chatTitle || null, chatType || null, chatUsername || null, now(), profileId);
         return this.findByProfile(profileId);
       },
       findByProfile(profileId) {
@@ -1115,7 +1221,7 @@ module.exports = function createDb(dbPath) {
         return {
           id: r.id, profileId: r.profile_id, botToken, botUserId: r.bot_user_id,
           botUsername: r.bot_username, botName: r.bot_name,
-          chatId: r.chat_id, chatTitle: r.chat_title, chatType: r.chat_type,
+          chatId: r.chat_id, chatTitle: r.chat_title, chatType: r.chat_type, chatUsername: r.chat_username,
           created_at: r.created_at, updated_at: r.updated_at,
         };
       },

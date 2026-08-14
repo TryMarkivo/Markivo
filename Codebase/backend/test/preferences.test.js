@@ -8,6 +8,7 @@ const fs = require('fs');
 const TMP_DB = path.join(os.tmpdir(), `markivo-prefs-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
 process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 

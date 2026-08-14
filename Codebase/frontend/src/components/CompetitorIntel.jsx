@@ -19,6 +19,17 @@ const iconFor = (platform) => PLATFORM_META[platform === 'instagram' ? 'meta_ins
 // bare "partial" badge to guess at.
 const NO_POST_API_PLATFORMS = new Set(['facebook']);
 
+// Real engagement when the platform reports likes/comments; view count is the
+// honest fallback for platforms that only ever expose that publicly (Telegram)
+// — never invented, and the two are never added together since they're not
+// the same signal.
+const engagementScore = (p) =>
+  (p.likeCount != null || p.commentCount != null)
+    ? (p.likeCount || 0) + (p.commentCount || 0)
+    : (p.viewCount || 0);
+
+const fmtCount = (n) => (n == null ? null : Number(n).toLocaleString());
+
 export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
   const { t } = useTranslation();
   const benchmarkCompetitors = stats.competitors || [];
@@ -196,7 +207,7 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
 
         {!loadingList && competitors.length === 0 && (
           <div className="empty-state glass-card">
-            {t('competitors.tracked.empty', 'No competitors tracked yet — add one by pasting their Instagram, TikTok, YouTube, or Facebook profile link.')}
+            {t('competitors.tracked.empty', 'No competitors tracked yet — add one by pasting their Instagram, TikTok, YouTube, Facebook, or Telegram profile link.')}
           </div>
         )}
 
@@ -246,6 +257,42 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
                   );
                 })}
               </div>
+
+              {(c.posts || []).length > 0 && (() => {
+                const sorted = [...c.posts].sort((a, b) => engagementScore(b) - engagementScore(a));
+                const topId = sorted[0]?.id;
+                const shown = sorted.slice(0, 3);
+                return (
+                  <ul className="ci-posts mt-10">
+                    {shown.map((p) => {
+                      const likes = fmtCount(p.likeCount);
+                      const comments = fmtCount(p.commentCount);
+                      const views = fmtCount(p.viewCount);
+                      return (
+                        <li key={p.id} className="ci-post">
+                          {p.thumbnailUrl
+                            ? <img src={p.thumbnailUrl} alt="" className="ci-post-thumb" loading="lazy" />
+                            : <span className="ci-post-thumb ci-post-thumb-empty"><i className="fa-solid fa-image"></i></span>}
+                          <div className="ci-post-body">
+                            <p className="ci-post-caption">{p.caption || t('competitors.posts.noCaption', '(no caption)')}</p>
+                            <div className="ci-post-meta">
+                              {p.id === topId && <span className="ci-post-top">{t('competitors.posts.topBadge', '★ Top post')}</span>}
+                              {likes != null && <span><i className="fa-solid fa-heart"></i> {likes}</span>}
+                              {comments != null && <span><i className="fa-solid fa-comment"></i> {comments}</span>}
+                              {likes == null && comments == null && views != null && (
+                                <span><i className="fa-solid fa-eye"></i> {views}</span>
+                              )}
+                              {likes == null && comments == null && views == null && (
+                                <span className="ci-post-unreported">{t('competitors.posts.engagementUnavailable', 'engagement not reported')}</span>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                );
+              })()}
             </div>
           ))}
         </div>

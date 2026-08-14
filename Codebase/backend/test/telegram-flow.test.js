@@ -5,8 +5,14 @@ const path = require('path');
 const fs = require('fs');
 
 // Isolate DB + secret BEFORE requiring the app (config reads env at load).
+// Keyless on both text engines: the agent test below documents "AI disabled in
+// tests -> keyword fallback path", and the fetch stub below only intercepts
+// api.telegram.org, so a live GEMINI_API_KEY would otherwise send /api/agent/query
+// to the real Gemini API.
 const TMP_DB = path.join(os.tmpdir(), `markivo-tgflow-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
+process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 // Telegram is feature-flagged off by default (post-MVP); this suite tests the

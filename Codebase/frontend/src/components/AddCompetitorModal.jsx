@@ -8,6 +8,7 @@ const PLATFORM_OPTIONS = [
   { key: 'tiktok', icon: 'fa-brands fa-tiktok', placeholder: 'https://tiktok.com/@handle' },
   { key: 'youtube', icon: 'fa-brands fa-youtube', placeholder: 'https://youtube.com/@handle' },
   { key: 'facebook', icon: 'fa-brands fa-facebook', placeholder: 'https://facebook.com/page' },
+  { key: 'telegram', icon: 'fa-brands fa-telegram', placeholder: 'https://t.me/channelname' },
 ];
 
 /**
