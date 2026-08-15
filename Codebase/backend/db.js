@@ -341,6 +341,19 @@ module.exports = function createDb(dbPath) {
   // Cached local-market research brief (same JSON-column pattern as brand_brief).
   addColumn('profiles', 'market_brief TEXT');
   addColumn('profiles', 'market_brief_at TEXT');
+  // Deferred onboarding. Signup asks only the essentials; the rest are asked in
+  // the profile panel and by Markiv. profile_questions caches the 2-5
+  // Gemini-written, business-specific questions (generated once, then stable so
+  // the owner never sees a different list on each visit); profile_answers is the
+  // key -> answer map for both those and the fixed set.
+  addColumn('profiles', 'profile_questions TEXT');
+  addColumn('profiles', 'profile_answers TEXT');
+  addColumn('profiles', 'profile_questions_at TEXT');
+  // Languages the owner's CUSTOMERS read, in the order they chose (JSON array
+  // of 'uz'|'ru'|'en'). Distinct from the owner's own UI language: it decides
+  // what language a caption, a spoken script, or an on-screen line is written
+  // in. Empty means never answered, which keeps the old auto-detect behaviour.
+  addColumn('profiles', 'audience_languages TEXT');
 
   // Must run AFTER the ALTERs above: on an existing database `place_id` does
   // not exist while the CREATE TABLE block is executing. The index is partial,
@@ -387,6 +400,12 @@ module.exports = function createDb(dbPath) {
     googlePrimaryType: r.google_primary_type || null,
     marketBrief: r.market_brief ? JSON.parse(r.market_brief) : null,
     marketBriefAt: r.market_brief_at || null,
+    // Default to [] / {} rather than null: every consumer iterates these, and a
+    // profile that has simply never been asked is not a missing-data case.
+    profileQuestions: r.profile_questions ? JSON.parse(r.profile_questions) : [],
+    profileAnswers: r.profile_answers ? JSON.parse(r.profile_answers) : {},
+    profileQuestionsAt: r.profile_questions_at || null,
+    audienceLanguages: r.audience_languages ? JSON.parse(r.audience_languages) : [],
   };
   const mapPlatform = (r) => r && {
     id: r.id, profileId: r.profile_id, platformName: r.platform_name,
@@ -600,6 +619,10 @@ module.exports = function createDb(dbPath) {
           googlePrimaryType: 'google_primary_type',
           marketBrief: 'market_brief',
           marketBriefAt: 'market_brief_at',
+          profileQuestions: 'profile_questions',
+          profileAnswers: 'profile_answers',
+          profileQuestionsAt: 'profile_questions_at',
+          audienceLanguages: 'audience_languages',
         };
         const sets = [];
         const params = { profileId };
@@ -610,6 +633,9 @@ module.exports = function createDb(dbPath) {
           if (key === 'logoMetadata') value = value ? JSON.stringify(value) : null;
           if (key === 'brandBrief') value = value ? JSON.stringify(value) : null;
           if (key === 'marketBrief') value = value ? JSON.stringify(value) : null;
+          if (key === 'profileQuestions' || key === 'profileAnswers' || key === 'audienceLanguages') {
+            value = value ? JSON.stringify(value) : null;
+          }
           sets.push(`${col} = @${key}`);
           params[key] = value;
         }

@@ -219,3 +219,148 @@
   font-size: 0.85rem;
   margin: 0;
 }
+
+/* --- Deferred onboarding: the questions signup did not ask --- */
+.completion-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.completion-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--accent-primary);
+  color: #0d0d0d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.completion-source {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.completion-question {
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.completion-question.is-answered {
+  opacity: 0.75;
+}
+
+.completion-hint {
+  display: block;
+  margin: -4px 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.completion-badge-src {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  color: var(--accent-primary);
+}
+
+.completion-skip {
+  margin-top: 6px;
+}
+
+.completion-toggle {
+  display: block;
+  margin: 14px 0 4px;
+  text-decoration: none;
+}
+
+.completion-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.completion-saved {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* The logo picker reuses the onboarding designer's layout classes; only the
+   spacing inside the settings pane needs adjusting. */
+.logo-picker .logo-designer-grid {
+  margin-top: 14px;
+  gap: 18px;
+}
+
+.logo-picker .logo-variant-grid {
+  margin-top: 14px;
+}
+
+/* Multi-select chips (audience languages). The number badge shows the pick
+   order, because the order is part of the answer — it decides which language
+   a caption leads with. */
+.multiselect-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.multiselect-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.multiselect-chip:hover {
+  border-color: var(--accent-primary);
+}
+
+.multiselect-chip.active {
+  border-color: var(--accent-primary);
+  background: var(--surface-2);
+}
+
+.multiselect-order {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: #0d0d0d;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

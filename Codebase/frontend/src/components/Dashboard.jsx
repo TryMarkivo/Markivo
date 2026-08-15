@@ -125,6 +125,10 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // tabs — they open as a modal from clicking the profile card / usage meter.
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  // Deferred onboarding: how many business questions are still unanswered.
+  // Drives the "!" on the profile card. null until the first fetch answers, so
+  // the badge never flashes on and then off.
+  const [pendingQuestions, setPendingQuestions] = useState(null);
 
   const refreshConnectCatalogue = () => {
     api.get('/api/connect/status')
@@ -146,6 +150,15 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       .catch(() => setIgStatus({ connected: false }));
   };
   useEffect(refreshInstagramStatus, [activeProfile]);
+
+  // A failure leaves the badge hidden rather than showing a count we could not
+  // verify — the profile panel is still reachable either way.
+  const refreshCompletion = () => {
+    api.get('/api/profile/completion')
+      .then((d) => setPendingQuestions(d.pendingCount ?? 0))
+      .catch(() => setPendingQuestions(null));
+  };
+  useEffect(refreshCompletion, [activeProfile]);
 
   // Side effects for the OAuth return: refresh status on success, strip the
   // query params, and auto-dismiss the notice. (The notice text itself is
@@ -220,7 +233,16 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   }
 
   // Helper to render logo symbol
-  const logoStyle = activeProfile.logo || { text: activeProfile.businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' };
+  // Signup no longer asks for a logo, so most profiles arrive without one. The
+  // placeholder is the business's own initial rather than a coffee cup, which
+  // was only ever right for a cafe.
+  const logoStyle = activeProfile.logo || {
+    text: activeProfile.businessName,
+    color: '#D4A373',
+    bgColor: '#1A1816',
+    shape: 'circle',
+    icon: (activeProfile.businessName || '?').trim().charAt(0).toUpperCase(),
+  };
 
   // Label maps for raw API/mock data values (fall back to raw value for unknown codes)
   const volumeLabels = {
@@ -269,12 +291,24 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                 style={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
               />
             ) : (
-              logoStyle.icon || '☕'
+              logoStyle.icon || (activeProfile.businessName || '?').trim().charAt(0).toUpperCase()
+            )}
+            {pendingQuestions > 0 && (
+              <span
+                className="profile-alert-badge"
+                aria-label={t('profileQuestions.badgeAria', '{{count}} unanswered questions about your business', { count: pendingQuestions })}
+              >
+                !
+              </span>
             )}
           </div>
           <div className="active-profile-info">
             <h4>{activeProfile.businessName}</h4>
-            <small>{activeProfile.category}</small>
+            <small>
+              {pendingQuestions > 0
+                ? t('profileQuestions.badgeHint', 'Tell us {{count}} more things about your business', { count: pendingQuestions })
+                : activeProfile.category}
+            </small>
           </div>
           <i className="fa-solid fa-chevron-right active-profile-cue" aria-hidden="true"></i>
         </div>
@@ -609,7 +643,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           {/* TAB: MARKIV — the AI marketing agent, now its own tab rather than
               a persistent floating panel. */}
           {activeTab === 'markiv' && (
-            <AIAgentSidebar activeProfile={activeProfile} telegramStatus={tgStatus} asTab />
+            <AIAgentSidebar activeProfile={activeProfile} telegramStatus={tgStatus} asTab onAgentReply={refreshCompletion} />
           )}
 
           {/* TAB 3: MEDIA STUDIO */}
@@ -731,7 +765,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <button className="btn-close side-pane-modal-close" onClick={() => setProfileModalOpen(false)} aria-label={t('common.close', 'Close')}>
               <i className="fa-solid fa-xmark"></i>
             </button>
-            <BusinessProfilePane activeProfile={activeProfile} onProfileUpdate={onProfileUpdate} />
+            <BusinessProfilePane
+              activeProfile={activeProfile}
+              onProfileUpdate={onProfileUpdate}
+              onCompletionChange={setPendingQuestions}
+            />
           </div>
         </div>
       )}

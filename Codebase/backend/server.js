@@ -19,6 +19,7 @@ const places = require('./places');
 const competitorSources = require('./competitorSources');
 const { computeGaps } = require('./gaps');
 const research = require('./research');
+const profileQuestions = require('./profileQuestions');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
@@ -309,9 +310,13 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
     location: isOnline ? 'Online / Remote' : (location || 'Tashkent'),
     isOnline: !!isOnline,
     targetAudience: audience,
-    brandTone: tone || 'Cozy & Warm',
+    // Tone and logo are deferred questions now (profileQuestions.js), so a
+    // default here would answer them on the owner's behalf: the panel would
+    // show tone as already chosen, and every business would carry the same
+    // coffee cup. Null means "not asked yet" — consumers already fall back.
+    brandTone: tone || null,
     slogan,
-    logoMetadata: logo || { text: businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' },
+    logoMetadata: logo || null,
     onboardPath: req.body.onboardPath || 'B (Scratch)',
     googlePlaceId: typeof g.placeId === 'string' ? g.placeId.slice(0, 128) : null,
     // Same null-preserving rule as the competitor rows: places.js maps an
@@ -450,6 +455,69 @@ app.put('/api/profile', verifyToken, (req, res) => {
   res.json({ success: true, profile: { ...updated, platforms: platformsMap } });
 });
 
+// ==========================================
+// 3.36 DEFERRED ONBOARDING (/api/profile/completion, /api/profile/answers)
+//   Signup asks only the essentials. The rest are asked here (the profile
+//   panel's "!" badge) and by Markiv in conversation. Answers route into real
+//   columns and brandBrief.businessFacts, so answering one immediately changes
+//   what the content pipeline writes — see profileQuestions.js.
+// ==========================================
+
+// Deliberately NOT behind checkAiBudget: this is a single small generation once
+// per profile lifetime, and a budget block here would leave the panel with no
+// questions at all. The result is cached on the profile, so a second visit
+// costs nothing and — just as importantly — shows the SAME questions.
+app.get('/api/profile/completion', verifyToken, asyncRoute(async (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+
+  let current = profile;
+  if (!Array.isArray(current.profileQuestions) || !current.profileQuestions.length) {
+    const questions = await profileQuestions.generateQuestions(current);
+    current = db.profiles.update(current.id, {
+      profileQuestions: questions,
+      profileQuestionsAt: new Date().toISOString(),
+    });
+  }
+
+  const state = profileQuestions.completion(current);
+  res.json({
+    total: state.total,
+    answered: state.answered,
+    pendingCount: state.pendingCount,
+    complete: state.complete,
+    questions: profileQuestions.view(current),
+    // 'gemini' when the personalised set is live, 'template' when it was
+    // generated keyless — the panel labels which one the owner is looking at.
+    engine: (current.profileQuestions[0] && current.profileQuestions[0].source) || 'template',
+  });
+}));
+
+app.post('/api/profile/answers', verifyToken, (req, res) => {
+  const answers = req.body && typeof req.body.answers === 'object' && !Array.isArray(req.body.answers)
+    ? req.body.answers
+    : null;
+  if (!answers) return res.status(400).json({ error: 'An answers object is required' });
+
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+
+  const fields = profileQuestions.applyAnswers(profile, answers, 'panel');
+  if (!fields) return res.status(400).json({ error: 'No known question keys were supplied' });
+
+  const updated = db.profiles.update(profile.id, fields);
+  const state = profileQuestions.completion(updated);
+  const platformsMap = {};
+  db.platforms.listByProfile(updated.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
+  res.json({
+    success: true,
+    profile: { ...updated, platforms: platformsMap },
+    pendingCount: state.pendingCount,
+    complete: state.complete,
+    questions: profileQuestions.view(updated),
+  });
+});
+
 app.put('/api/me', verifyToken, (req, res) => {
   const error = validateMeUpdate(req.body);
   if (error) return res.status(400).json({ error });
@@ -538,10 +606,13 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async 
   const result = await ai.generateContent({
     platform,
     topic,
-    // No language list (the AI Generation popup no longer offers one) means
-    // "write it back in whatever language the topic is written in" — leaving
-    // this undefined is what triggers that auto-detect path downstream.
-    languages: Array.isArray(languages) && languages.length ? languages : undefined,
+    // Precedence: an explicit list from the request, then the languages the
+    // owner said their CUSTOMERS read (a deferred profile question). Only when
+    // neither exists is this left undefined, which is what triggers the
+    // "write it back in whatever language the topic is written in" path.
+    languages: Array.isArray(languages) && languages.length
+      ? languages
+      : (profile?.audienceLanguages?.length ? profile.audienceLanguages : undefined),
     businessName: req.body.businessName || profile?.businessName,
     category: profile?.category,
     description: profile?.description,
@@ -2058,7 +2129,13 @@ app.post('/api/media/brief', verifyToken, checkAiBudget, asyncRoute(async (req, 
   if (!['full', 'guided'].includes(mode)) return res.status(400).json({ error: 'Mode must be "full" or "guided"' });
   if (topic.length < 2 || topic.length > 200) return res.status(400).json({ error: 'Topic must be 2-200 characters' });
 
-  const brief = await ai.generateMediaBrief({ kind, mode, topic, profile });
+  // The customer-facing words in a brief — the caption, the spoken script, the
+  // on-screen lines — are written in the audience's languages. The directing
+  // instructions to the owner are not; see ai.generateMediaBrief.
+  const brief = await ai.generateMediaBrief({
+    kind, mode, topic, profile,
+    languages: profile.audienceLanguages?.length ? profile.audienceLanguages : undefined,
+  });
   const row = db.media.add({ profileId: profile.id, kind, mode, topic, brief, status: 'brief' });
   db.usage.record({ userId: req.user.id, kind: 'media' });
   res.json({ id: row.id, brief });
@@ -2253,7 +2330,25 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
       location: profile.location,
       brief: profile.brandBrief,
       preferences: db.feedback.recentExamples(profile.id),
+      // Markiv drafts in the customers' languages, not the owner's chat
+      // language — the post is read by one and written for the other.
+      languages: profile.audienceLanguages?.length ? profile.audienceLanguages : undefined,
     }),
+    // Deferred onboarding: a fact the owner mentioned in conversation lands in
+    // the same place the profile panel writes to, so the "!" badge drops by one
+    // and nobody is asked twice. Re-reads the profile because earlier turns in
+    // this same request may already have saved something.
+    saveBusinessDetail: ({ key, value }) => {
+      // An empty value means "skip" on the panel path, where the owner chose
+      // it. Coming from the model it can only be a malformed call, and
+      // silencing a question nobody answered is the one outcome to avoid.
+      if (!value || !String(value).trim()) return { saved: false, error: 'A non-empty value is required' };
+      const current = db.profiles.findById(profile.id);
+      const fields = profileQuestions.applyAnswers(current, { [key]: value }, 'markiv');
+      if (!fields) return { saved: false, error: `Unknown detail key: ${key}` };
+      const updated = db.profiles.update(profile.id, fields);
+      return { saved: true, key, remaining: profileQuestions.completion(updated).pendingCount };
+    },
   };
 
   const conn = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
