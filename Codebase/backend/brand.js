@@ -133,6 +133,31 @@ async function generateBrandBrief(ctx = {}) {
 const asArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
 /**
+ * Answers to the business-specific questions asked after signup (profile panel
+ * or Markiv — see profileQuestions.js). The fixed half of that set writes into
+ * real fields already rendered above; these are the personalised ones, which
+ * live only in the answers map. Each is paired with the question that produced
+ * it, so the model knows what the value means. Without this the owner would be
+ * answering into a void.
+ */
+function answeredDetails(profile = {}) {
+  const answers = profile.profileAnswers;
+  const asked = Array.isArray(profile.profileQuestions) ? profile.profileQuestions : [];
+  if (!answers || typeof answers !== 'object' || !asked.length) return '';
+  const parts = [];
+  for (const q of asked) {
+    if (!q || !q.key) continue;
+    const rec = answers[q.key];
+    const value = typeof rec === 'string' ? rec : rec && rec.value;
+    if (!value || !String(value).trim()) continue;   // unanswered or skipped
+    parts.push(`${q.label || q.key} -> ${String(value).trim()}`);
+  }
+  return parts.length
+    ? `OWNER-ANSWERED DETAILS (their own words; use them, never embellish): ${parts.join(' | ')}`
+    : '';
+}
+
+/**
  * Compact, model-friendly digest of the brand brief, tolerant of BOTH shapes
  * (rich generated + flat template). Falls back to the thin profile when there
  * is no brief yet, so the content pipeline always has something to ground on.
@@ -148,6 +173,7 @@ function briefDigest(brief, profile = {}) {
       profile.description ? `Description: ${profile.description}` : '',
       profile.targetAudience ? `Audience: ${profile.targetAudience}` : '',
       profile.location ? `Location: ${profile.location}` : '',
+      answeredDetails(profile),
       'NOTE: no full brand brief yet — keep copy specific to the description above; never invent prices, hours, awards, or numbers.',
     ].filter(Boolean).join('\n');
   }
@@ -189,6 +215,9 @@ function briefDigest(brief, profile = {}) {
   const aud = profile.targetAudience || profile.audience;
   if (aud) lines.push(`Owner's stated audience (from onboarding): ${aud}`);
 
+  const extra = answeredDetails(profile);
+  if (extra) lines.push(extra);
+
   // business facts (owner-entered) — the only source of real numbers
   const f = brief.businessFacts;
   if (f && typeof f === 'object') {
@@ -216,4 +245,5 @@ module.exports = {
   generateBrandBrief,
   templateBrief,
   briefDigest,
+  answeredDetails,
 };

@@ -296,7 +296,9 @@
       "uploadPreviewTitle": "Sizning logotipingiz",
       "uploadEmpty": "Yuklangan logotip shu yerda ko'rinadi",
       "uploadTypeError": "PNG, JPG, SVG yoki WebP rasm yuklang.",
-      "uploadSizeError": "Rasm hajmi 1MB dan kichik bo'lishi kerak."
+      "uploadSizeError": "Rasm hajmi 1MB dan kichik bo'lishi kerak.",
+      "step1CtaChannels": "Ijtimoiy kanallarni tanlash",
+      "deferredNote": "Ohang, slogan va logotip keyingi qadamda — platformaga kirganingizdan so'ng profilingizda so'raymiz."
     },
     "categories": {
       "cafe": "Kafe / Qahvaxona",
@@ -409,7 +411,8 @@
       "statusSuccess": "MUVAFFAQIYATLI",
       "statusRunning": "BAJARILMOQDA",
       "statusPending": "KUTILMOQDA",
-      "_DISABLED_logSeo": "SEO semantik metama'lumotlari va Toshkent kalit so'z teglari jamlanmoqda..."
+      "_DISABLED_logSeo": "SEO semantik metama'lumotlari va Toshkent kalit so'z teglari jamlanmoqda...",
+      "logQuestions": "Biznesingiz haqida qo'shimcha savollar tayyorlanmoqda..."
     },
     "mockSlogans": {
       "cozy1": "Kuningiz uchun shinam burchak.",
@@ -889,7 +892,11 @@
       "periodEnd": "Joriy davr {{date}} kuni tugaydi",
       "unavailable": "To'lov holati hozircha mavjud emas.",
       "loading": "Tarif yuklanmoqda…"
-    }
+    },
+    "logoTitle": "Logotipingiz",
+    "logoHint": "Ixtiyoriy. O'z belgingizni yuklang yoki nom va ohangdan kelib chiqib yaratib oling.",
+    "logoEmpty": "Hozircha logotip yo'q — panelda nomingizning bosh harfi ko'rsatiladi.",
+    "logoSave": "Logotipni saqlash"
   },
   "autopilot": {
     "title": "Avtopilot",
@@ -1102,5 +1109,62 @@
       "another": "Yana joylash"
     }
   },
-  "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable."
+  "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable.",
+  "profileQuestions": {
+    "title": "Biznes profilingizni to'ldiring",
+    "hint": "Ro'yxatdan o'tishni qisqa qildik. Bu tafsilotlar Markivo matnlarini umumiy emas, aynan sizniki qiladi — xohlaganiga javob bering, qolganini o'tkazib yuboring.",
+    "done": "Javob berilmagan savol qolmadi. Quyidagilarni istalgan payt o'zgartirishingiz mumkin.",
+    "templateNote": "Bular kategoriyangiz uchun standart savollar — AI moslashtirgan to'plam uchun Gemini kaliti kerak.",
+    "choose": "Birini tanlang…",
+    "loading": "Savollaringiz yuklanmoqda…",
+    "skip": "O'tkazib yuborish — javob bermayman",
+    "save": "Javoblarni saqlash",
+    "savedShort": "Saqlandi!",
+    "answeredToggle": "Javob berilgan ({{count}})",
+    "fromMarkiv": "Buni Markivga chatda aytgansiz",
+    "badgeAria": "Biznesingiz haqida {{count}} ta javobsiz savol",
+    "badgeHint": "Biznesingiz haqida yana {{count}} ta narsani ayting",
+    "fixed": {
+      "audienceLanguages": {
+        "label": "Mijozlaringiz qaysi tillarda o'qishadi?",
+        "hint": "Barcha matnlar, ssenariylar va ekrandagi yozuvlar shu tillarda, siz tanlagan tartibda yoziladi.",
+        "placeholder": ""
+      },
+      "brandTone": {
+        "label": "Brendingiz qanday jaranglashi kerak?",
+        "hint": "Markivo yozadigan har bir matnning ohangini belgilaydi.",
+        "placeholder": ""
+      },
+      "signatureItems": {
+        "label": "Doimiy mijozlar nimani nomi bilan so'rashadi?",
+        "hint": "Firmaviy taomlar postlarga aniq mavzu beradi.",
+        "placeholder": "masalan, asalli tort, filtr qahva"
+      },
+      "hours": {
+        "label": "Qachon ochiqsiz?",
+        "hint": "Postlar hech kimni yopiq eshik oldiga yubormasligi uchun.",
+        "placeholder": "masalan, Du-Sha 9:00-21:00, Yak dam olish"
+      },
+      "pricePoints": {
+        "label": "Odatdagi buyurtma yoki tashrif qancha turadi?",
+        "hint": "Busiz Markivo narx haqida yoza olmaydi — va uni hech qachon o'ylab topmaydi.",
+        "placeholder": "masalan, qahva 25 ming, nonushta 60 ming"
+      },
+      "bookingLink": {
+        "label": "Post odamlarni buyurtma yoki bron uchun qayerga yo'naltirsin?",
+        "hint": "Matnlaringiz oxiridagi chaqiriqqa aylanadi.",
+        "placeholder": "masalan, t.me/yourshop, sayt havolasi yoki telefon"
+      },
+      "slogan": {
+        "label": "Sloganingiz bormi?",
+        "hint": "Bo'lsa, yangisini o'ylab topmay, sizinikini ishlatamiz.",
+        "placeholder": "masalan, Soddalik, mukammallikda."
+      }
+    },
+    "langs": {
+      "uz": "O'zbekcha",
+      "ru": "Ruscha",
+      "en": "Inglizcha"
+    }
+  }
 }

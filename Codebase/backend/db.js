@@ -451,6 +451,19 @@ module.exports = function createDb(dbPath) {
   // the channel's own recent posts via the same public t.me/s/ preview used
   // for Telegram competitor tracking (private channels/groups have none).
   addColumn('telegram_connections', 'chat_username TEXT');
+  // Deferred onboarding. Signup asks only the essentials; the rest are asked in
+  // the profile panel and by Markiv. profile_questions caches the 2-5
+  // Gemini-written, business-specific questions (generated once, then stable so
+  // the owner never sees a different list on each visit); profile_answers is the
+  // key -> answer map for both those and the fixed set.
+  addColumn('profiles', 'profile_questions TEXT');
+  addColumn('profiles', 'profile_answers TEXT');
+  addColumn('profiles', 'profile_questions_at TEXT');
+  // Languages the owner's CUSTOMERS read, in the order they chose (JSON array
+  // of 'uz'|'ru'|'en'). Distinct from the owner's own UI language: it decides
+  // what language a caption, a spoken script, or an on-screen line is written
+  // in. Empty means never answered, which keeps the old auto-detect behaviour.
+  addColumn('profiles', 'audience_languages TEXT');
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -471,6 +484,12 @@ module.exports = function createDb(dbPath) {
     googleRating: r.google_rating ?? null,
     googleReviewsCount: r.google_reviews_count ?? null,
     brandBrief: r.brand_brief ? JSON.parse(r.brand_brief) : null,
+    // Default to [] / {} rather than null: every consumer iterates these, and a
+    // profile that has simply never been asked is not a missing-data case.
+    profileQuestions: r.profile_questions ? JSON.parse(r.profile_questions) : [],
+    profileAnswers: r.profile_answers ? JSON.parse(r.profile_answers) : {},
+    profileQuestionsAt: r.profile_questions_at || null,
+    audienceLanguages: r.audience_languages ? JSON.parse(r.audience_languages) : [],
   };
   const mapPlatform = (r) => r && {
     id: r.id, profileId: r.profile_id, platformName: r.platform_name,
@@ -698,6 +717,10 @@ module.exports = function createDb(dbPath) {
           slogan: 'slogan',
           logoMetadata: 'logo_metadata',
           brandBrief: 'brand_brief',
+          profileQuestions: 'profile_questions',
+          profileAnswers: 'profile_answers',
+          profileQuestionsAt: 'profile_questions_at',
+          audienceLanguages: 'audience_languages',
         };
         const sets = [];
         const params = { profileId };
@@ -707,6 +730,9 @@ module.exports = function createDb(dbPath) {
           if (key === 'isOnline') value = value ? 1 : 0;
           if (key === 'logoMetadata') value = value ? JSON.stringify(value) : null;
           if (key === 'brandBrief') value = value ? JSON.stringify(value) : null;
+          if (key === 'profileQuestions' || key === 'profileAnswers' || key === 'audienceLanguages') {
+            value = value ? JSON.stringify(value) : null;
+          }
           sets.push(`${col} = @${key}`);
           params[key] = value;
         }

@@ -8,6 +8,7 @@ const marketing = require('./marketing/prompts');
 const preferences = require('./preferences');
 const gemini = require('./gemini');
 const providers = require('./providers/textEngine');
+const profileQuestions = require('./profileQuestions');
 
 // Shared Anthropic client (constructed once in providers/anthropic.js). Null in
 // keyless mode, so every function falls back to a smart template.
@@ -801,6 +802,28 @@ async function agentAct(ctx) {
       },
     });
   }
+  // Only offered when the caller can actually persist the answer. Asking for a
+  // fact we cannot record would make the owner repeat it forever, so the tool
+  // and the question block below stand or fall together.
+  const askBlock = actions.saveBusinessDetail ? profileQuestions.agentPromptBlock(profile) : '';
+  if (askBlock) {
+    tools.push({
+      name: 'save_business_detail',
+      description:
+        'Save a fact the owner has just told you about their business, so they are never asked for it twice. ' +
+        'Call this the moment they state one of the details listed under MISSING BUSINESS DETAILS — including when ' +
+        'they mention it in passing while asking for something else. ' +
+        'Save ONLY what they actually said: never a guess, an inference, or a detail you wrote into a draft yourself.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          key: { type: 'string', description: 'The detail key, exactly as listed under MISSING BUSINESS DETAILS.' },
+          value: { type: 'string', description: "The owner's answer in their own words, kept to one short line." },
+        },
+        required: ['key', 'value'],
+      },
+    });
+  }
   if (actions.draftContent) {
     tools.push({
       name: 'draft_content',
@@ -832,6 +855,8 @@ async function agentAct(ctx) {
         });
       case 'draft_content':
         return actions.draftContent({ platform: input.platform, topic: input.topic });
+      case 'save_business_detail':
+        return actions.saveBusinessDetail({ key: input.key, value: input.value });
       default:
         return { error: `Unknown tool: ${name}` };
     }
@@ -854,6 +879,7 @@ async function agentAct(ctx) {
         `${brand.briefDigest(profile.brandBrief, profile)}`
       : '') +
     (agentPrefBlock ? `\n\n${agentPrefBlock}` : '') +
+    (askBlock ? `\n${askBlock}` : '') +
     (snapshot
       ? '\n\nLive business snapshot:' +
         `\n- Competitors tracked: ${snapshot.stats?.competitorCount ?? 0}` +
@@ -1149,6 +1175,10 @@ const trendsLine = (trends) =>
 async function generateMediaBrief(ctx) {
   const { kind, mode, topic, profile, trends } = ctx;
   const guided = mode === 'guided';
+  // Customer-facing words (caption, spoken script, on-screen text) follow the
+  // audience's languages; the directions to the owner stay in English. Empty
+  // string when the owner has not answered that question yet.
+  const langRule = gemini.mediaLangRule(ctx.languages);
   // Full-mode briefs carry the render-engine status whichever engine wrote
   // them, so the Media Studio's render section behaves identically.
   const withEngineStatus = (brief) => (guided ? brief : {
@@ -1163,7 +1193,7 @@ async function generateMediaBrief(ctx) {
   try {
     const parsed = await providers.completeJSON({
       model: config.aiContentModel,
-      system: guided
+      system: (guided
         ? (kind === 'video'
           ? 'You are a professional videographer directing a small-business owner who is filming this ' +
             'themselves. Deliver the brief a real director would hand over on the day: the scenario, how ' +
@@ -1178,7 +1208,7 @@ async function generateMediaBrief(ctx) {
             'physical: real distances, real angles. No vague advice. Respond as JSON only.')
         : "You are Markivo's creative director. Produce a generation-ready creative brief for an AI media engine: " +
           'a concept, a caption that includes hashtags derived from the business name and category, ' +
-          'and a visual spec. Respond as JSON only.',
+          'and a visual spec. Respond as JSON only.') + langRule,
       prompt: profileLines(profile) + trendsLine(trends) + `Media kind: ${kind}\nWhat they want to shoot: ${topic}`,
       schema: guided
         ? (kind === 'video' ? MEDIA_BRIEF_GUIDED_VIDEO_SCHEMA : MEDIA_BRIEF_GUIDED_PHOTO_SCHEMA)

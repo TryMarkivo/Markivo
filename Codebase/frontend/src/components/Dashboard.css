@@ -605,3 +605,29 @@
   right: 16px;
   z-index: 2;
 }
+
+/* --- Deferred-onboarding badge on the profile card ---
+   Signup is short by design, so a new profile always has questions left. The
+   "!" sits on the logo so the answer is one click from where it is asked. */
+.sidebar-logo-icon {
+  position: relative;
+}
+
+.profile-alert-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--accent-primary);
+  color: #0d0d0d;
+  border: 2px solid var(--bg-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

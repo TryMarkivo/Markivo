@@ -374,6 +374,30 @@ function langInstructionFor(languages) {
   );
 }
 
+/**
+ * The language rule for a media brief, which is a mixed-audience document: the
+ * caption, the spoken script and the on-screen lines are read by CUSTOMERS,
+ * while the staging, camera and shot directions are read by the OWNER. Only
+ * the first group follows the audience languages; translating a director's
+ * instructions would help nobody.
+ *
+ * Empty when the owner has not answered the question, which leaves the brief
+ * exactly as it was before.
+ */
+function mediaLangRule(languages) {
+  if (!Array.isArray(languages) || !languages.length) return '';
+  const langs = normalizeLanguages(languages);
+  const names = langs.map((l) => LANG_NAMES[l]).join(', then ');
+  return (
+    '\n\nAUDIENCE LANGUAGE: every word a CUSTOMER will read or hear — the caption, the spoken ' +
+    `script, and any on-screen text — must be written in ${names}` +
+    `${langs.length > 1 ? ', in exactly that order' : ''}. ` +
+    'Your directions TO THE OWNER (staging, setup, camera, lighting, composition, shot list, ' +
+    'editing) stay in English — they are instructions, not content. Do not add a language that ' +
+    'is not listed.'
+  );
+}
+
 // Keyless best-effort script/keyword sniff for the offline template fallback,
 // which has no model in the loop to actually understand the topic. Cyrillic
 // script is a solid signal for Russian; a handful of common Uzbek function
@@ -748,6 +772,7 @@ async function generateMediaBrief(ctx) {
   const { kind = 'image', mode = 'guided', topic, profile, trends } = ctx;
   const guided = mode === 'guided';
   const video = kind === 'video';
+  const langRule = mediaLangRule(ctx.languages);
 
   const profileLines =
     `Business: ${profile?.businessName || 'a local business'}\n` +
@@ -780,11 +805,11 @@ async function generateMediaBrief(ctx) {
     const parsed = await callGemini({
       maxTokens: 4000,
       temperature: guided ? 0.7 : 0.9,
-      system: guided
+      system: (guided
         ? guidedSystem
         : "You are Markivo's creative director. Produce a generation-ready creative brief for an AI " +
           'media engine: a concept, a caption that includes hashtags derived from the business name ' +
-          'and category, and a visual spec. Respond as JSON only.',
+          'and category, and a visual spec. Respond as JSON only.') + langRule,
       user:
         profileLines +
         `Media type: ${video ? 'video' : 'photo'}\n` +
@@ -809,10 +834,67 @@ async function generateMediaBrief(ctx) {
   }
 }
 
+const QUESTIONS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    questions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          key: { type: 'STRING' },
+          label: { type: 'STRING' },
+          hint: { type: 'STRING' },
+          placeholder: { type: 'STRING' },
+          type: { type: 'STRING', enum: ['text', 'textarea'] },
+        },
+        required: ['key', 'label', 'hint', 'placeholder', 'type'],
+        propertyOrdering: ['key', 'label', 'hint', 'placeholder', 'type'],
+      },
+    },
+  },
+  required: ['questions'],
+  propertyOrdering: ['questions'],
+};
+
+/**
+ * 2-5 follow-up questions tailored to one business, or null when keyless / on
+ * any failure — profileQuestions.js then substitutes its deterministic set.
+ * The caller still sanitizes the result: a live model can return duplicate
+ * keys, re-ask a known field, or overshoot the count.
+ */
+async function businessQuestions({ name, category, location, description, audience, fixedLabels } = {}) {
+  if (!config.geminiEnabled) return null;
+  const vars = {
+    name: name || 'this business',
+    category: category || 'local business',
+    location: location || 'Tashkent',
+    description: description || '(not provided)',
+    audience: audience || '(not provided)',
+    fixedLabels: fixedLabels || '(none)',
+  };
+  try {
+    const out = await callGemini({
+      system: fill(prompts.profileQuestions.systemPrompt, vars),
+      user: fill(prompts.profileQuestions.userTemplate, vars),
+      schema: QUESTIONS_SCHEMA,
+      maxTokens: 1200,
+      // Questions should be specific and sober, not creatively phrased.
+      temperature: 0.5,
+    });
+    return out && Array.isArray(out.questions) ? out.questions : null;
+  } catch (err) {
+    console.error('Gemini businessQuestions failed, falling back:', err.message);
+    return null;
+  }
+}
+
 module.exports = {
   enabled: config.geminiEnabled,
   model: config.geminiTextModel,
   generateContent,
+  businessQuestions,
+  QUESTIONS_SCHEMA,
   generateMediaBrief,
   analyzeTemplate,
   // Low-level primitives shared by providers/textEngine.js and ai.js#agentAct.
@@ -825,6 +907,7 @@ module.exports = {
   // Deterministic helpers — used by the routes and exercised directly by tests.
   normalizeLanguages,
   langInstructionFor,
+  mediaLangRule,
   detectLanguage,
   heuristicTemplate,
   extractVariables,

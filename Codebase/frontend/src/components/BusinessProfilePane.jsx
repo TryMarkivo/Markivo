@@ -1,23 +1,30 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import ProfileCompletion from './ProfileCompletion';
+import LogoPicker from './LogoPicker';
 import './SettingsPane.css';
 
 /**
  * Dashboard "Business Profile" tab: edit the details Markivo uses to
  * personalize content, insights, and the Markiv agent.
+ *
+ * Two halves. Below is what signup collected and the owner can correct. Above
+ * is what signup deliberately skipped — the deferred questions and the logo —
+ * which is what the "!" on the profile icon is pointing at.
  */
-export default function BusinessProfilePane({ activeProfile, onProfileUpdate }) {
+export default function BusinessProfilePane({ activeProfile, onProfileUpdate, onCompletionChange }) {
   const { t } = useTranslation();
 
+  // Brand tone and slogan are deliberately absent: they are deferred questions
+  // now, edited in ProfileCompletion. Two inputs for one value would be two
+  // sources of truth.
   const [form, setForm] = useState({
     businessName: activeProfile.businessName || '',
     category: activeProfile.category || '',
     description: activeProfile.description || '',
     location: activeProfile.location || '',
     audience: activeProfile.targetAudience || '',
-    tone: activeProfile.brandTone || '',
-    slogan: activeProfile.slogan || '',
   });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { kind: 'ok'|'err', text }
@@ -34,8 +41,6 @@ export default function BusinessProfilePane({ activeProfile, onProfileUpdate }) 
         description: form.description,
         location: form.location,
         targetAudience: form.audience,
-        brandTone: form.tone,
-        slogan: form.slogan,
       });
       onProfileUpdate?.(data.profile);
       setNotice({ kind: 'ok', text: t('settings.saved', 'Saved! Your business profile is updated.') });
@@ -54,6 +59,10 @@ export default function BusinessProfilePane({ activeProfile, onProfileUpdate }) 
           <i className={`fa-solid ${notice.kind === 'ok' ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i> {notice.text}
         </div>
       )}
+
+      <ProfileCompletion onCountChange={onCompletionChange} onProfileUpdate={onProfileUpdate} />
+
+      <LogoPicker activeProfile={activeProfile} onProfileUpdate={onProfileUpdate} />
 
       <section className="settings-section glass-card">
         <p className="settings-hint">
@@ -74,19 +83,11 @@ export default function BusinessProfilePane({ activeProfile, onProfileUpdate }) 
             <input id="set_location" className="input-field" value={form.location} onChange={set('location')} />
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor="set_tone">{t('settings.tone', 'Brand tone')}</label>
-            <input id="set_tone" className="input-field" value={form.tone} onChange={set('tone')} />
+            <label className="form-label" htmlFor="set_audience">{t('settings.audience', 'Target audience')}</label>
+            <input id="set_audience" className="input-field" value={form.audience} onChange={set('audience')} />
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="set_audience">{t('settings.audience', 'Target audience')}</label>
-          <input id="set_audience" className="input-field" value={form.audience} onChange={set('audience')} />
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="set_slogan">{t('settings.slogan', 'Slogan')}</label>
-          <input id="set_slogan" className="input-field" value={form.slogan} onChange={set('slogan')} />
-        </div>
         <div className="form-group">
           <label className="form-label" htmlFor="set_description">{t('settings.description', 'Business description')}</label>
           <textarea

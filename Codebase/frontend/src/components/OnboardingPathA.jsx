@@ -141,12 +141,9 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       category: g?.category || 'Cafe / Local Shop',
       description: `A discovered business located in ${location}.`,
       platforms: connections,
-      logo: {
-        text: `☕ ${businessName}`,
-        color: '#D4A373',
-        bgColor: '#131016',
-        shape: 'rounded'
-      },
+      // No logo is invented here. Discovery cannot know what a business's mark
+      // looks like, and a coffee cup on a nail salon is a claim we never had.
+      // The owner uploads or generates one from the profile panel instead.
       ...(g?.found && g.placeId
         ? { google: { placeId: g.placeId, rating: g.rating, reviewsCount: g.reviewsCount } }
         : {}),
