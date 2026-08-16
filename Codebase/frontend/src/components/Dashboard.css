@@ -632,3 +632,15 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Three allowances, three bars. They are separate pools — a spent video budget
+   says nothing about how much writing is left — so one combined bar would
+   misreport all three. */
+.usage-meter-row + .usage-meter-row {
+  margin-top: 8px;
+}
+
+.usage-meter-row .usage-meter-label {
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}

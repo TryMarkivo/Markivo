@@ -10,9 +10,13 @@ process.env.DB_PATH = TMP_DB;
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 // The worker publishes telegram posts for real — turn the flag on for this
-// process. Media stays keyless (route must answer 501 "engine pending").
+// process. Media stays keyless (route must answer 501 "engine pending"), which
+// now means no GEMINI_API_KEY: image and video render on the Gemini key.
 process.env.TELEGRAM_ENABLED = 'true';
-delete process.env.MEDIA_API_KEY;
+process.env.GEMINI_API_KEY = '';
+// Pro so there IS a video allowance to spend — freemium has none, and a 429
+// would mask the behaviour these tests are actually about.
+process.env.AI_LIMIT_FREEMIUM_VIDEO = '2';
 
 // Selective fetch stub: fake api.telegram.org, pass localhost through.
 // sendMessage fails (Bot API error) when the text contains FAILME so the
@@ -159,14 +163,19 @@ test('render answers 501 engine-pending in keyless mode', async () => {
   assert.match((await res.json()).error, /Media engine pending/);
 });
 
-test('video briefs answer 501 coming-soon; unknown media ids answer 404', async () => {
+test('video renders reach the engine too — 501 keyless, not "coming soon"', async () => {
   const brief = await (await post('/api/media/brief', { kind: 'video', mode: 'full', topic: 'cafe tour' }, access)).json();
   const res = await post(`/api/media/${brief.id}/render`, {}, access);
   assert.strictEqual(res.status, 501);
-  assert.match((await res.json()).error, /coming soon/);
+  assert.match((await res.json()).error, /Media engine pending/);
 
   const missing = await post('/api/media/nope_123/render', {}, access);
   assert.strictEqual(missing.status, 404);
+});
+
+test('a keyless video render charges nothing — the spend never happened', async () => {
+  const usage = await (await fetch(`${base}/api/usage`, { headers: { Authorization: `Bearer ${access}` } })).json();
+  assert.strictEqual(usage.buckets.video.used, 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -180,18 +189,15 @@ test('renderImage throws MediaEngineError 501 without a key', async () => {
   );
 });
 
-test('renderImage generates via fal.run and saves the image under uploads/', async () => {
-  config.mediaApiKey = 'test_fal_key';
+test('renderImage posts to the Gemini image API and saves the returned bytes', async () => {
+  config.geminiApiKey = 'test_gemini_key';
   const bytes = Buffer.from('fake-jpeg-bytes-for-test');
   const calls = [];
   const fetchImpl = async (url, opts) => {
     calls.push({ url: String(url), opts });
-    if (String(url).startsWith('https://fal.run/')) {
-      return { status: 200, json: async () => ({ images: [{ url: 'https://cdn.fal.fake/out.png' }] }) };
-    }
     return {
       status: 200,
-      arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      json: async () => ({ output_image: { data: bytes.toString('base64'), mime_type: 'image/jpeg' } }),
     };
   };
 
@@ -200,18 +206,121 @@ test('renderImage generates via fal.run and saves the image under uploads/', asy
     const { filePath } = await mediagen.renderImage({ prompt: 'cozy cafe hero shot' }, { fetchImpl });
     assert.match(filePath, /^\/uploads\/[0-9a-f-]+\.jpg$/);
 
-    // The generation call carried the key, prompt, and square_hd size.
-    assert.strictEqual(calls[0].url, 'https://fal.run/fal-ai/flux/schnell');
-    assert.strictEqual(calls[0].opts.headers.Authorization, 'Key test_fal_key');
-    assert.deepStrictEqual(JSON.parse(calls[0].opts.body), { prompt: 'cozy cafe hero shot', image_size: 'square_hd' });
-    assert.strictEqual(calls[1].url, 'https://cdn.fal.fake/out.png');
+    // One call, not two: the image comes back inline as base64, so unlike the
+    // old provider there is no second download hop.
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].url, 'https://generativelanguage.googleapis.com/v1beta/interactions');
+    assert.strictEqual(calls[0].opts.headers['x-goog-api-key'], 'test_gemini_key');
+    const body = JSON.parse(calls[0].opts.body);
+    assert.strictEqual(body.model, config.geminiImageModel);
+    assert.deepStrictEqual(body.input, [{ type: 'text', text: 'cozy cafe hero shot' }]);
+    assert.strictEqual(body.response_format.type, 'image');
 
-    // The downloaded bytes landed on disk under backend/uploads/.
     saved = path.join(__dirname, '..', filePath.replace(/^\//, ''));
     assert.ok(fs.existsSync(saved));
     assert.deepStrictEqual(fs.readFileSync(saved), bytes);
   } finally {
-    config.mediaApiKey = '';
+    config.geminiApiKey = '';
     if (saved) { try { fs.unlinkSync(saved); } catch { /* ignore */ } }
+  }
+});
+
+test('editImage sends the source image alongside the instruction', async () => {
+  config.geminiApiKey = 'test_gemini_key';
+  const src = Buffer.from('original-image-bytes');
+  const uploads = path.join(__dirname, '..', 'uploads');
+  fs.mkdirSync(uploads, { recursive: true });
+  const srcName = `edit-src-${Date.now()}.jpg`;
+  fs.writeFileSync(path.join(uploads, srcName), src);
+
+  let saved;
+  try {
+    let body;
+    const fetchImpl = async (url, opts) => {
+      body = JSON.parse(opts.body);
+      return { status: 200, json: async () => ({ output_image: { data: Buffer.from('edited').toString('base64'), mime_type: 'image/jpeg' } }) };
+    };
+    const { filePath } = await mediagen.editImage({ prompt: 'warmer light', filePath: `uploads/${srcName}` }, { fetchImpl });
+
+    assert.strictEqual(body.input.length, 2, 'text instruction plus the image being edited');
+    assert.strictEqual(body.input[1].type, 'image');
+    assert.strictEqual(body.input[1].data, src.toString('base64'));
+
+    saved = path.join(__dirname, '..', filePath.replace(/^\//, ''));
+    assert.notStrictEqual(path.basename(saved), srcName, 'the edit is a NEW file, not an overwrite');
+    assert.ok(fs.existsSync(path.join(uploads, srcName)), 'the original survives the edit');
+  } finally {
+    config.geminiApiKey = '';
+    try { fs.unlinkSync(path.join(uploads, srcName)); } catch { /* ignore */ }
+    if (saved) { try { fs.unlinkSync(saved); } catch { /* ignore */ } }
+  }
+});
+
+test('editImage refuses when the source file is gone', async () => {
+  config.geminiApiKey = 'test_gemini_key';
+  try {
+    await assert.rejects(
+      mediagen.editImage({ prompt: 'x', filePath: 'uploads/does-not-exist.jpg' }),
+      (err) => err instanceof mediagen.MediaEngineError && err.status === 404
+    );
+  } finally {
+    config.geminiApiKey = '';
+  }
+});
+
+test('startVideo submits a long-running operation and returns its handle', async () => {
+  config.geminiApiKey = 'test_gemini_key';
+  try {
+    let call;
+    const fetchImpl = async (url, opts) => {
+      call = { url: String(url), body: JSON.parse(opts.body) };
+      return { status: 200, json: async () => ({ name: 'operations/abc123' }) };
+    };
+    const { operationId } = await mediagen.startVideo({ prompt: 'a slow pan across the counter' }, { fetchImpl });
+
+    assert.strictEqual(operationId, 'operations/abc123');
+    assert.match(call.url, /:predictLongRunning$/);
+    assert.ok(call.url.includes(encodeURIComponent(config.veoModel)));
+    assert.strictEqual(call.body.instances[0].prompt, 'a slow pan across the counter');
+    // Duration and resolution are the cost dials, so they must actually be sent.
+    assert.strictEqual(call.body.parameters.durationSeconds, config.veoDurationSeconds);
+    assert.strictEqual(call.body.parameters.resolution, config.veoResolution);
+  } finally {
+    config.geminiApiKey = '';
+  }
+});
+
+test('pollVideo distinguishes pending, failed, and finished jobs', async () => {
+  config.geminiApiKey = 'test_gemini_key';
+  try {
+    const withResponse = (payload) => async () => ({ status: 200, json: async () => payload });
+
+    assert.deepStrictEqual(
+      await mediagen.pollVideo({ operationId: 'operations/x' }, { fetchImpl: withResponse({ done: false }) }),
+      { done: false }
+    );
+
+    const failed = await mediagen.pollVideo(
+      { operationId: 'operations/x' },
+      { fetchImpl: withResponse({ done: true, error: { message: 'safety filter' } }) }
+    );
+    assert.strictEqual(failed.done, true);
+    assert.match(failed.error, /safety filter/);
+
+    const ok = await mediagen.pollVideo(
+      { operationId: 'operations/x' },
+      { fetchImpl: withResponse({ done: true, response: { generateVideoResponse: { generatedSamples: [{ video: { uri: 'https://v/out.mp4' } }] } } }) }
+    );
+    assert.deepStrictEqual(ok, { done: true, uri: 'https://v/out.mp4' });
+
+    // Done, but nothing produced — terminal and refundable, not a silent pass.
+    const empty = await mediagen.pollVideo(
+      { operationId: 'operations/x' },
+      { fetchImpl: withResponse({ done: true, response: {} }) }
+    );
+    assert.strictEqual(empty.done, true);
+    assert.ok(empty.error);
+  } finally {
+    config.geminiApiKey = '';
   }
 });

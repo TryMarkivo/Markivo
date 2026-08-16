@@ -366,7 +366,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         </nav>
 
         <div className="sidebar-footer">
-          {usage && (
+          {usage && usage.buckets && (
             <div
               className="usage-meter is-clickable"
               id="usage_meter"
@@ -376,17 +376,32 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setUpgradeModalOpen(true); } }}
               title={t('usage.resetsTitle', { defaultValue: 'Resets {{date}}', date: usage.resetsAt?.slice(0, 10) })}
             >
-              <div className="usage-meter-label">
-                <span>{t('usage.label', 'AI generations')}</span>
-                <span>{t('usage.count', { defaultValue: '{{used}} / {{limit}}', used: usage.used, limit: usage.limit })}</span>
-              </div>
-              <div className="usage-meter-track">
-                <div
-                  className={`usage-meter-fill ${usage.used >= usage.limit ? 'full' : ''}`}
-                  style={{ width: `${Math.min(100, Math.round((usage.used / usage.limit) * 100))}%` }}
-                ></div>
-              </div>
-              <small className="usage-meter-tier">{t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}</small>
+              {/* One bar per allowance. They are separate pools — a spent video
+                  budget says nothing about how much writing is left — so a
+                  single combined bar would misreport all three. */}
+              {Object.entries(usage.buckets).map(([name, b]) => (
+                <div className="usage-meter-row" key={name}>
+                  <div className="usage-meter-label">
+                    <span>{t(`usage.buckets.${name}`, name)}</span>
+                    <span>
+                      {b.limit === 0
+                        ? t('usage.locked', 'Upgrade')
+                        : t('usage.count', { defaultValue: '{{used}} / {{limit}}', used: b.used, limit: b.limit })}
+                    </span>
+                  </div>
+                  <div className="usage-meter-track">
+                    <div
+                      className={`usage-meter-fill ${b.remaining <= 0 ? 'full' : ''}`}
+                      style={{ width: `${b.limit ? Math.min(100, Math.round((b.used / b.limit) * 100)) : 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+              <small className="usage-meter-tier">
+                {t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}
+                {' · '}
+                {t('usage.resetsWeekly', 'resets Monday')}
+              </small>
             </div>
           )}
           <button className="btn btn-danger w-full" onClick={onLogout} id="btn_logout">
