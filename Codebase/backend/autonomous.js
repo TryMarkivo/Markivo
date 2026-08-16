@@ -38,10 +38,14 @@ function scheduledTimeFor(index, fromMs) {
   return new Date(fromMs + (2 + index * 60) * 60 * 1000).toISOString();
 }
 
-// Owner's monthly AI allowance (mirrors server.usageInfo, db-only).
-function withinBudget(db, config, userId, tier) {
+// How much of the owner's WEEKLY writing allowance is left (mirrors
+// server.usageInfo, db-only). Autopilot writes posts, so it spends from the
+// same pool as anything the owner types by hand — a scheduled post is not
+// cheaper to produce than a manual one.
+function writingRemaining(db, config, userId, tier) {
   const t = config.aiTierLimits[tier] != null ? tier : 'freemium';
-  return db.usage.countThisMonth(userId) < config.aiTierLimits[t];
+  const limit = config.aiTierLimits[t].writing;
+  return Math.max(0, limit - db.usage.countThisWeek(userId, 'writing'));
 }
 
 // Read back real content from the business's own connected accounts (best
@@ -99,9 +103,13 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     return { skipped: 'not-due' };
   }
 
-  // Respect the owner's monthly AI allowance — pause until it resets.
-  if (user && !withinBudget(db, config, user.id, user.tier)) {
-    db.autonomous.logActivity({ profileId, kind: 'skipped', summary: 'Monthly AI allowance reached — Autopilot paused until it resets.' });
+  // Respect the owner's weekly writing allowance — pause until it resets.
+  // `budget` is re-read here rather than trusted later: the plan may contain
+  // more posts than the owner can still afford, and publishing unbudgeted work
+  // would let Autopilot quietly outspend everyone who writes by hand.
+  const budget = user ? writingRemaining(db, config, user.id, user.tier) : Infinity;
+  if (budget <= 0) {
+    db.autonomous.logActivity({ profileId, kind: 'skipped', summary: 'Weekly writing allowance reached — Autopilot paused until it resets on Monday.' });
     return { skipped: 'budget' };
   }
 
@@ -148,9 +156,6 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   if (!gate.ok) {
     return { paused: 'needs-context', reason: gate.reason, requestId: gate.request ? gate.request.id : null };
   }
-
-  // One analyze+generate call counts as one AI generation against the allowance.
-  if (user) db.usage.record({ userId: user.id, kind: 'autonomous' });
 
   let plan;
   try {
@@ -209,6 +214,8 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   let scheduled = 0;
   let queued = 0;
   let errors = 0;
+  let spent = 0;
+  let unaffordable = 0;
 
   for (let i = 0; i < plan.posts.length; i += 1) {
     const post = plan.posts[i];
@@ -225,6 +232,17 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
       db.autonomous.logActivity({ profileId, kind: 'error', summary: `Skipped a post for unknown channel "${platform}".` });
       continue;
     }
+
+    // One post, one unit — the same price the owner pays writing it by hand.
+    // A plan can be larger than what is left, so the run delivers what it can
+    // afford and stops. Charged BEFORE the post exists, so a publish failure
+    // still counts: the generation was produced either way.
+    if (spent >= budget) {
+      unaffordable += 1;
+      continue;
+    }
+    if (user) db.usage.record({ userId: user.id, kind: 'autonomous', bucket: 'writing' });
+    spent += 1;
 
     // Queue mode: create a pending organic approval for one-tap human sign-off.
     if (!cfg.autoPublish) {
@@ -265,7 +283,20 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     }
   }
 
-  return { posts: plan.posts.length, published, scheduled, queued, errors, autoPublish: cfg.autoPublish };
+  // Say so out loud when the allowance truncated the run — silently producing
+  // fewer posts than planned would look like the model underdelivering.
+  if (unaffordable) {
+    db.autonomous.logActivity({
+      profileId,
+      kind: 'skipped',
+      summary: `Weekly writing allowance reached — ${unaffordable} of ${plan.posts.length} posts were not created. Resets Monday.`,
+    });
+  }
+
+  return {
+    posts: plan.posts.length, published, scheduled, queued, errors, unaffordable,
+    autoPublish: cfg.autoPublish,
+  };
 }
 
 // Scan for all due Autopilot profiles and run each. Called on an interval by the

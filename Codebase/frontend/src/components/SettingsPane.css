@@ -364,3 +364,23 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Per-bucket weekly allowances on a plan card. A bucket the tier does not
+   include is shown struck through rather than hidden — what you are missing is
+   the reason to upgrade. */
+.plan-card-limits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plan-card-limits li.is-locked {
+  opacity: 0.55;
+  text-decoration: line-through;
+}

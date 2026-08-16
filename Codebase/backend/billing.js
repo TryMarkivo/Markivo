@@ -169,7 +169,11 @@ function getStatus(user) {
     currentPeriodEnd: sub ? sub.currentPeriodEnd : null,
     simulated: !!sub && sub.provider === 'simulated',
     prices: config.tierPrices,
+    // Per-bucket now ({writing, image, video}), not a single number, and
+    // refilled weekly — `limitPeriod` saves the pricing UI from assuming.
     limits: config.aiTierLimits,
+    limitBuckets: config.usageBuckets,
+    limitPeriod: 'week',
   };
 }
 

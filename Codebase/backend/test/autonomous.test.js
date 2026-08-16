@@ -16,6 +16,9 @@ process.env.GEMINI_API_KEY = '';
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 process.env.AUTONOMOUS_ENABLED = 'true';
+// Room for the whole file: the budget tests below drive the limit down
+// deliberately, so the default must not run dry before they get there.
+process.env.AI_LIMIT_FREEMIUM_WRITING = '30';
 
 // DISABLED: SEO/Meta temporarily off — see 2026-08-13
 // These cases used 'meta_instagram' as the test platform. With the Meta
@@ -138,14 +141,53 @@ test('a second overlapping tick does not double-run the same profile', async () 
   assert.equal(postedAfter - postedBefore, 1, 'exactly one post published across both ticks');
 });
 
-test('Autopilot pauses when the monthly AI allowance is exhausted', async () => {
-  // Disable then enable to deterministically re-arm next_run_at = now (due now).
+test('Autopilot spends one writing unit per post it creates', async () => {
   await put('/api/autonomous/config', { enabled: false }, access);
   await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true }, access);
 
-  // Exhaust the freemium allowance for this owner.
-  const limit = require('../config').aiTierLimits.freemium;
-  while (db.usage.countThisMonth(userId) < limit) db.usage.record({ userId, kind: 'filler' });
+  const before = db.usage.countThisWeek(userId, 'writing');
+  const result = await runAutonomousTick({ now: Date.now() });
+  const after = db.usage.countThisWeek(userId, 'writing');
+
+  const run = result.results[0];
+  const created = (run && run.posts) || 0;
+  assert.ok(created > 0, 'the run produced posts to charge for');
+  // One unit per post — the same price the owner pays writing one by hand,
+  // rather than one flat unit for the whole batch.
+  assert.strictEqual(after - before, created);
+});
+
+test('Autopilot delivers what the allowance covers and reports the shortfall', async () => {
+  await put('/api/autonomous/config', { enabled: false }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['meta_instagram'], frequency: 'test', autoPublish: true }, access);
+
+  // Leave room for exactly one post, so a multi-post plan must truncate.
+  const limit = require('../config').aiTierLimits.freemium.writing;
+  while (db.usage.countThisWeek(userId, 'writing') < limit - 1) {
+    db.usage.record({ userId, kind: 'filler', bucket: 'writing' });
+  }
+
+  const result = await runAutonomousTick({ now: Date.now() });
+  const run = result.results[0];
+
+  assert.strictEqual(db.usage.countThisWeek(userId, 'writing'), limit, 'spends up to the limit, never past it');
+  if (run && run.posts > 1) {
+    assert.ok(run.unaffordable > 0, 'the posts it could not afford are counted');
+    assert.ok(
+      db.autonomous.listActivity(profileId, 5).some((a) => a.kind === 'skipped'),
+      'and said out loud, not silently dropped'
+    );
+  }
+});
+
+test('Autopilot pauses entirely when the weekly writing allowance is gone', async () => {
+  await put('/api/autonomous/config', { enabled: false }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['meta_instagram'], frequency: 'test', autoPublish: true }, access);
+
+  const limit = require('../config').aiTierLimits.freemium.writing;
+  while (db.usage.countThisWeek(userId, 'writing') < limit) {
+    db.usage.record({ userId, kind: 'filler', bucket: 'writing' });
+  }
 
   const postedBefore = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted').length;
   await runAutonomousTick({ now: Date.now() });

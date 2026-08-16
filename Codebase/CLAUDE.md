@@ -31,5 +31,18 @@
 - Onboarding `construct` must return the profile WITH a `platforms` boolean map or the
   dashboard crashes.
 - The money/ad approval gate in `server.js` stays deterministic — never model-decided.
+- Generation allowances are three WEEKLY buckets (`writing` / `image` / `video`) that
+  refill 00:00 UTC Monday, not one monthly pool — the per-call costs differ ~100x. Every
+  `db.usage.record` names its bucket, and the bucket is STORED so remapping a `kind`
+  later never rewrites what a user was already charged. Guard routes with
+  `checkBudget('<bucket>')`; `/api/media/:id/render` checks inline instead, because
+  image-vs-video is not known until the row is loaded.
+- Media rendering runs on `GEMINI_API_KEY` (images via the image model, video via Veo) —
+  there is no separate media key. Video is a long-running job: charged at submit,
+  refunded if it fails, swept out after `VEO_MAX_WAIT_MS`. A failure to *poll* is not a
+  failed job — never refund on a transient error, or a blip destroys a paid-for render.
+- `VEO_MODEL` and `VEO_DURATION_SECONDS` are money dials (Veo bills per second). Treat a
+  change to either as a pricing decision, not a config tweak.
 - Tests are `node:test`; env vars must be set BEFORE requiring the app (config caches
-  env at load; each test file gets its own process).
+  env at load; each test file gets its own process). Test files that make many
+  generations must raise `AI_LIMIT_FREEMIUM_WRITING` or they run dry mid-file.

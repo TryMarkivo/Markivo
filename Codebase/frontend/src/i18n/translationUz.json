@@ -76,7 +76,14 @@
       "free": "Bepul",
       "pro": "Pro",
       "ultimate": "Ultimate"
-    }
+    },
+    "buckets": {
+      "writing": "Matnlar",
+      "image": "Rasmlar",
+      "video": "Video"
+    },
+    "locked": "Yangilash",
+    "resetsWeekly": "dushanbada yangilanadi"
   },
   "landing": {
     "nav": {
@@ -678,14 +685,21 @@
       "brief": "Brif",
       "uploaded": "Yuklangan",
       "edit_plan": "Montaj rejasi",
-      "rendered": "Render qilingan"
+      "rendered": "Render qilingan",
+      "rendering": "Yaratilmoqda…",
+      "failed": "Xatolik"
     },
     "render": {
       "cta": "Rasm yaratish",
       "rendering": "Rasm yaratilmoqda...",
       "success": "Rasm tayyor — postlaringizda ishlatishingiz mumkin.",
       "resultAlt": "Yaratilgan rasm",
-      "resultAltNamed": "Yaratilgan rasm: {{topic}}"
+      "resultAltNamed": "Yaratilgan rasm: {{topic}}",
+      "ctaVideo": "Video yaratish",
+      "renderingVideo": "Video yaratilmoqda — bu bir necha daqiqa oladi...",
+      "successVideo": "Video tayyor — postlaringizda ishlatishingiz mumkin.",
+      "failed": "Yaratib bo'lmadi — limitingiz qaytarildi.",
+      "stillGoing": "Hali yaratilmoqda — tayyor bo'lgach kutubxonangizda paydo bo'ladi."
     }
   },
   "competitors": {
@@ -876,7 +890,7 @@
     "language": "Til",
     "plan": {
       "title": "Tarif va to'lov",
-      "hint": "Tarif oylik AI generatsiya limitingizni belgilaydi va qo'shimcha imkoniyatlarni ochadi.",
+      "hint": "Tarif haftalik generatsiya limitlarini belgilaydi va qo'shimcha imkoniyatlarni ochadi.",
       "testMode": "Test rejimi — to'lov kalitlari sozlanmaguncha to'lovlar simulyatsiya qilinadi.",
       "tierFree": "Bepul",
       "tierPro": "Pro",
@@ -891,7 +905,9 @@
       "changeFailed": "Tarifni o'zgartirib bo'lmadi. Iltimos, qayta urinib ko'ring.",
       "periodEnd": "Joriy davr {{date}} kuni tugaydi",
       "unavailable": "To'lov holati hozircha mavjud emas.",
-      "loading": "Tarif yuklanmoqda…"
+      "loading": "Tarif yuklanmoqda…",
+      "limitLine": "Haftasiga {{n}} ta {{bucket}}",
+      "limitLocked": "{{bucket}} kirmagan"
     },
     "logoTitle": "Logotipingiz",
     "logoHint": "Ixtiyoriy. O'z belgingizni yuklang yoki nom va ohangdan kelib chiqib yaratib oling.",

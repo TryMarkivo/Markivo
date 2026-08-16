@@ -885,8 +885,11 @@ async function agentAct(ctx) {
         `\n- Competitors tracked: ${snapshot.stats?.competitorCount ?? 0}` +
         `\n- Top keywords: ${(snapshot.stats?.keywords || []).join(', ') || 'n/a'}` +
         `\n- Scheduled posts: ${snapshot.stats?.scheduledPosts ?? 0}; published posts: ${snapshot.stats?.postedPosts ?? 0}` +
-        (snapshot.usage
-          ? `\n- AI generations used this month: ${snapshot.usage.used}/${snapshot.usage.limit} (${snapshot.usage.tier} plan)`
+        (snapshot.usage && snapshot.usage.buckets
+          ? `\n- This week's allowance (${snapshot.usage.tier} plan, resets Monday): `
+            + Object.entries(snapshot.usage.buckets)
+              .map(([name, b]) => `${name} ${b.used}/${b.limit}`)
+              .join(', ')
           : '')
       : '') +
     (telegram?.connected

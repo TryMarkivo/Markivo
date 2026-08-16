@@ -5,6 +5,12 @@ import PublishModal from './PublishModal';
 import './MediaStudio.css';
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB client-side cap
+// Video generation runs for minutes. Google's own guidance is to poll every
+// ~10s; MAX_POLLS bounds the wait so the spinner cannot outlive the server's
+// own give-up window (VEO_MAX_WAIT_MS), after which the job is failed and the
+// owner's allowance refunded.
+const POLL_INTERVAL_MS = 10000;
+const MAX_POLLS = 66;
 
 // Defensive stringifier: backend fields may arrive as strings, arrays or objects.
 function asText(value) {
@@ -176,17 +182,61 @@ export default function MediaStudio({ activeProfile }) {
     setPlanning(false);
   };
 
+  /**
+   * Poll a video job to completion.
+   *
+   * Video generation takes minutes, so the render call returns 202 and the
+   * result arrives here. Polling stops on a terminal status or when the server
+   * gives up — it never spins forever, because the job is already paid for and
+   * a stuck spinner would hide a refund the owner is owed.
+   */
+  const pollRender = async (id) => {
+    for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      let data;
+      try {
+        data = await api.get(`/api/media/${id}/status`);
+      } catch {
+        continue; // a blip; the server keeps the job in flight
+      }
+      if (data.status === 'rendered') {
+        setRenders((prev) => ({ ...prev, [id]: { url: data.url } }));
+        loadLibrary();
+        return;
+      }
+      if (data.status === 'failed') {
+        setRenders((prev) => ({
+          ...prev,
+          [id]: { notice: data.error || t('media.render.failed', 'Generation failed — your allowance has been returned.') },
+        }));
+        loadLibrary();
+        return;
+      }
+    }
+    setRenders((prev) => ({
+      ...prev,
+      [id]: { notice: t('media.render.stillGoing', 'Still generating — it will appear in your library when it finishes.') },
+    }));
+    loadLibrary();
+  };
+
   const handleRender = async (id) => {
     if (!id || renderingId) return;
     setRenderingId(id);
     setError(null);
     try {
       const data = await api.post(`/api/media/${id}/render`, {});
-      setRenders((prev) => ({ ...prev, [id]: { url: data.url } }));
-      loadLibrary();
+      if (data.status === 'rendering') {
+        // Accepted as a job (video). The button stays busy while we poll.
+        await pollRender(id);
+      } else {
+        setRenders((prev) => ({ ...prev, [id]: { url: data.url } }));
+        loadLibrary();
+      }
     } catch (err) {
-      if (err.status === 501) {
-        // Engine keyless / unsupported kind — show the amber notice with the server's message.
+      // 501 keyless engine and 429 exhausted allowance are both expected
+      // states with a useful server message, not errors to shout about.
+      if (err.status === 501 || err.status === 429) {
         setRenders((prev) => ({ ...prev, [id]: { notice: err.message } }));
       } else {
         setError(err.message);
@@ -225,6 +275,8 @@ export default function MediaStudio({ activeProfile }) {
     uploaded: t('media.status.uploaded', 'Uploaded'),
     edit_plan: t('media.status.edit_plan', 'Edit plan'),
     rendered: t('media.status.rendered', 'Rendered'),
+    rendering: t('media.status.rendering', 'Generating…'),
+    failed: t('media.status.failed', 'Failed'),
   };
 
   const enginePendingText = t('media.engine.pending', 'AI media engine pending — this plan is ready to run the moment the generation engine goes live.');
@@ -464,37 +516,45 @@ export default function MediaStudio({ activeProfile }) {
                 </div>
               )}
 
-              {briefKind === 'image' ? (
-                <div className="media-render-section">
-                  {renders[briefId]?.url ? (
-                    <div className="render-result animate-fade-in">
-                      <div className="render-success-note">
-                        <i className="fa-solid fa-circle-check"></i>
-                        <span>{t('media.render.success', 'Image rendered — ready to use in your posts.')}</span>
-                      </div>
-                      <img src={toAbsolute(renders[briefId].url)} alt={t('media.render.resultAltNamed', { defaultValue: 'Rendered image: {{topic}}', topic: briefTopic })} />
+              {/* Video renders through the same button now — it is a polled
+                  job rather than a coming-soon placeholder. */}
+              <div className="media-render-section">
+                {renders[briefId]?.url ? (
+                  <div className="render-result animate-fade-in">
+                    <div className="render-success-note">
+                      <i className="fa-solid fa-circle-check"></i>
+                      <span>{briefKind === 'video'
+                        ? t('media.render.successVideo', 'Video generated — ready to use in your posts.')
+                        : t('media.render.success', 'Image rendered — ready to use in your posts.')}</span>
                     </div>
-                  ) : (
-                    <>
-                      {engineNote(renders[briefId]?.notice || brief.note || enginePendingText)}
-                      <button
-                        type="button"
-                        className="btn btn-primary w-full"
-                        id="btn_media_render"
-                        disabled={renderingId !== null}
-                        onClick={() => handleRender(briefId)}
-                      >
-                        <i className={`fa-solid ${renderingId === briefId ? 'fa-spinner fa-spin' : 'fa-image'}`}></i>{' '}
-                        {renderingId === briefId
-                          ? t('media.render.rendering', 'Rendering image...')
-                          : t('media.render.cta', 'Render image')}
-                      </button>
-                    </>
-                  )}
-                </div>
-              ) : (
-                engineNote(brief.note || enginePendingText)
-              )}
+                    {briefKind === 'video' ? (
+                      <video src={toAbsolute(renders[briefId].url)} controls playsInline className="render-result-video" />
+                    ) : (
+                      <img src={toAbsolute(renders[briefId].url)} alt={t('media.render.resultAltNamed', { defaultValue: 'Rendered image: {{topic}}', topic: briefTopic })} />
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {engineNote(renders[briefId]?.notice || brief.note || enginePendingText)}
+                    <button
+                      type="button"
+                      className="btn btn-primary w-full"
+                      id="btn_media_render"
+                      disabled={renderingId !== null}
+                      onClick={() => handleRender(briefId)}
+                    >
+                      <i className={`fa-solid ${renderingId === briefId ? 'fa-spinner fa-spin' : (briefKind === 'video' ? 'fa-film' : 'fa-image')}`}></i>{' '}
+                      {renderingId === briefId
+                        ? (briefKind === 'video'
+                          ? t('media.render.renderingVideo', 'Generating video — this takes a few minutes...')
+                          : t('media.render.rendering', 'Rendering image...'))
+                        : (briefKind === 'video'
+                          ? t('media.render.ctaVideo', 'Generate video')
+                          : t('media.render.cta', 'Render image'))}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -833,7 +893,7 @@ export default function MediaStudio({ activeProfile }) {
                   />
                 )}
                 {renders[item.id]?.notice && engineNote(renders[item.id].notice)}
-                {item.mode === 'full' && item.kind === 'image' && item.status === 'brief' && !renders[item.id]?.url && (
+                {item.mode === 'full' && (item.status === 'brief' || item.status === 'failed') && !renders[item.id]?.url && (
                   <button
                     type="button"
                     className="btn btn-secondary media-item-render-btn"

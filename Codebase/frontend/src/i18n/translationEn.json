@@ -76,7 +76,14 @@
       "free": "Free",
       "pro": "Pro",
       "ultimate": "Ultimate"
-    }
+    },
+    "buckets": {
+      "writing": "Writing",
+      "image": "Images",
+      "video": "Video"
+    },
+    "locked": "Upgrade",
+    "resetsWeekly": "resets Monday"
   },
   "landing": {
     "nav": {
@@ -695,14 +702,21 @@
       "brief": "Brief",
       "uploaded": "Uploaded",
       "edit_plan": "Edit plan",
-      "rendered": "Rendered"
+      "rendered": "Rendered",
+      "rendering": "Generating…",
+      "failed": "Failed"
     },
     "render": {
       "cta": "Render image",
       "rendering": "Rendering image...",
       "success": "Image rendered — ready to use in your posts.",
       "resultAlt": "Rendered image",
-      "resultAltNamed": "Rendered image: {{topic}}"
+      "resultAltNamed": "Rendered image: {{topic}}",
+      "ctaVideo": "Generate video",
+      "renderingVideo": "Generating video — this takes a few minutes...",
+      "successVideo": "Video generated — ready to use in your posts.",
+      "failed": "Generation failed — your allowance has been returned.",
+      "stillGoing": "Still generating — it will appear in your library when it finishes."
     },
     "full": {
       "title": "Describe what you want",
@@ -922,7 +936,7 @@
     "language": "Language",
     "plan": {
       "title": "Plan & billing",
-      "hint": "Your plan sets your monthly AI generation limit and unlocks advanced features.",
+      "hint": "Your plan sets your weekly generation allowances and unlocks advanced features.",
       "testMode": "Test mode — payments are simulated until billing keys are configured.",
       "tierFree": "Free",
       "tierPro": "Pro",
@@ -937,7 +951,9 @@
       "changeFailed": "Could not change your plan. Please try again.",
       "periodEnd": "Current period ends {{date}}",
       "unavailable": "Billing status is unavailable right now.",
-      "loading": "Loading plan…"
+      "loading": "Loading plan…",
+      "limitLine": "{{n}} {{bucket}} / week",
+      "limitLocked": "{{bucket}} not included"
     },
     "logoTitle": "Your logo",
     "logoHint": "Optional. Upload the mark you already use, or have one designed from your name and tone.",
