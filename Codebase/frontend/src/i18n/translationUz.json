@@ -146,7 +146,7 @@
       "brandTitle": "Brend va qiyofa",
       "brandText": "AI bir necha soniyada logotip, slogan va brend ohangini yaratadi — birinchi postingizdan oldinoq to'liq brend qiyofasi tayyor.",
       "postingTitle": "Barcha platformalarga joylash",
-      "postingText": "Instagram, TikTok, Telegram, X va Google — yozish, rejalashtirish va e'lon qilish bir joydan.",
+      "postingText": "Instagram, Telegram, X va Google — yozish, rejalashtirish va e'lon qilish bir joydan.",
       "contentTitle": "Kontent dvigateli",
       "contentText": "Suratga olish bo'yicha maslahatlar, foto va videoni avtomatik yaxshilash hamda har bir platformaga moslangan AI video.",
       "inboxTitle": "Pochta agenti",
@@ -714,7 +714,7 @@
       "title": "Kuzatilayotgan raqobatchilar",
       "subtitle": "Raqobatchining haqiqiy kontenti va post odatlarini olish uchun uning profil havolasini joylashtiring",
       "addCta": "Raqobatchi qo'shish",
-      "empty": "Hali kuzatilayotgan raqobatchi yo'q — Instagram, TikTok, YouTube yoki Facebook profil havolasini joylashtirib birini qo'shing.",
+      "empty": "Hali kuzatilayotgan raqobatchi yo'q — Instagram, YouTube yoki Facebook profil havolasini joylashtirib birini qo'shing.",
       "unnamed": "Nomsiz raqobatchi",
       "refresh": "Yangilash",
       "remove": "O'chirish",
@@ -722,7 +722,7 @@
       "partialHintNoApi": "Bu platforma faqat profil ma'lumotlarini ochiq ko'rsatadi — sarlavha yoki video yo'q, shuning uchun trend tahliliga material bera olmaydi.",
       "partialHintGeneric": "Profil topildi, lekin postlarni o'qib bo'lmadi — «Yangilash»ni sinab ko'ring.",
       "noFollowerData": "ma'lumot yo'q",
-      "_DISABLED_partialHintInstagram": "Hali post kontenti yo'q — bu yerda haqiqiy sarlavha va faollik ma'lumotlarini ochish uchun Sozlamalar → Ulanishlar (Meta) bo'limida o'z Instagram'ingizni ulang va bu raqobatchi ochiq Biznes yoki Ijodkor akkaunti ekanligiga ishonch hosil qiling."
+      "partialHintInstagram": "Hali post kontenti yo'q — bu yerda haqiqiy sarlavha va faollik ma'lumotlarini ochish uchun Sozlamalar → Ulanishlar (Meta) bo'limida o'z Instagram'ingizni ulang va bu raqobatchi ochiq Biznes yoki Ijodkor akkaunti ekanligiga ishonch hosil qiling."
     },
     "addModal": {
       "title": "Raqobatchi qo'shish",
@@ -731,7 +731,6 @@
       "namePlaceholder": "masalan, Sunrise Cafe",
       "platform": {
         "instagram": "Instagram",
-        "tiktok": "TikTok",
         "youtube": "YouTube",
         "facebook": "Facebook"
       },
@@ -981,6 +980,40 @@
     "sendToComposer": "Muharrirga yuborish",
     "fromTemplateTip": "Saqlangan shablonlaringizdan biri to‘ldirildi — tekshiring, so‘ng joylang yoki rejalashtiring."
   },
+  "styles": {
+    "importLabel": "Yoki Telegram eksportini yuklang",
+    "importHint": "Telegram Desktop'ning «Chat tarixini eksport qilish» funksiyasidan olingan .json yoki .html faylni yuklang — butun kanal ohangini o‘rganamiz.",
+    "importCta": "Faylni yuklash",
+    "importing": "Fayl o‘qilmoqda…"
+  },
+  "aiEditor": {
+    "title": "AI muharrir",
+    "tabTranslate": "Tarjima",
+    "tabStyle": "Uslub",
+    "tabFix": "Tuzatish",
+    "tabTemplates": "Shablonlar",
+    "original": "Asl matn",
+    "result": "Natija",
+    "copy": "Nusxalash",
+    "copied": "Nusxalandi!",
+    "nothingToEdit": "Avval post matnini yozing.",
+    "translateLanguageLabel": "Tarjima tili",
+    "translateOtherPlaceholder": "Tilni kiriting…",
+    "translateCta": "Tarjima qilish",
+    "translating": "Tarjima qilinmoqda…",
+    "applyTranslation": "Tarjimani qo‘llash",
+    "fixIntro": "Faqat grammatika, imlo va tinish belgilari tuzatiladi — boshqa hech narsa o‘zgarmaydi.",
+    "fixCta": "Tuzatish ✦",
+    "fixing": "Tuzatilmoqda…",
+    "applyFix": "Tuzatishni qo‘llash",
+    "stylePresetsTitle": "Tezkor uslublar",
+    "styleYoursTitle": "Sizning uslublaringiz",
+    "styleAddNew": "+ Yangi uslub qo‘shish",
+    "styleApplying": "Uslub o‘zgartirilmoqda…",
+    "applyStyle": "Uslubni qo‘llash",
+    "emojify": "emoji",
+    "unavailableNotice": "AI hali sozlanmagan, shu sabab matn o‘zgarishsiz qoldi — buni yoqish uchun Gemini kalitini ulang."
+  },
   "connections": {
     "title": "Platforma ulanishlari",
     "subtitle": "Markiv siz nomingizdan post joylay oladigan platformalarni ulang — har bir platformaning rasmiy API’si orqali va faqat siz tasdiqlaganingizdan keyin.",
@@ -1051,9 +1084,9 @@
       "telegramError": "Telegram javob bermadi ({{error}}).",
       "noIntegration": "Bu kanalda hali jonli integratsiya yoʻq, shuning uchun faqat Markivo rejalashtirgan narsalar koʻrsatiladi."
     },
-    "_DISABLED_engagementNote": "Har bir post uchun layk va izohlar faqat ulangan Instagram Business yoki Creator akkauntlarida mavjud. Bu kanal ularni bermaydi."
+    "engagementNote": "Har bir post uchun layk va izohlar faqat ulangan Instagram Business yoki Creator akkauntlarida mavjud. Bu kanal ularni bermaydi."
   },
-  "_DISABLED_instagram": {
+  "instagram": {
     "setupTitle": "Instagram'ni ulash",
     "intro": "Markivo siz nomingizdan post joylashi uchun Instagram Business akkauntingizni ulang. Avtorizatsiya uchun Meta'ga o'tasiz — bu taxminan bir daqiqa oladi.",
     "step1": "Quyidagi tugmani bosing — sizni Meta'ning xavfsiz tizimiga yo'naltiramiz.",

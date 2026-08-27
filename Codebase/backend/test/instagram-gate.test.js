@@ -40,20 +40,16 @@ test('instagramEnabled is false without credentials', () => {
   assert.strictEqual(config.instagramEnabled, false);
 });
 
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// The /api/instagram/* routes are commented out entirely, so they now 404
-// rather than answering the 503 coming-soon gate. The config assertion above
-// still holds and still passes. Restore with the routes.
-// test('connect answers 503 coming-soon', async () => {
-//   const res = await fetch(`${base}/api/instagram/connect`, { headers: { Authorization: `Bearer ${access}` } });
-//   assert.strictEqual(res.status, 503);
-//   const data = await res.json();
-//   assert.strictEqual(data.comingSoon, true);
-// });
-//
-// test('status reports comingSoon, not connected', async () => {
-//   const res = await fetch(`${base}/api/instagram/status`, { headers: { Authorization: `Bearer ${access}` } });
-//   const data = await res.json();
-//   assert.strictEqual(data.connected, false);
-//   assert.strictEqual(data.comingSoon, true);
-// });
+test('connect answers 503 coming-soon', async () => {
+  const res = await fetch(`${base}/api/instagram/connect`, { headers: { Authorization: `Bearer ${access}` } });
+  assert.strictEqual(res.status, 503);
+  const data = await res.json();
+  assert.strictEqual(data.comingSoon, true);
+});
+
+test('status reports comingSoon, not connected', async () => {
+  const res = await fetch(`${base}/api/instagram/status`, { headers: { Authorization: `Bearer ${access}` } });
+  const data = await res.json();
+  assert.strictEqual(data.connected, false);
+  assert.strictEqual(data.comingSoon, true);
+});

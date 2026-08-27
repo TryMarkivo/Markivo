@@ -1,7 +1,4 @@
 /* ===== Autopilot (autonomous marketing agent) panel ===== */
-.autopilot-pane {
-  max-width: 900px;
-}
 
 .ap-loading {
   display: flex;
@@ -181,6 +178,67 @@
   line-height: 1.5;
 }
 .ap-safety i { color: var(--accent-primary); }
+
+/* Pending approval queue */
+.ap-queue { margin-top: 28px; }
+.ap-queue h3 { margin-bottom: 4px; }
+
+.ap-queue-list {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ap-queue-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-left: 3px solid var(--accent-primary);
+}
+
+.ap-queue-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ap-queue-platform {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ap-queue-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.ap-queue-cost {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ap-queue-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
 
 /* Activity log */
 .ap-activity { margin-top: 28px; }

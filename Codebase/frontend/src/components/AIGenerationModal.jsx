@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import './AIGenerationModal.css';
@@ -23,6 +23,15 @@ export default function AIGenerationModal({ activeProfile, onClose, onApprove })
   const [revising, setRevising] = useState(false);
   const [error, setError] = useState('');
 
+  // Saved writing styles, selectable for this generation — see StyleStudio /
+  // gemini.js#analyzeStyle. '' = write in the default brand voice.
+  const [styles, setStyles] = useState([]);
+  const [styleId, setStyleId] = useState('');
+
+  useEffect(() => {
+    api.get('/api/styles').then((rows) => setStyles(Array.isArray(rows) ? rows : [])).catch(() => {});
+  }, []);
+
   const generate = async (e) => {
     e.preventDefault();
     if (!topic.trim() || loading) return;
@@ -33,6 +42,7 @@ export default function AIGenerationModal({ activeProfile, onClose, onApprove })
         topic,
         tone: activeProfile.brandTone || activeProfile.tone,
         businessName: activeProfile.businessName,
+        styleId: styleId || undefined,
       });
       setText(data.post);
     } catch (err) {
@@ -50,6 +60,7 @@ export default function AIGenerationModal({ activeProfile, onClose, onApprove })
         topic,
         tone: activeProfile.brandTone || activeProfile.tone,
         businessName: activeProfile.businessName,
+        styleId: styleId || undefined,
         previousText: text,
         feedback,
       });
@@ -93,6 +104,23 @@ export default function AIGenerationModal({ activeProfile, onClose, onApprove })
                 required
               ></textarea>
             </div>
+
+            {styles.length > 0 && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="sel_aig_style">{t('aiGeneration.styleLabel', 'Style')}</label>
+                <select
+                  id="sel_aig_style"
+                  className="select-field"
+                  value={styleId}
+                  onChange={(e) => setStyleId(e.target.value)}
+                >
+                  <option value="">{t('aiGeneration.styleNone', 'Default brand voice')}</option>
+                  {styles.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name || t('styles.untitled', 'Untitled style')}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <button type="submit" className="btn btn-primary w-full" disabled={loading || !topic.trim()} id="btn_aig_generate">
               {loading ? t('content.copywriter.generating', 'Crafting localized drafts...') : t('aiGeneration.generateCta', 'Generate text ✦')}

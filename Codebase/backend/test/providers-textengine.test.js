@@ -104,7 +104,7 @@ test('generateSlogans, generateEditPlan, and generateLogos all route through the
 
   await withMockFetch(geminiJsonRes({
     steps: ['Trim', 'Color grade'], crop: '9:16', colorGrade: 'warm', captions: 'burned-in', audio: 'upbeat',
-    exportSpec: { instagram: '1080x1920', telegram: '1080x1920', tiktok: '1080x1920', googleBusiness: '1080x1080' },
+    exportSpec: { instagram: '1080x1920', telegram: '1080x1920', googleBusiness: '1080x1080' },
   }), async () => {
     const plan = await ai.generateEditPlan({ instructions: 'make it punchier', media: { kind: 'video', topic: 'latte art' }, profile: { businessName: 'Noir' } });
     assert.deepStrictEqual(plan.steps, ['Trim', 'Color grade']);

@@ -3,30 +3,15 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { PLATFORM_META } from '../lib/platforms';
 import AddCompetitorModal from './AddCompetitorModal';
+import CompetitorPostDetailModal from './CompetitorPostDetailModal';
 import './CompetitorIntel.css';
 
 // competitor_sources platform keys -> the icon/colour catalogue already used
 // for connected channels (which keys 'instagram'/'facebook' as
 // 'meta_instagram'/'meta_facebook').
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// The Meta aliases are gone from PLATFORM_META, so instagram/facebook
-// competitors now fall through to the generic share-icon fallback.
-// const iconFor = (platform) => PLATFORM_META[platform === 'instagram' ? 'meta_instagram' : platform === 'facebook' ? 'meta_facebook' : platform];
-const iconFor = (platform) => PLATFORM_META[platform];
+const iconFor = (platform) => PLATFORM_META[platform === 'instagram' ? 'meta_instagram' : platform === 'facebook' ? 'meta_facebook' : platform];
 
-// Facebook has no official "read a stranger's Page" API here yet — bio and
-// follower count only, structurally, not a bug. Instagram is different: real
-// post content IS available via Business Discovery, but only once THIS
-// business has its own Instagram connected through Settings → Connections
-// (the Meta/Facebook-Login card) and the competitor is itself a public
-// Business/Creator account — worth explaining inline rather than leaving a
-// bare "partial" badge to guess at.
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// Instagram joins this set: Business Discovery was the only way to read a
-// competitor's captions, and it is disabled, so Instagram now genuinely
-// exposes profile info only — same as Facebook.
-// const NO_POST_API_PLATFORMS = new Set(['facebook']);
-const NO_POST_API_PLATFORMS = new Set(['facebook', 'instagram']);
+const NO_POST_API_PLATFORMS = new Set(['facebook']);
 
 // Real engagement when the platform reports likes/comments; view count is the
 // honest fallback for platforms that only ever expose that publicly (Telegram)
@@ -39,7 +24,7 @@ const engagementScore = (p) =>
 
 const fmtCount = (n) => (n == null ? null : Number(n).toLocaleString());
 
-export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
+export default function CompetitorIntel({ stats, activeProfile, onGenerateToComposer }) {
   const { t } = useTranslation();
   const benchmarkCompetitors = stats.competitors || [];
   const yourPostsPerWeek = stats.yourPostsPerWeek ?? 0;
@@ -57,6 +42,9 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
   const [refreshingId, setRefreshingId] = useState(null);
   const [insight, setInsight] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState(null);
+  const [generatingPost, setGeneratingPost] = useState(false);
+  const [viewingPost, setViewingPost] = useState(null); // { post, competitorName, platform }
   const [error, setError] = useState(null);
 
   const loadCompetitors = useCallback(() => {
@@ -104,6 +92,42 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
       setError(err.message);
     }
     setAnalyzing(false);
+  };
+
+  // "Analyze this channel" — scoped to one tracked competitor, as opposed to
+  // handleAnalyze's "Analyze all channels at once".
+  const handleAnalyzeOne = async (id) => {
+    setAnalyzingId(id);
+    setError(null);
+    try {
+      const data = await api.post(`/api/competitors/${id}/analyze`, {});
+      setCompetitors((prev) => prev.map((c) => (c.id === id ? { ...c, insight: data.insight } : c)));
+    } catch (err) {
+      setError(err.message);
+    }
+    setAnalyzingId(null);
+  };
+
+  // Turns the trend narrative into an actual post draft and opens it in
+  // Create Post — rather than just navigating to Media Studio.
+  const handleGenerateFromTrend = async () => {
+    if (!insight?.analysis) return;
+    setGeneratingPost(true);
+    setError(null);
+    try {
+      const a = insight.analysis;
+      const topic = [
+        'Write a social post inspired by this competitor-trend analysis:',
+        a.analysis,
+        (a.themes || []).length ? `Themes: ${a.themes.join('; ')}.` : null,
+        a.recommendation ? `Recommendation: ${a.recommendation}` : null,
+      ].filter(Boolean).join(' ');
+      const data = await api.post('/api/content/copywrite', { topic });
+      onGenerateToComposer?.(data.post);
+    } catch (err) {
+      setError(err.message);
+    }
+    setGeneratingPost(false);
   };
 
   const trackedWithData = competitors.filter((c) => (c.sources || []).some((s) => s.status === 'ok'));
@@ -216,7 +240,7 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
 
         {!loadingList && competitors.length === 0 && (
           <div className="empty-state glass-card">
-            {t('competitors.tracked.empty', 'No competitors tracked yet — add one by pasting their Instagram, TikTok, YouTube, Facebook, or Telegram profile link.')}
+            {t('competitors.tracked.empty', 'No competitors tracked yet — add one by pasting their Instagram, YouTube, Facebook, or Telegram profile link.')}
           </div>
         )}
 
@@ -226,6 +250,17 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
               <div className="flex-between">
                 <span className="font-bold">{c.competitor_name || t('competitors.tracked.unnamed', 'Unnamed competitor')}</span>
                 <div className="flex-gap-8">
+                  <button
+                    type="button"
+                    className="btn-icon"
+                    onClick={() => handleAnalyzeOne(c.id)}
+                    disabled={analyzingId === c.id || (c.posts || []).length === 0}
+                    title={t('competitors.tracked.analyzeChannel', 'Analyze this channel')}
+                    aria-label={t('competitors.tracked.analyzeChannel', 'Analyze this channel')}
+                    id={`btn_analyze_competitor_${c.id}`}
+                  >
+                    <i className={`fa-solid fa-wand-magic-sparkles ${analyzingId === c.id ? 'fa-spin' : ''}`}></i>
+                  </button>
                   <button
                     type="button"
                     className="btn-icon"
@@ -257,11 +292,11 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
                   // now falls through to the honest no-post-API message.
                   const partialHint = s.error
                     ? s.error
-                    // : s.platform === 'instagram'
-                    //   ? t('competitors.tracked.partialHintInstagram', 'No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account.')
-                    : NO_POST_API_PLATFORMS.has(s.platform)
-                      ? t('competitors.tracked.partialHintNoApi', 'This platform only exposes profile info publicly — no captions or videos, so it can\'t feed trend analysis.')
-                      : t('competitors.tracked.partialHintGeneric', 'Profile found, but no posts could be read this time — try Refresh.');
+                    : s.platform === 'instagram'
+                      ? t('competitors.tracked.partialHintInstagram', 'No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account.')
+                      : NO_POST_API_PLATFORMS.has(s.platform)
+                        ? t('competitors.tracked.partialHintNoApi', 'This platform only exposes profile info publicly — no captions or videos, so it can\'t feed trend analysis.')
+                        : t('competitors.tracked.partialHintGeneric', 'Profile found, but no posts could be read this time — try Refresh.');
                   return (
                     <span key={s.id} className={`source-chip status-${s.status}`} title={s.partial ? partialHint : (s.error || '')}>
                       <i className={meta?.icon || 'fa-solid fa-link'} style={{ color: meta?.color }}></i>
@@ -283,7 +318,18 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
                       const comments = fmtCount(p.commentCount);
                       const views = fmtCount(p.viewCount);
                       return (
-                        <li key={p.id} className="ci-post">
+                        <li
+                          key={p.id}
+                          className="ci-post"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setViewingPost({ post: p, competitorName: c.competitor_name, platform: p.platform })}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter' && e.key !== ' ') return;
+                            e.preventDefault();
+                            setViewingPost({ post: p, competitorName: c.competitor_name, platform: p.platform });
+                          }}
+                        >
                           {p.thumbnailUrl
                             ? <img src={p.thumbnailUrl} alt="" className="ci-post-thumb" loading="lazy" />
                             : <span className="ci-post-thumb ci-post-thumb-empty"><i className="fa-solid fa-image"></i></span>}
@@ -307,6 +353,22 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
                   </ul>
                 );
               })()}
+
+              {c.insight?.analysis && (
+                <div className="ci-channel-insight">
+                  <p className="gap-desc">{c.insight.analysis.analysis}</p>
+                  {(c.insight.analysis.themes || []).length > 0 && (
+                    <ul className="trend-themes">
+                      {c.insight.analysis.themes.map((theme, i) => <li key={i}>{theme}</li>)}
+                    </ul>
+                  )}
+                  {c.insight.analysis.recommendation && (
+                    <div className="gap-recommendation">
+                      <strong>{t('competitors.trends.recommendationLabel', '💡 Recommendation:')}</strong> {c.insight.analysis.recommendation}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -324,9 +386,9 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
             onClick={handleAnalyze}
             disabled={analyzing || !trackedWithData.length}
             id="btn_analyze_trends"
-            title={!trackedWithData.length ? t('competitors.trends.needData', 'Add and fetch at least one competitor first') : ''}
+            title={!trackedWithData.length ? t('competitors.trends.needData', 'Add and fetch at least one competitor first') : t('competitors.trends.analyzeAllHint', 'Analyzes every tracked channel at once — use the wand icon on a single card to analyze just that channel.')}
           >
-            {analyzing ? t('competitors.trends.analyzing', 'Analyzing…') : t('competitors.trends.analyzeCta', 'Analyze trends')}
+            {analyzing ? t('competitors.trends.analyzing', 'Analyzing…') : t('competitors.trends.analyzeAllCta', 'Analyze all channels')}
           </button>
         </div>
 
@@ -349,9 +411,11 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
                 <strong>{t('competitors.trends.recommendationLabel', '💡 Recommendation:')}</strong> {insight.analysis.recommendation}
               </div>
             )}
-            {onGoToMedia && (
-              <button className="btn btn-primary mt-10" onClick={onGoToMedia} id="btn_generate_from_trend">
-                {t('competitors.trends.generateCta', 'Generate content from this →')}
+            {onGenerateToComposer && (
+              <button className="btn btn-primary mt-10" onClick={handleGenerateFromTrend} disabled={generatingPost} id="btn_generate_from_trend">
+                {generatingPost
+                  ? t('competitors.trends.generating', 'Generating…')
+                  : t('competitors.trends.generateCta', 'Generate content from this →')}
               </button>
             )}
           </div>
@@ -362,6 +426,15 @@ export default function CompetitorIntel({ stats, activeProfile, onGoToMedia }) {
         <AddCompetitorModal
           onClose={() => setAddOpen(false)}
           onAdded={() => { setAddOpen(false); loadCompetitors(); }}
+        />
+      )}
+
+      {viewingPost && (
+        <CompetitorPostDetailModal
+          post={viewingPost.post}
+          competitorName={viewingPost.competitorName}
+          platform={viewingPost.platform}
+          onClose={() => setViewingPost(null)}
         />
       )}
     </div>

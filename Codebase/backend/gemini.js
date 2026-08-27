@@ -328,6 +328,226 @@ async function analyzeTemplate(ctx) {
   }
 }
 
+// ===========================================================================
+// STYLE ANALYSIS — learn a reusable "how they write" voice profile from a
+// sample post/message (the owner's own, or copied from a competitor). Unlike
+// templates, this is NOT about {{variables}}: styleSummary is a plain-text
+// description of the VOICE (tone, sentence rhythm, punctuation/emoji habits,
+// sign-offs) that gets folded into the generation prompt later, never the
+// sample's actual subject matter.
+// ===========================================================================
+
+// Broad emoji range covering the blocks actually seen in social copy
+// (emoticons, symbols, transport, dingbats, supplemental symbols).
+const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu;
+
+// Deterministic, never-wrong-in-a-surprising-way style read — the same
+// philosophy as heuristicTemplate: measurable facts about the text, phrased
+// as a style guide rather than a content summary.
+function heuristicStyle(sample) {
+  const text = String(sample || '').trim();
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const words = text.match(/[\p{L}\p{N}']+/gu) || [];
+  const avgSentenceLen = sentences.length ? Math.round(words.length / sentences.length) : 0;
+
+  const emojis = text.match(EMOJI_RE) || [];
+  const distinctEmojis = [...new Set(emojis)].slice(0, 6);
+  const emojiDensity = words.length ? emojis.length / words.length : 0;
+
+  const exclaimCount = (text.match(/!/g) || []).length;
+  const questionCount = (text.match(/\?/g) || []).length;
+  const hashtags = text.match(/#[\p{L}\p{N}_]+/gu) || [];
+  const lines = text.split(/\n+/).filter((l) => l.trim());
+  const capsWords = words.filter((w) => w.length >= 3 && w === w.toUpperCase() && /[A-Z]/.test(w));
+
+  const bits = [];
+  bits.push(
+    avgSentenceLen <= 6
+      ? `very short, punchy sentences (avg ~${avgSentenceLen} words)`
+      : avgSentenceLen <= 14
+        ? `short-to-medium sentences (avg ~${avgSentenceLen} words)`
+        : `longer, more descriptive sentences (avg ~${avgSentenceLen} words)`
+  );
+  bits.push(
+    distinctEmojis.length
+      ? `${emojiDensity > 0.08 ? 'heavy' : 'light'} emoji use (e.g. ${distinctEmojis.join(' ')})`
+      : 'no emoji'
+  );
+  if (exclaimCount) bits.push(`uses exclamation marks (${exclaimCount} in this sample)`);
+  if (questionCount) bits.push('asks questions to engage the reader');
+  if (capsWords.length) bits.push(`occasional ALL-CAPS emphasis (e.g. "${capsWords[0]}")`);
+  bits.push(
+    hashtags.length
+      ? `uses ${hashtags.length} hashtag${hashtags.length === 1 ? '' : 's'} (e.g. ${hashtags.slice(0, 3).join(' ')})`
+      : 'no hashtags'
+  );
+  bits.push(lines.length > 1 ? `breaks into ${lines.length} short lines rather than one paragraph` : 'writes as one continuous block, no line breaks');
+
+  return {
+    name: defaultName(text, 'Style'),
+    styleSummary: `Voice: ${bits.join('; ')}.`,
+    source: 'heuristic',
+  };
+}
+
+const STYLE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    name: { type: 'STRING' },
+    styleSummary: { type: 'STRING' },
+  },
+  required: ['name', 'styleSummary'],
+  propertyOrdering: ['name', 'styleSummary'],
+};
+
+// Analyze a sample post's WRITING STYLE (not its content) and turn it into a
+// reusable voice profile another draft can be written in. Keyless -> the
+// deterministic heuristic above.
+async function analyzeStyle(ctx) {
+  const { sample, businessName, category } = ctx;
+  if (!config.geminiEnabled) return heuristicStyle(sample);
+
+  try {
+    const parsed = await callGemini({
+      temperature: 0.3,
+      maxTokens: 700,
+      system:
+        'You analyze the WRITING STYLE of a sample social media post or message and produce ' +
+        'a concise, reusable style guide another writer could follow to sound like the same ' +
+        'voice. Describe HOW it is written, never WHAT it is about — do not repeat or ' +
+        'summarize the sample\'s subject matter, product names, prices, or specific claims. ' +
+        'Cover: overall tone/personality, sentence rhythm and typical length, punctuation ' +
+        'habits (exclamation/question marks, ellipses), emoji usage and where it appears, ' +
+        'capitalization quirks, hashtag habits, typical opening or closing lines, and ' +
+        'vocabulary flavor (casual/formal/playful/technical). Write styleSummary as 3-6 tight ' +
+        'sentences, in English, usable as a standing instruction to an AI copywriter. Also ' +
+        'return a short "name" (max 6 words) that identifies this voice (e.g. "Playful & ' +
+        'emoji-heavy", "Formal, no-emoji, data-led"). Respond as JSON only.',
+      user:
+        `Business: ${businessName || 'a local business'}\n` +
+        `Category: ${category || 'general'}\n\n` +
+        `Sample text to analyze the STYLE of (not the content):\n"""\n${String(sample || '').slice(0, 2000)}\n"""`,
+      schema: STYLE_SCHEMA,
+    });
+
+    const styleSummary = String(parsed.styleSummary || '').trim();
+    if (!styleSummary) return heuristicStyle(sample);
+    return {
+      name: String(parsed.name || defaultName(sample, 'Style')).slice(0, 60),
+      styleSummary,
+      source: 'gemini',
+    };
+  } catch (err) {
+    console.error('Gemini analyzeStyle failed, using heuristic style read:', err.message);
+    return heuristicStyle(sample);
+  }
+}
+
+// ===========================================================================
+// AI EDITOR — Translate / Fix / one-tap Style presets applied to whatever text
+// is already sitting in the composer (distinct from analyzeStyle above, which
+// LEARNS a reusable voice from a sample; this REWRITES given text to match an
+// instruction, Telegram "AI Editor" style). Keyless: translate and the style
+// transform have no honest heuristic substitute, so they hand back the
+// original text unchanged with source:'unavailable' rather than throwing —
+// Fix gets a real (if modest) regex cleanup, in the same spirit as
+// heuristicTemplate/heuristicStyle above.
+// ===========================================================================
+
+// key/label/emoji drive the UI chip; instruction is the actual rewrite
+// directive sent to Gemini and is never exposed to the client (see
+// /api/styles/presets, which strips it).
+const STYLE_PRESETS = [
+  { key: 'formal', label: 'Formal', emoji: '🤝', instruction: 'Rewrite in a formal, professional, respectful register — no slang, no exclamation marks, complete sentences.' },
+  { key: 'short', label: 'Short', emoji: '🎯', instruction: 'Condense to the essential message only, as few short sentences as possible, cut anything non-essential.' },
+  { key: 'friendly', label: 'Friendly', emoji: '😊', instruction: 'Rewrite warm, casual, and approachable, like talking to a friend — relaxed contractions, welcoming tone.' },
+  { key: 'persuasive', label: 'Persuasive', emoji: '📢', instruction: 'Rewrite confident and benefit-led, building urgency, ending on a clear call to action.' },
+  { key: 'playful', label: 'Playful', emoji: '🎉', instruction: 'Rewrite fun, energetic, and playful — lively punctuation, upbeat rhythm.' },
+  { key: 'tribal', label: 'Tribal', emoji: '🪘', instruction: 'Rewrite in a primal, communal, rhythmic oral-storytelling voice, evoking ancestral/tribal tradition — chant-like repetition, a sense of gathering and shared ritual.' },
+  { key: 'biblical', label: 'Biblical', emoji: '🕯️', instruction: 'Rewrite in a solemn, poetic, King-James-Bible-style voice — "thee/thou" register, measured cadence, reverent tone.' },
+  { key: 'corporate', label: 'Corporate', emoji: '🏢', instruction: 'Rewrite as a polished corporate press-release — measured, buttoned-up, on-message.' },
+  { key: 'minimalist', label: 'Minimalist', emoji: '✂️', instruction: 'Strip to the bare essentials — no filler words, no emoji, no adjectives that are not load-bearing.' },
+  { key: 'storyteller', label: 'Storyteller', emoji: '📖', instruction: 'Rewrite as a short, vivid narrative that draws the reader into a small scene or story before landing the point.' },
+];
+
+const EMOJIFY_SUFFIX = ' Also weave in expressive, relevant emoji throughout.';
+
+// Translate `text` into `targetLanguage` (any human language name, not just
+// the LANG_NAMES set used by generateContent — the AI Editor lets the owner
+// translate into anything Gemini understands). Keyless -> text unchanged.
+async function translateText({ text, targetLanguage }) {
+  if (!config.geminiEnabled) return { text: String(text || ''), source: 'unavailable' };
+  try {
+    const out = await callGemini({
+      temperature: 0.2,
+      maxTokens: 1200,
+      system:
+        `Translate the given text into ${targetLanguage}. Preserve the meaning, tone, emoji, ` +
+        'line breaks, and any hashtags/mentions exactly. Output ONLY the translated text — ' +
+        'no preamble, no quotes, no explanation.',
+      user: String(text || '').slice(0, 4000),
+    });
+    return { text: out.trim() || String(text || ''), source: 'gemini' };
+  } catch (err) {
+    console.error('Gemini translateText failed, returning original text:', err.message);
+    return { text: String(text || ''), source: 'unavailable' };
+  }
+}
+
+// Deterministic light-touch cleanup — genuinely useful without a model, same
+// philosophy as heuristicTemplate: never wrong in a surprising way.
+function heuristicFix(text) {
+  return String(text || '')
+    .trim()
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/([!?.,])\1{1,}/g, '$1')
+    .replace(/(^|[.!?]\s+)([a-z])/g, (m, pre, ch) => pre + ch.toUpperCase());
+}
+
+// Fix grammar/spelling/punctuation only — never change language, meaning,
+// tone, or emoji. Keyless -> heuristicFix.
+async function fixText({ text }) {
+  if (!config.geminiEnabled) return { text: heuristicFix(text), source: 'heuristic' };
+  try {
+    const out = await callGemini({
+      temperature: 0.2,
+      maxTokens: 1200,
+      system:
+        'Fix ONLY grammar, spelling, and punctuation mistakes in the given text. Never change ' +
+        'its language, meaning, tone, emoji, line breaks, hashtags, or mentions, and never add ' +
+        'or remove sentences. Output ONLY the corrected text — no preamble, no quotes.',
+      user: String(text || '').slice(0, 4000),
+    });
+    return { text: out.trim() || heuristicFix(text), source: 'gemini' };
+  } catch (err) {
+    console.error('Gemini fixText failed, using heuristic cleanup:', err.message);
+    return { text: heuristicFix(text), source: 'heuristic' };
+  }
+}
+
+// Rewrite `text` to match `instruction` (a built-in preset's instruction, or a
+// saved style's styleSummary). Keyless -> text unchanged; a persona rewrite
+// has no honest heuristic substitute.
+async function applyStyleTransform({ text, instruction, emojify }) {
+  if (!config.geminiEnabled) return { text: String(text || ''), source: 'unavailable' };
+  try {
+    const out = await callGemini({
+      temperature: 0.7,
+      maxTokens: 1200,
+      system:
+        `${instruction}${emojify ? EMOJIFY_SUFFIX : ''} Keep the same underlying message and ` +
+        'language as the original — only change HOW it is written. Output ONLY the rewritten ' +
+        'text — no preamble, no quotes, no explanation.',
+      user: String(text || '').slice(0, 4000),
+    });
+    return { text: out.trim() || String(text || ''), source: 'gemini' };
+  } catch (err) {
+    console.error('Gemini applyStyleTransform failed, returning original text:', err.message);
+    return { text: String(text || ''), source: 'unavailable' };
+  }
+}
+
 const CONTENT_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -390,18 +610,24 @@ function detectLanguage(text) {
 // the call fails, so ai.generateContent can fall through to its next provider.
 async function generateContent(ctx) {
   if (!config.geminiEnabled) return null;
-  const { platform = 'instagram', topic, businessName, category, description, brandTone, audience, previousText, feedback } = ctx;
+  const { platform = 'instagram', topic, businessName, category, description, brandTone, audience, previousText, feedback, styleSummary } = ctx;
   const langInstruction = langInstructionFor(ctx.languages);
   // A follow-up prompt ("shorter", "add more emojis", …) revises the draft
   // already on screen instead of writing a brand-new one from the topic.
   const revising = !!(previousText && feedback);
+  // A selected saved Style (see content_styles / gemini.js#analyzeStyle) steers
+  // HOW the post is written; it must never leak the sample post's own content.
+  const styleInstruction = styleSummary
+    ? ` WRITING STYLE TO MATCH: ${styleSummary} Write in this voice — its tone, sentence rhythm, and emoji/punctuation habits — but never copy any subject matter from wherever that style was learned; the topic below is the only source of what to write about.`
+    : '';
 
   try {
     const parsed = await callGemini({
       maxTokens: 1500,
       system:
         "You are Markivo's expert social-media copywriter for small businesses. " +
-        `${langInstruction} ${revising ? 'Revise the existing draft per the instruction — keep everything else about it intact.' : 'Write a single platform-native post that matches the brand tone.'} ` +
+        `${langInstruction} ${revising ? 'Revise the existing draft per the instruction — keep everything else about it intact.' : 'Write a single platform-native post that matches the brand tone.'}` +
+        `${styleInstruction} ` +
         'Keep hashtags OUT of the post body — return them separately. Respond as JSON only.',
       user:
         `Business: ${businessName || 'a local business'}\n` +
@@ -815,6 +1041,14 @@ module.exports = {
   generateContent,
   generateMediaBrief,
   analyzeTemplate,
+  analyzeStyle,
+  heuristicStyle,
+  // AI Editor — translate / fix / one-tap style transform on existing text.
+  STYLE_PRESETS,
+  translateText,
+  fixText,
+  heuristicFix,
+  applyStyleTransform,
   // Low-level primitives shared by providers/textEngine.js and ai.js#agentAct.
   toGeminiSchema,
   callGeminiJSON,
@@ -832,4 +1066,5 @@ module.exports = {
   renderTemplate,
   blankPreview,
   toKey,
+  LANG_NAMES,
 };

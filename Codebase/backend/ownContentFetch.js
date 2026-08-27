@@ -8,11 +8,11 @@ const competitorFetch = require('./competitorFetch');
 // competitorFetch.js (which reads STRANGERS' public content): here the caller
 // already owns the account, so wherever a real read API/scope already exists
 // from the connector's OWN OAuth grant (Meta, YouTube) we use it directly;
-// where it doesn't (TikTok has no read scope, Telegram's Bot API has no
-// "read channel history" method), we fall back to the exact same public-page
-// scrape competitorFetch.js already uses — against the account's OWN public
-// profile instead of a competitor's. Never throws, never invents data: every
-// branch degrades to the same normalized empty/error shape.
+// where it doesn't (Telegram's Bot API has no "read channel history" method),
+// we fall back to the exact same public-page scrape competitorFetch.js
+// already uses — against the account's OWN public profile instead of a
+// competitor's. Never throws, never invents data: every branch degrades to
+// the same normalized empty/error shape.
 // ===========================================================================
 
 const normalizeResult = (overrides = {}) => ({
@@ -65,7 +65,11 @@ async function fetchMetaFacebook(conn, opts) {
   }
 }
 
+// DISABLED: YouTube temporarily off — see 2026-08-15. connectors/youtube.js
+// exports {} while disabled, so guard explicitly instead of surfacing a raw
+// "not a function" TypeError as this platform's error message.
 async function fetchYouTube(conn, opts) {
+  if (!youtube.ownUploads) return normalizeResult({ error: 'YouTube own-content reads are temporarily disabled' });
   if (!conn || !conn.accessToken) return normalizeResult({ error: 'YouTube is not connected' });
   try {
     const posts = await youtube.ownUploads(conn.accessToken, opts);
@@ -73,16 +77,6 @@ async function fetchYouTube(conn, opts) {
   } catch (err) {
     return normalizeResult({ error: err.message });
   }
-}
-
-// TikTok's OAuth scopes (video.publish, video.upload) carry no read
-// permission — adding one would force every connected user to reconnect.
-// Reuse the same public-page scrape competitorFetch.js uses for competitors,
-// pointed at the connected account's own public handle.
-async function fetchTikTok(conn, opts) {
-  const handle = (conn && conn.accountHandle) ? conn.accountHandle.replace(/^@/, '') : null;
-  if (!handle) return normalizeResult({ error: 'No public TikTok handle on file for this account' });
-  return competitorFetch.fetchTikTok(`https://www.tiktok.com/@${handle}`, opts);
 }
 
 // The Bot API has no "read channel history" method — a bot only ever
@@ -101,7 +95,6 @@ const FETCHERS = {
   meta_instagram: (conn, _tgConn, opts) => fetchMetaInstagram(conn, opts),
   meta_facebook: (conn, _tgConn, opts) => fetchMetaFacebook(conn, opts),
   youtube: (conn, _tgConn, opts) => fetchYouTube(conn, opts),
-  tiktok: (conn, _tgConn, opts) => fetchTikTok(conn, opts),
   telegram: (_conn, tgConn, opts) => fetchTelegram(tgConn, opts),
 };
 

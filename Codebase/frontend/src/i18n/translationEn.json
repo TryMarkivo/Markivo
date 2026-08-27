@@ -146,7 +146,7 @@
       "brandTitle": "Brand & identity",
       "brandText": "AI logo, slogan and tone-of-voice generated in seconds — a complete identity before your first post.",
       "postingTitle": "Multi-platform posting",
-      "postingText": "Instagram, TikTok, Telegram, X & Google — written, scheduled and published from one place.",
+      "postingText": "Instagram, Telegram, X & Google — written, scheduled and published from one place.",
       "contentTitle": "Content engine",
       "contentText": "Shoot tips, automatic photo & video enhancement, and AI-generated video tuned to each platform.",
       "inboxTitle": "Inbox agent",
@@ -760,7 +760,7 @@
       "title": "Tracked Competitors",
       "subtitle": "Paste a competitor's profile link to pull their real content and posting habits",
       "addCta": "Add competitor",
-      "empty": "No competitors tracked yet — add one by pasting their Instagram, TikTok, YouTube, or Facebook profile link.",
+      "empty": "No competitors tracked yet — add one by pasting their Instagram, YouTube, or Facebook profile link.",
       "unnamed": "Unnamed competitor",
       "refresh": "Refresh",
       "remove": "Remove",
@@ -768,7 +768,7 @@
       "partialHintNoApi": "This platform only exposes profile info publicly — no captions or videos, so it can't feed trend analysis.",
       "partialHintGeneric": "Profile found, but no posts could be read this time — try Refresh.",
       "noFollowerData": "no data",
-      "_DISABLED_partialHintInstagram": "No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account."
+      "partialHintInstagram": "No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account."
     },
     "addModal": {
       "title": "Add a Competitor",
@@ -777,7 +777,6 @@
       "namePlaceholder": "e.g. Sunrise Cafe",
       "platform": {
         "instagram": "Instagram",
-        "tiktok": "TikTok",
         "youtube": "YouTube",
         "facebook": "Facebook"
       },
@@ -1027,6 +1026,12 @@
     "sendToComposer": "Send to composer",
     "fromTemplateTip": "Filled from one of your saved templates — review it, then post or schedule."
   },
+  "styles": {
+    "importLabel": "Or import a Telegram export",
+    "importHint": "Upload a .json or .html file from Telegram Desktop's \"Export chat history\" to learn a voice from a whole channel.",
+    "importCta": "Import file",
+    "importing": "Reading file…"
+  },
   "connections": {
     "title": "Platform Connections",
     "subtitle": "Connect the platforms Markiv can publish to on your behalf — through each platform’s official API, behind your approval.",
@@ -1117,6 +1122,7 @@
     "overridePlaceholder": "Write content just for {{label}}…",
     "insertMedia": "Insert Media",
     "templates": "Templates",
+    "aiEditor": "AI Editor",
     "addPost": "Add post",
     "addPostPlaceholder": "Post #{{n}} — goes out right after the one above…",
     "removePost": "Remove this post",
@@ -1165,6 +1171,34 @@
     "startOver": "Start over",
     "approve": "Approve & continue"
   },
+  "aiEditor": {
+    "title": "AI Editor",
+    "tabTranslate": "Translate",
+    "tabStyle": "Style",
+    "tabFix": "Fix",
+    "tabTemplates": "Templates",
+    "original": "Original",
+    "result": "Result",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "nothingToEdit": "Write something in the composer first.",
+    "translateLanguageLabel": "Translate into",
+    "translateOtherPlaceholder": "Type a language…",
+    "translateCta": "Translate",
+    "translating": "Translating…",
+    "applyTranslation": "Apply Translation",
+    "fixIntro": "Fixes grammar, spelling, and punctuation — nothing else changes.",
+    "fixCta": "Fix it ✦",
+    "fixing": "Fixing…",
+    "applyFix": "Apply Fix",
+    "stylePresetsTitle": "Quick styles",
+    "styleYoursTitle": "Your styles",
+    "styleAddNew": "+ Add a new style",
+    "styleApplying": "Restyling…",
+    "applyStyle": "Apply Style",
+    "emojify": "emojify",
+    "unavailableNotice": "AI isn't configured yet, so this is the original text unchanged — connect a Gemini key to enable this."
+  },
   "platformDetail": {
     "subtitle": "Channel statistics",
     "sourceLive": "Live from {{platform}}",
@@ -1202,9 +1236,9 @@
       "telegramError": "Telegram did not answer ({{error}}).",
       "noIntegration": "This channel has no live integration yet, so only what Markivo scheduled for it is shown."
     },
-    "_DISABLED_engagementNote": "Per-post likes and comments are only available for connected Instagram Business or Creator accounts. This channel does not report them."
+    "engagementNote": "Per-post likes and comments are only available for connected Instagram Business or Creator accounts. This channel does not report them."
   },
-  "_DISABLED_instagram": {
+  "instagram": {
     "setupTitle": "Connect Instagram",
     "intro": "Connect your Instagram Business account so Markivo can publish on your behalf. You'll be taken to Meta to authorize — it takes about a minute.",
     "step1": "Click the button below — we send you to Meta's secure login.",

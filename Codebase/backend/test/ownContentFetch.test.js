@@ -12,63 +12,39 @@ const ownContentFetch = require('../ownContentFetch');
 const jsonRes = (body, ok = true, status = 200) => async () => ({ ok, status, json: async () => body });
 const htmlRes = (text, ok = true, status = 200) => async () => ({ ok, status, text: async () => text });
 
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13. connectors/meta.js
-// exports {} while disabled, so meta_instagram/meta_facebook always degrade
-// honestly regardless of connection state — there is no live/error-path to
-// exercise here until Meta is re-enabled.
-test('fetchOwnContent(meta_instagram) degrades honestly while Meta is disabled', async () => {
+test('fetchOwnContent(meta_instagram) reads own media via Graph API', async () => {
   const conn = { accessToken: 'tok', accountId: 'ig123', meta: { igUserId: 'ig123' } };
-  const result = await ownContentFetch.fetchOwnContent('meta_instagram', conn, null, {});
-  assert.strictEqual(result.found, false);
-  assert.match(result.error, /temporarily disabled/);
+  const media = [
+    { id: 'm1', caption: 'Hello IG', media_type: 'IMAGE', timestamp: '2026-08-01T10:00:00+0000', like_count: 50, comments_count: 5 },
+  ];
+  const result = await ownContentFetch.fetchOwnContent('meta_instagram', conn, null, { fetchImpl: jsonRes({ data: media }) });
+  assert.strictEqual(result.found, true);
+  assert.strictEqual(result.posts.length, 1);
+  assert.strictEqual(result.posts[0].caption, 'Hello IG');
+  assert.strictEqual(result.posts[0].likeCount, 50);
 });
 
-test('fetchOwnContent(meta_facebook) degrades honestly while Meta is disabled', async () => {
+test('fetchOwnContent(meta_facebook) reads own page posts via Graph API', async () => {
   const conn = { accessToken: 'tok', accountId: 'page123', meta: { pageId: 'page123' } };
-  const result = await ownContentFetch.fetchOwnContent('meta_facebook', conn, null, {});
+  const posts = [
+    { id: 'p1', message: 'Hello FB', created_time: '2026-08-01T10:00:00+0000', likes: { summary: { total_count: 30 } }, comments: { summary: { total_count: 2 } } },
+  ];
+  const result = await ownContentFetch.fetchOwnContent('meta_facebook', conn, null, { fetchImpl: jsonRes({ data: posts }) });
+  assert.strictEqual(result.found, true);
+  assert.strictEqual(result.posts.length, 1);
+  assert.strictEqual(result.posts[0].caption, 'Hello FB');
+  assert.strictEqual(result.posts[0].likeCount, 30);
+});
+
+// DISABLED: YouTube temporarily off — see 2026-08-15. connectors/youtube.js
+// exports {} while disabled, so fetchYouTube always degrades honestly
+// regardless of connection state — there is no live/error-path to exercise
+// here until YouTube is re-enabled.
+test('fetchOwnContent(youtube) degrades honestly while YouTube is disabled', async () => {
+  const conn = { accessToken: 'ytok' };
+  const result = await ownContentFetch.fetchOwnContent('youtube', conn, null, {});
   assert.strictEqual(result.found, false);
   assert.match(result.error, /temporarily disabled/);
-});
-
-test('fetchOwnContent(youtube) reads real uploads via the OAuth-authenticated Data API', async () => {
-  const conn = { accessToken: 'ytok' };
-  const fetchImpl = async (url) => {
-    const u = String(url);
-    if (u.includes('/channels')) {
-      return { ok: true, status: 200, json: async () => ({ items: [{ contentDetails: { relatedPlaylists: { uploads: 'PLxyz' } } }] }) };
-    }
-    if (u.includes('/playlistItems')) {
-      return { ok: true, status: 200, json: async () => ({ items: [{ contentDetails: { videoId: 'v1', videoPublishedAt: '2026-08-01T00:00:00Z' }, snippet: { title: 'New video drop' } }] }) };
-    }
-    if (u.includes('/videos')) {
-      return { ok: true, status: 200, json: async () => ({ items: [{ id: 'v1', statistics: { likeCount: '20', commentCount: '4', viewCount: '500' } }] }) };
-    }
-    throw new Error(`unexpected URL ${u}`);
-  };
-  const result = await ownContentFetch.fetchOwnContent('youtube', conn, null, { fetchImpl });
-  assert.strictEqual(result.found, true);
-  assert.strictEqual(result.posts.length, 1);
-  assert.strictEqual(result.posts[0].caption, 'New video drop');
-  assert.strictEqual(result.posts[0].viewCount, 500);
-});
-
-test('fetchOwnContent(tiktok) reuses the public-scrape competitor fetcher against the account\'s own handle', async () => {
-  const state = {
-    UserModule: { users: { somebrand: { nickname: 'Some Brand' } }, stats: { somebrand: { followerCount: 900 } } },
-    ItemModule: { v1: { id: 'v1', desc: 'Our own video', createTime: '1700000000', video: {}, stats: { diggCount: 10, commentCount: 1, playCount: 200 } } },
-  };
-  const html = `<script id="SIGI_STATE" type="application/json">${JSON.stringify(state)}</script>`;
-  const conn = { accountHandle: '@somebrand' };
-  const result = await ownContentFetch.fetchOwnContent('tiktok', conn, null, { fetchImpl: htmlRes(html) });
-  assert.strictEqual(result.found, true);
-  assert.strictEqual(result.posts.length, 1);
-  assert.strictEqual(result.posts[0].caption, 'Our own video');
-});
-
-test('fetchOwnContent(tiktok) degrades honestly with no handle on file', async () => {
-  const result = await ownContentFetch.fetchOwnContent('tiktok', { accountHandle: null }, null, {});
-  assert.strictEqual(result.found, false);
-  assert.ok(result.error);
 });
 
 test('fetchOwnContent(telegram) reuses the public t.me/s/ scrape against the linked channel\'s username', async () => {

@@ -26,8 +26,7 @@ process.env.GEMINI_API_KEY = '';
 
 const competitorFetch = require('../competitorFetch');
 const competitorAnalytics = require('../competitorAnalytics');
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// const metaConnector = require('../connectors/meta');
+const metaConnector = require('../connectors/meta');
 const ai = require('../ai');
 const { validateAddCompetitor, validateCompetitorSource } = require('../validators');
 const { app, db } = require('../server');
@@ -38,9 +37,10 @@ const { app, db } = require('../server');
 
 test('validateAddCompetitor accepts valid platform links, rejects bad ones', () => {
   assert.strictEqual(validateAddCompetitor({ sources: [{ platform: 'instagram', url: 'https://instagram.com/somebrand' }] }), null);
-  assert.strictEqual(validateAddCompetitor({ name: 'Rival', sources: [{ platform: 'tiktok', url: 'tiktok.com/@somebrand' }] }), null);
+  assert.strictEqual(validateAddCompetitor({ name: 'Rival', sources: [{ platform: 'facebook', url: 'https://facebook.com/somebrand' }] }), null);
   assert.ok(validateAddCompetitor({ sources: [] })); // at least one link required
   assert.ok(validateAddCompetitor({ sources: [{ platform: 'twitter', url: 'https://twitter.com/x' }] })); // unsupported platform
+  assert.ok(validateAddCompetitor({ sources: [{ platform: 'tiktok', url: 'https://tiktok.com/@somebrand' }] })); // TikTok removed — unsupported platform
   assert.ok(validateAddCompetitor({ sources: [{ platform: 'instagram', url: 'not a url' }] }));
   assert.ok(validateAddCompetitor({ name: 'x'.repeat(121), sources: [{ platform: 'youtube', url: 'https://youtube.com/@x' }] }));
 });
@@ -90,60 +90,55 @@ test('fetchInstagram never throws on a network failure', async () => {
   assert.ok(result.error);
 });
 
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// Both cases below exercise Instagram Business Discovery, which is the only
-// source of real captions/engagement for a competitor. With connectors/meta.js
-// disabled there is no Graph call left to make, so they cannot pass. Restore
-// them together with connectors/meta.js.
-// test('connectors/meta businessDiscovery parses the Graph API response and throws a ConnectorError on failure', async () => {
-//   const ok = await metaConnector.businessDiscovery('caller_ig_id', 'rivalcafe', 'token_abc', {
-//     fetchImpl: async (url) => {
-//       const parsed = new URL(String(url));
-//       assert.strictEqual(parsed.origin, 'https://graph.facebook.com');
-//       assert.ok(parsed.searchParams.get('fields').includes('business_discovery.username(rivalcafe)'));
-//       assert.strictEqual(parsed.searchParams.get('access_token'), 'token_abc');
-//       return { ok: true, status: 200, json: async () => ({ business_discovery: { username: 'rivalcafe', followers_count: 500, media: { data: [] } } }) };
-//     },
-//   });
-//   assert.strictEqual(ok.username, 'rivalcafe');
-//   assert.strictEqual(ok.followers_count, 500);
-//
-//   await assert.rejects(
-//     () => metaConnector.businessDiscovery('caller_ig_id', 'rivalcafe', 'token_abc', {
-//       fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({ error: { message: 'target account has no permission' } }) }),
-//     }),
-//     /target account has no permission/
-//   );
-// });
-//
-// test('fetchInstagram uses real Business Discovery content when the caller has their own Instagram connected via Meta', async () => {
-//   const bdPayload = {
-//     business_discovery: {
-//       username: 'rivalcafe',
-//       name: 'Rival Cafe',
-//       followers_count: 8200,
-//       media_count: 150,
-//       media: {
-//         data: [
-//           { id: 'm1', caption: 'New seasonal menu!', media_type: 'VIDEO', media_url: 'https://x/v1.mp4', thumbnail_url: 'https://x/t1.jpg', timestamp: '2026-08-01T10:00:00+0000', like_count: 320, comments_count: 12 },
-//           { id: 'm2', caption: 'Morning brew', media_type: 'IMAGE', media_url: 'https://x/i2.jpg', timestamp: '2026-07-28T09:00:00+0000', like_count: 150, comments_count: 4 },
-//         ],
-//       },
-//     },
-//   };
-//   const fetchImpl = async () => ({ ok: true, status: 200, json: async () => bdPayload });
-//   const result = await competitorFetch.fetchCompetitorSource('instagram', 'https://instagram.com/rivalcafe', {
-//     fetchImpl, metaIgUserId: 'caller_ig_123', metaAccessToken: 'token_abc',
-//   });
-//   assert.strictEqual(result.found, true);
-//   assert.strictEqual(result.partial, false); // real content, not bio-only
-//   assert.strictEqual(result.followerCount, 8200);
-//   assert.strictEqual(result.posts.length, 2);
-//   assert.strictEqual(result.posts[0].kind, 'video');
-//   assert.strictEqual(result.posts[0].likeCount, 320);
-//   assert.strictEqual(result.posts[1].kind, 'photo');
-//   assert.strictEqual(result.posts[1].caption, 'Morning brew');
-// });
+test('connectors/meta businessDiscovery parses the Graph API response and throws a ConnectorError on failure', async () => {
+  const ok = await metaConnector.businessDiscovery('caller_ig_id', 'rivalcafe', 'token_abc', {
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url));
+      assert.strictEqual(parsed.origin, 'https://graph.facebook.com');
+      assert.ok(parsed.searchParams.get('fields').includes('business_discovery.username(rivalcafe)'));
+      assert.strictEqual(parsed.searchParams.get('access_token'), 'token_abc');
+      return { ok: true, status: 200, json: async () => ({ business_discovery: { username: 'rivalcafe', followers_count: 500, media: { data: [] } } }) };
+    },
+  });
+  assert.strictEqual(ok.username, 'rivalcafe');
+  assert.strictEqual(ok.followers_count, 500);
+
+  await assert.rejects(
+    () => metaConnector.businessDiscovery('caller_ig_id', 'rivalcafe', 'token_abc', {
+      fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({ error: { message: 'target account has no permission' } }) }),
+    }),
+    /target account has no permission/
+  );
+});
+
+test('fetchInstagram uses real Business Discovery content when the caller has their own Instagram connected via Meta', async () => {
+  const bdPayload = {
+    business_discovery: {
+      username: 'rivalcafe',
+      name: 'Rival Cafe',
+      followers_count: 8200,
+      media_count: 150,
+      media: {
+        data: [
+          { id: 'm1', caption: 'New seasonal menu!', media_type: 'VIDEO', media_url: 'https://x/v1.mp4', thumbnail_url: 'https://x/t1.jpg', timestamp: '2026-08-01T10:00:00+0000', like_count: 320, comments_count: 12 },
+          { id: 'm2', caption: 'Morning brew', media_type: 'IMAGE', media_url: 'https://x/i2.jpg', timestamp: '2026-07-28T09:00:00+0000', like_count: 150, comments_count: 4 },
+        ],
+      },
+    },
+  };
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => bdPayload });
+  const result = await competitorFetch.fetchCompetitorSource('instagram', 'https://instagram.com/rivalcafe', {
+    fetchImpl, metaIgUserId: 'caller_ig_123', metaAccessToken: 'token_abc',
+  });
+  assert.strictEqual(result.found, true);
+  assert.strictEqual(result.partial, false); // real content, not bio-only
+  assert.strictEqual(result.followerCount, 8200);
+  assert.strictEqual(result.posts.length, 2);
+  assert.strictEqual(result.posts[0].kind, 'video');
+  assert.strictEqual(result.posts[0].likeCount, 320);
+  assert.strictEqual(result.posts[1].kind, 'photo');
+  assert.strictEqual(result.posts[1].caption, 'Morning brew');
+});
 
 // DISABLED: SEO/Meta temporarily off — see 2026-08-13 — the page scrape is now
 // the ONLY Instagram path, not a fallback, so the name below is historical.
@@ -166,33 +161,10 @@ test('fetchInstagram falls back to the page scrape when Business Discovery fails
   assert.deepStrictEqual(result.posts, []);
 });
 
-test('fetchTikTok parses recent videos from an embedded SIGI_STATE blob', async () => {
-  const state = {
-    UserModule: {
-      users: { somebrand: { nickname: 'Some Brand' } },
-      stats: { somebrand: { followerCount: 5400 } },
-    },
-    ItemModule: {
-      v1: { id: 'v1', desc: 'Behind the scenes', createTime: '1700000000', video: { cover: 'https://x/cover1.jpg' }, stats: { diggCount: 100, commentCount: 5, playCount: 2000 } },
-      v2: { id: 'v2', desc: 'New menu drop', createTime: '1700100000', video: { cover: 'https://x/cover2.jpg' }, stats: { diggCount: 200, commentCount: 8, playCount: 4000 } },
-    },
-  };
-  const html = `<script id="SIGI_STATE" type="application/json">${JSON.stringify(state)}</script>`;
-  const result = await competitorFetch.fetchCompetitorSource('tiktok', 'https://tiktok.com/@somebrand', { fetchImpl: htmlRes(html) });
-  assert.strictEqual(result.found, true);
-  assert.strictEqual(result.displayName, 'Some Brand');
-  assert.strictEqual(result.followerCount, 5400);
-  assert.strictEqual(result.posts.length, 2);
-  assert.strictEqual(result.posts[0].kind, 'video');
-  assert.strictEqual(result.posts[0].viewCount, 2000);
-  assert.strictEqual(result.partial, false);
-});
-
-test('fetchTikTok falls back to bio-only when the state blob is missing/malformed', async () => {
-  const result = await competitorFetch.fetchCompetitorSource('tiktok', 'https://tiktok.com/@somebrand', { fetchImpl: htmlRes('<html>no state blob here</html>') });
-  assert.strictEqual(result.posts.length, 0);
-  assert.strictEqual(result.partial, true);
-  assert.strictEqual(result.handle, 'somebrand');
+test('fetchCompetitorSource degrades honestly for TikTok, which was removed', async () => {
+  const result = await competitorFetch.fetchCompetitorSource('tiktok', 'https://tiktok.com/@somebrand', {});
+  assert.strictEqual(result.found, false);
+  assert.match(result.error, /Unsupported platform/);
 });
 
 test('fetchYouTube (no API key configured) falls back to a channel-page scrape', async () => {
@@ -356,14 +328,14 @@ test('templateCompetitorTrends is explicit that Facebook-only tracking structura
     trackedCompetitors: [{ name: 'FB Rival', followerCount: 0, platforms: ['facebook'] }],
   });
   assert.match(result.analysis, /Facebook only exposes profile info publicly/);
-  assert.match(result.recommendation, /YouTube, or TikTok/);
+  assert.match(result.recommendation, /or YouTube/);
 });
 
 test('templateCompetitorTrends gives a retry-oriented message when a non-Instagram/Facebook fetch simply failed', () => {
   const result = ai.templateCompetitorTrends({
     businessName: 'Noir Coffee',
-    competitorStats: [{ competitorName: 'Rival TikTok', postCount: 0, postsPerWeek: null, videoSharePercent: 0 }],
-    trackedCompetitors: [{ name: 'Rival TikTok', followerCount: null, platforms: ['tiktok'] }],
+    competitorStats: [{ competitorName: 'Rival YouTube', postCount: 0, postsPerWeek: null, videoSharePercent: 0 }],
+    trackedCompetitors: [{ name: 'Rival YouTube', followerCount: null, platforms: ['youtube'] }],
   });
   assert.match(result.analysis, /fetch may have failed or been blocked/);
   assert.match(result.recommendation, /Refresh/);
@@ -540,6 +512,42 @@ test('GET /api/competitors embeds real stored posts (caption, thumbnail, engagem
   assert.strictEqual(competitor.posts[0].likeCount, 40);
 });
 
+test('POST /api/competitors/:id/analyze scopes the insight to ONE channel, embeds it on that competitor only, and never contaminates the profile-wide "analyze all" insight', async () => {
+  const token = await register('analyzeone');
+  await onboard(token);
+
+  const rival = await (await post('/api/competitors', {
+    name: 'Rival Cafe', sources: [{ platform: 'instagram', url: 'https://instagram.com/rivalcafe_one_test' }],
+  }, token)).json();
+  const other = await (await post('/api/competitors', {
+    name: 'Other Cafe', sources: [{ platform: 'facebook', url: 'https://facebook.com/othercafe_one_test' }],
+  }, token)).json();
+
+  const noAuth = await post(`/api/competitors/${rival.competitor.id}/analyze`, {});
+  assert.strictEqual(noAuth.status, 401);
+
+  const missing = await post('/api/competitors/does-not-exist/analyze', {}, token);
+  assert.strictEqual(missing.status, 404);
+
+  const res = await post(`/api/competitors/${rival.competitor.id}/analyze`, {}, token);
+  assert.strictEqual(res.status, 200);
+  const { insight } = await res.json();
+  assert.strictEqual(insight.competitorId, rival.competitor.id);
+  assert.match(insight.analysis.analysis, /Rival Cafe/);
+
+  // Embedded on the analyzed competitor, absent on the untouched one.
+  const list = await (await get('/api/competitors', token)).json();
+  const rivalListed = list.competitors.find((c) => c.id === rival.competitor.id);
+  const otherListed = list.competitors.find((c) => c.id === other.competitor.id);
+  assert.strictEqual(rivalListed.insight.id, insight.id);
+  assert.strictEqual(otherListed.insight, undefined);
+
+  // The profile-wide "analyze all" insight is untouched by a per-channel run
+  // (no global insight has been run yet in this test, so it stays absent).
+  const trends = await (await get('/api/competitors/trends', token)).json();
+  assert.strictEqual(trends.insight, undefined);
+});
+
 test('/api/competitors/:id/sources 404s for a competitor that belongs to a different profile', async () => {
   const token1 = await register('owner1');
   await onboard(token1);
@@ -549,6 +557,6 @@ test('/api/competitors/:id/sources 404s for a competitor that belongs to a diffe
 
   const token2 = await register('owner2');
   await onboard(token2);
-  const res = await post(`/api/competitors/${added.competitor.id}/sources`, { platform: 'tiktok', url: 'https://tiktok.com/@x' }, token2);
+  const res = await post(`/api/competitors/${added.competitor.id}/sources`, { platform: 'facebook', url: 'https://facebook.com/x' }, token2);
   assert.strictEqual(res.status, 404);
 });

@@ -116,6 +116,9 @@ module.exports = function createDb(dbPath) {
     -- Latest (and historical) AI trend-analysis runs over a profile's tracked
     -- competitors. analysis is a JSON blob: { analysis, themes, recommendation,
     -- cadence[], contentTypes[] } — see ai.js#analyzeCompetitorTrends.
+    -- competitor_id (added later, see addColumn below) is NULL for a
+    -- profile-wide "analyze all tracked competitors" run, or set for a
+    -- single-competitor "analyze this channel" run.
     CREATE TABLE IF NOT EXISTS competitor_insights (
       id         TEXT PRIMARY KEY,
       profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -215,7 +218,7 @@ module.exports = function createDb(dbPath) {
       updated_at       TEXT
     );
 
-    -- Generic connector framework store (Meta/Facebook/TikTok/Google/YouTube).
+    -- Generic connector framework store (Meta/Facebook/Google/YouTube).
     -- One row per (profile, platform). access_token is encrypted at rest; meta
     -- holds platform-specific ids (pageId/igUserId) as JSON. Separate from the
     -- dedicated instagram_connections table used by the Instagram Login flow.
@@ -246,6 +249,23 @@ module.exports = function createDb(dbPath) {
       sample_text   TEXT,
       template_text TEXT NOT NULL,
       variables     TEXT,
+      source        TEXT,                        -- 'gemini' | 'heuristic' | 'manual'
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT
+    );
+
+    -- Saved writing styles — a named voice profile learned from a sample post
+    -- (the owner's own, or copied from a competitor), selectable at generation
+    -- time to steer AI post copy. Not platform-scoped like templates: a voice
+    -- is the same across channels. style_summary is a plain-text description
+    -- of the voice (tone, sentence rhythm, emoji/punctuation habits, sign-offs)
+    -- fed into the generation prompt — see gemini.js#analyzeStyle.
+    CREATE TABLE IF NOT EXISTS content_styles (
+      id            TEXT PRIMARY KEY,
+      profile_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      name          TEXT,
+      sample_text   TEXT,
+      style_summary TEXT NOT NULL,
       source        TEXT,                        -- 'gemini' | 'heuristic' | 'manual'
       created_at    TEXT NOT NULL,
       updated_at    TEXT
@@ -413,6 +433,7 @@ module.exports = function createDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_instagram_profile ON instagram_connections(profile_id);
     CREATE INDEX IF NOT EXISTS idx_templates_profile_platform ON content_templates(profile_id, platform);
+    CREATE INDEX IF NOT EXISTS idx_styles_profile ON content_styles(profile_id);
     CREATE INDEX IF NOT EXISTS idx_metric_history_lookup ON metric_history(profile_id, metric, day);
     CREATE INDEX IF NOT EXISTS idx_autopilot_ctx_profile ON autopilot_context_requests(profile_id, status, created_at);
   `);
@@ -451,6 +472,9 @@ module.exports = function createDb(dbPath) {
   // the channel's own recent posts via the same public t.me/s/ preview used
   // for Telegram competitor tracking (private channels/groups have none).
   addColumn('telegram_connections', 'chat_username TEXT');
+  // NULL = a profile-wide "analyze all tracked competitors" insight; set = a
+  // single-competitor "analyze this channel" insight.
+  addColumn('competitor_insights', 'competitor_id TEXT');
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -496,7 +520,7 @@ module.exports = function createDb(dbPath) {
     commentCount: r.comment_count, viewCount: r.view_count, fetched_at: r.fetched_at,
   };
   const mapCompetitorInsight = (r) => r && {
-    id: r.id, profileId: r.profile_id,
+    id: r.id, profileId: r.profile_id, competitorId: r.competitor_id || null,
     analysis: r.analysis ? JSON.parse(r.analysis) : null,
     created_at: r.created_at,
   };
@@ -535,6 +559,11 @@ module.exports = function createDb(dbPath) {
     variables: r.variables ? JSON.parse(r.variables) : [],
     source: r.source, mediaId: r.media_id || null,
     created_at: r.created_at, updated_at: r.updated_at,
+  };
+  const mapStyle = (r) => r && {
+    id: r.id, profileId: r.profile_id, name: r.name,
+    sampleText: r.sample_text, styleSummary: r.style_summary,
+    source: r.source, created_at: r.created_at, updated_at: r.updated_at,
   };
   const mapSubscription = (r) => r && {
     id: r.id, userId: r.user_id, tier: r.tier, status: r.status,
@@ -890,17 +919,28 @@ module.exports = function createDb(dbPath) {
 
     // Stored AI trend-analysis runs (ai.js#analyzeCompetitorTrends output).
     competitorInsights: {
-      add({ profileId, analysis }) {
-        const row = { id: id(), profile_id: profileId, analysis: JSON.stringify(analysis), created_at: now() };
+      add({ profileId, analysis, competitorId = null }) {
+        const row = {
+          id: id(), profile_id: profileId, competitor_id: competitorId,
+          analysis: JSON.stringify(analysis), created_at: now(),
+        };
         sqlite.prepare(
-          `INSERT INTO competitor_insights (id, profile_id, analysis, created_at) VALUES (@id, @profile_id, @analysis, @created_at)`
+          `INSERT INTO competitor_insights (id, profile_id, competitor_id, analysis, created_at) VALUES (@id, @profile_id, @competitor_id, @analysis, @created_at)`
         ).run(row);
         return mapCompetitorInsight(row);
       },
+      // The latest profile-wide "analyze all" run — excludes single-competitor
+      // insights so this never accidentally surfaces one channel's analysis as
+      // if it covered everything tracked.
       latestByProfile(profileId) {
         return mapCompetitorInsight(sqlite.prepare(
-          'SELECT * FROM competitor_insights WHERE profile_id = ? ORDER BY created_at DESC LIMIT 1'
+          'SELECT * FROM competitor_insights WHERE profile_id = ? AND competitor_id IS NULL ORDER BY created_at DESC LIMIT 1'
         ).get(profileId));
+      },
+      latestByCompetitor(competitorId) {
+        return mapCompetitorInsight(sqlite.prepare(
+          'SELECT * FROM competitor_insights WHERE competitor_id = ? ORDER BY created_at DESC LIMIT 1'
+        ).get(competitorId));
       },
     },
 
@@ -1457,6 +1497,52 @@ module.exports = function createDb(dbPath) {
       },
       remove(templateId) {
         sqlite.prepare('DELETE FROM content_templates WHERE id = ?').run(templateId);
+      },
+    },
+
+    // Saved writing styles — parallel to `templates` above but not
+    // platform-scoped, and there is no {{variable}} substitution: styleSummary
+    // is a plain-text voice digest injected into ai.js#generateContent.
+    styles: {
+      create({ profileId, name, sampleText, styleSummary, source }) {
+        const row = {
+          id: id(),
+          profile_id: profileId,
+          name: name || null,
+          sample_text: sampleText || null,
+          style_summary: styleSummary,
+          source: source || 'manual',
+          created_at: now(),
+          updated_at: now(),
+        };
+        sqlite.prepare(
+          `INSERT INTO content_styles (id, profile_id, name, sample_text, style_summary, source, created_at, updated_at)
+           VALUES (@id, @profile_id, @name, @sample_text, @style_summary, @source, @created_at, @updated_at)`
+        ).run(row);
+        return mapStyle(row);
+      },
+      findById(styleId) {
+        return mapStyle(sqlite.prepare('SELECT * FROM content_styles WHERE id = ?').get(styleId));
+      },
+      listByProfile(profileId) {
+        return sqlite.prepare('SELECT * FROM content_styles WHERE profile_id = ? ORDER BY created_at DESC').all(profileId).map(mapStyle);
+      },
+      update(styleId, fields = {}) {
+        const colFor = { name: 'name', sampleText: 'sample_text', styleSummary: 'style_summary', source: 'source' };
+        const sets = [];
+        const params = { id: styleId, updated_at: now() };
+        for (const [key, col] of Object.entries(colFor)) {
+          if (fields[key] === undefined) continue;
+          sets.push(`${col} = @${col}`);
+          params[col] = fields[key];
+        }
+        if (sets.length) {
+          sqlite.prepare(`UPDATE content_styles SET ${sets.join(', ')}, updated_at = @updated_at WHERE id = @id`).run(params);
+        }
+        return this.findById(styleId);
+      },
+      remove(styleId) {
+        sqlite.prepare('DELETE FROM content_styles WHERE id = ?').run(styleId);
       },
     },
 

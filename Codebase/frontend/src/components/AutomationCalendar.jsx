@@ -6,7 +6,7 @@ import WeekDayGrid from './WeekDayGrid';
 import PostListView from './PostListView';
 import PostDetailModal from './PostDetailModal';
 import { DAY_MS, monthGrid, weekGrid, startOfDay, ymd } from '../lib/calendar';
-import { chipMetaFor, isEditable, isReadOnly, sourceOf, statusOf, tagOf, toEditable } from '../lib/calendarEvents';
+import { chipMetaFor, isReadOnly, sourceOf, statusOf, tagOf } from '../lib/calendarEvents';
 import './AutomationCalendar.css';
 
 const VIEW_MODES = ['day', 'week', 'month'];
@@ -19,7 +19,7 @@ const VIEW_MODES = ['day', 'week', 'month'];
  * Two independent switches, Postiz-style: a Day/Week/Month grid granularity,
  * and a Calendar-grid vs flat List display mode.
  */
-export default function AutomationCalendar({ activeProfile, onCreatePost, onOpenAiGeneration, onOpenTemplates, onEditEvent }) {
+export default function AutomationCalendar({ activeProfile, onCreatePost, onOpenAiGeneration, onOpenTemplates, onOpenStyles, onEditEvent }) {
   const { t, i18n } = useTranslation();
 
   const today = new Date();
@@ -163,6 +163,11 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
               <i className="fa-solid fa-shapes"></i> {t('calendar.editTemplates', 'Edit Templates')}
             </button>
           )}
+          {onOpenStyles && (
+            <button className="btn btn-secondary" onClick={onOpenStyles} id="btn_cal_edit_styles">
+              <i className="fa-solid fa-signature"></i> {t('calendar.editStyles', 'Edit Styles')}
+            </button>
+          )}
           {onCreatePost && (
             <button className="btn btn-primary" onClick={() => onCreatePost()} id="btn_cal_create_post">
               <i className="fa-solid fa-plus"></i> {t('createPost.title', 'Create Post')}
@@ -230,7 +235,7 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
         allEvents === null ? (
           <div className="text-center" style={{ padding: 40 }}><i className="fa-solid fa-spinner fa-spin fa-2x text-accent"></i></div>
         ) : (
-          <PostListView events={allEvents} onCancel={cancelEvent} onEditEvent={onEditEvent} busyId={busyId} />
+          <PostListView events={allEvents} onCancel={cancelEvent} onViewEvent={setViewingEvent} busyId={busyId} />
         )
       ) : loading ? (
         <div className="text-center" style={{ padding: 40 }}><i className="fa-solid fa-spinner fa-spin fa-2x text-accent"></i></div>
@@ -302,15 +307,14 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
                   const readOnly = isReadOnly(ev);
                   const time = new Date(ev.start.dateTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
                   const canDrag = !readOnly && statusOf(ev) === 'scheduled';
-                  const canOpen = onEditEvent && isEditable(ev);
                   const tag = tagOf(ev);
                   return (
                     <li
                       key={ev.id}
-                      className={`cal-event ${sourceOf(ev)} ${canOpen ? 'is-clickable' : ''}`}
+                      className={`cal-event ${sourceOf(ev)} is-clickable`}
                       draggable={canDrag}
                       onDragStart={(e) => e.dataTransfer.setData('text/plain', ev.id)}
-                      onClick={() => canOpen && onEditEvent(toEditable(ev))}
+                      onClick={() => setViewingEvent(ev)}
                     >
                       <span className="cal-event-time">{time}</span>
                       <div className="cal-event-body">
@@ -347,7 +351,7 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
           busyId={busyId}
           onSlotClick={(date) => onCreatePost?.(date)}
           onDropSlot={dropFromDataTransfer}
-          onEditEvent={(ev) => onEditEvent?.(toEditable(ev))}
+          onViewEvent={setViewingEvent}
         />
       )}
 

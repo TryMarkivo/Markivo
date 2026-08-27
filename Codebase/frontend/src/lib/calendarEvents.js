@@ -44,6 +44,5 @@ export const toEditable = (ev) => ({
 export const chipMetaFor = (ev) => {
   if (isAutopilot(ev)) return { icon: 'fa-solid fa-robot', color: 'var(--accent-purple, #8338ec)' };
   const platform = ev.extendedProperties?.private?.platform || '';
-  // return metaFor(platform === 'instagram' ? 'meta_instagram' : platform);
-  return metaFor(platform);
+  return metaFor(platform === 'instagram' ? 'meta_instagram' : platform);
 };

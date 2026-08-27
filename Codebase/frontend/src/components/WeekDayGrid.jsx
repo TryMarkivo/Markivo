@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HOURS, ymd } from '../lib/calendar';
-import { chipMetaFor, isEditable, isReadOnly, sourceOf } from '../lib/calendarEvents';
+import { chipMetaFor, isReadOnly, sourceOf } from '../lib/calendarEvents';
 import './AutomationCalendar.css';
 
 const HOUR_PX = 56;
@@ -12,7 +12,7 @@ const HOUR_PX = 56;
  * hover to open Create Post prefilled for that exact day and time. Chips are
  * draggable onto any other slot to reschedule down to the hour.
  */
-export default function WeekDayGrid({ days, byDay, onSlotClick, onDropSlot, onEditEvent, busyId }) {
+export default function WeekDayGrid({ days, byDay, onSlotClick, onDropSlot, onViewEvent, busyId }) {
   const { i18n } = useTranslation();
   const scrollRef = useRef(null);
   const [hoverSlot, setHoverSlot] = useState(null); // `${dayKey}-${hour}`
@@ -96,16 +96,15 @@ export default function WeekDayGrid({ days, byDay, onSlotClick, onDropSlot, onEd
                     {evs.map((ev) => {
                       const m = chipMetaFor(ev);
                       const readOnly = isReadOnly(ev);
-                      const canOpen = onEditEvent && isEditable(ev);
                       return (
                         <button
                           key={ev.id}
                           type="button"
-                          className={`wdg-chip ${sourceOf(ev)} ${ev.status} ${busyId === ev.id ? 'is-busy' : ''} ${canOpen ? '' : 'not-clickable'}`}
+                          className={`wdg-chip ${sourceOf(ev)} ${ev.status} ${busyId === ev.id ? 'is-busy' : ''}`}
                           style={{ '--chip-color': m.color }}
                           draggable={!readOnly}
                           onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', ev.id); }}
-                          onClick={(e) => { e.stopPropagation(); if (canOpen) onEditEvent(ev); }}
+                          onClick={(e) => { e.stopPropagation(); onViewEvent?.(ev); }}
                         >
                           <i className={m.icon}></i>
                           <span className="wdg-chip-text">{ev.description || ev.summary}</span>

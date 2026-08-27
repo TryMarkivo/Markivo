@@ -4,7 +4,7 @@ import api from '../lib/api';
 import { metaFor } from '../lib/platforms';
 import { limitFor } from '../lib/platformLimits';
 import MediaLibraryPicker from './MediaLibraryPicker';
-import TemplatesModal from './TemplatesModal';
+import AIEditorModal from './AIEditorModal';
 import './CreatePost.css';
 
 // Local YYYY-MM-DDTHH:mm for a <input type="datetime-local">, in the
@@ -43,11 +43,7 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
   const [initialPlatformApplied, setInitialPlatformApplied] = useState(!initialPlatform);
 
   const [tgStatus, setTgStatus] = useState(null);
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-  // Was useState(null), resolved by an /api/instagram/status fetch. Seeded
-  // directly now so `loading` can still clear. setIgStatus is retained (unused)
-  // so restoring the fetch is a pure uncomment.
-  const [igStatus, setIgStatus] = useState({ connected: false }); // eslint-disable-line no-unused-vars
+  const [igStatus, setIgStatus] = useState(null);
   const [catalogue, setCatalogue] = useState(null);
 
   const [selected, setSelected] = useState(editEvent ? [editEvent.platform] : []);
@@ -58,7 +54,7 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
   const [extraPosts, setExtraPosts] = useState([]); // [{id, text, media}] — "Add post" thread, create mode only
   const [pickerOpen, setPickerOpen] = useState(false);
   const [mediaTarget, setMediaTarget] = useState(null); // null = active editor | an extraPost id
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [aiEditorOpen, setAiEditorOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [tag, setTag] = useState(editEvent?.tag || '');
   const [repeatRule, setRepeatRule] = useState(editEvent?.repeatRule || ''); // '' | 'daily' | 'weekly' | 'monthly'
@@ -73,11 +69,7 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
 
   useEffect(() => {
     api.get('/api/telegram/status').then(setTgStatus).catch(() => setTgStatus({ connected: false }));
-    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-    // The route is gone. igStatus is initialised to { connected: false } at its
-    // declaration instead, because `loading` below waits on igStatus !== null —
-    // leaving it null here would hang the composer on its spinner forever.
-    // api.get('/api/instagram/status').then(setIgStatus).catch(() => setIgStatus({ connected: false }));
+    api.get('/api/instagram/status').then(setIgStatus).catch(() => setIgStatus({ connected: false }));
     api.get('/api/connect/status').then(setCatalogue).catch(() => setCatalogue({ catalogue: [], status: {} }));
   }, []);
 
@@ -124,19 +116,16 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
   const channels = useMemo(() => {
     if (loading) return [];
     const list = [];
-    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-    // if (igStatus?.connected) {
-    //   const m = metaFor('meta_instagram');
-    //   list.push({ key: 'instagram', label: 'Instagram', icon: m.icon, color: m.color, handle: igStatus.username ? `@${igStatus.username}` : igStatus.accountName });
-    // }
+    if (igStatus?.connected) {
+      const m = metaFor('meta_instagram');
+      list.push({ key: 'instagram', label: 'Instagram', icon: m.icon, color: m.color, handle: igStatus.username ? `@${igStatus.username}` : igStatus.accountName });
+    }
     if (tgStatus?.connected && tgStatus?.chat) {
       const m = metaFor('telegram');
       list.push({ key: 'telegram', label: 'Telegram', icon: m.icon, color: m.color, handle: tgStatus.chat.chatTitle });
     }
     for (const p of catalogue.catalogue || []) {
-      // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-      // if (p.key === 'telegram' || p.key === 'meta_instagram') continue;
-      if (p.key === 'telegram') continue;
+      if (p.key === 'telegram' || p.key === 'meta_instagram') continue;
       const s = catalogue.status[p.key];
       if (s?.connected) {
         const m = metaFor(p.key);
@@ -144,9 +133,7 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
       }
     }
     return list;
-    // DISABLED: SEO/Meta temporarily off — see 2026-08-13 (igStatus dropped
-    // from the deps with the Instagram channel it fed)
-  }, [loading, tgStatus, catalogue]);
+  }, [loading, tgStatus, igStatus, catalogue]);
 
   // A draft handed off from AI Generation or Edit Templates arrives with the
   // channel it was written for already known — pre-select it once, the
@@ -166,9 +153,7 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
     if (!editEvent) return null;
     const found = channels.find((c) => c.key === editEvent.platform);
     if (found) return found;
-    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-    // const m = metaFor(editEvent.platform === 'instagram' ? 'meta_instagram' : editEvent.platform);
-    const m = metaFor(editEvent.platform);
+    const m = metaFor(editEvent.platform === 'instagram' ? 'meta_instagram' : editEvent.platform);
     return { key: editEvent.platform, label: editEvent.platform, icon: m.icon, color: m.color, handle: null };
   }, [editEvent, channels]);
 
@@ -494,8 +479,8 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => openPickerFor(null)} disabled={busy} id="btn_cp_insert_media">
                   <i className="fa-solid fa-image"></i> {t('createPost.insertMedia', 'Insert Media')}
                 </button>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTemplatesOpen(true)} disabled={busy} id="btn_cp_templates">
-                  <i className="fa-solid fa-shapes"></i> {t('createPost.templates', 'Templates')}
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAiEditorOpen(true)} disabled={busy} id="btn_cp_ai_editor">
+                  <i className="fa-solid fa-wand-magic-sparkles"></i> {t('createPost.aiEditor', 'AI Editor')}
                 </button>
                 <div className="cp-emoji-wrap" ref={emojiWrapRef}>
                   <button
@@ -672,12 +657,7 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
                     const ch = editEvent ? editChannel : channels.find((c) => c.key === key);
                     const eff = effectiveFor(key);
                     const over = eff.text.length > limitFor(key);
-                    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-                    // The 'instagram' preview mock is unreachable now that no
-                    // Instagram channel can appear in `channels`. Its two JSX
-                    // branches below are left in place, guarded by this flag.
-                    // const kind = key === 'instagram' ? 'instagram' : key === 'telegram' ? 'telegram' : 'generic';
-                    const kind = key === 'telegram' ? 'telegram' : 'generic';
+                    const kind = key === 'instagram' ? 'instagram' : key === 'telegram' ? 'telegram' : 'generic';
                     const media = eff.media && (
                       eff.media.kind === 'video'
                         ? <video src={api.mediaUrl(eff.media.url)} className="cp-preview-media" muted controls />
@@ -744,13 +724,14 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
         />
       )}
 
-      {templatesOpen && (
-        <TemplatesModal
-          onClose={() => setTemplatesOpen(false)}
-          onUseTemplate={(text, media) => {
+      {aiEditorOpen && (
+        <AIEditorModal
+          text={activeValue}
+          onClose={() => setAiEditorOpen(false)}
+          onApply={(text, media) => {
             setActiveText(text);
-            setActiveMedia(media);
-            setTemplatesOpen(false);
+            if (media !== undefined) setActiveMedia(media);
+            setAiEditorOpen(false);
           }}
         />
       )}

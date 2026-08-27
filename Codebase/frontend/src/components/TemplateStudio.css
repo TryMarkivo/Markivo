@@ -39,6 +39,18 @@
   margin-top: 6px;
 }
 
+.style-import-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.style-import-row .template-hint {
+  margin-top: 0;
+}
+
 /* ===== Draft header: which template you are editing, and its name ===== */
 .template-draft-head {
   display: flex;

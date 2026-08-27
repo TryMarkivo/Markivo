@@ -3,11 +3,11 @@ import { useTranslation, Trans } from 'react-i18next';
 import AutonomousAgent from './AutonomousAgent';
 import MediaStudio from './MediaStudio';
 import CompetitorIntel from './CompetitorIntel';
-import AIAgentSidebar from './AIAgentSidebar';
+// DISABLED: Markiv temporarily off — see 2026-08-15
+// import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// import InstagramConnect from './InstagramConnect';
-// import InstagramComposer from './InstagramComposer';
+import InstagramConnect from './InstagramConnect';
+import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
 import BusinessProfilePane from './BusinessProfilePane';
 import UpgradePane from './UpgradePane';
@@ -19,6 +19,7 @@ import AutomationCalendar from './AutomationCalendar';
 import CreatePost from './CreatePost';
 import AIGenerationModal from './AIGenerationModal';
 import TemplatesModal from './TemplatesModal';
+import StylesModal from './StylesModal';
 import { metaFor, composerKeyFor } from '../lib/platforms';
 import api from '../lib/api';
 import logoUrl from '../assets/markivo-logo.png';
@@ -85,22 +86,17 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-  // Instagram connect/composer/notice state.
-  // const [igStatus, setIgStatus] = useState(null);
-  // const [igModalOpen, setIgModalOpen] = useState(false);
-  // const [igComposerOpen, setIgComposerOpen] = useState(false);
-  // // Derive the OAuth round-trip notice once, from the URL the callback set us to
-  // // (?instagram=connected|error&reason=…). A lazy initializer reads this external
-  // // state during the first render; the effect below only handles side effects.
-  // const [igNotice, setIgNotice] = useState(() => {
-  //   const params = new URLSearchParams(window.location.search);
-  //   const result = params.get('instagram');
-  //   if (!result) return '';
-  //   if (result === 'connected') return t('instagram.noticeConnected', 'Instagram connected ✓');
-  //   const reason = params.get('reason') || 'unknown';
-  //   return t(`instagram.errors.${reason}`, t('instagram.noticeError', 'Could not connect Instagram — please try again.'));
-  // });
+  const [igStatus, setIgStatus] = useState(null);
+  const [igModalOpen, setIgModalOpen] = useState(false);
+  const [igComposerOpen, setIgComposerOpen] = useState(false);
+  const [igNotice, setIgNotice] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('instagram');
+    if (!result) return '';
+    if (result === 'connected') return t('instagram.noticeConnected', 'Instagram connected ✓');
+    const reason = params.get('reason') || 'unknown';
+    return t(`instagram.errors.${reason}`, t('instagram.noticeError', 'Could not connect Instagram — please try again.'));
+  });
   const [usage, setUsage] = useState(null);
   const [statsOffline, setStatsOffline] = useState(false);
   // Which platform's drill-down is open, opened by clicking a metric's chart.
@@ -116,6 +112,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // into the Create Post composer above instead of posting on its own.
   const [aiGenerationOpen, setAiGenerationOpen] = useState(false);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
+  const [stylesModalOpen, setStylesModalOpen] = useState(false);
   // Bumped after a successful Create Post schedule to remount (and so refetch)
   // the Calendar tab's AutomationCalendar.
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -143,32 +140,25 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   };
   useEffect(refreshTelegramStatus, [activeProfile]);
 
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-  // Instagram status polling and the OAuth-return effect.
-  // igStatus stays declared below as a null constant so the remaining
-  // reads short-circuit cleanly.
-  // const refreshInstagramStatus = () => {
-  //   api.get('/api/instagram/status')
-  //     .then(setIgStatus)
-  //     .catch(() => setIgStatus({ connected: false }));
-  // };
-  // useEffect(refreshInstagramStatus, [activeProfile]);
-  //
-  // // Side effects for the OAuth return: refresh status on success, strip the
-  // // query params, and auto-dismiss the notice. (The notice text itself is
-  // // derived above, so nothing is set synchronously in this effect body.)
-  // useEffect(() => {
-  //   const params = new URLSearchParams(window.location.search);
-  //   const result = params.get('instagram');
-  //   if (!result) return;
-  //   if (result === 'connected') refreshInstagramStatus();
-  //   params.delete('instagram');
-  //   params.delete('reason');
-  //   const qs = params.toString();
-  //   window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
-  //   const timer = setTimeout(() => setIgNotice(''), 6000);
-  //   return () => clearTimeout(timer);
-  // }, []);
+  const refreshInstagramStatus = () => {
+    api.get('/api/instagram/status')
+      .then(setIgStatus)
+      .catch(() => setIgStatus({ connected: false }));
+  };
+  useEffect(refreshInstagramStatus, [activeProfile]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('instagram');
+    if (!result) return;
+    if (result === 'connected') refreshInstagramStatus();
+    params.delete('instagram');
+    params.delete('reason');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    const timer = setTimeout(() => setIgNotice(''), 6000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     api.get('/api/usage').then(setUsage).catch(() => setUsage(null));
@@ -192,8 +182,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             googleViews: { current: 3840, change: 10.2 },
             googleCalls: { current: 112, change: 5.6 },
             instagramFollowers: { current: 1240, change: 12.8 },
-            telegramSubscribers: { current: 890, change: 9.4 },
-            tiktokFollowers: { current: 0, change: 0 }
+            telegramSubscribers: { current: 890, change: 9.4 }
           },
           competitors: [
             { name: 'District Cafe & Bakery', platformCount: 3, postsPerWeek: 6, rating: 4.4, followers: 2300 },
@@ -311,6 +300,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           >
             <i className="fa-solid fa-robot"></i> {t('dashboard.nav.autopilot', 'Autopilot')}
           </button>
+          {/* DISABLED: Markiv temporarily off — see 2026-08-15
           <button
             className={`nav-item ${activeTab === 'markiv' ? 'active' : ''}`}
             onClick={() => setActiveTab('markiv')}
@@ -318,6 +308,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           >
             <i className="fa-solid fa-comment-dots"></i> Markiv
           </button>
+          */}
           <button
             className={`nav-item ${activeTab === 'media' ? 'active' : ''}`}
             onClick={() => setActiveTab('media')}
@@ -404,45 +395,37 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               {/* CONNECTED PLATFORMS */}
               <div className="channels-status-row">
                 <h3>{t('dashboard.activeInfrastructure', 'Your Active Infrastructure')}</h3>
-                {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
-                    The Instagram OAuth-return notice banner.
-                    {igNotice && (
-                    <div className="badge badge-success mb-10" style={{ display: 'block', padding: 8 }} role="status">{igNotice}</div>
-                    )}
-                */}
+                {igNotice && (
+                  <div className="badge badge-success mb-10" style={{ display: 'block', padding: 8 }} role="status">{igNotice}</div>
+                )}
                 <div className="channels-grid">
                   <div className={`channel-pill ${activeProfile.platforms.googleBusiness ? 'connected' : 'inactive'}`}>
                     <i className="fa-brands fa-google"></i> {t('dashboard.channels.google', 'Google Profile')}
                     <span className="dot"></span>
                   </div>
-                  {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
-                      The Instagram channel pill. Inner comment markers are
-                      neutralised so this block nests cleanly.
-
-                      <div
-                      className={`channel-pill ${igStatus?.connected ? 'connected' : 'inactive'}`}
-                      onClick={igStatus?.comingSoon ? undefined : () => setIgModalOpen(true)}
-                      style={{ cursor: igStatus?.comingSoon ? 'default' : 'pointer' }}
-                      title={
+                  <div
+                    className={`channel-pill ${igStatus?.connected ? 'connected' : 'inactive'}`}
+                    onClick={igStatus?.comingSoon ? undefined : () => setIgModalOpen(true)}
+                    style={{ cursor: igStatus?.comingSoon ? 'default' : 'pointer' }}
+                    title={
                       igStatus?.comingSoon
-                      ? t('instagram.pillTitleSoon', 'Instagram connection is coming soon')
-                      : igStatus?.connected
-                      ? t('instagram.pillTitleConnected', { defaultValue: 'Connected as @{{username}}', username: igStatus.username || igStatus.accountName || '' })
-                      : t('instagram.pillTitleConnect', 'Click to connect Instagram')
-                      }
-                      id="btn_instagram_pill"
-                      >
-                      <i className="fa-brands fa-instagram"></i>[' ']
-                      {igStatus?.comingSoon
+                        ? t('instagram.pillTitleSoon', 'Instagram connection is coming soon')
+                        : igStatus?.connected
+                          ? t('instagram.pillTitleConnected', { defaultValue: 'Connected as @{{username}}', username: igStatus.username || igStatus.accountName || '' })
+                          : t('instagram.pillTitleConnect', 'Click to connect Instagram')
+                    }
+                    id="btn_instagram_pill"
+                  >
+                    <i className="fa-brands fa-instagram"></i>{' '}
+                    {igStatus?.comingSoon
                       ? t('instagram.pillSoon', 'Instagram · soon')
                       : igStatus?.connected
-                      ? (igStatus.username
-                      ? t('instagram.pillConnected', { defaultValue: 'Instagram · @{{username}}', username: igStatus.username })
-                      : t('instagram.pillConnectedGeneric', 'Instagram · connected'))
-                      : t('instagram.pillConnect', 'Instagram · connect')}
-                      <span className="dot"></span>
-                      </div>
-                  */}
+                        ? (igStatus.username
+                          ? t('instagram.pillConnected', { defaultValue: 'Instagram · @{{username}}', username: igStatus.username })
+                          : t('instagram.pillConnectedGeneric', 'Instagram · connected'))
+                        : t('instagram.pillConnect', 'Instagram · connect')}
+                    <span className="dot"></span>
+                  </div>
                   <div
                     className={`channel-pill ${tgStatus?.connected && tgStatus?.chat ? 'connected' : 'inactive'}`}
                     onClick={tgStatus?.comingSoon ? undefined : () => setTgModalOpen(true)}
@@ -464,10 +447,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                         : tgStatus?.connected
                           ? t('telegram.pillFinishSetup', 'Telegram · finish setup')
                           : t('telegram.pillConnect', 'Telegram · connect')}
-                    <span className="dot"></span>
-                  </div>
-                  <div className={`channel-pill ${activeProfile.platforms.tiktok ? 'connected' : 'inactive'}`}>
-                    <i className="fa-brands fa-tiktok"></i> TikTok
                     <span className="dot"></span>
                   </div>
                 </div>
@@ -493,26 +472,22 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                   onDrill={() => setDetailPlatform('google')}
                 />
 
-                {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
-                    Instagram Followers stat card. metrics.instagramFollowers is still
-                    returned by the API (dashboard payload contract) — only the card is gone.
-                    [/* INSTAGRAM FOLLOWERS *!/]
-                    <StatCard
-                    id="btn_drill_instagram"
-                    label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
-                    platformName="Instagram"
-                    changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}
-                    value={stats.metrics.instagramFollowers.current.toLocaleString()}
-                    subtitle={`@${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`}
-                    color="var(--accent-purple)"
-                    history={stats.metrics.instagramFollowers.history}
-                    live={!!stats.metrics.instagramFollowers.live}
-                    connectable
-                    connected={!!igStatus?.connected}
-                    onConnect={() => setIgModalOpen(true)}
-                    onDrill={() => setDetailPlatform('instagram')}
-                    />
-                */}
+                {/* INSTAGRAM FOLLOWERS */}
+                <StatCard
+                  id="btn_drill_instagram"
+                  label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
+                  platformName="Instagram"
+                  changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}
+                  value={stats.metrics.instagramFollowers.current.toLocaleString()}
+                  subtitle={`@${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`}
+                  color="var(--accent-purple)"
+                  history={stats.metrics.instagramFollowers.history}
+                  live={!!stats.metrics.instagramFollowers.live}
+                  connectable
+                  connected={!!igStatus?.connected}
+                  onConnect={() => setIgModalOpen(true)}
+                  onDrill={() => setDetailPlatform('instagram')}
+                />
 
                 {/* TELEGRAM ACTIVE MEMBERS */}
                 <StatCard
@@ -625,6 +600,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               onEditEvent={(editEvent) => setComposer({ editEvent })}
               onOpenAiGeneration={() => setAiGenerationOpen(true)}
               onOpenTemplates={() => setTemplatesModalOpen(true)}
+              onOpenStyles={() => setStylesModalOpen(true)}
             />
           )}
 
@@ -632,11 +608,13 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <AutonomousAgent activeProfile={activeProfile} />
           )}
 
-          {/* TAB: MARKIV — the AI marketing agent, now its own tab rather than
-              a persistent floating panel. */}
+          {/* DISABLED: Markiv temporarily off — see 2026-08-15. TAB: MARKIV —
+              the AI marketing agent, now its own tab rather than a persistent
+              floating panel.
           {activeTab === 'markiv' && (
             <AIAgentSidebar activeProfile={activeProfile} telegramStatus={tgStatus} asTab />
           )}
+          */}
 
           {/* TAB 3: MEDIA STUDIO */}
           {activeTab === 'media' && (
@@ -645,7 +623,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
           {/* TAB 4: COMPETITOR INTEL */}
           {activeTab === 'competitors' && (
-            <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} onGoToMedia={() => setActiveTab('media')} />
+            <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} onGenerateToComposer={(text) => setComposer({ text })} />
           )}
 
           {/* TAB 5: SETTINGS (appearance + connections) */}
@@ -670,27 +648,24 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         />
       )}
 
-      {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
-          Instagram connect + composer modals.
-          [/* --- INSTAGRAM CONNECT MODAL --- *!/]
-          {igModalOpen && (
-          <InstagramConnect
+      {/* --- INSTAGRAM CONNECT MODAL --- */}
+      {igModalOpen && (
+        <InstagramConnect
           status={igStatus}
           onStatusChange={refreshInstagramStatus}
           onClose={() => setIgModalOpen(false)}
           onCompose={() => { setIgModalOpen(false); setIgComposerOpen(true); }}
-          />
-          )}
+        />
+      )}
 
-          [/* --- INSTAGRAM COMPOSER MODAL --- *!/]
-          {igComposerOpen && (
-          <InstagramComposer
+      {/* --- INSTAGRAM COMPOSER MODAL --- */}
+      {igComposerOpen && (
+        <InstagramComposer
           status={igStatus}
           onPosted={refreshInstagramStatus}
           onClose={() => setIgComposerOpen(false)}
-          />
-          )}
-      */}
+        />
+      )}
 
       {/* --- GENERIC CONNECT MODAL (e.g. Google Business, from a stat card's
            "Connect" hover button) --- */}
@@ -747,6 +722,12 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           onClose={() => setTemplatesModalOpen(false)}
           onUseTemplate={(text, media, platform) => { setTemplatesModalOpen(false); setComposer({ text, media, platform: composerKeyFor(platform) }); }}
         />
+      )}
+
+      {/* --- EDIT STYLES (Calendar) — StyleStudio itself; styles are picked at
+           generation time in AI Generation, not inserted directly here. --- */}
+      {stylesModalOpen && (
+        <StylesModal onClose={() => setStylesModalOpen(false)} />
       )}
 
       {/* --- BUSINESS PROFILE MODAL (opened from the sidebar's profile card) --- */}

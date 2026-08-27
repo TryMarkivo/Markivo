@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { chipMetaFor, isEditable, isReadOnly, statusOf, toEditable } from '../lib/calendarEvents';
+import { chipMetaFor, isReadOnly, statusOf } from '../lib/calendarEvents';
 import './AutomationCalendar.css';
 
 const PAGE_SIZE = 8;
@@ -12,7 +12,7 @@ const FILTERS = ['all', 'scheduled', 'draft', 'published'];
  * tabs, grouped under a date heading, paginated — independent of whatever
  * day/week/month the grid view happens to be looking at.
  */
-export default function PostListView({ events, onCancel, onEditEvent, busyId }) {
+export default function PostListView({ events, onCancel, onViewEvent, busyId }) {
   const { t, i18n } = useTranslation();
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(0);
@@ -106,13 +106,12 @@ export default function PostListView({ events, onCancel, onEditEvent, busyId }) 
                 const m = chipMetaFor(ev);
                 const time = new Date(ev.start.dateTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
                 const canCancel = !isReadOnly(ev) && statusOf(ev) === 'scheduled';
-                const canOpen = onEditEvent && isEditable(ev);
                 return (
                   <div
                     key={ev.id}
-                    className={`plv-row ${canOpen ? 'is-clickable' : ''}`}
+                    className="plv-row is-clickable"
                     style={{ '--chip-color': m.color }}
-                    onClick={() => canOpen && onEditEvent(toEditable(ev))}
+                    onClick={() => onViewEvent?.(ev)}
                   >
                     <span className="plv-row-bar" />
                     <i className={m.icon} style={{ color: m.color }}></i>

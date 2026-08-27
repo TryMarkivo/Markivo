@@ -52,15 +52,10 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
   const [hasLogo, setHasLogo] = useState(null);
   const [logoUploadError, setLogoUploadError] = useState('');
 
-  // Channels to create
   const [channels, setChannels] = useState({
     googleBusiness: true,
-    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-    // instagram: true,
+    instagram: true,
     telegram: true,
-    // Removed TikTok and WhatsApp per MVP scope (Section 12)
-    // tiktok: true,
-    // whatsapp: false
   });
 
   // Action logs state
@@ -78,10 +73,9 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       logs.push({ text: t('onboarding.pipeline.logGoogle', 'Configuring Google Business Profile endpoints...'), icon: 'fa-map-location-dot' });
     }
 
-    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-    // if (channels.instagram) {
-    //   logs.push({ text: t('onboarding.pipeline.logInstagram', 'Scaffolding Instagram Business profile structure...'), icon: 'fa-instagram' });
-    // }
+    if (channels.instagram) {
+      logs.push({ text: t('onboarding.pipeline.logInstagram', 'Scaffolding Instagram Business profile structure...'), icon: 'fa-instagram' });
+    }
 
     if (channels.telegram) {
       logs.push({ text: t('onboarding.pipeline.logTelegram', 'Establishing secure Telegram channel webhook bot...'), icon: 'fa-paper-plane' });
@@ -760,22 +754,19 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
               </div>
             </div>
 
-            {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
-                The Instagram channel card. Inner markers neutralised so this nests.
-
-                <div className={`result-item glass-card ${channels.instagram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, instagram: !p.instagram }))} id="btn_select_instagram">
-                <div className="result-status">
+            {/* INSTAGRAM */}
+            <div className={`result-item glass-card ${channels.instagram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, instagram: !p.instagram }))} id="btn_select_instagram">
+              <div className="result-status">
                 <span className="platform-icon instagram"><i className="fa-brands fa-instagram"></i></span>
                 <div>
-                <h4>{t('onboarding.channels.instagramTitle', 'Instagram Creator Account')}</h4>
-                <p>{t('onboarding.channels.instagramOauth', 'Connect via OAuth to manage your Instagram account')}</p>
+                  <h4>{t('onboarding.channels.instagramTitle', 'Instagram Creator Account')}</h4>
+                  <p>{t('onboarding.channels.instagramOauth', 'Connect via OAuth to manage your Instagram account')}</p>
                 </div>
-                </div>
-                <div className="checkbox-wrap">
+              </div>
+              <div className="checkbox-wrap">
                 <i className={`fa-solid ${channels.instagram ? 'fa-square-check checked-icon' : 'fa-square unchecked-icon'}`}></i>
-                </div>
-                </div>
-            */}
+              </div>
+            </div>
 
             {/* TELEGRAM */}
             <div className={`result-item glass-card ${channels.telegram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, telegram: !p.telegram }))} id="btn_select_telegram">

@@ -70,7 +70,7 @@ after(() => {
 // --- The keyless contract -------------------------------------------------
 
 test('keyless: a profile with any real signal is judged sufficient', () => {
-  const signals = autopilotContext.gatherChannelSignals({ db, profileId, platforms: ['tiktok'] });
+  const signals = autopilotContext.gatherChannelSignals({ db, profileId, platforms: ['google_business'] });
   // Onboarding gives this profile a description AND seeds a welcome post, so
   // there is genuinely something to work from.
   assert.ok(signals.recentPosts.length > 0 || signals.profile.description);
@@ -99,7 +99,7 @@ test('keyless: a profile with nothing at all asks the owner up to three question
 // --- The interrupt --------------------------------------------------------
 
 test('Autopilot halts with paused:needs-context and generates nothing', async () => {
-  await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true }, access);
 
   const postedBefore = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted').length;
   const approvalsBefore = db.approvals.listByProfile(profileId, 100).length;
@@ -129,7 +129,7 @@ test('an unanswered request is not re-asked on the next tick', async () => {
   assert.ok(pending, 'the previous test left one open question');
 
   const asksBefore = db.autonomous.listActivity(profileId, 100).filter((a) => a.kind === 'context_needed').length;
-  await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true }, access);
   await runAutonomousTick({ now: Date.now() + 30 * 60 * 1000, gemini: stubInsufficient });
 
   const rows = db.autonomous.listContextRequests(profileId, 50).filter((r) => r.status === 'pending');

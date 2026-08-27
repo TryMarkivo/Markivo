@@ -63,11 +63,6 @@ function templateContent({ platform, topic, businessName, category, description,
       mediaTip: '📱 Square image with minimal text overlay for chat readability.',
       hashtags: ['#Tashkent', cleanTag(name)],
     },
-    tiktok: {
-      post: `POV: you found the best ${topic || (category ? category.toLowerCase() : 'spot')} in town 🤫\n\n${name}`,
-      hashtags: ['#tashkent', '#fyp', '#smallbusiness', cleanTag(name)],
-      mediaTip: '🎬 3-5s vertical clip, quick focus pull from product to happy customer.',
-    },
   };
   return mocks[(platform || 'instagram').toLowerCase()] || mocks.instagram;
 }
@@ -314,7 +309,6 @@ function templateEditPlan({ instructions, media, profile }) {
     exportSpec: {
       instagram: '1080x1350 (4:5) feed / 1080x1920 (9:16) reels & stories',
       telegram: '1280x1280 (1:1), under 10MB for instant preview',
-      tiktok: '1080x1920 (9:16), 30fps',
       googleBusiness: '1200x900 (4:3) photo posts',
     },
     engineStatus: 'awaiting_media_api',
@@ -507,7 +501,7 @@ function templateCompetitorTrends(ctx) {
       return {
         analysis: `No competitors tracked yet for ${businessName || 'your business'} — add one in Competitor Intel to start tracking trends.`,
         themes: [],
-        recommendation: 'Add a competitor by pasting their Instagram, TikTok, YouTube, or Facebook profile link.',
+        recommendation: 'Add a competitor by pasting their Instagram, YouTube, or Facebook profile link.',
       };
     }
     // Tracked, but no platform returned real post content yet. Reasons
@@ -516,8 +510,8 @@ function templateCompetitorTrends(ctx) {
     // via Business Discovery, but only once this business has its own
     // Instagram connected via Settings → Connections (Meta) AND the
     // competitor is a public Business/Creator account — so it needs a
-    // "how to fix" message, not a flat "impossible" one. Anything else (TikTok/
-    // YouTube) not returning data is just a fetch that failed or was blocked.
+    // "how to fix" message, not a flat "impossible" one. YouTube not
+    // returning data is just a fetch that failed or was blocked.
     const names = trackedCompetitors.map((c) => c.name).filter(Boolean).slice(0, 3).join(', ');
     const platformsSeen = new Set(trackedCompetitors.flatMap((c) => c.platforms || []));
     const onlyFacebook = platformsSeen.size > 0 && [...platformsSeen].every((p) => p === 'facebook');
@@ -529,20 +523,20 @@ function templateCompetitorTrends(ctx) {
       return {
         analysis: `${prefix} Facebook only exposes profile info publicly (no captions or videos), so content trends aren't available from that alone.`,
         themes: [],
-        recommendation: 'For real content-trend analysis, also track this competitor on Instagram (once your own Instagram is connected via Settings → Connections), YouTube, or TikTok.',
+        recommendation: 'For real content-trend analysis, also track this competitor on Instagram (once your own Instagram is connected via Settings → Connections) or YouTube.',
       };
     }
     if (hasInstagram) {
       return {
         analysis: `${prefix} For Instagram specifically, real post content needs YOUR OWN Instagram connected via Settings → Connections (Meta) — once it is, captions and engagement become available for competitors that are public Business or Creator accounts.`,
         themes: [],
-        recommendation: 'Connect your Instagram via Settings → Connections (Meta), or track this competitor on YouTube or TikTok instead.',
+        recommendation: 'Connect your Instagram via Settings → Connections (Meta), or track this competitor on YouTube instead.',
       };
     }
     return {
       analysis: `${prefix} A fetch may have failed or been blocked — try refreshing, or track the same competitor on another platform.`,
       themes: [],
-      recommendation: 'Try "Refresh" on the tracked competitor, or add their YouTube or TikTok profile as a second source.',
+      recommendation: 'Try "Refresh" on the tracked competitor, or add their YouTube profile as a second source.',
     };
   }
   const avgCadence = Math.round((withData.reduce((sum, s) => sum + (s.postsPerWeek || 0), 0) / withData.length) * 10) / 10;
@@ -612,13 +606,18 @@ async function generateContent(ctx) {
   if (viaGemini) return viaGemini;
   if (!providers.isLive) return templateContent(ctx);
   const platform = ctx.platform || 'instagram';
-  const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => LANG_NAMES[l]);
-  const langNames = (langs.length ? langs : ['en']).map((l) => LANG_NAMES[l]).join(', ');
+  const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => gemini.LANG_NAMES[l]);
+  const langNames = (langs.length ? langs : ['en']).map((l) => gemini.LANG_NAMES[l]).join(', ');
   const digest = brand.briefDigest(ctx.brief, ctx);
   const rule = frameworks.rulesFor(platform);
   const topic = ctx.topic || 'a friendly general promotion that drives a visit';
   // Preference memory: what this owner has actually published (per-business taste).
   const prefBlock = preferences.preferenceDigest(ctx.preferences);
+  // A selected saved Style (see content_styles / gemini.js#analyzeStyle) steers
+  // HOW the post is written; it must never leak the sample post's own content.
+  const styleBlock = ctx.styleSummary
+    ? `WRITING STYLE TO MATCH: ${ctx.styleSummary}\nWrite in this voice — its tone, sentence rhythm, and emoji/punctuation habits — but never copy any subject matter from wherever that style was learned; the brief/topic are the only source of what to write about.`
+    : '';
 
   try {
     // 1. Strategy — decide angle, hook, single message, one CTA (cheap model).
@@ -626,7 +625,8 @@ async function generateContent(ctx) {
       model: config.aiContentModel,
       system: marketing.pipeline.strategySystemPrompt +
         (rule ? `\n\nPLATFORM-NATIVE RULES for ${platform}:\n${JSON.stringify(rule)}` : '') +
-        (prefBlock ? `\n\n${prefBlock}` : ''),
+        (prefBlock ? `\n\n${prefBlock}` : '') +
+        (styleBlock ? `\n\n${styleBlock}` : ''),
       prompt: fill(marketing.pipeline.strategyUserTemplate, { platform, brief: digest, topic }),
       schema: STRATEGY_SCHEMA,
       maxTokens: 900,
@@ -635,7 +635,7 @@ async function generateContent(ctx) {
     // 2. Draft — execute the strategy into a final platform-native post.
     const draft = await providers.completeJSON({
       model: config.aiContentModel,
-      system: marketing.pipeline.draftSystemPrompt + (prefBlock ? `\n\n${prefBlock}` : ''),
+      system: marketing.pipeline.draftSystemPrompt + (prefBlock ? `\n\n${prefBlock}` : '') + (styleBlock ? `\n\n${styleBlock}` : ''),
       prompt: fill(marketing.pipeline.draftUserTemplate, {
         platform, brief: digest, strategy: JSON.stringify(strategy), topic, languages: langNames,
       }),
@@ -793,7 +793,7 @@ async function agentAct(ctx) {
       input_schema: {
         type: 'object',
         properties: {
-          platform: { type: 'string', description: "Target platform, e.g. 'instagram', 'telegram', 'tiktok'." },
+          platform: { type: 'string', description: "Target platform, e.g. 'instagram', 'telegram', 'google_business'." },
           text: { type: 'string', description: 'The complete, final post text to schedule.' },
           scheduledTime: { type: 'string', description: 'ISO 8601 datetime to publish at, e.g. 2026-06-12T10:00:00Z.' },
         },
@@ -810,7 +810,7 @@ async function agentAct(ctx) {
       input_schema: {
         type: 'object',
         properties: {
-          platform: { type: 'string', description: "Target platform, e.g. 'instagram', 'telegram', 'tiktok'." },
+          platform: { type: 'string', description: "Target platform, e.g. 'instagram', 'telegram', 'google_business'." },
           topic: { type: 'string', description: 'What the post should be about.' },
         },
         required: ['topic'],
@@ -1206,10 +1206,9 @@ const EDIT_PLAN_SCHEMA = {
       properties: {
         instagram: { type: 'string' },
         telegram: { type: 'string' },
-        tiktok: { type: 'string' },
         googleBusiness: { type: 'string' },
       },
-      required: ['instagram', 'telegram', 'tiktok', 'googleBusiness'],
+      required: ['instagram', 'telegram', 'googleBusiness'],
       additionalProperties: false,
     },
   },

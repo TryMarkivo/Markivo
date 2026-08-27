@@ -133,7 +133,7 @@ const config = {
   scanRateWindowMs: (parseInt(process.env.SCAN_RATE_WINDOW_MIN, 10) || 15) * 60 * 1000,
 
   // --- Competitor Intelligence (public-page fetchers + YouTube Data API) ---
-  // Instagram/TikTok/Facebook have no official API for reading a stranger's
+  // Instagram/Facebook have no official API for reading a stranger's
   // public posts, so those fetchers do a best-effort public-page GET/parse
   // (see backend/competitorFetch.js) and degrade honestly when a platform
   // blocks or renders nothing server-side. YouTube has a real public search/
@@ -147,7 +147,7 @@ const config = {
   competitorFetchCooldownMs: (parseInt(process.env.COMPETITOR_FETCH_COOLDOWN_MIN, 10) || 60) * 60 * 1000,
 
   // Same idea for Autopilot's own-connected-account reads (ownContentFetch.js)
-  // — don't re-hit Meta/YouTube/TikTok/Telegram on every tick, only once this
+  // — don't re-hit Meta/YouTube/Telegram on every tick, only once this
   // long since the last successful read.
   ownContentFetchCooldownMs: (parseInt(process.env.OWN_CONTENT_FETCH_COOLDOWN_MIN, 10) || 60) * 60 * 1000,
 
@@ -169,12 +169,15 @@ const config = {
   instagramScopes: 'instagram_business_basic,instagram_business_content_publish',
 
   // --- Platform connector framework (connectors/*) ---
-  // Meta (Facebook/Instagram), TikTok, and Google (Google Business/YouTube)
-  // OAuth adapters. Each platform goes LIVE only when its client credentials
-  // are present; otherwise isLive() is false and the adapter runs in sandbox
-  // mode (simulated publishes) — so Autopilot and the agent work fully keyless.
+  // Meta (Facebook/Instagram) and Google (Google Business/YouTube) OAuth
+  // adapters. Each platform goes LIVE only when its client credentials are
+  // present; otherwise isLive() is false and the adapter runs in sandbox mode
+  // (simulated publishes) — so Autopilot and the agent work fully keyless.
   // `redirectBase` is the public origin the /api/connect/* callbacks live under.
   // `enabled` flags are computed below from the credentials.
+  // NOTE: config.connectors.google also gates connectors/youtube.js, which is
+  // currently commented out (DISABLED: YouTube temporarily off — see
+  // 2026-08-15) — googleBusiness stays live off this same client either way.
   connectors: {
     redirectBase:
       process.env.CONNECTORS_REDIRECT_BASE ||
@@ -190,11 +193,6 @@ const config = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       enabled: false,
     },
-    tiktok: {
-      clientKey: process.env.TIKTOK_CLIENT_KEY || '',
-      clientSecret: process.env.TIKTOK_CLIENT_SECRET || '',
-      enabled: false,
-    },
   },
 };
 
@@ -202,7 +200,6 @@ const config = {
 // Until then the adapter stays in sandbox mode (simulated publishing).
 config.connectors.meta.enabled = !!(config.connectors.meta.clientId && config.connectors.meta.clientSecret);
 config.connectors.google.enabled = !!(config.connectors.google.clientId && config.connectors.google.clientSecret);
-config.connectors.tiktok.enabled = !!(config.connectors.tiktok.clientKey && config.connectors.tiktok.clientSecret);
 
 config.geminiEnabled = !!config.geminiApiKey;
 // "AI is on" means at least one text engine is reachable. aiEnabled stays tied

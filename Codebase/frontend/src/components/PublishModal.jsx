@@ -80,12 +80,7 @@ export default function PublishModal({ media, defaultCaption = '', onClose, onPo
       const body = {
         // The connector's own registry key — matches what the scheduled-post
         // worker looks up via connectors.get().
-        // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-        // meta_instagram used to be the one exception: Instagram's real
-        // publishing ran through the separate bespoke Instagram Login path
-        // keyed 'instagram'. Both are disabled, so no translation is needed.
-        // platform: key === 'meta_instagram' ? 'instagram' : key,
-        platform: key,
+        platform: key === 'meta_instagram' ? 'instagram' : key,
         postText: caption.trim(),
         mediaId: media.id,
       };

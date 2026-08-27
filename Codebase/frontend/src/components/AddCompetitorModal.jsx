@@ -4,17 +4,10 @@ import api from '../lib/api';
 import './Onboarding.css';
 
 const PLATFORM_OPTIONS = [
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-  // NOTE: tracking an Instagram/Facebook competitor uses the PUBLIC page scrape,
-  // which needs no Meta credentials and still works. These inputs are disabled
-  // only because the maximal Meta scope was requested — re-enabling them is
-  // independent of the rest of the Meta work.
-  // { key: 'instagram', icon: 'fa-brands fa-instagram', placeholder: 'https://instagram.com/handle' },
-  { key: 'tiktok', icon: 'fa-brands fa-tiktok', placeholder: 'https://tiktok.com/@handle' },
+  { key: 'instagram', icon: 'fa-brands fa-instagram', placeholder: 'https://instagram.com/handle' },
   { key: 'youtube', icon: 'fa-brands fa-youtube', placeholder: 'https://youtube.com/@handle' },
   { key: 'telegram', icon: 'fa-brands fa-telegram', placeholder: 'https://t.me/channelname' },
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13 (see note above)
-  // { key: 'facebook', icon: 'fa-brands fa-facebook', placeholder: 'https://facebook.com/page' },
+  { key: 'facebook', icon: 'fa-brands fa-facebook', placeholder: 'https://facebook.com/page' },
 ];
 
 /**

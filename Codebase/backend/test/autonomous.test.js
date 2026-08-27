@@ -19,9 +19,11 @@ process.env.AUTONOMOUS_ENABLED = 'true';
 
 // DISABLED: SEO/Meta temporarily off — see 2026-08-13
 // These cases used 'meta_instagram' as the test platform. With the Meta
-// adapters out of the connector registry, they run against 'tiktok' instead —
-// same sandbox publish path (connectors/tiktok.js -> simulatedPublish), no
-// network. Swap back to 'meta_instagram' when Meta is re-enabled.
+// adapters out of the connector registry, they run against 'google_business'
+// instead — same sandbox publish path (connectors/googleBusiness.js ->
+// simulatedPublish), no network. Swap back to 'meta_instagram' when Meta is
+// re-enabled. (TikTok, the platform this suite used before it, was removed
+// entirely — see 2026-08-15.)
 const { app, db, runAutonomousTick } = require('../server');
 const autonomous = require('../autonomous');
 const realConfig = require('../config');
@@ -65,16 +67,16 @@ after(() => {
 
 test('config: enabling Autopilot stores platforms and makes it due', async () => {
   const res = await put('/api/autonomous/config', {
-    enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true,
+    enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true,
   }, access);
   assert.equal(res.status, 200);
   const { config } = await res.json();
   assert.equal(config.enabled, true);
-  assert.deepEqual(config.platforms, ['tiktok']);
+  assert.deepEqual(config.platforms, ['google_business']);
   assert.equal(config.autoPublish, true);
   // Bad platform keys are dropped by the validator.
-  const res2 = await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok', 'not_a_platform'], frequency: 'test' }, access);
-  assert.deepEqual((await res2.json()).config.platforms, ['tiktok']);
+  const res2 = await put('/api/autonomous/config', { enabled: true, platforms: ['google_business', 'not_a_platform'], frequency: 'test' }, access);
+  assert.deepEqual((await res2.json()).config.platforms, ['google_business']);
 });
 
 test('tick auto-publishes an organic post (sandbox) and never creates an ad', async () => {
@@ -83,7 +85,7 @@ test('tick auto-publishes an organic post (sandbox) and never creates an ad', as
 
   const posted = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted');
   assert.ok(posted.length >= 1, 'an organic post was published (sandbox-simulated)');
-  assert.ok(posted.some((p) => p.platform === 'tiktok'));
+  assert.ok(posted.some((p) => p.platform === 'google_business'));
 
   // INVARIANT: Autopilot must never create or run a paid ad campaign.
   const approvals = db.approvals.listByProfile(profileId);
@@ -105,7 +107,7 @@ test('manual "Run now" publishes immediately and returns activity', async () => 
 test('queue mode creates PENDING organic approvals, never auto-approved', async () => {
   // Re-save config (enabling resets next_run_at to now, so it is due again).
   await put('/api/autonomous/config', {
-    enabled: true, platforms: ['tiktok', 'telegram'], frequency: 'test', autoPublish: false,
+    enabled: true, platforms: ['google_business', 'telegram'], frequency: 'test', autoPublish: false,
   }, access);
 
   const before = db.approvals.listByProfile(profileId, 100).length;
@@ -122,8 +124,43 @@ test('queue mode creates PENDING organic approvals, never auto-approved', async 
   assert.ok(fresh.every((a) => a.action_payload.cost === 'Free — organic post'));
 });
 
+test('GET /api/autonomous/approvals lists the pending queue; approve and reject both clear it', async () => {
+  const listRes = await get('/api/autonomous/approvals', undefined, access);
+  assert.equal(listRes.status, 200);
+  const { approvals } = await listRes.json();
+  assert.ok(approvals.length >= 2, 'the queue-mode test above left pending approvals');
+  assert.ok(approvals.every((a) => a.status === 'pending'), 'only pending rows are listed');
+  assert.ok(approvals.every((a) => typeof a.action_payload?.text === 'string'), 'full post text is included, not truncated');
+
+  const noAuth = await get('/api/autonomous/approvals');
+  assert.equal(noAuth.status, 401);
+
+  // Approve specifically the 'google_business' one (always sandbox-safe here,
+  // since GOOGLE_CLIENT_ID is unset in this test env) rather than an arbitrary
+  // array element — a 'telegram_post' approval could hit a real, differently-
+  // configured Telegram integration in other environments and 400 on publish,
+  // which isn't what this test is about. Rejecting never publishes anything,
+  // so any other pending row is safe to use there.
+  const toApprove = approvals.find((a) => a.action_payload?.platform === 'google_business') || approvals[0];
+  const toReject = approvals.find((a) => a.id !== toApprove.id);
+
+  const rejectRes = await post('/api/agent/reject', { approvalId: toReject.id }, access);
+  assert.equal(rejectRes.status, 200);
+  assert.equal(db.approvals.findById(toReject.id).status, 'rejected');
+  // Rejecting again 400s — it is no longer pending.
+  assert.equal((await post('/api/agent/reject', { approvalId: toReject.id }, access)).status, 400);
+
+  const approveRes = await post('/api/agent/approve', { approvalId: toApprove.id }, access);
+  assert.equal(approveRes.status, 200);
+  assert.equal(db.approvals.findById(toApprove.id).status, 'approved');
+
+  const afterRes = await get('/api/autonomous/approvals', undefined, access);
+  const after = (await afterRes.json()).approvals;
+  assert.ok(!after.some((a) => a.id === toReject.id || a.id === toApprove.id), 'both are gone from the pending queue');
+});
+
 test('a second overlapping tick does not double-run the same profile', async () => {
-  await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true }, access);
   const now = Date.now() + 20 * 60 * 1000; // safely past the cadence -> due
   const postedBefore = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted').length;
 
@@ -141,7 +178,7 @@ test('a second overlapping tick does not double-run the same profile', async () 
 test('Autopilot pauses when the monthly AI allowance is exhausted', async () => {
   // Disable then enable to deterministically re-arm next_run_at = now (due now).
   await put('/api/autonomous/config', { enabled: false }, access);
-  await put('/api/autonomous/config', { enabled: true, platforms: ['tiktok'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true }, access);
 
   // Exhaust the freemium allowance for this owner.
   const limit = require('../config').aiTierLimits.freemium;

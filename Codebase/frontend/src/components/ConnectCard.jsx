@@ -5,7 +5,7 @@ import './Onboarding.css';
 
 /**
  * Generic connect modal for any non-Telegram platform connector (Instagram,
- * Facebook, TikTok, Google Business, YouTube). LIVE platforms (real OAuth
+ * Facebook, Google Business, YouTube). LIVE platforms (real OAuth
  * credentials configured) redirect to the platform's consent screen; SANDBOX
  * platforms connect inline so the flow works fully keyless. The compliance
  * model is shown to the owner: Markivo posts on their behalf through the

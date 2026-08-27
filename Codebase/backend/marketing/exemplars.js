@@ -25,28 +25,6 @@ const BY_PLATFORM = {
       }
     ]
   },
-  "tiktok": {
-    "good": [
-      {
-        "text": "On-screen text (0-2s): \"POV: you ordered the 'spicy' lagman and lied about your tolerance\"\nThen: close-up of the lagman, a sweat-wipe, a thumbs up through tears.\nVoiceover/caption: Level 3 chili, hand-pulled noodles, we warned you 😅 Chilonzor branch, open till 11.\nCTA on screen: \"Tag who'd lose\"\n#tashkentfood #lagman #osh",
-        "why": "Native TikTok hook (POV + relatable lie), a real menu item with a real spec (Level 3, hand-pulled), specific branch + hours, and a share-driving CTA ('tag who'd lose'). Shootable in one take."
-      },
-      {
-        "text": "On-screen text (0-2s): \"things my gym bros didn't believe about a 90k/month membership\"\nQuick cuts: the squat rack, the actual chalk bowl, the 24/7 keycard door, the one working scale everyone fights over.\nCaption: Yunusobod, no contract, first week free. \nCTA: \"Comment 'IN' and I'll send the location\"\n#tashkentgym #gymtok",
-        "why": "Listicle-style hook that invites disbelief = watch time. Concrete proof shots, real price + terms (no contract, free week), and a comment CTA that boosts the algorithm. Authentically scrappy."
-      }
-    ],
-    "bad": [
-      {
-        "text": "Welcome to our amazing business! We offer the best products and services in town. Don't forget to like, follow, and subscribe for more content! #fyp #viral #foryou #trending #explore",
-        "why": "No hook in the first 2 seconds = instant scroll. 'Best in town' with no proof. 'Like, follow, subscribe' is YouTube-brain, not TikTok. Hashtag-stuffing #viral never makes things viral."
-      },
-      {
-        "text": "Check out our new collection! So excited to share these amazing pieces with you all. Link in bio to shop now! 🛍️✨ #fashion #style #ootd #shopping #love",
-        "why": "Pure ad with no native format — no POV, no story, no on-screen hook. 'So excited / amazing' is empty enthusiasm. 'Link in bio' friction on a platform that rewards in-feed payoff."
-      }
-    ]
-  },
   "telegram": {
     "good": [
       {

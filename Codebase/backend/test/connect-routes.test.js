@@ -15,8 +15,6 @@ process.env.META_CLIENT_ID = '';
 process.env.META_CLIENT_SECRET = '';
 process.env.GOOGLE_CLIENT_ID = '';
 process.env.GOOGLE_CLIENT_SECRET = '';
-process.env.TIKTOK_CLIENT_KEY = '';
-process.env.TIKTOK_CLIENT_SECRET = '';
 
 const { app } = require('../server');
 const config = require('../config');
@@ -54,7 +52,6 @@ const get = (p, token) =>
 test('connector credentials are absent, so every OAuth platform is sandbox', () => {
   assert.strictEqual(config.connectors.meta.enabled, false);
   assert.strictEqual(config.connectors.google.enabled, false);
-  assert.strictEqual(config.connectors.tiktok.enabled, false);
 });
 
 test('GET /api/connect/status lists EVERY platform with connect guidance', async () => {
@@ -63,9 +60,7 @@ test('GET /api/connect/status lists EVERY platform with connect guidance', async
   const { catalogue, status } = await res.json();
 
   const keys = catalogue.map((c) => c.key);
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-  // assert.deepStrictEqual(keys, ['telegram', 'meta_instagram', 'meta_facebook', 'tiktok', 'google_business', 'youtube']);
-  assert.deepStrictEqual(keys, ['telegram', 'tiktok', 'google_business', 'youtube']);
+  assert.deepStrictEqual(keys, ['telegram', 'meta_instagram', 'meta_facebook', 'google_business']);
 
   // Every entry carries what the Connections screen needs to explain itself.
   for (const c of catalogue) {
@@ -78,21 +73,20 @@ test('GET /api/connect/status lists EVERY platform with connect guidance', async
 
   // Nothing is connected yet, and status covers every platform.
   assert.strictEqual(Object.keys(status).length, catalogue.length);
-  assert.strictEqual(status.tiktok.connected, false);
-  assert.strictEqual(status.tiktok.sandbox, true);
+  assert.strictEqual(status.google_business.connected, false);
+  assert.strictEqual(status.google_business.sandbox, true);
 });
 
 test('GET /api/connect/status still returns the catalogue with no profile', async () => {
   const email = `nop${Date.now()}@markivo.uz`;
   const reg = await (await post('/api/auth/register', { email, password: 'secret123', fullName: 'No Profile' })).json();
   const data = await (await get('/api/connect/status', reg.accessToken)).json();
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13 (was 6 with Meta on)
   assert.strictEqual(data.catalogue.length, 4);
   assert.deepStrictEqual(data.status, {});
 });
 
 test('POST /api/connect/:key/start connects in sandbox when keyless', async () => {
-  const res = await post('/api/connect/tiktok/start', {}, token);
+  const res = await post('/api/connect/google_business/start', {}, token);
   assert.strictEqual(res.status, 200);
   const data = await res.json();
   assert.strictEqual(data.mode, 'sandbox');
@@ -100,7 +94,7 @@ test('POST /api/connect/:key/start connects in sandbox when keyless', async () =
   assert.strictEqual(data.status.sandbox, true);
 
   const { status } = await (await get('/api/connect/status', token)).json();
-  assert.strictEqual(status.tiktok.connected, true);
+  assert.strictEqual(status.google_business.connected, true);
 });
 
 test('POST /api/connect/:key/start rejects a token-auth platform', async () => {
@@ -117,18 +111,18 @@ test('POST /api/connect/:key/start 404s on an unknown platform', async () => {
 
 test('the OAuth callback rejects an unsigned state without touching the DB', async () => {
   // Redirects back to the SPA with connect_error rather than leaking an error.
-  const res = await fetch(`${base}/api/connect/tiktok/callback?code=abc&state=forged`, { redirect: 'manual' });
+  const res = await fetch(`${base}/api/connect/google_business/callback?code=abc&state=forged`, { redirect: 'manual' });
   assert.strictEqual(res.status, 302);
-  assert.ok(res.headers.get('location').includes('connect_error=TikTok'));
+  assert.ok(res.headers.get('location').includes('connect_error=Google'));
 });
 
 test('POST /api/connect/:key/disconnect clears the connection', async () => {
-  const res = await post('/api/connect/tiktok/disconnect', {}, token);
+  const res = await post('/api/connect/google_business/disconnect', {}, token);
   assert.strictEqual(res.status, 200);
   assert.strictEqual((await res.json()).status.connected, false);
 });
 
 test('/api/connect requires a session', async () => {
   assert.strictEqual((await get('/api/connect/status')).status, 401);
-  assert.strictEqual((await post('/api/connect/tiktok/start', {})).status, 401);
+  assert.strictEqual((await post('/api/connect/google_business/start', {})).status, 401);
 });

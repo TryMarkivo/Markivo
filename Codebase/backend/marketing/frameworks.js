@@ -39,24 +39,6 @@ const PLATFORM_RULES = {
       "Don't ignore the comments; a dead thread signals low quality"
     ]
   },
-  "tiktok": {
-    "structure": "Caption supports the video, doesn't carry it. Hook lives in the on-screen text + first 1.5 seconds of footage. Caption is a short punchy line or a question that drives comments, plus 3-5 tight hashtags. Spoken/text hook in the video is where the real copy goes.",
-    "lengthGuide": "Caption 1 line, under 100 chars. The video hook (on-screen text) must land in the first 2 seconds — that's the actual copy that matters.",
-    "hashtagPolicy": "3-5: one broad (#fyp or #foryou), one local (#tashkent #toshkent #uzbekistan), one niche category, one branded. Native-feeling, lowercase.",
-    "emojiPolicy": "Casual and plentiful is fine — TikTok is informal. 2-4 in the caption, more in on-screen text.",
-    "doList": [
-      "Put the hook as on-screen text in second 1 — POV/question/bold-claim patterns shine here",
-      "Keep it raw and vertical; over-polished reads as an ad and dies",
-      "Use trending sounds and lowercase, native phrasing",
-      "Reply to comments with a video — free reach"
-    ],
-    "dontList": [
-      "Don't write a long caption hoping it'll be read — it won't",
-      "Don't reuse a horizontal video; 9:16 only",
-      "Don't sound corporate; trends reward authenticity and speed",
-      "Don't add a watermark from another app (TikTok suppresses it)"
-    ]
-  },
   "telegram": {
     "structure": "Channel post: bold first line as a headline (Telegram supports bold/italic). Short scannable body, 1-2 paragraphs. One clear CTA. Because followers opted in, you can be more direct and offer-led than on discovery platforms. Pin offers; use a button or link for ordering.",
     "lengthGuide": "Headline + 2-4 short lines, ~60-120 words. Telegram readers tolerate a bit more text than IG, but the preview/notification shows only the first line — make it count.",
@@ -93,24 +75,28 @@ const PLATFORM_RULES = {
       "Don't omit hours, address, or the action button"
     ]
   },
-  "youtube": {
-    "structure": "Title is the hook (front-load keyword + benefit, ~60 chars). Description: compelling first 2 lines (shown above the fold and used by search), then fuller context, then links/CTA, hours, and location. For Shorts: punchy title + 1-line description + a few tags. Thumbnail + title do most of the work.",
-    "lengthGuide": "Title under 60 chars. Description first 2 lines (~150 chars) are critical for search/preview; full description can be 200-300+ words with chapters and links for long-form. Shorts: 1-2 lines.",
-    "hashtagPolicy": "3-5 in the description (first 3 surface above the title). One branded, one local, one category. For Shorts, #Shorts plus 2-3 niche tags.",
-    "emojiPolicy": "Sparing, 0-2, mainly in Shorts titles/descriptions. Long-form stays cleaner and more professional.",
-    "doList": [
-      "Write the title as a searchable benefit hook with a keyword",
-      "Nail the first 2 description lines — they're the search/preview copy",
-      "Add a clear CTA (Subscribe, Visit, Book) and your location + hours",
-      "Use #Shorts for vertical clips and a custom thumbnail for long-form"
-    ],
-    "dontList": [
-      "Don't write a vague title; specificity wins search",
-      "Don't hide the CTA and links at the very bottom only",
-      "Don't ignore the description — it's prime SEO real estate",
-      "Don't upload horizontal-only when a vertical Short would reach more locals"
-    ]
-  }
+  // DISABLED: YouTube temporarily off — see 2026-08-15. This is the voice/
+  // rules block for PUBLISHING to YouTube via the connector, not the
+  // Competitor Intelligence YouTube tracking (which stays live). Uncomment
+  // alongside connectors/youtube.js to restore YouTube as a generation target.
+  // "youtube": {
+  //   "structure": "Title is the hook (front-load keyword + benefit, ~60 chars). Description: compelling first 2 lines (shown above the fold and used by search), then fuller context, then links/CTA, hours, and location. For Shorts: punchy title + 1-line description + a few tags. Thumbnail + title do most of the work.",
+  //   "lengthGuide": "Title under 60 chars. Description first 2 lines (~150 chars) are critical for search/preview; full description can be 200-300+ words with chapters and links for long-form. Shorts: 1-2 lines.",
+  //   "hashtagPolicy": "3-5 in the description (first 3 surface above the title). One branded, one local, one category. For Shorts, #Shorts plus 2-3 niche tags.",
+  //   "emojiPolicy": "Sparing, 0-2, mainly in Shorts titles/descriptions. Long-form stays cleaner and more professional.",
+  //   "doList": [
+  //     "Write the title as a searchable benefit hook with a keyword",
+  //     "Nail the first 2 description lines — they're the search/preview copy",
+  //     "Add a clear CTA (Subscribe, Visit, Book) and your location + hours",
+  //     "Use #Shorts for vertical clips and a custom thumbnail for long-form"
+  //   ],
+  //   "dontList": [
+  //     "Don't write a vague title; specificity wins search",
+  //     "Don't hide the CTA and links at the very bottom only",
+  //     "Don't ignore the description — it's prime SEO real estate",
+  //     "Don't upload horizontal-only when a vertical Short would reach more locals"
+  //   ]
+  // }
 };
 
 module.exports = {
@@ -123,7 +109,7 @@ module.exports = {
   {
     "name": "POV / Second-Person Scene",
     "template": "POV: it's a slow afternoon in ${location} and you walk into ${name}...",
-    "whenToUse": "TikTok/Reels and vibe posts. Drops the viewer into a feeling instead of selling. Best with owner-shot footage of the real space."
+    "whenToUse": "Instagram Reels and vibe posts. Drops the viewer into a feeling instead of selling. Best with owner-shot footage of the real space."
   },
   {
     "name": "Specific Number",

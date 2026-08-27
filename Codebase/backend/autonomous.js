@@ -45,7 +45,7 @@ function withinBudget(db, config, userId, tier) {
 }
 
 // Read back real content from the business's own connected accounts (best
-// effort, cooldown-gated so a frequent tick doesn't hammer Meta/YouTube/TikTok/
+// effort, cooldown-gated so a frequent tick doesn't hammer Meta/YouTube/
 // Telegram) plus real competitor content already collected by Competitor
 // Intel, and fold both into a short planning digest. Never throws — every
 // fetch failure just means that platform contributes nothing this round.
@@ -112,9 +112,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   const connected = new Set(db.connections.listByProfile(profileId).map((c) => c.platform));
   if (tgConn) connected.add('telegram');
   let platforms = (cfg.platforms || []).filter((p) => connected.size === 0 || connected.has(p));
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-  // if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['meta_instagram'];
-  if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['tiktok'];
+  if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['meta_instagram'];
 
   const recentPosts = db.calendar.listByProfile(profileId).slice(-5).map((p) => p.post_text).filter(Boolean);
   const competitors = db.competitors.listByProfile(profileId).filter((c) => c.source === 'manual' || c.source === 'places').slice(0, 5).map((c) => c.competitor_name).filter(Boolean);
@@ -212,9 +210,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
 
   for (let i = 0; i < plan.posts.length; i += 1) {
     const post = plan.posts[i];
-    // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-    // const platform = String(post.platform || 'meta_instagram').toLowerCase();
-    const platform = String(post.platform || 'tiktok').toLowerCase();
+    const platform = String(post.platform || 'meta_instagram').toLowerCase();
 
     // Guard against a live model returning a platform key we can't act on (e.g.
     // a bare 'instagram', or a Meta key while Meta is disabled). Such a post

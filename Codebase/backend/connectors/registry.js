@@ -7,16 +7,18 @@
 const telegram = require('./telegram');
 // Platform adapters land here as they are built (each self-contained, sandbox
 // fallback included). Until added, the framework still runs with Telegram only.
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// const meta = require('./meta');
-const tiktok = require('./tiktok');
+const meta = require('./meta');
+// DISABLED: YouTube temporarily off — see 2026-08-15. Uncomment the require
+// and add youtube back to ADAPTERS below to restore it; connectors/youtube.js
+// itself is untouched (still fully commented-out-and-restorable in one go).
+// const youtube = require('./youtube');
 const googleBusiness = require('./googleBusiness');
-const youtube = require('./youtube');
+// TikTok removed — see 2026-08-15. connectors/tiktok.js was deleted along
+// with its competitor-tracking scraper, validator, voice rules, and post
+// limit; there is nothing left to restore it from.
 
 // Registration order doubles as display order in the dashboard.
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// const ADAPTERS = [telegram, meta.instagram, meta.facebook, tiktok, googleBusiness, youtube];
-const ADAPTERS = [telegram, tiktok, googleBusiness, youtube];
+const ADAPTERS = [telegram, meta.instagram, meta.facebook, googleBusiness];
 
 const byKey = new Map(ADAPTERS.map((a) => [a.key, a]));
 

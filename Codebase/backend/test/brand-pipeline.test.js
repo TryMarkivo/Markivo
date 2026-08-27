@@ -31,7 +31,7 @@ test('marketing knowledge modules load with the expected surface', () => {
   assert.ok(frameworks.rulesFor('google_business'), 'google_business rules present');
   assert.ok(Array.isArray(rubric.dimensions) && rubric.dimensions.length >= 5);
   assert.ok(Array.isArray(rubric.bannedCliches) && rubric.bannedCliches.length >= 20);
-  assert.ok(exemplars.forPlatform('tiktok'), 'tiktok exemplars present');
+  assert.ok(exemplars.forPlatform('instagram'), 'instagram exemplars present');
   assert.ok(prompts.pipeline.strategySystemPrompt && prompts.pipeline.draftSystemPrompt);
   assert.ok(prompts.pipeline.agentSystemPrompt.length > 200);
 });

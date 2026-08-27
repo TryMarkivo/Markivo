@@ -96,11 +96,8 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
           </div>
           <div className="hero-channels animate-fade-in">
             <span><i className="fa-brands fa-google"></i> Google</span>
-            {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
-                <span><i className="fa-brands fa-instagram"></i> Instagram</span>
-            */}
+            <span><i className="fa-brands fa-instagram"></i> Instagram</span>
             <span><i className="fa-brands fa-telegram"></i> Telegram</span>
-            <span><i className="fa-brands fa-tiktok"></i> TikTok</span>
           </div>
         </div>
 
@@ -126,13 +123,11 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
                   <span className="stat-value text-accent">+12.4%</span>
                   <div className="stat-chart-mini"><i className="fa-solid fa-chart-area"></i></div>
                 </div>
-                {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
-                    <div className="preview-stat-card">
-                    <span className="stat-label">{t('landing.preview.statInstagram', 'Instagram Growth')}</span>
-                    <span className="stat-value text-purple">+15.6%</span>
-                    <div className="stat-chart-mini"><i className="fa-solid fa-chart-line"></i></div>
-                    </div>
-                */}
+                <div className="preview-stat-card">
+                  <span className="stat-label">{t('landing.preview.statInstagram', 'Instagram Growth')}</span>
+                  <span className="stat-value text-purple">+15.6%</span>
+                  <div className="stat-chart-mini"><i className="fa-solid fa-chart-line"></i></div>
+                </div>
               </div>
               <div className="preview-post-box glass-card">
                 <div className="post-header">
@@ -230,7 +225,7 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
           <div className="feature-card glass-card">
             <div className="feature-icon icon-blue"><i className="fa-solid fa-paper-plane"></i></div>
             <h3>{t('landing.features.postingTitle', 'Multi-platform posting')}</h3>
-            <p>{t('landing.features.postingText', 'Instagram, TikTok, Telegram, X & Google — written, scheduled and published from one place.')}</p>
+            <p>{t('landing.features.postingText', 'Instagram, Telegram, X & Google — written, scheduled and published from one place.')}</p>
           </div>
           <div className="feature-card glass-card">
             <div className="feature-icon icon-purple"><i className="fa-solid fa-camera"></i></div>

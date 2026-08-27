@@ -1,19 +1,17 @@
 const config = require('./config');
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// const meta = require('./connectors/meta');
+const meta = require('./connectors/meta');
 
 // ===========================================================================
 // Competitor Intelligence — per-platform public-content readers.
 //
 // There is no official, sanctioned API for reading a STRANGER's posts on
-// Instagram, TikTok, or Facebook (their APIs only expose accounts the caller
+// Instagram or Facebook (their APIs only expose accounts the caller
 // owns/manages). YouTube is the one exception — its Data API v3 supports
 // public read access with a plain API key. So:
 //   - youtube: real API when YOUTUBE_DATA_API_KEY is set, else a page scrape.
-//   - instagram / tiktok / facebook: always a best-effort public-page GET +
-//     parse (no login, no session) — sometimes yields real recent posts
-//     (TikTok often embeds them server-side), sometimes only a bio/follower
-//     count, sometimes nothing at all if the platform serves a login wall.
+//   - instagram / facebook: always a best-effort public-page GET + parse (no
+//     login, no session) — sometimes yields a bio/follower count, sometimes
+//     nothing at all if the platform serves a login wall.
 //
 // Every fetcher mirrors places.js#sniffSocialLinks: it NEVER throws, caps how
 // much it reads, times out, and degrades to an honest `{ found: false }`-ish
@@ -99,38 +97,33 @@ const stripTags = (html) =>
 async function fetchInstagram(url, opts = {}) {
   const handle = url.match(/instagram\.com\/([A-Za-z0-9_.]{2,30})/i)?.[1] || null;
 
-  // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-  // The Business Discovery branch below is the only way to get real captions and
-  // engagement for an Instagram competitor. With it off, this function always
-  // degrades to the public-page scrape further down (follower count from
-  // og:description only, partial: true).
-  // if (handle && opts.metaIgUserId && opts.metaAccessToken) {
-  //   try {
-  //     const bd = await meta.businessDiscovery(opts.metaIgUserId, handle, opts.metaAccessToken, { fetchImpl: opts.fetchImpl });
-  //     return normalizeResult({
-  //       found: true,
-  //       handle: bd.username || handle,
-  //       displayName: bd.name || null,
-  //       followerCount: Number.isFinite(+bd.followers_count) ? +bd.followers_count : null,
-  //       posts: (bd.media?.data || []).map((m) => {
-  //         const kind = /video|reel/i.test(m.media_type || '') ? 'video' : 'photo';
-  //         return {
-  //           externalId: m.id || null,
-  //           kind,
-  //           caption: m.caption || '',
-  //           thumbnailUrl: m.thumbnail_url || m.media_url || null,
-  //           postedAt: m.timestamp || null,
-  //           likeCount: Number.isFinite(+m.like_count) ? +m.like_count : null,
-  //           commentCount: Number.isFinite(+m.comments_count) ? +m.comments_count : null,
-  //           viewCount: null,
-  //         };
-  //       }),
-  //       partial: false,
-  //     });
-  //   } catch (err) {
-  //     console.warn(`Instagram Business Discovery failed for ${url}, falling back to page scrape:`, err.message);
-  //   }
-  // }
+  if (handle && opts.metaIgUserId && opts.metaAccessToken) {
+    try {
+      const bd = await meta.businessDiscovery(opts.metaIgUserId, handle, opts.metaAccessToken, { fetchImpl: opts.fetchImpl });
+      return normalizeResult({
+        found: true,
+        handle: bd.username || handle,
+        displayName: bd.name || null,
+        followerCount: Number.isFinite(+bd.followers_count) ? +bd.followers_count : null,
+        posts: (bd.media?.data || []).map((m) => {
+          const kind = /video|reel/i.test(m.media_type || '') ? 'video' : 'photo';
+          return {
+            externalId: m.id || null,
+            kind,
+            caption: m.caption || '',
+            thumbnailUrl: m.thumbnail_url || m.media_url || null,
+            postedAt: m.timestamp || null,
+            likeCount: Number.isFinite(+m.like_count) ? +m.like_count : null,
+            commentCount: Number.isFinite(+m.comments_count) ? +m.comments_count : null,
+            viewCount: null,
+          };
+        }),
+        partial: false,
+      });
+    } catch (err) {
+      console.warn(`Instagram Business Discovery failed for ${url}, falling back to page scrape:`, err.message);
+    }
+  }
 
   const res = await safeGet(url, opts);
   if (!res.ok) return normalizeResult({ handle, error: res.error || `Instagram responded ${res.status}` });
@@ -149,56 +142,6 @@ async function fetchInstagram(url, opts = {}) {
     displayName,
     followerCount,
     partial: true,
-  });
-}
-
-// --- TikTok ------------------------------------------------------------
-// TikTok profile pages are server-rendered enough to sometimes embed a JSON
-// state blob (SIGI_STATE, or the newer __UNIVERSAL_DATA_FOR_REHYDRATION__)
-// carrying the user's recent videos with real stats. TikTok changes this
-// markup without notice, so every dig is wrapped and any miss just falls
-// through to a bio-only partial result instead of throwing.
-async function fetchTikTok(url, opts = {}) {
-  const handle = url.match(/tiktok\.com\/@([A-Za-z0-9_.]{2,30})/i)?.[1] || null;
-  const res = await safeGet(url, opts);
-  if (!res.ok) return normalizeResult({ handle, error: res.error || `TikTok responded ${res.status}` });
-
-  let displayName = null;
-  let followerCount = null;
-  let posts = [];
-  try {
-    const blob =
-      res.text.match(/<script id="SIGI_STATE"[^>]*>([\s\S]*?)<\/script>/i) ||
-      res.text.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/i);
-    if (blob) {
-      const data = JSON.parse(blob[1]);
-      const scope = data.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo;
-      const userModule = data.UserModule;
-      const userInfo = scope?.user || (userModule?.users ? Object.values(userModule.users)[0] : null);
-      const stats = scope?.stats || (userModule?.stats ? Object.values(userModule.stats)[0] : null);
-      if (userInfo) displayName = userInfo.nickname || null;
-      if (stats && Number.isFinite(+stats.followerCount)) followerCount = +stats.followerCount;
-
-      const itemModule = data.ItemModule || {};
-      posts = Object.values(itemModule).slice(0, 30).map((it) => ({
-        externalId: it.id,
-        kind: 'video',
-        caption: it.desc || '',
-        thumbnailUrl: it.video?.cover || it.video?.originCover || null,
-        postedAt: it.createTime ? new Date(Number(it.createTime) * 1000).toISOString() : null,
-        likeCount: Number.isFinite(+it.stats?.diggCount) ? +it.stats.diggCount : null,
-        commentCount: Number.isFinite(+it.stats?.commentCount) ? +it.stats.commentCount : null,
-        viewCount: Number.isFinite(+it.stats?.playCount) ? +it.stats.playCount : null,
-      }));
-    }
-  } catch (err) {
-    console.warn(`TikTok markup parse fallback for ${url}:`, err.message);
-  }
-
-  return normalizeResult({
-    found: !!(displayName || followerCount != null || posts.length),
-    handle, displayName, followerCount, posts,
-    partial: posts.length === 0,
   });
 }
 
@@ -325,9 +268,8 @@ async function fetchFacebook(url, opts = {}) {
 // the same page Telegram itself uses for link previews. It server-renders the
 // channel header (name, subscriber count) and the last ~20 posts (text, view
 // count, timestamp, photo/video presence) with no JS required, so a plain GET
-// + regex parse is reliable here (more so than the JSON-blob digging TikTok
-// needs). Reactions/comments are not part of this page, so those stay null —
-// never invented.
+// + regex parse is reliable here. Reactions/comments are not part of this
+// page, so those stay null — never invented.
 async function fetchTelegram(url, opts = {}) {
   const handle = url.match(/t\.me\/(?:s\/)?(?!joinchat\/|\+)([A-Za-z0-9_]{5,32})/i)?.[1] || null;
   if (!handle) return normalizeResult({ error: 'Could not read a channel name from that link' });
@@ -379,7 +321,7 @@ async function fetchTelegram(url, opts = {}) {
   });
 }
 
-const FETCHERS = { instagram: fetchInstagram, tiktok: fetchTikTok, youtube: fetchYouTube, facebook: fetchFacebook, telegram: fetchTelegram };
+const FETCHERS = { instagram: fetchInstagram, youtube: fetchYouTube, facebook: fetchFacebook, telegram: fetchTelegram };
 
 // Single entry point used by the routes. Never throws — a fetcher failing
 // (bad markup, network error, unknown platform) degrades to a normalized
@@ -399,6 +341,5 @@ module.exports = {
   fetchCompetitorSource,
   parseCompactNumber,
   fetchTelegram,
-  fetchTikTok,
   SUPPORTED_PLATFORMS: Object.keys(FETCHERS),
 };
