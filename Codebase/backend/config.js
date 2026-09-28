@@ -77,6 +77,10 @@ const config = {
   // name is far more likely to be exhausted on a free project.
   geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-flash-latest',
   geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 20000,
+  // Image-generation-capable Gemini model, used by mediagen.js as a Media
+  // Studio rendering fallback when MEDIA_API_KEY (fal.ai) isn't set — reuses
+  // this same GEMINI_API_KEY, so no separate media key is required.
+  geminiImageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image',
 
   // Monthly AI generation allowance per pricing tier (content + slogans +
   // agent queries all count). Numbers are provisional until pricing is final.

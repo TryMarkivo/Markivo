@@ -13,6 +13,10 @@ process.env.NODE_ENV = 'test';
 // process. Media stays keyless (route must answer 501 "engine pending").
 process.env.TELEGRAM_ENABLED = 'true';
 delete process.env.MEDIA_API_KEY;
+// Explicit '' (not delete): dotenv loads backend/.env at require time but
+// never overrides an already-present key — even an empty one — so this pins
+// the Gemini media-rendering fallback OFF regardless of a real local dev key.
+process.env.GEMINI_API_KEY = '';
 
 // Selective fetch stub: fake api.telegram.org, pass localhost through.
 // sendMessage fails (Bot API error) when the text contains FAILME so the
