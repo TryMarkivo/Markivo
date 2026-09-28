@@ -10,6 +10,8 @@ const TMP_DB = path.join(os.tmpdir(), `markivo-ig-${Date.now()}.db`);
 process.env.DB_PATH = TMP_DB;
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
+process.env.GEMINI_API_KEY = '';
+process.env.ANTHROPIC_API_KEY = '';
 process.env.INSTAGRAM_APP_ID = 'TEST_APP_ID';
 process.env.INSTAGRAM_APP_SECRET = 'TEST_APP_SECRET';
 process.env.INSTAGRAM_REDIRECT_URI = 'http://localhost:5000/api/instagram/oauth/callback';
@@ -85,6 +87,14 @@ before(async () => {
   });
   const data = await reg.json();
   access = data.accessToken;
+
+  const onboarding = await post('/api/onboarding/construct', {
+    businessName: 'Noir Cafe',
+    category: 'Cafe / Coffee Shop',
+    tone: 'Cozy & Warm',
+    platforms: { instagram: true },
+  }, access);
+  assert.strictEqual(onboarding.status, 200);
 });
 
 after(async () => {
