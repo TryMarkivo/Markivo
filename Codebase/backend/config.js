@@ -22,6 +22,13 @@ if (!jwtSecret) {
   );
 }
 
+// A generation limit override, where 0 is a legitimate value ("this tier does
+// not get video at all") and must not be mistaken for "unset".
+const limitOr = (raw, fallback) => {
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+};
+
 // CORS origins: comma-separated list, or "*" to allow all (dev default).
 const corsOrigins = (process.env.CORS_ORIGIN || '*')
   .split(',')
@@ -72,23 +79,86 @@ const config = {
   // gemini.js — so a blank key never breaks the app or the tests.
   // Key: https://aistudio.google.com/apikey
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  // `gemini-flash-latest` is an alias that tracks the current Flash model, and
-  // it carries its own free-tier quota bucket — the pinned `gemini-2.5-flash`
-  // name is far more likely to be exhausted on a free project.
-  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-flash-latest',
-  geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 20000,
-  // Image-generation-capable Gemini model, used by mediagen.js as a Media
-  // Studio rendering fallback when MEDIA_API_KEY (fal.ai) isn't set — reuses
-  // this same GEMINI_API_KEY, so no separate media key is required.
-  geminiImageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image',
+  // Gemini 4 Argon is the one reasoning engine behind EVERY request: copy,
+  // Markiv, Autopilot, brand briefs, research, and the art direction that turns
+  // an owner's prompt into the image/video render prompt. Argon outputs text
+  // only, so the pixels themselves still come from the image model and Veo
+  // below. It is a paid-tier model (no free-tier quota) and is reached through
+  // the Interactions API, not generateContent.
+  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-4-argon',
+  // Retried once when the primary model refuses the call (no paid tier, model
+  // not enabled for the key, quota). Keeps the product answering on Flash
+  // rather than collapsing to templates. Set blank to disable the retry.
+  geminiFallbackModel: process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-flash-latest',
+  // Argon thinks before it answers, and every token of that counts against
+  // max_output_tokens and the bill. `low` keeps a reply inside the 90s the
+  // nginx proxy allows; raise it for depth at the cost of latency.
+  geminiThinkingLevel: process.env.GEMINI_THINKING_LEVEL || 'low',
+  geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 60000,
 
-  // Monthly AI generation allowance per pricing tier (content + slogans +
-  // agent queries all count). Numbers are provisional until pricing is final.
+  // --- Media generation (Gemini image + Veo video, same GEMINI_API_KEY) ---
+  // Rendering has no honest keyless fallback — a fabricated image would be a
+  // lie — so with no key POST /api/media/:id/render answers 501 "engine
+  // pending" while briefs, uploads and edit plans keep working.
+  //
+  // Image: the lite model is ~$0.034 per 1K image, roughly a tenth of the pro
+  // tier, and the difference does not show at social-post size.
+  geminiImageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-lite-image',
+  // Video: cost scales linearly with seconds, so BOTH of these are money dials.
+  // Lite at 720p is $0.05/s — a 6s clip costs ~$0.30, against ~$0.40 for 8s and
+  // ~$3.20 for 8s on the full model. 6s is ample for a social clip.
+  veoModel: process.env.VEO_MODEL || 'veo-3.1-lite-generate-preview',
+  veoDurationSeconds: String(limitOr(process.env.VEO_DURATION_SECONDS, 6)),
+  veoResolution: process.env.VEO_RESOLUTION || '720p',
+  // Video generation runs minutes, not seconds, so it is a polled long-running
+  // operation. This bounds how long a job may stay unfinished before the sweep
+  // marks it failed and refunds the owner's unit.
+  veoMaxWaitMs: parseInt(process.env.VEO_MAX_WAIT_MS, 10) || 10 * 60 * 1000,
+  mediaTimeoutMs: parseInt(process.env.MEDIA_TIMEOUT_MS, 10) || 60000,
+
+  // WEEKLY generation allowance per tier, split into three buckets that reset
+  // together at 00:00 UTC each Monday.
+  //
+  // Three buckets rather than one pool because the costs are not remotely
+  // comparable: a caption is a fraction of a cent, an image render is ~$0.03,
+  // and an 8-second video is ~$0.40 even on the cheapest Veo tier. A single
+  // shared counter would let one account spend a hundred times what another
+  // does on the same nominal "generation". Splitting them also makes the plan
+  // legible to the owner — "4 videos a week" is a promise; "100 generations"
+  // is not.
+  //
+  //   writing — copy, agent replies, slogans, brand briefs, template analysis,
+  //             research, autopilot posts, and EVERY media brief / edit plan.
+  //             All text, all cheap, so the allowance is generous.
+  //   image   — full-mode image renders only.
+  //   video   — full-mode video renders only. Zero on freemium: it is the one
+  //             feature with real per-use cost, so it gates the upgrade.
+  //
+  // Overridable per bucket, e.g. AI_LIMIT_PRO_VIDEO=6.
+  // `|| default` would swallow a deliberate 0, and 0 is a meaningful limit here
+  // (freemium video ships at zero) — so an explicit numeric override wins even
+  // when it is zero.
   aiTierLimits: {
-    freemium: parseInt(process.env.AI_LIMIT_FREEMIUM, 10) || 25,
-    pro: parseInt(process.env.AI_LIMIT_PRO, 10) || 100,
-    ultimate: parseInt(process.env.AI_LIMIT_ULTIMATE, 10) || 250,
+    freemium: {
+      writing: limitOr(process.env.AI_LIMIT_FREEMIUM_WRITING, 5),
+      image: limitOr(process.env.AI_LIMIT_FREEMIUM_IMAGE, 2),
+      video: limitOr(process.env.AI_LIMIT_FREEMIUM_VIDEO, 0),
+    },
+    pro: {
+      writing: limitOr(process.env.AI_LIMIT_PRO_WRITING, 15),
+      image: limitOr(process.env.AI_LIMIT_PRO_IMAGE, 10),
+      video: limitOr(process.env.AI_LIMIT_PRO_VIDEO, 4),
+    },
+    ultimate: {
+      writing: limitOr(process.env.AI_LIMIT_ULTIMATE_WRITING, 40),
+      image: limitOr(process.env.AI_LIMIT_ULTIMATE_IMAGE, 25),
+      video: limitOr(process.env.AI_LIMIT_ULTIMATE_VIDEO, 12),
+    },
   },
+
+  // The bucket names, in display order. Exported so nothing has to re-declare
+  // them — a fourth bucket is added here and everything follows.
+  usageBuckets: ['writing', 'image', 'video'],
 
   // --- Billing (Stripe now; Payme/Click slot in after merchant onboarding) ---
   // When STRIPE_SECRET_KEY is unset, billing runs in SIMULATED mode: tier
@@ -125,11 +195,6 @@ const config = {
   // --- Google Places (Discovery scan) ---
   // When GOOGLE_MAPS_API_KEY is unset, the discovery scan transparently falls
   // back to deterministic mock results, so the app keeps working without it.
-  // --- Media generation (fal.ai FLUX) ---
-  // Keyless mode: POST /api/media/:id/render answers 501 "Media engine
-  // pending" — briefs, uploads, and edit plans keep working without it.
-  mediaApiKey: process.env.MEDIA_API_KEY || '',
-
   placesApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
   placesTimeoutMs: parseInt(process.env.PLACES_TIMEOUT_MS, 10) || 8000,
   // Per-IP scan rate limit — live scans cost real Places API quota.
@@ -206,6 +271,9 @@ config.connectors.meta.enabled = !!(config.connectors.meta.clientId && config.co
 config.connectors.google.enabled = !!(config.connectors.google.clientId && config.connectors.google.clientSecret);
 
 config.geminiEnabled = !!config.geminiApiKey;
+// Image and video rendering ride the same Gemini key as the text engines —
+// one credential, one bill. There is no separate media key any more.
+config.mediaEnabled = config.geminiEnabled;
 // "AI is on" means at least one text engine is reachable. aiEnabled stays tied
 // to Anthropic because ai.js builds its Anthropic client (and the agent's tool
 // loop) off it; geminiEnabled gates the Gemini copy + template paths.

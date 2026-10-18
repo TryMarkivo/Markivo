@@ -68,7 +68,9 @@ test('the upgrade raises the AI allowance instantly on the SAME access token', a
   // read the DB tier, not the stale JWT claim.
   const u = await get('/api/usage');
   assert.strictEqual(u.tier, 'pro');
-  assert.strictEqual(u.limit, 100);
+  assert.strictEqual(u.buckets.writing.limit, 15);
+  // The upgrade's headline feature: video goes from locked to available.
+  assert.strictEqual(u.buckets.video.limit, 4);
 });
 
 test('billing status reports the simulated pro subscription', async () => {
@@ -78,7 +80,8 @@ test('billing status reports the simulated pro subscription', async () => {
   assert.strictEqual(s.status, 'active');
   assert.strictEqual(s.simulated, true);
   assert.strictEqual(typeof s.prices.pro, 'number');
-  assert.strictEqual(s.limits.pro, 100);
+  assert.deepStrictEqual(s.limits.pro, { writing: 15, image: 10, video: 4 });
+  assert.strictEqual(s.limitPeriod, 'week');
 });
 
 test('checkout to the tier you are already on is rejected with 400', async () => {
@@ -96,7 +99,8 @@ test('checkout to freemium downgrades and the allowance drops back', async () =>
 
   const u = await get('/api/usage');
   assert.strictEqual(u.tier, 'freemium');
-  assert.strictEqual(u.limit, 25);
+  assert.strictEqual(u.buckets.writing.limit, 5);
+  assert.strictEqual(u.buckets.video.limit, 0, 'downgrading locks video again');
 
   const s = await get('/api/billing/status');
   assert.strictEqual(s.tier, 'freemium');
@@ -134,7 +138,7 @@ test('applyStripeEvent: checkout.session.completed upgrades the user', async () 
 
   const u = await get('/api/usage');
   assert.strictEqual(u.tier, 'ultimate');
-  assert.strictEqual(u.limit, 250);
+  assert.strictEqual(u.buckets.writing.limit, 40);
 
   const s = await get('/api/billing/status');
   assert.strictEqual(s.tier, 'ultimate');
@@ -155,7 +159,7 @@ test('applyStripeEvent: customer.subscription.deleted downgrades to freemium', a
   assert.strictEqual(s.status, 'canceled');
 
   const u = await get('/api/usage');
-  assert.strictEqual(u.limit, 25);
+  assert.strictEqual(u.buckets.writing.limit, 5);
 });
 
 test('applyStripeEvent ignores unknown events and unknown subscriptions', () => {

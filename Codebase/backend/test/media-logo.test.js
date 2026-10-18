@@ -14,6 +14,9 @@ process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 process.env.ANTHROPIC_API_KEY = '';
 process.env.GEMINI_API_KEY = '';
+// This file makes many text generations in sequence; the default weekly
+// writing bucket is deliberately small, so give it headroom.
+process.env.AI_LIMIT_FREEMIUM_WRITING = '30';
 
 const { app } = require('../server');
 
@@ -215,13 +218,17 @@ test('logo generation returns exactly 4 safe SVG variants', async () => {
   assert.strictEqual(new Set(data.logos.map((l) => l.style)).size, 4, 'four distinct styles');
 });
 
-test('media and logo generations draw from the monthly AI allowance', async () => {
+test('briefs, edit plans and logos all draw from the WRITING allowance', async () => {
   const before2 = await (await get('/api/usage')).json();
   // 2 briefs + 1 edit plan + 1 logo batch already consumed allowance above.
-  assert.ok(before2.used >= 4, `expected at least 4 used, got ${before2.used}`);
+  // They are all text generation, so none of them touch the image budget —
+  // only an actual render does.
+  assert.ok(before2.buckets.writing.used >= 4, `expected at least 4 used, got ${before2.buckets.writing.used}`);
+  assert.strictEqual(before2.buckets.image.used, 0, 'writing a brief is not rendering an image');
 
   const res = await post('/api/onboarding/logos', { businessName: 'Atlas Repair' });
   assert.strictEqual(res.status, 200);
   const after2 = await (await get('/api/usage')).json();
-  assert.strictEqual(after2.used, before2.used + 1);
+  assert.strictEqual(after2.buckets.writing.used, before2.buckets.writing.used + 1);
+  assert.strictEqual(after2.buckets.image.used, 0);
 });

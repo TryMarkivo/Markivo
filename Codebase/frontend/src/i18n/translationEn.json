@@ -76,7 +76,14 @@
       "free": "Free",
       "pro": "Pro",
       "ultimate": "Ultimate"
-    }
+    },
+    "buckets": {
+      "writing": "Writing",
+      "image": "Images",
+      "video": "Video"
+    },
+    "locked": "Upgrade",
+    "resetsWeekly": "resets Monday"
   },
   "landing": {
     "nav": {
@@ -296,7 +303,9 @@
       "uploadPreviewTitle": "Your Logo",
       "uploadEmpty": "Your uploaded logo will appear here",
       "uploadTypeError": "Please upload a PNG, JPG, SVG, or WebP image.",
-      "uploadSizeError": "Image must be under 1MB."
+      "uploadSizeError": "Image must be under 1MB.",
+      "step1CtaChannels": "Select Social Channels",
+      "deferredNote": "Your tone, slogan and logo come next — we will ask from your profile once you are inside."
     },
     "categories": {
       "cafe": "Cafe / Coffee Shop",
@@ -409,7 +418,8 @@
       "statusSuccess": "SUCCESS",
       "statusRunning": "RUNNING",
       "statusPending": "PENDING",
-      "_DISABLED_logSeo": "Compiling SEO semantic metadata and Tashkent keyword tags..."
+      "_DISABLED_logSeo": "Compiling SEO semantic metadata and Tashkent keyword tags...",
+      "logQuestions": "Preparing follow-up questions about your business..."
     },
     "mockSlogans": {
       "cozy1": "A cozy corner for your day.",
@@ -637,6 +647,7 @@
       "audioTitle": "Audio",
       "tipsTitle": "Pro tips",
       "conceptTitle": "Concept",
+      "headlineTitle": "Headline on the ad",
       "captionTitle": "Ready caption",
       "copy": "Copy",
       "copied": "Copied!",
@@ -692,14 +703,21 @@
       "brief": "Brief",
       "uploaded": "Uploaded",
       "edit_plan": "Edit plan",
-      "rendered": "Rendered"
+      "rendered": "Rendered",
+      "rendering": "Generating…",
+      "failed": "Failed"
     },
     "render": {
       "cta": "Render image",
       "rendering": "Rendering image...",
       "success": "Image rendered — ready to use in your posts.",
       "resultAlt": "Rendered image",
-      "resultAltNamed": "Rendered image: {{topic}}"
+      "resultAltNamed": "Rendered image: {{topic}}",
+      "ctaVideo": "Generate video",
+      "renderingVideo": "Generating video — this takes a few minutes...",
+      "successVideo": "Video generated — ready to use in your posts.",
+      "failed": "Generation failed — your allowance has been returned.",
+      "stillGoing": "Still generating — it will appear in your library when it finishes."
     },
     "full": {
       "title": "Describe what you want",
@@ -918,7 +936,7 @@
     "language": "Language",
     "plan": {
       "title": "Plan & billing",
-      "hint": "Your plan sets your monthly AI generation limit and unlocks advanced features.",
+      "hint": "Your plan sets your weekly generation allowances and unlocks advanced features.",
       "testMode": "Test mode — payments are simulated until billing keys are configured.",
       "tierFree": "Free",
       "tierPro": "Pro",
@@ -933,8 +951,14 @@
       "changeFailed": "Could not change your plan. Please try again.",
       "periodEnd": "Current period ends {{date}}",
       "unavailable": "Billing status is unavailable right now.",
-      "loading": "Loading plan…"
-    }
+      "loading": "Loading plan…",
+      "limitLine": "{{n}} {{bucket}} / week",
+      "limitLocked": "{{bucket}} not included"
+    },
+    "logoTitle": "Your logo",
+    "logoHint": "Optional. Upload the mark you already use, or have one designed from your name and tone.",
+    "logoEmpty": "No logo yet — your dashboard shows your initial instead.",
+    "logoSave": "Save logo"
   },
   "autopilot": {
     "title": "Autopilot",
@@ -1287,5 +1311,62 @@
       "another": "Post another"
     }
   },
-  "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable."
+  "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable.",
+  "profileQuestions": {
+    "title": "Complete your business profile",
+    "hint": "We kept signup short. These are the details that make what Markivo writes yours instead of generic — answer any, skip the rest.",
+    "done": "Nothing left to answer. You can still edit anything below.",
+    "templateNote": "These are standard questions for your category — the AI-personalised set needs a Gemini key.",
+    "choose": "Choose one…",
+    "loading": "Loading your questions…",
+    "skip": "Skip — I'd rather not say",
+    "save": "Save answers",
+    "savedShort": "Saved!",
+    "answeredToggle": "Already answered ({{count}})",
+    "fromMarkiv": "You told Markiv this in chat",
+    "badgeAria": "{{count}} unanswered questions about your business",
+    "badgeHint": "Tell us {{count}} more things about your business",
+    "fixed": {
+      "audienceLanguages": {
+        "label": "Which languages do your customers read?",
+        "hint": "Every caption, script and on-screen line is written in these, in the order you pick them.",
+        "placeholder": ""
+      },
+      "brandTone": {
+        "label": "How should your brand sound?",
+        "hint": "Sets the voice of every caption Markivo writes for you.",
+        "placeholder": ""
+      },
+      "signatureItems": {
+        "label": "What do regulars ask for by name?",
+        "hint": "Your signature items give posts something specific to show.",
+        "placeholder": "e.g. honey cake, filter coffee"
+      },
+      "hours": {
+        "label": "When are you open?",
+        "hint": "So posts never send someone to a closed door.",
+        "placeholder": "e.g. Mon-Sat 9:00-21:00, Sun closed"
+      },
+      "pricePoints": {
+        "label": "What does a typical order or visit cost?",
+        "hint": "Without this Markivo has to write around price — and never invents one.",
+        "placeholder": "e.g. coffee 25k, breakfast set 60k"
+      },
+      "bookingLink": {
+        "label": "Where should a post send people to book or order?",
+        "hint": "Becomes the call to action at the end of your captions.",
+        "placeholder": "e.g. t.me/yourshop, a website link, or your phone number"
+      },
+      "slogan": {
+        "label": "Do you already have a slogan?",
+        "hint": "If you have one we use yours instead of writing a new one.",
+        "placeholder": "e.g. Simplicity, refined."
+      }
+    },
+    "langs": {
+      "uz": "Uzbek",
+      "ru": "Russian",
+      "en": "English"
+    }
+  }
 }

@@ -125,6 +125,10 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // tabs — they open as a modal from clicking the profile card / usage meter.
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  // Deferred onboarding: how many business questions are still unanswered.
+  // Drives the "!" on the profile card. null until the first fetch answers, so
+  // the badge never flashes on and then off.
+  const [pendingQuestions, setPendingQuestions] = useState(null);
 
   const refreshConnectCatalogue = () => {
     api.get('/api/connect/status')
@@ -159,6 +163,15 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
     const timer = setTimeout(() => setIgNotice(''), 6000);
     return () => clearTimeout(timer);
   }, []);
+
+  // A failure leaves the badge hidden rather than showing a count we could not
+  // verify — the profile panel is still reachable either way.
+  const refreshCompletion = () => {
+    api.get('/api/profile/completion')
+      .then((d) => setPendingQuestions(d.pendingCount ?? 0))
+      .catch(() => setPendingQuestions(null));
+  };
+  useEffect(refreshCompletion, [activeProfile]);
 
   useEffect(() => {
     api.get('/api/usage').then(setUsage).catch(() => setUsage(null));
@@ -217,7 +230,16 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   }
 
   // Helper to render logo symbol
-  const logoStyle = activeProfile.logo || { text: activeProfile.businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' };
+  // Signup no longer asks for a logo, so most profiles arrive without one. The
+  // placeholder is the business's own initial rather than a coffee cup, which
+  // was only ever right for a cafe.
+  const logoStyle = activeProfile.logo || {
+    text: activeProfile.businessName,
+    color: '#D4A373',
+    bgColor: '#1A1816',
+    shape: 'circle',
+    icon: (activeProfile.businessName || '?').trim().charAt(0).toUpperCase(),
+  };
 
   // Label maps for raw API/mock data values (fall back to raw value for unknown codes)
   // DISABLED: SEO/Meta temporarily off — see 2026-08-13
@@ -268,12 +290,24 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                 style={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
               />
             ) : (
-              logoStyle.icon || '☕'
+              logoStyle.icon || (activeProfile.businessName || '?').trim().charAt(0).toUpperCase()
+            )}
+            {pendingQuestions > 0 && (
+              <span
+                className="profile-alert-badge"
+                aria-label={t('profileQuestions.badgeAria', '{{count}} unanswered questions about your business', { count: pendingQuestions })}
+              >
+                !
+              </span>
             )}
           </div>
           <div className="active-profile-info">
             <h4>{activeProfile.businessName}</h4>
-            <small>{activeProfile.category}</small>
+            <small>
+              {pendingQuestions > 0
+                ? t('profileQuestions.badgeHint', 'Tell us {{count}} more things about your business', { count: pendingQuestions })
+                : activeProfile.category}
+            </small>
           </div>
           <i className="fa-solid fa-chevron-right active-profile-cue" aria-hidden="true"></i>
         </div>
@@ -333,7 +367,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         </nav>
 
         <div className="sidebar-footer">
-          {usage && (
+          {usage && usage.buckets && (
             <div
               className="usage-meter is-clickable"
               id="usage_meter"
@@ -343,17 +377,32 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setUpgradeModalOpen(true); } }}
               title={t('usage.resetsTitle', { defaultValue: 'Resets {{date}}', date: usage.resetsAt?.slice(0, 10) })}
             >
-              <div className="usage-meter-label">
-                <span>{t('usage.label', 'AI generations')}</span>
-                <span>{t('usage.count', { defaultValue: '{{used}} / {{limit}}', used: usage.used, limit: usage.limit })}</span>
-              </div>
-              <div className="usage-meter-track">
-                <div
-                  className={`usage-meter-fill ${usage.used >= usage.limit ? 'full' : ''}`}
-                  style={{ width: `${Math.min(100, Math.round((usage.used / usage.limit) * 100))}%` }}
-                ></div>
-              </div>
-              <small className="usage-meter-tier">{t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}</small>
+              {/* One bar per allowance. They are separate pools — a spent video
+                  budget says nothing about how much writing is left — so a
+                  single combined bar would misreport all three. */}
+              {Object.entries(usage.buckets).map(([name, b]) => (
+                <div className="usage-meter-row" key={name}>
+                  <div className="usage-meter-label">
+                    <span>{t(`usage.buckets.${name}`, name)}</span>
+                    <span>
+                      {b.limit === 0
+                        ? t('usage.locked', 'Upgrade')
+                        : t('usage.count', { defaultValue: '{{used}} / {{limit}}', used: b.used, limit: b.limit })}
+                    </span>
+                  </div>
+                  <div className="usage-meter-track">
+                    <div
+                      className={`usage-meter-fill ${b.remaining <= 0 ? 'full' : ''}`}
+                      style={{ width: `${b.limit ? Math.min(100, Math.round((b.used / b.limit) * 100)) : 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+              <small className="usage-meter-tier">
+                {t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}
+                {' · '}
+                {t('usage.resetsWeekly', 'resets Monday')}
+              </small>
             </div>
           )}
           <button className="btn btn-danger w-full" onClick={onLogout} id="btn_logout">
@@ -612,7 +661,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               the AI marketing agent, now its own tab rather than a persistent
               floating panel.
           {activeTab === 'markiv' && (
-            <AIAgentSidebar activeProfile={activeProfile} telegramStatus={tgStatus} asTab />
+            <AIAgentSidebar activeProfile={activeProfile} telegramStatus={tgStatus} asTab onAgentReply={refreshCompletion} />
           )}
           */}
 
@@ -737,7 +786,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <button className="btn-close side-pane-modal-close" onClick={() => setProfileModalOpen(false)} aria-label={t('common.close', 'Close')}>
               <i className="fa-solid fa-xmark"></i>
             </button>
-            <BusinessProfilePane activeProfile={activeProfile} onProfileUpdate={onProfileUpdate} />
+            <BusinessProfilePane
+              activeProfile={activeProfile}
+              onProfileUpdate={onProfileUpdate}
+              onCompletionChange={setPendingQuestions}
+            />
           </div>
         </div>
       )}

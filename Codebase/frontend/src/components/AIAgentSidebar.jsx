@@ -26,7 +26,7 @@ const CATEGORY_KEYS = {
 // main column into the freed space, and only the shell can do that.
 // `asTab` renders the same chat as a normal in-flow tab panel instead of the
 // fixed-position floating panel — no collapse control, always "open".
-export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, onToggle, asTab = false }) {
+export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, onToggle, asTab = false, onAgentReply }) {
   const { t, i18n } = useTranslation();
   const greetingMessage = () => ({
     sender: 'agent',
@@ -86,6 +86,9 @@ export default function AIAgentSidebar({ activeProfile, telegramStatus, isOpen, 
       const data = await api.post('/api/agent/query', { query: text, lang: i18n.language });
       setIsTyping(false);
       setOffline(false);
+      // Markiv may have saved a business detail the owner mentioned in passing
+      // (save_business_detail), which changes the "!" count on the profile icon.
+      onAgentReply?.();
 
       if (data.triggerApproval) {
         setApprovalId(data.approvalId);

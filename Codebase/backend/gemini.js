@@ -1,9 +1,14 @@
-// Google Gemini text generation — the social-copy and message-template engine.
+// Google Gemini — Markivo's reasoning engine (Gemini 4 Argon by default).
 //
-// Talks to the Generative Language REST API directly with global fetch (same
-// approach as mediagen.js / places.js) so no extra SDK dependency is pulled in:
-//   POST https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent?key=<key>
-// Docs: https://ai.google.dev/api/generate-content
+// Every text request in the app lands here: post copy, message templates,
+// slogans, business context, Autopilot's gate, media briefs, Markiv's tool
+// loop, and the art direction that writes image/video render prompts.
+//
+// Talks to the Interactions API directly with global fetch (same approach as
+// mediagen.js / places.js) so no extra SDK dependency is pulled in:
+//   POST https://generativelanguage.googleapis.com/v1beta/interactions
+// Argon is served through this API only; it is not on generateContent.
+// Docs: https://ai.google.dev/api/interactions-api
 //
 // Markivo rule: a BLANK credential must never break the app or the tests. With
 // no GEMINI_API_KEY every export falls back to a deterministic result — copy
@@ -12,116 +17,155 @@
 // own (it finds the numbers in "Stadium No:141, 9 spots left" without any AI).
 
 const config = require('./config');
+const prompts = require('./marketing/prompts');
 
 const API_HOST = 'https://generativelanguage.googleapis.com/v1beta';
+
+// ${placeholder} interpolation for the authored prompt templates.
+const fill = (tmpl, vars) =>
+  String(tmpl).replace(/\$\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
 
 // ===========================================================================
 // LOW-LEVEL CLIENT
 // ===========================================================================
 
-// Gemini's responseSchema is the OpenAPI 3.0 subset: UPPERCASE type names and
-// no `additionalProperties`. `propertyOrdering` nudges the model to emit fields
-// in a stable order, which measurably improves adherence.
-// Docs: https://ai.google.dev/gemini-api/docs/structured-output
-async function callGemini({ system, user, schema, maxTokens = 1500, temperature = 0.8 }) {
-  if (!config.geminiEnabled) throw new Error('Gemini is not configured');
+// max_output_tokens is a hard cap on thinking AND answer together. The callers'
+// budgets were sized for the answer alone, so without this headroom a model
+// that reasons first truncates its JSON mid-object. Unused headroom costs
+// nothing — only generated tokens are billed.
+const THINKING_HEADROOM_TOKENS = 8192;
 
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: user }] }],
-    generationConfig: {
-      maxOutputTokens: maxTokens,
-      temperature,
-      ...(schema ? { responseMimeType: 'application/json', responseSchema: schema } : {}),
-    },
-  };
-  if (system) body.systemInstruction = { parts: [{ text: system }] };
+class GeminiError extends Error {
+  constructor(message, { status, retryable } = {}) {
+    super(message);
+    this.name = 'GeminiError';
+    this.status = status;
+    // True when a different model could plausibly answer: the request reached
+    // Google and was refused (tier, access, quota), as opposed to a timeout or
+    // a dropped connection, where a second attempt would only double the wait.
+    this.retryable = !!retryable;
+  }
+}
 
-  const url = `${API_HOST}/models/${encodeURIComponent(config.geminiTextModel)}:generateContent`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.geminiApiKey },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(config.geminiTimeoutMs),
-  });
+async function postInteraction(body) {
+  let res;
+  try {
+    res = await fetch(`${API_HOST}/interactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.geminiApiKey },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(config.geminiTimeoutMs),
+    });
+  } catch (err) {
+    throw new GeminiError(`Gemini (${body.model}) unreachable: ${err.message}`);
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = (data.error && data.error.message) || `HTTP ${res.status}`;
-    throw new Error(`Gemini request failed: ${msg}`);
+    throw new GeminiError(`Gemini (${body.model}) request failed: ${msg}`, { status: res.status, retryable: true });
+  }
+  if (data.status === 'failed' || data.status === 'cancelled') {
+    const msg = ((data.errors || [])[0] || {}).message || `interaction ${data.status}`;
+    throw new GeminiError(`Gemini (${body.model}) ${msg}`, { retryable: true });
+  }
+  return data;
+}
+
+/**
+ * One stateless interaction on the configured model, retried once on the
+ * fallback model when the primary refuses it. `store: false` keeps owners'
+ * business details out of Google's interaction history — the conversation
+ * state lives in our own database, so we never need it there.
+ */
+async function createInteraction({ system, input, schema, tools, maxTokens = 1500 }) {
+  if (!config.geminiEnabled) throw new Error('Gemini is not configured');
+
+  const body = {
+    input,
+    store: false,
+    generation_config: {
+      max_output_tokens: maxTokens + THINKING_HEADROOM_TOKENS,
+      thinking_level: config.geminiThinkingLevel,
+    },
+  };
+  if (system) body.system_instruction = system;
+  if (schema) body.response_format = { type: 'text', mime_type: 'application/json', schema: toJsonSchema(schema) };
+  if (tools && tools.length) {
+    body.tools = tools.map((t) => ({
+      type: 'function',
+      name: t.name,
+      description: t.description,
+      parameters: toJsonSchema(t.input_schema),
+    }));
   }
 
-  const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
-  const text = parts.map((p) => p.text || '').join('').trim();
+  try {
+    return await postInteraction({ model: config.geminiTextModel, ...body });
+  } catch (err) {
+    const fallback = config.geminiFallbackModel;
+    if (!err.retryable || !fallback || fallback === config.geminiTextModel) throw err;
+    console.warn(`${err.message} — retrying on ${fallback}`);
+    return postInteraction({ model: fallback, ...body });
+  }
+}
+
+// The answer text of an interaction: every text block of every model_output
+// step, in order. Thought summaries and tool steps are not part of it.
+const outputText = (interaction) =>
+  (interaction.steps || [])
+    .filter((s) => s.type === 'model_output')
+    .flatMap((s) => s.content || [])
+    .filter((c) => c.type === 'text')
+    .map((c) => c.text || '')
+    .join('')
+    .trim();
+
+// Single-turn completion: parsed JSON when a schema is given, else plain text.
+async function callGemini({ system, user, schema, maxTokens = 1500 }) {
+  const interaction = await createInteraction({ system, input: user || '', schema, maxTokens });
+  const text = outputText(interaction);
   if (!text) throw new Error('Gemini returned an empty response');
   return schema ? JSON.parse(text) : text;
 }
 
-// Convert a standard (lowercase-type) JSON schema — as used throughout ai.js
-// for Anthropic's output_config — into Gemini's OpenAPI-3.0 subset: UPPERCASE
-// type names, no additionalProperties, plus propertyOrdering. Recursive, so
-// ai.js's schemas (and Anthropic tool input_schemas) never need a second,
-// hand-maintained Gemini twin.
-const TYPE_MAP = { object: 'OBJECT', array: 'ARRAY', string: 'STRING', number: 'NUMBER', integer: 'INTEGER', boolean: 'BOOLEAN' };
-
-function toGeminiSchema(schema) {
+// Normalise either schema dialect in this codebase — lowercase JSON Schema
+// (ai.js, Anthropic tool input_schemas) or the UPPERCASE OpenAPI subset the
+// constants below were first written in — into the plain JSON Schema the
+// Interactions API takes. Keeps only the keywords structured output honours;
+// propertyOrdering is dropped because key order in `properties` now carries it.
+function toJsonSchema(schema) {
   if (!schema || typeof schema !== 'object') return schema;
-  const out = { type: TYPE_MAP[schema.type] || schema.type };
+  const type = String(schema.type || '').toLowerCase();
+  const out = { type };
   if (schema.description) out.description = schema.description;
   if (schema.enum) out.enum = schema.enum;
-  if (schema.type === 'object' && schema.properties) {
+  if (type === 'object') {
     out.properties = Object.fromEntries(
-      Object.entries(schema.properties).map(([k, v]) => [k, toGeminiSchema(v)])
+      Object.entries(schema.properties || {}).map(([k, v]) => [k, toJsonSchema(v)])
     );
-    out.propertyOrdering = Object.keys(schema.properties);
     if (schema.required) out.required = schema.required;
   }
-  if (schema.type === 'array' && schema.items) out.items = toGeminiSchema(schema.items);
+  if (type === 'array' && schema.items) out.items = toJsonSchema(schema.items);
   return out;
 }
 
-// Single-turn structured JSON completion using an already-lowercase (Anthropic-
-// style) schema — converts it, then delegates to callGemini above.
-async function callGeminiJSON({ system, prompt, schema, maxTokens, temperature } = {}) {
-  return callGemini({ system, user: prompt, schema: toGeminiSchema(schema), maxTokens, temperature });
+// Single-turn structured JSON completion — the entry point providers/
+// textEngine.js uses for every ai.js generator.
+async function callGeminiJSON({ system, prompt, schema, maxTokens } = {}) {
+  return callGemini({ system, user: prompt, schema, maxTokens });
 }
 
 // Low-level tool-calling primitive for the multi-turn agent loop
-// (ai.js#agentAct). Unlike callGemini, this does NOT extract text — the caller
-// needs to inspect content.parts for functionCall vs text parts and drive its
-// own loop, exactly like it already does against Anthropic's tool-use API.
-// `tools` is the SAME Anthropic-shaped array ai.js already builds ({ name,
-// description, input_schema }); converted to Gemini's functionDeclarations here
-// so there is one source of truth for what tools exist.
-async function callGeminiWithTools({ system, contents, tools, maxTokens = 1000, temperature } = {}) {
-  if (!config.geminiEnabled) throw new Error('Gemini is not configured');
-
-  const body = {
-    contents,
-    tools: [{
-      functionDeclarations: (tools || []).map((t) => ({
-        name: t.name,
-        description: t.description,
-        parameters: toGeminiSchema(t.input_schema),
-      })),
-    }],
-    generationConfig: { maxOutputTokens: maxTokens, ...(temperature != null ? { temperature } : {}) },
-  };
-  if (system) body.systemInstruction = { parts: [{ text: system }] };
-
-  const url = `${API_HOST}/models/${encodeURIComponent(config.geminiTextModel)}:generateContent`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.geminiApiKey },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(config.geminiTimeoutMs),
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const msg = (data.error && data.error.message) || `HTTP ${res.status}`;
-    throw new Error(`Gemini request failed: ${msg}`);
-  }
-  return (((data.candidates || [])[0] || {}).content) || { parts: [], role: 'model' };
+// (ai.js#agentAct). Returns the model's raw steps rather than text: the caller
+// inspects them for function_call vs model_output and drives its own loop, and
+// must echo them back verbatim on the next turn — they carry the thought
+// signatures the API validates. `tools` is the SAME Anthropic-shaped array
+// ai.js already builds ({ name, description, input_schema }), converted to
+// function tools in createInteraction so there is one source of truth.
+async function callGeminiWithTools({ system, input, tools, maxTokens = 1000 } = {}) {
+  const interaction = await createInteraction({ system, input, tools, maxTokens });
+  return { steps: interaction.steps || [], status: interaction.status };
 }
 
 // ===========================================================================
@@ -289,7 +333,6 @@ async function analyzeTemplate(ctx) {
 
   try {
     const parsed = await callGemini({
-      temperature: 0.2,
       maxTokens: 1200,
       system:
         'You turn a real message a small business sends into a REUSABLE TEMPLATE. ' +
@@ -409,7 +452,6 @@ async function analyzeStyle(ctx) {
 
   try {
     const parsed = await callGemini({
-      temperature: 0.3,
       maxTokens: 700,
       system:
         'You analyze the WRITING STYLE of a sample social media post or message and produce ' +
@@ -479,7 +521,6 @@ async function translateText({ text, targetLanguage }) {
   if (!config.geminiEnabled) return { text: String(text || ''), source: 'unavailable' };
   try {
     const out = await callGemini({
-      temperature: 0.2,
       maxTokens: 1200,
       system:
         `Translate the given text into ${targetLanguage}. Preserve the meaning, tone, emoji, ` +
@@ -511,7 +552,6 @@ async function fixText({ text }) {
   if (!config.geminiEnabled) return { text: heuristicFix(text), source: 'heuristic' };
   try {
     const out = await callGemini({
-      temperature: 0.2,
       maxTokens: 1200,
       system:
         'Fix ONLY grammar, spelling, and punctuation mistakes in the given text. Never change ' +
@@ -533,7 +573,6 @@ async function applyStyleTransform({ text, instruction, emojify }) {
   if (!config.geminiEnabled) return { text: String(text || ''), source: 'unavailable' };
   try {
     const out = await callGemini({
-      temperature: 0.7,
       maxTokens: 1200,
       system:
         `${instruction}${emojify ? EMOJIFY_SUFFIX : ''} Keep the same underlying message and ` +
@@ -591,6 +630,30 @@ function langInstructionFor(languages) {
     `in exactly this order: ${langs.map((l, i) => `${i + 1}. ${LANG_NAMES[l]}`).join(', ')}. ` +
     'Separate the language blocks with a blank line so they are easy to read in a single message. ' +
     'Do not reorder the languages and do not add any language that is not listed.'
+  );
+}
+
+/**
+ * The language rule for a media brief, which is a mixed-audience document: the
+ * caption, the spoken script and the on-screen lines are read by CUSTOMERS,
+ * while the staging, camera and shot directions are read by the OWNER. Only
+ * the first group follows the audience languages; translating a director's
+ * instructions would help nobody.
+ *
+ * Empty when the owner has not answered the question, which leaves the brief
+ * exactly as it was before.
+ */
+function mediaLangRule(languages) {
+  if (!Array.isArray(languages) || !languages.length) return '';
+  const langs = normalizeLanguages(languages);
+  const names = langs.map((l) => LANG_NAMES[l]).join(', then ');
+  return (
+    '\n\nAUDIENCE LANGUAGE: every word a CUSTOMER will read or hear — the caption, the spoken ' +
+    `script, and any on-screen text — must be written in ${names}` +
+    `${langs.length > 1 ? ', in exactly that order' : ''}. ` +
+    'Your directions TO THE OWNER (staging, setup, camera, lighting, composition, shot list, ' +
+    'editing) stay in English — they are instructions, not content. Do not add a language that ' +
+    'is not listed.'
   );
 }
 
@@ -682,10 +745,6 @@ async function generateBusinessContext(profileData) {
 
   try {
     const parsed = await callGemini({
-      // Low temperature: this is a distillation of what the owner already told
-      // us, not a creative act. Everything downstream reads from it, so drift
-      // here would compound across every generator.
-      temperature: 0.3,
       maxTokens: 800,
       system:
         'You distil a small business into a compact working context that other ' +
@@ -740,7 +799,6 @@ async function generateSlogans({ digest, businessName }) {
   try {
     const parsed = await callGemini({
       maxTokens: 400,
-      temperature: 0.9,
       system:
         'You are a brand strategist. Generate exactly 3 short, memorable, ' +
         'original brand slogans (max 6 words each) grounded in the business ' +
@@ -789,8 +847,6 @@ async function assessAdContext(signals) {
 
   try {
     const parsed = await callGemini({
-      // Near-deterministic: this is a judgement call that gates real publishing.
-      temperature: 0.2,
       maxTokens: 800,
       system:
         "You decide whether Markivo's Autopilot knows enough about this business " +
@@ -951,10 +1007,15 @@ const GUIDED_VIDEO_SCHEMA = {
   ],
 };
 
+// Full mode is a finished ad, not a shooting plan, so the brief carries the
+// words that go ON the ad (headline) and the exact prompt the render engine
+// receives (renderPrompt). renderPrompt is last so the model writes it with
+// the concept, copy and visual spec already decided.
 const FULL_BRIEF_SCHEMA = {
   type: 'OBJECT',
   properties: {
     concept: { type: 'STRING' },
+    headline: { type: 'STRING' },
     caption: { type: 'STRING' },
     visualSpec: {
       type: 'OBJECT',
@@ -962,18 +1023,48 @@ const FULL_BRIEF_SCHEMA = {
       required: ['composition', 'palette', 'mood'],
       propertyOrdering: ['composition', 'palette', 'mood'],
     },
+    renderPrompt: { type: 'STRING' },
   },
-  required: ['concept', 'caption', 'visualSpec'],
-  propertyOrdering: ['concept', 'caption', 'visualSpec'],
+  required: ['concept', 'headline', 'caption', 'visualSpec', 'renderPrompt'],
+  propertyOrdering: ['concept', 'headline', 'caption', 'visualSpec', 'renderPrompt'],
 };
+
+// The art-direction rules for a full-mode ad. The owner's prompt is treated as
+// the brief itself: an ad that drifts from what they typed is the failure this
+// exists to prevent.
+function fullAdSystem(video) {
+  const render = video
+    ? `"renderPrompt" is the complete English prompt for a text-to-video model (Veo) that renders a ` +
+      `${config.veoDurationSeconds}-second vertical 9:16 ad clip with sound. Describe the subject, what ` +
+      'happens across the clip, the visual style, camera position and movement, lighting and ambiance, ' +
+      'and the audio: ambient sound, sound effects, and at most one short spoken line, in quotes, in its ' +
+      'final language. Do not rely on on-screen text — video models misspell it; the caption carries the words.'
+    : '"renderPrompt" is the complete English prompt for an image model that renders the finished ad in ' +
+      'one pass. Describe concretely: the hero subject, the setting, camera angle and framing, lighting, ' +
+      'colour palette, and the ad layout — where the headline sits, its typography, and any short call to ' +
+      'action. Quote every word that must appear in the image exactly, in its final language, and keep ' +
+      'on-image text to the headline plus at most one short CTA line.';
+  return (
+    "You are Markivo's ad creative director. The owner's prompt IS the brief: every product, offer, " +
+    'subject, setting, style and line of text they name must be in the ad, and nothing they did not ask ' +
+    'for may replace it. Turn it into ONE finished social-media advertisement for THIS business. ' +
+    '"concept" says in 1-2 sentences what the ad shows and why it sells. "headline" is the short line ' +
+    '(max 7 words) the ad itself carries. "caption" is the ready-to-post caption with hashtags derived ' +
+    'from the business name and category. ' + render + ' Use only prices, numbers, dates and contact ' +
+    'details stated in the owner\'s prompt or the brand facts — never invent them. No other brands\' ' +
+    'logos, no watermarks. If no audience language is set below, write every customer-facing word in ' +
+    "the language of the owner's prompt. Respond as JSON only."
+  );
+}
 
 // Returns null (never throws) when Gemini is unavailable or the call fails, so
 // ai.generateMediaBrief can fall through to Claude and then to its template.
 async function generateMediaBrief(ctx) {
   if (!config.geminiEnabled) return null;
-  const { kind = 'image', mode = 'guided', topic, profile, trends } = ctx;
+  const { kind = 'image', mode = 'guided', topic, profile, trends, brandDigest } = ctx;
   const guided = mode === 'guided';
   const video = kind === 'video';
+  const langRule = mediaLangRule(ctx.languages);
 
   const profileLines =
     `Business: ${profile?.businessName || 'a local business'}\n` +
@@ -981,6 +1072,9 @@ async function generateMediaBrief(ctx) {
     `Business description: ${profile?.description || 'n/a'}\n` +
     `Target audience: ${profile?.targetAudience || 'local customers'}\n` +
     `Brand tone: ${profile?.brandTone || 'Cozy & Warm'}\n` +
+    (brandDigest
+      ? `\nBRAND BRIEF (match its voice and visuals; its FACTS are the only real numbers):\n${brandDigest}\n`
+      : '') +
     (trends
       ? `\nCOMPETITOR TREND CONTEXT (real data from tracked competitors — let it inform the concept/shot ` +
         `choices, do not quote it back verbatim):\n${String(trends).slice(0, 600)}\n`
@@ -1005,32 +1099,109 @@ async function generateMediaBrief(ctx) {
   try {
     const parsed = await callGemini({
       maxTokens: 4000,
-      temperature: guided ? 0.7 : 0.9,
-      system: guided
-        ? guidedSystem
-        : "You are Markivo's creative director. Produce a generation-ready creative brief for an AI " +
-          'media engine: a concept, a caption that includes hashtags derived from the business name ' +
-          'and category, and a visual spec. Respond as JSON only.',
+      system: (guided ? guidedSystem : fullAdSystem(video)) + langRule,
       user:
         profileLines +
         `Media type: ${video ? 'video' : 'photo'}\n` +
-        `What they want to shoot: ${topic || 'their business'}\n\n` +
         (guided
-          ? (video
-            ? 'Write the full production brief: scenario, flow, scene staging, setup steps, camera, ' +
-              'lighting, composition, a timed script, 5-7 shots with movement and duration, b-roll, ' +
-              'transitions, audio, post-processing, and 4-6 pro tips.'
-            : 'Write the full production brief: scene staging, setup steps, camera, lighting, ' +
-              'composition, 5-7 shots with framing and angle, post-processing, and 4-6 pro tips.')
-          : 'Write the concept, the ready-to-post caption, and the visual spec.'),
+          ? `What they want to shoot: ${topic || 'their business'}\n\n` +
+            (video
+              ? 'Write the full production brief: scenario, flow, scene staging, setup steps, camera, ' +
+                'lighting, composition, a timed script, 5-7 shots with movement and duration, b-roll, ' +
+                'transitions, audio, post-processing, and 4-6 pro tips.'
+              : 'Write the full production brief: scene staging, setup steps, camera, lighting, ' +
+                'composition, 5-7 shots with framing and angle, post-processing, and 4-6 pro tips.')
+          : `OWNER'S PROMPT (the brief — follow it exactly):\n"""\n${topic || 'an ad for their business'}\n"""\n\n` +
+            `Write the concept, headline, caption, visual spec, and the ${video ? 'video' : 'image'} render prompt.`),
       schema: guided ? (video ? GUIDED_VIDEO_SCHEMA : GUIDED_PHOTO_SCHEMA) : FULL_BRIEF_SCHEMA,
     });
 
     if (guided && !(parsed.shotList || []).length) return null;
-    if (!guided && !parsed.concept) return null;
+    if (!guided && !(parsed.concept && parsed.renderPrompt)) return null;
     return { ...parsed, mode, kind };
   } catch (err) {
     console.error('Gemini generateMediaBrief failed, falling back:', err.message);
+    return null;
+  }
+}
+
+// Image edits get the same art direction as renders: the owner's one-line
+// request becomes a precise instruction for the image model, which receives it
+// alongside the original image. Null when keyless or on failure, so the caller
+// sends the owner's own words through unchanged.
+async function directImageEdit({ instructions, topic, profile } = {}) {
+  if (!config.geminiEnabled) return null;
+  try {
+    const text = await callGemini({
+      maxTokens: 600,
+      system:
+        'You write instructions for an image-EDITING model that receives the original image alongside ' +
+        "your text. Rewrite the owner's request as one precise edit instruction in English: say exactly " +
+        'what changes, and that everything else — subject, identity, framing, product, existing text — ' +
+        'stays as it is. Quote any words that must appear in the image exactly, in their final language. ' +
+        'Never add prices, numbers or claims the owner did not ask for. Reply with the instruction only.',
+      user:
+        `Business: ${profile?.businessName || 'a local business'}\n` +
+        `Category: ${profile?.category || 'general'}\n` +
+        `What the image shows: ${topic || 'n/a'}\n` +
+        `Owner's edit request: ${instructions}`,
+    });
+    return text ? text.slice(0, 2000) : null;
+  } catch (err) {
+    console.error('Gemini directImageEdit failed, using the raw request:', err.message);
+    return null;
+  }
+}
+
+const QUESTIONS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    questions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          key: { type: 'STRING' },
+          label: { type: 'STRING' },
+          hint: { type: 'STRING' },
+          placeholder: { type: 'STRING' },
+          type: { type: 'STRING', enum: ['text', 'textarea'] },
+        },
+        required: ['key', 'label', 'hint', 'placeholder', 'type'],
+        propertyOrdering: ['key', 'label', 'hint', 'placeholder', 'type'],
+      },
+    },
+  },
+  required: ['questions'],
+  propertyOrdering: ['questions'],
+};
+
+/**
+ * 2-5 follow-up questions tailored to one business, or null when keyless / on
+ * any failure — profileQuestions.js then substitutes its deterministic set.
+ * The caller still sanitizes the result: a live model can return duplicate
+ * keys, re-ask a known field, or overshoot the count.
+ */
+async function businessQuestions({ name, category, location, description, audience, fixedLabels } = {}) {
+  if (!config.geminiEnabled) return null;
+  const vars = {
+    name: name || 'this business',
+    category: category || 'local business',
+    location: location || 'Tashkent',
+    description: description || '(not provided)',
+    audience: audience || '(not provided)',
+    fixedLabels: fixedLabels || '(none)',
+  };
+  try {
+    const out = await callGemini({
+      system: fill(prompts.profileQuestions.systemPrompt, vars),
+      user: fill(prompts.profileQuestions.userTemplate, vars),
+      schema: QUESTIONS_SCHEMA,
+      maxTokens: 1200,
+    });
+    return out && Array.isArray(out.questions) ? out.questions : null;
+  } catch (err) {
+    console.error('Gemini businessQuestions failed, falling back:', err.message);
     return null;
   }
 }
@@ -1039,7 +1210,11 @@ module.exports = {
   enabled: config.geminiEnabled,
   model: config.geminiTextModel,
   generateContent,
+  businessQuestions,
+  QUESTIONS_SCHEMA,
   generateMediaBrief,
+  fullAdSystem,
+  directImageEdit,
   analyzeTemplate,
   analyzeStyle,
   heuristicStyle,
@@ -1050,7 +1225,8 @@ module.exports = {
   heuristicFix,
   applyStyleTransform,
   // Low-level primitives shared by providers/textEngine.js and ai.js#agentAct.
-  toGeminiSchema,
+  toJsonSchema,
+  outputText,
   callGeminiJSON,
   callGeminiWithTools,
   generateBusinessContext,
@@ -1059,6 +1235,7 @@ module.exports = {
   // Deterministic helpers — used by the routes and exercised directly by tests.
   normalizeLanguages,
   langInstructionFor,
+  mediaLangRule,
   detectLanguage,
   heuristicTemplate,
   extractVariables,

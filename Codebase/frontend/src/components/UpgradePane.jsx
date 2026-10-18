@@ -80,7 +80,8 @@ export default function UpgradePane({ onBillingChanged }) {
               {TIER_ORDER.map((tier) => {
                 const isCurrent = billing.tier === tier;
                 const price = tier === 'freemium' ? 0 : billing.prices?.[tier] ?? 0;
-                const limit = billing.limits?.[tier];
+                // Per-bucket weekly allowances now, not one monthly number.
+                const limits = billing.limits?.[tier];
                 const isUpgrade = TIER_ORDER.indexOf(tier) > TIER_ORDER.indexOf(billing.tier);
                 return (
                   <div key={tier} className={`plan-card ${isCurrent ? 'current' : ''}`} id={`plan_card_${tier}`}>
@@ -88,10 +89,23 @@ export default function UpgradePane({ onBillingChanged }) {
                     <div className="plan-card-price">
                       ${price}<span className="plan-card-per">{t('settings.plan.perMonth', '/mo')}</span>
                     </div>
-                    {limit != null && (
-                      <div className="plan-card-limit">
-                        {t('settings.plan.limit', { defaultValue: '{{n}} AI generations / month', n: limit })}
-                      </div>
+                    {limits && typeof limits === 'object' && (
+                      <ul className="plan-card-limits">
+                        {(billing.limitBuckets || Object.keys(limits)).map((bucket) => (
+                          <li key={bucket} className={limits[bucket] ? '' : 'is-locked'}>
+                            {limits[bucket]
+                              ? t('settings.plan.limitLine', {
+                                defaultValue: '{{n}} {{bucket}} / week',
+                                n: limits[bucket],
+                                bucket: t(`usage.buckets.${bucket}`, bucket),
+                              })
+                              : t('settings.plan.limitLocked', {
+                                defaultValue: '{{bucket}} not included',
+                                bucket: t(`usage.buckets.${bucket}`, bucket),
+                              })}
+                          </li>
+                        ))}
+                      </ul>
                     )}
                     {isCurrent ? (
                       <span className="plan-badge">

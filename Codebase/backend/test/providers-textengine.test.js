@@ -24,18 +24,22 @@ const withMockFetch = async (impl, fn) => {
   }
 };
 
+// A completed Interaction whose answer is `payload` as JSON text.
 const geminiJsonRes = (payload) => async () => ({
   ok: true,
   status: 200,
-  json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(payload) }] } }] }),
+  json: async () => ({
+    status: 'completed',
+    steps: [{ type: 'model_output', content: [{ type: 'text', text: JSON.stringify(payload) }] }],
+  }),
 });
 
 // ---------------------------------------------------------------------------
-// toGeminiSchema — pure conversion, no network
+// toJsonSchema — pure conversion, no network
 // ---------------------------------------------------------------------------
 
-test('toGeminiSchema converts a nested lowercase JSON schema into Gemini\'s OpenAPI-subset dialect', () => {
-  const schema = {
+test('toJsonSchema normalises both schema dialects into plain JSON Schema', () => {
+  const lowercase = {
     type: 'object',
     properties: {
       analysis: { type: 'string' },
@@ -52,15 +56,25 @@ test('toGeminiSchema converts a nested lowercase JSON schema into Gemini\'s Open
     required: ['analysis', 'posts'],
     additionalProperties: false,
   };
-  const out = gemini.toGeminiSchema(schema);
-  assert.strictEqual(out.type, 'OBJECT');
+  const out = gemini.toJsonSchema(lowercase);
+  assert.strictEqual(out.type, 'object');
   assert.strictEqual(out.additionalProperties, undefined);
-  assert.deepStrictEqual(out.propertyOrdering, ['analysis', 'posts']);
-  assert.strictEqual(out.properties.analysis.type, 'STRING');
-  assert.strictEqual(out.properties.posts.type, 'ARRAY');
-  assert.strictEqual(out.properties.posts.items.type, 'OBJECT');
+  assert.deepStrictEqual(Object.keys(out.properties), ['analysis', 'posts'], 'key order carries field order');
+  assert.strictEqual(out.properties.posts.type, 'array');
   assert.deepStrictEqual(out.properties.posts.items.required, ['platform', 'text']);
-  assert.strictEqual(out.properties.posts.items.properties.platform.type, 'STRING');
+
+  // The OpenAPI-subset constants in gemini.js come out identical.
+  const upper = gemini.toJsonSchema({
+    type: 'OBJECT',
+    properties: { kind: { type: 'STRING', enum: ['a', 'b'] }, tags: { type: 'ARRAY', items: { type: 'STRING' } } },
+    required: ['kind'],
+    propertyOrdering: ['kind', 'tags'],
+  });
+  assert.deepStrictEqual(upper, {
+    type: 'object',
+    properties: { kind: { type: 'string', enum: ['a', 'b'] }, tags: { type: 'array', items: { type: 'string' } } },
+    required: ['kind'],
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -121,9 +135,9 @@ test('generateSlogans, generateEditPlan, and generateLogos all route through the
 });
 
 // ---------------------------------------------------------------------------
-// agentAct via Gemini's function-calling wire format (verified live against
-// the real API before writing this: a functionCall part carries a
-// thoughtSignature that must round-trip verbatim on the next turn).
+// agentAct via the Interactions API's function-calling steps. Stateless calls
+// must echo the model's thought + function_call steps back exactly as
+// received — the thought signature is what the API validates.
 // ---------------------------------------------------------------------------
 
 test('agentAct (Gemini) short-circuits immediately on a post_to_telegram function call', async () => {
@@ -133,13 +147,11 @@ test('agentAct (Gemini) short-circuits immediately on a post_to_telegram functio
     return {
       ok: true, status: 200,
       json: async () => ({
-        candidates: [{
-          content: {
-            role: 'model',
-            parts: [{ functionCall: { name: 'post_to_telegram', args: { text: 'Weekend discount is live!', note: 'drafted' }, id: 'call_1' }, thoughtSignature: 'sig123' }],
-          },
-          finishReason: 'STOP',
-        }],
+        status: 'requires_action',
+        steps: [
+          { type: 'thought', signature: 'sig123' },
+          { type: 'function_call', id: 'call_1', name: 'post_to_telegram', arguments: { text: 'Weekend discount is live!', note: 'drafted' } },
+        ],
       }),
     };
   }, async () => {
@@ -155,26 +167,25 @@ test('agentAct (Gemini) short-circuits immediately on a post_to_telegram functio
 });
 
 test('agentAct (Gemini) runs a generic tool call then returns the final text reply', async () => {
-  let calls = 0;
-  await withMockFetch(async () => {
-    calls += 1;
-    if (calls === 1) {
-      return {
-        ok: true, status: 200,
-        json: async () => ({
-          candidates: [{
-            content: {
-              role: 'model',
-              parts: [{ functionCall: { name: 'get_business_snapshot', args: {}, id: 'call_2' }, thoughtSignature: 'sig456' }],
-            },
-            finishReason: 'STOP',
-          }],
-        }),
-      };
+  const bodies = [];
+  const modelSteps = [
+    { type: 'thought', signature: 'sig456' },
+    { type: 'function_call', id: 'call_2', name: 'get_business_snapshot', arguments: {} },
+  ];
+  await withMockFetch(async (url, opts) => {
+    bodies.push(JSON.parse(opts.body));
+    if (bodies.length === 1) {
+      return { ok: true, status: 200, json: async () => ({ status: 'requires_action', steps: modelSteps }) };
     }
     return {
       ok: true, status: 200,
-      json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'You have 2 competitors tracked.' }] }, finishReason: 'STOP' }] }),
+      json: async () => ({
+        status: 'completed',
+        steps: [
+          { type: 'thought', summary: [{ type: 'text', text: 'reading the snapshot' }] },
+          { type: 'model_output', content: [{ type: 'text', text: 'You have 2 competitors tracked.' }] },
+        ],
+      }),
     };
   }, async () => {
     const action = await ai.agentAct({
@@ -184,7 +195,20 @@ test('agentAct (Gemini) runs a generic tool call then returns the final text rep
       snapshot: { stats: { competitorCount: 2 } },
     });
     assert.strictEqual(action.type, 'reply');
-    assert.strictEqual(action.reply, 'You have 2 competitors tracked.');
-    assert.strictEqual(calls, 2, 'expected one tool-call round-trip then a final text turn');
+    assert.strictEqual(action.reply, 'You have 2 competitors tracked.', 'thought summaries are not part of the reply');
+    assert.strictEqual(bodies.length, 2, 'expected one tool-call round-trip then a final text turn');
   });
+
+  const [first, second] = bodies;
+  assert.strictEqual(first.store, false, 'stateless: history lives in our DB, not Google\'s');
+  assert.deepStrictEqual(first.input, [{ type: 'user_input', content: [{ type: 'text', text: 'how are my competitors doing?' }] }]);
+  assert.ok(first.tools.some((t) => t.type === 'function' && t.name === 'get_business_snapshot'));
+
+  // Turn 2 = turn 1's input + the model's steps verbatim + the tool's result.
+  assert.deepStrictEqual(second.input.slice(0, 3), [...first.input, ...modelSteps]);
+  const result = second.input[3];
+  assert.strictEqual(result.type, 'function_result');
+  assert.strictEqual(result.call_id, 'call_2');
+  assert.strictEqual(result.name, 'get_business_snapshot');
+  assert.deepStrictEqual(JSON.parse(result.result[0].text), { stats: { competitorCount: 2 } });
 });

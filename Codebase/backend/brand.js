@@ -1,5 +1,5 @@
 const config = require('./config');
-const anthropic = require('./providers/anthropic');
+const providers = require('./providers/textEngine');
 const prompts = require('./marketing/prompts');
 
 /**
@@ -108,15 +108,16 @@ function templateBrief(ctx) {
 }
 
 /**
- * Generate the brand brief. Live = one Claude (pipeline model) call; keyless =
- * the personalised template. Never throws — degrades to the template on any
+ * Generate the brand brief. Live = one call through the text-engine dispatcher
+ * (Gemini Argon first, then Claude's pipeline model); keyless = the
+ * personalised template. Never throws — degrades to the template on any
  * failure, so onboarding is never blocked.
  */
 async function generateBrandBrief(ctx = {}) {
-  if (!anthropic.isLive) return templateBrief(ctx);
+  if (!providers.isLive) return templateBrief(ctx);
   try {
     const vars = ctxVars(ctx);
-    const brief = await anthropic.completeJSON({
+    const brief = await providers.completeJSON({
       model: config.aiPipelineModel,
       system: prompts.brand.generationSystemPrompt,
       prompt: fillStr(prompts.brand.generationUserTemplate, vars),
@@ -131,6 +132,31 @@ async function generateBrandBrief(ctx = {}) {
 }
 
 const asArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+
+/**
+ * Answers to the business-specific questions asked after signup (profile panel
+ * or Markiv — see profileQuestions.js). The fixed half of that set writes into
+ * real fields already rendered above; these are the personalised ones, which
+ * live only in the answers map. Each is paired with the question that produced
+ * it, so the model knows what the value means. Without this the owner would be
+ * answering into a void.
+ */
+function answeredDetails(profile = {}) {
+  const answers = profile.profileAnswers;
+  const asked = Array.isArray(profile.profileQuestions) ? profile.profileQuestions : [];
+  if (!answers || typeof answers !== 'object' || !asked.length) return '';
+  const parts = [];
+  for (const q of asked) {
+    if (!q || !q.key) continue;
+    const rec = answers[q.key];
+    const value = typeof rec === 'string' ? rec : rec && rec.value;
+    if (!value || !String(value).trim()) continue;   // unanswered or skipped
+    parts.push(`${q.label || q.key} -> ${String(value).trim()}`);
+  }
+  return parts.length
+    ? `OWNER-ANSWERED DETAILS (their own words; use them, never embellish): ${parts.join(' | ')}`
+    : '';
+}
 
 /**
  * Compact, model-friendly digest of the brand brief, tolerant of BOTH shapes
@@ -148,6 +174,7 @@ function briefDigest(brief, profile = {}) {
       profile.description ? `Description: ${profile.description}` : '',
       profile.targetAudience ? `Audience: ${profile.targetAudience}` : '',
       profile.location ? `Location: ${profile.location}` : '',
+      answeredDetails(profile),
       'NOTE: no full brand brief yet — keep copy specific to the description above; never invent prices, hours, awards, or numbers.',
     ].filter(Boolean).join('\n');
   }
@@ -189,6 +216,9 @@ function briefDigest(brief, profile = {}) {
   const aud = profile.targetAudience || profile.audience;
   if (aud) lines.push(`Owner's stated audience (from onboarding): ${aud}`);
 
+  const extra = answeredDetails(profile);
+  if (extra) lines.push(extra);
+
   // business facts (owner-entered) — the only source of real numbers
   const f = brief.businessFacts;
   if (f && typeof f === 'object') {
@@ -216,4 +246,5 @@ module.exports = {
   generateBrandBrief,
   templateBrief,
   briefDigest,
+  answeredDetails,
 };

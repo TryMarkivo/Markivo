@@ -18,6 +18,7 @@ const billing = require('./billing');
 const tg = require('./telegram');
 const ig = require('./instagram');
 const places = require('./places');
+const profileQuestions = require('./profileQuestions');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
@@ -89,29 +90,53 @@ const verifyToken = (req, res, next) => {
 };
 
 // --- AI GENERATION BUDGET (per pricing tier, monthly) ---
-// Content, slogans, and agent queries all draw from one allowance. Template
-// (keyless) generations count too — tiers sell generations, not API spend.
+// Three weekly allowances, not one monthly pool — see config.aiTierLimits for
+// why. Template (keyless) generations count too: tiers sell generations, not
+// API spend.
 const usageInfo = (user) => {
   // Tier comes from the DB, never the JWT claim — a billing upgrade must
   // raise the allowance instantly for sessions issued before the upgrade.
   const dbUser = db.users.findById(user.id) || user;
   const tier = config.aiTierLimits[dbUser.tier] != null ? dbUser.tier : 'freemium';
-  const limit = config.aiTierLimits[tier];
-  const used = db.usage.countThisMonth(user.id);
-  const nowD = new Date();
-  const resetsAt = new Date(Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth() + 1, 1)).toISOString();
-  return { tier, used, limit, remaining: Math.max(0, limit - used), resetsAt };
+  const limits = config.aiTierLimits[tier];
+  const buckets = {};
+  for (const bucket of config.usageBuckets) {
+    const limit = limits[bucket] ?? 0;
+    const used = db.usage.countThisWeek(user.id, bucket);
+    buckets[bucket] = { used, limit, remaining: Math.max(0, limit - used) };
+  }
+  return { tier, buckets, resetsAt: db.weekEndIso() };
 };
 
-const checkAiBudget = (req, res, next) => {
-  const usage = usageInfo(req.user);
-  if (usage.used >= usage.limit) {
-    return res.status(429).json({
-      error: `You've used all ${usage.limit} AI generations on your ${usage.tier} plan this month. ` +
-        `Your allowance resets on ${usage.resetsAt.slice(0, 10)} — or upgrade for more.`,
-      usage,
-    });
+const BUCKET_LABEL = { writing: 'writing', image: 'image', video: 'video' };
+
+// A bucket is exhausted when it is used up — or when the tier never had any
+// (freemium video), which is a different message: there is nothing to wait for,
+// only an upgrade.
+const budgetError = (usage, bucket) => {
+  const b = usage.buckets[bucket];
+  if (!b.limit) {
+    return `${BUCKET_LABEL[bucket]} generation isn't included on the ${usage.tier} plan — upgrade to unlock it.`;
   }
+  return `You've used all ${b.limit} ${BUCKET_LABEL[bucket]} generations on your ${usage.tier} plan this week. ` +
+    `Your allowance resets on ${usage.resetsAt.slice(0, 10)} — or upgrade for more.`;
+};
+
+const overBudget = (user, bucket) => {
+  const usage = usageInfo(user);
+  return usage.buckets[bucket].remaining <= 0
+    ? { error: budgetError(usage, bucket), bucket, usage }
+    : null;
+};
+
+/**
+ * Route guard for a bucket known at mount time. A media render cannot use this:
+ * whether it spends `image` or `video` depends on the row, which is not loaded
+ * until the handler runs — so that route calls `overBudget` inline instead.
+ */
+const checkBudget = (bucket) => (req, res, next) => {
+  const denial = overBudget(req.user, bucket);
+  if (denial) return res.status(429).json(denial);
   next();
 };
 
@@ -417,7 +442,7 @@ app.delete('/api/competitors/:id', verifyToken, (req, res) => {
 // Deterministic stats (cadence, content-type mix) are always computed fresh
 // from stored posts — no AI, no budget cost. The AI call only adds the
 // qualitative narrative on top, and is skipped when there's no real data yet.
-app.post('/api/competitors/analyze', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/competitors/analyze', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -457,14 +482,14 @@ app.post('/api/competitors/analyze', verifyToken, checkAiBudget, asyncRoute(asyn
     trackedCompetitors,
   });
   const insight = db.competitorInsights.add({ profileId: profile.id, analysis });
-  db.usage.record({ userId: req.user.id, kind: 'competitor_trends' });
+  db.usage.record({ userId: req.user.id, kind: 'competitor_trends', bucket: 'writing' });
   res.json({ insight, competitorStats });
 }));
 
 // Same narrative pipeline as the batch analyzer above, scoped to ONE tracked
 // competitor — "analyze this channel" next to each tracked-competitor card,
 // as opposed to the "Analyze all" button that covers every channel at once.
-app.post('/api/competitors/:id/analyze', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/competitors/:id/analyze', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const competitor = db.competitors.findById(req.params.id);
@@ -491,7 +516,7 @@ app.post('/api/competitors/:id/analyze', verifyToken, checkAiBudget, asyncRoute(
     trackedCompetitors,
   });
   const insight = db.competitorInsights.add({ profileId: profile.id, analysis, competitorId: competitor.id });
-  db.usage.record({ userId: req.user.id, kind: 'competitor_trends' });
+  db.usage.record({ userId: req.user.id, kind: 'competitor_trends', bucket: 'writing' });
   res.json({ insight, competitorStats: competitorStats[0] });
 }));
 
@@ -513,7 +538,7 @@ function competitorTrendsDigest(insight) {
 // ==========================================
 // 3.3 GUIDED SETUP WIZARD ROUTER (/api/onboarding)
 // ==========================================
-app.post('/api/onboarding/slogans', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/onboarding/slogans', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const { businessName, category, tone, description } = req.body;
 
   // Ground the slogans in this business's stored context cell when there is
@@ -527,13 +552,13 @@ app.post('/api/onboarding/slogans', verifyToken, checkAiBudget, asyncRoute(async
     : '';
 
   const slogans = await ai.generateSlogans({ businessName, category, tone, description, digest });
-  db.usage.record({ userId: req.user.id, kind: 'slogans' });
+  db.usage.record({ userId: req.user.id, kind: 'slogans', bucket: 'writing' });
   res.json({ slogans });
 }));
 
 // Brand logo variants for the wizard — deterministic SVG engine (logogen)
 // without a key, Claude-designed (strictly sanitized) with one.
-app.post('/api/onboarding/logos', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/onboarding/logos', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const businessName = typeof req.body.businessName === 'string' ? req.body.businessName.trim() : '';
   if (businessName.length < 2 || businessName.length > 100) {
     return res.status(400).json({ error: 'Business name must be 2-100 characters' });
@@ -543,7 +568,7 @@ app.post('/api/onboarding/logos', verifyToken, checkAiBudget, asyncRoute(async (
     category: typeof req.body.category === 'string' ? req.body.category.slice(0, 120) : undefined,
     tone: typeof req.body.tone === 'string' ? req.body.tone.slice(0, 120) : undefined,
   });
-  db.usage.record({ userId: req.user.id, kind: 'logo' });
+  db.usage.record({ userId: req.user.id, kind: 'logo', bucket: 'writing' });
   res.json({ logos });
 }));
 
@@ -576,9 +601,13 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
     location: isOnline ? 'Online / Remote' : (location || 'Tashkent'),
     isOnline: !!isOnline,
     targetAudience: audience,
-    brandTone: tone || 'Cozy & Warm',
+    // Tone and logo are deferred questions now (profileQuestions.js), so a
+    // default here would answer them on the owner's behalf: the panel would
+    // show tone as already chosen, and every business would carry the same
+    // coffee cup. Null means "not asked yet" — consumers already fall back.
+    brandTone: tone || null,
     slogan,
-    logoMetadata: logo || { text: businessName, color: '#D4A373', bgColor: '#1A1816', shape: 'circle', icon: '☕' },
+    logoMetadata: logo || null,
     onboardPath: req.body.onboardPath || 'B (Scratch)',
     googlePlaceId: typeof g.placeId === 'string' ? g.placeId.slice(0, 128) : null,
     googleRating: Number.isFinite(+g.rating) ? +g.rating : null,
@@ -709,6 +738,69 @@ app.put('/api/profile', verifyToken, (req, res) => {
   res.json({ success: true, profile: { ...updated, platforms: platformsMap } });
 });
 
+// ==========================================
+// 3.36 DEFERRED ONBOARDING (/api/profile/completion, /api/profile/answers)
+//   Signup asks only the essentials. The rest are asked here (the profile
+//   panel's "!" badge) and by Markiv in conversation. Answers route into real
+//   columns and brandBrief.businessFacts, so answering one immediately changes
+//   what the content pipeline writes — see profileQuestions.js.
+// ==========================================
+
+// Deliberately NOT behind a budget guard: this is a single small generation once
+// per profile lifetime, and a budget block here would leave the panel with no
+// questions at all. The result is cached on the profile, so a second visit
+// costs nothing and — just as importantly — shows the SAME questions.
+app.get('/api/profile/completion', verifyToken, asyncRoute(async (req, res) => {
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+
+  let current = profile;
+  if (!Array.isArray(current.profileQuestions) || !current.profileQuestions.length) {
+    const questions = await profileQuestions.generateQuestions(current);
+    current = db.profiles.update(current.id, {
+      profileQuestions: questions,
+      profileQuestionsAt: new Date().toISOString(),
+    });
+  }
+
+  const state = profileQuestions.completion(current);
+  res.json({
+    total: state.total,
+    answered: state.answered,
+    pendingCount: state.pendingCount,
+    complete: state.complete,
+    questions: profileQuestions.view(current),
+    // 'gemini' when the personalised set is live, 'template' when it was
+    // generated keyless — the panel labels which one the owner is looking at.
+    engine: (current.profileQuestions[0] && current.profileQuestions[0].source) || 'template',
+  });
+}));
+
+app.post('/api/profile/answers', verifyToken, (req, res) => {
+  const answers = req.body && typeof req.body.answers === 'object' && !Array.isArray(req.body.answers)
+    ? req.body.answers
+    : null;
+  if (!answers) return res.status(400).json({ error: 'An answers object is required' });
+
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
+
+  const fields = profileQuestions.applyAnswers(profile, answers, 'panel');
+  if (!fields) return res.status(400).json({ error: 'No known question keys were supplied' });
+
+  const updated = db.profiles.update(profile.id, fields);
+  const state = profileQuestions.completion(updated);
+  const platformsMap = {};
+  db.platforms.listByProfile(updated.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
+  res.json({
+    success: true,
+    profile: { ...updated, platforms: platformsMap },
+    pendingCount: state.pendingCount,
+    complete: state.complete,
+    questions: profileQuestions.view(updated),
+  });
+});
+
 app.put('/api/me', verifyToken, (req, res) => {
   const error = validateMeUpdate(req.body);
   if (error) return res.status(400).json({ error });
@@ -737,7 +829,7 @@ app.get('/api/brand', verifyToken, (req, res) => {
 
 // Regenerate the brief from the current profile. Counts as an AI generation.
 // Preserves any owner-entered businessFacts across the regenerate.
-app.post('/api/brand/generate', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/brand/generate', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
 
@@ -753,7 +845,7 @@ app.post('/api/brand/generate', verifyToken, checkAiBudget, asyncRoute(async (re
     brandBrief.businessFacts = profile.brandBrief.businessFacts;
   }
   const updated = db.profiles.update(profile.id, { brandBrief });
-  db.usage.record({ userId: req.user.id, kind: 'brand' });
+  db.usage.record({ userId: req.user.id, kind: 'brand', bucket: 'writing' });
   res.json({ success: true, brandBrief: updated.brandBrief });
 }));
 
@@ -790,7 +882,7 @@ app.get('/api/preferences', verifyToken, (req, res) => {
 //   gate -> refine) grounded in the brand brief; keyless falls back to a smart
 //   template.
 // ==========================================
-app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/content/copywrite', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const { platform, topic, languages, styleId } = req.body;
   const profile = db.profiles.findByUserId(req.user.id);
 
@@ -808,10 +900,13 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async 
     platform,
     topic,
     styleSummary,
-    // No language list (the AI Generation popup no longer offers one) means
-    // "write it back in whatever language the topic is written in" — leaving
-    // this undefined is what triggers that auto-detect path downstream.
-    languages: Array.isArray(languages) && languages.length ? languages : undefined,
+    // Precedence: an explicit list from the request, then the languages the
+    // owner said their CUSTOMERS read (a deferred profile question). Only when
+    // neither exists is this left undefined, which is what triggers the
+    // "write it back in whatever language the topic is written in" path.
+    languages: Array.isArray(languages) && languages.length
+      ? languages
+      : (profile?.audienceLanguages?.length ? profile.audienceLanguages : undefined),
     businessName: req.body.businessName || profile?.businessName,
     category: profile?.category,
     description: profile?.description,
@@ -825,7 +920,7 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async 
     previousText: typeof req.body.previousText === 'string' ? req.body.previousText : undefined,
     feedback: typeof req.body.feedback === 'string' ? req.body.feedback : undefined,
   });
-  db.usage.record({ userId: req.user.id, kind: 'content' });
+  db.usage.record({ userId: req.user.id, kind: 'content', bucket: 'writing' });
 
   // Surface hashtags in the post body so the existing UI shows them.
   const tags = (result.hashtags || []).filter(Boolean);
@@ -836,7 +931,7 @@ app.post('/api/content/copywrite', verifyToken, checkAiBudget, asyncRoute(async 
 // AI Editor — Translate / Fix act on whatever text is already in the Create
 // Post composer (as opposed to /api/content/copywrite, which writes a new
 // draft from a topic). See gemini.js#translateText / #fixText.
-app.post('/api/content/translate', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/content/translate', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
   const targetLanguage = typeof req.body.targetLanguage === 'string' ? req.body.targetLanguage.trim() : '';
   if (!text) return res.status(400).json({ error: 'Nothing to translate — write something first' });
@@ -844,17 +939,17 @@ app.post('/api/content/translate', verifyToken, checkAiBudget, asyncRoute(async 
   if (!targetLanguage || targetLanguage.length > 40) return res.status(400).json({ error: 'Pick a target language' });
 
   const result = await gemini.translateText({ text, targetLanguage });
-  db.usage.record({ userId: req.user.id, kind: 'translate' });
+  db.usage.record({ userId: req.user.id, kind: 'translate', bucket: 'writing' });
   res.json(result);
 }));
 
-app.post('/api/content/fix', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/content/fix', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
   if (!text) return res.status(400).json({ error: 'Nothing to fix — write something first' });
   if (text.length > 4000) return res.status(400).json({ error: 'Text must be 4000 characters or fewer' });
 
   const result = await gemini.fixText({ text });
-  db.usage.record({ userId: req.user.id, kind: 'fix' });
+  db.usage.record({ userId: req.user.id, kind: 'fix', bucket: 'writing' });
   res.json(result);
 }));
 
@@ -1169,7 +1264,7 @@ app.get('/api/templates/engine', verifyToken, (req, res) => {
 
 // Analyze a sample message. Returns a DRAFT template — nothing is saved until
 // the owner reviews the variables and posts to /api/templates.
-app.post('/api/templates/analyze', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/templates/analyze', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -1183,7 +1278,7 @@ app.post('/api/templates/analyze', verifyToken, checkAiBudget, asyncRoute(async 
     businessName: profile.businessName,
     category: profile.category,
   });
-  db.usage.record({ userId: req.user.id, kind: 'template' });
+  db.usage.record({ userId: req.user.id, kind: 'template', bucket: 'writing' });
 
   res.json({
     ...draft,
@@ -1311,7 +1406,7 @@ app.post('/api/templates/:id/render', verifyToken, (req, res) => {
 
 // Analyze a sample post's STYLE. Returns a DRAFT — nothing is saved until the
 // owner reviews it and posts to /api/styles.
-app.post('/api/styles/analyze', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/styles/analyze', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -1324,7 +1419,7 @@ app.post('/api/styles/analyze', verifyToken, checkAiBudget, asyncRoute(async (re
     businessName: profile.businessName,
     category: profile.category,
   });
-  db.usage.record({ userId: req.user.id, kind: 'style' });
+  db.usage.record({ userId: req.user.id, kind: 'style', bucket: 'writing' });
 
   res.json({ ...draft, sampleText: sample });
 }));
@@ -1395,7 +1490,7 @@ app.get('/api/styles/presets', verifyToken, (req, res) => {
 // Apply a one-tap style transform to text already in the composer — either a
 // built-in preset (presetKey) or a saved custom voice (styleId), exactly one
 // of the two. Unlike /api/styles/analyze, nothing is saved here.
-app.post('/api/styles/apply', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/styles/apply', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
   if (!text) return res.status(400).json({ error: 'Nothing to restyle — write something first' });
   if (text.length > 4000) return res.status(400).json({ error: 'Text must be 4000 characters or fewer' });
@@ -1420,7 +1515,7 @@ app.post('/api/styles/apply', verifyToken, checkAiBudget, asyncRoute(async (req,
   }
 
   const result = await gemini.applyStyleTransform({ text, instruction, emojify: !!req.body.emojify });
-  db.usage.record({ userId: req.user.id, kind: 'style_apply' });
+  db.usage.record({ userId: req.user.id, kind: 'style_apply', bucket: 'writing' });
   res.json(result);
 }));
 
@@ -2090,16 +2185,17 @@ app.get('/api/dashboard/platform/:key', verifyToken, asyncRoute(async (req, res)
 
 // ==========================================
 // 3.55 MEDIA STUDIO ROUTER (/api/media)
-//   AI filming briefs, uploads, and edit plans today; actual image/video
-//   rendering + auto-editing engage once a media-generation API key lands
-//   (MEDIA_API_KEY — coming soon).
+//   Filming briefs, uploads and edit plans (all text, all `writing` budget),
+//   plus real rendering on the Gemini key: images synchronously against the
+//   `image` budget, video as a polled long-running Veo job against `video`.
+//   Keyless, rendering answers 501 — a fabricated image would be a lie.
 // ==========================================
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const DATA_URL_RE = /^data:(image\/(?:png|jpeg|webp)|video\/(?:mp4|webm));base64,([A-Za-z0-9+/=\s]+)$/;
 const EXT_FOR = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm' };
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
-app.post('/api/media/brief', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/media/brief', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -2116,9 +2212,15 @@ app.post('/api/media/brief', verifyToken, checkAiBudget, asyncRoute(async (req, 
     ? competitorTrendsDigest(db.competitorInsights.latestByProfile(profile.id))
     : null;
 
-  const brief = await ai.generateMediaBrief({ kind, mode, topic, profile, trends });
+  // The customer-facing words in a brief — the caption, the spoken script, the
+  // on-screen lines — are written in the audience's languages. The directing
+  // instructions to the owner are not; see ai.generateMediaBrief.
+  const brief = await ai.generateMediaBrief({
+    kind, mode, topic, profile, trends,
+    languages: profile.audienceLanguages?.length ? profile.audienceLanguages : undefined,
+  });
   const row = db.media.add({ profileId: profile.id, kind, mode, topic, brief, status: 'brief' });
-  db.usage.record({ userId: req.user.id, kind: 'media' });
+  db.usage.record({ userId: req.user.id, kind: 'media_brief', bucket: 'writing' });
   res.json({ id: row.id, brief });
 }));
 
@@ -2156,7 +2258,7 @@ app.post('/api/media/upload', verifyToken, (req, res) => {
   res.json({ id: row.id, url: `/uploads/${file}` });
 });
 
-app.post('/api/media/:id/edit', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/media/:id/edit', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -2170,13 +2272,102 @@ app.post('/api/media/:id/edit', verifyToken, checkAiBudget, asyncRoute(async (re
 
   const plan = await ai.generateEditPlan({ instructions, media: row, profile });
   db.media.update(row.id, { brief: { ...(row.brief || {}), editPlan: plan }, status: 'edit_plan' });
-  db.usage.record({ userId: req.user.id, kind: 'media' });
+  db.usage.record({ userId: req.user.id, kind: 'media_edit_plan', bucket: 'writing' });
   res.json({ id: row.id, plan });
 }));
 
-// Render a full-mode AI image brief into a real image (fal.ai FLUX). Keyless
-// mode answers 501 "engine pending"; video rendering is a later milestone.
-app.post('/api/media/:id/render', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+/**
+ * Actually apply an edit to an image, rather than describing one.
+ *
+ * Kept separate from /edit on purpose: that route writes instructions for a
+ * human editing their own photo (cheap, writing bucket), while this one spends
+ * an image generation. Conflating them would charge everyone who only wanted
+ * advice.
+ *
+ * The result is a NEW row. Overwriting would destroy the original the owner
+ * uploaded — and an edit they dislike would be unrecoverable.
+ */
+app.post('/api/media/:id/apply-edit', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const row = db.media.findById(req.params.id);
+  if (!row || row.profileId !== profile.id) return res.status(404).json({ error: 'Media item not found' });
+  if (row.kind !== 'image') return res.status(400).json({ error: 'Only images can be edited' });
+  if (!row.filePath) return res.status(400).json({ error: 'There is no image here yet — upload or render one first' });
+
+  const instructions = typeof req.body.instructions === 'string' ? req.body.instructions.trim() : '';
+  if (instructions.length < 2 || instructions.length > 500) {
+    return res.status(400).json({ error: 'Instructions must be 2-500 characters' });
+  }
+
+  const denial = overBudget(req.user, 'image');
+  if (denial) return res.status(429).json(denial);
+
+  try {
+    // Argon turns the one-line request into a precise edit instruction; keyless
+    // or on failure, the owner's own words go through as before.
+    const directed = await gemini.directImageEdit({ instructions, topic: row.topic, profile });
+    const { filePath } = await mediagen.editImage({
+      prompt: `${directed || instructions}\n\nKeep the subject, framing and identity of the original photo intact — this is an edit, not a new image.`,
+      filePath: row.filePath,
+    });
+    const created = db.media.add({
+      profileId: profile.id,
+      kind: 'image',
+      mode: row.mode,
+      topic: row.topic,
+      brief: { ...(row.brief || {}), editedFrom: row.id, editInstructions: instructions },
+      status: 'rendered',
+    });
+    const updated = db.media.update(created.id, { filePath: filePath.replace(/^\//, '') });
+    db.usage.record({ userId: req.user.id, kind: 'media_edit', bucket: 'image' });
+    res.json({ id: updated.id, url: filePath, sourceId: row.id, status: 'rendered' });
+  } catch (err) {
+    if (err instanceof mediagen.MediaEngineError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+}));
+
+// Render a full-mode AI brief into real media on the Gemini key: images
+// synchronously, video as a polled long-running job. Keyless answers 501.
+/**
+ * Build the generation prompt for a full-mode brief.
+ *
+ * Argon writes `renderPrompt` at brief time — the art direction, with the
+ * brand brief already folded in — so the render engine gets it as-is. The
+ * owner's own prompt rides along EVERY time: it is the brief, and an ad that
+ * drifts from what they typed is the failure this exists to prevent.
+ *
+ * Briefs written before renderPrompt existed, or by the keyless template, are
+ * composed from their parts plus the brand digest instead.
+ */
+const renderPromptFor = (row, profile) => {
+  const brief = row.brief || {};
+  const video = row.kind === 'video';
+  const ownerAsk = row.topic ? `OWNER'S REQUEST (must be reflected exactly): ${row.topic}` : '';
+  if (brief.renderPrompt) return [brief.renderPrompt, ownerAsk].filter(Boolean).join('\n\n');
+
+  const spec = brief.visualSpec || {};
+  return [
+    ownerAsk,
+    brief.concept || `A scroll-stopping ${video ? 'video' : 'image'} ad for ${profile.businessName}`,
+    spec.composition && `Composition: ${spec.composition}`,
+    spec.palette && `Palette: ${spec.palette}`,
+    spec.mood && `Mood: ${spec.mood}`,
+    !video && brief.headline && `Headline on the ad, spelled exactly: "${brief.headline}"`,
+    `A finished, professional social-media ${video ? 'video' : 'advertisement'} for ${profile.businessName}, ` +
+      `a ${(profile.category || 'business').toLowerCase()}${profile.location ? ` in ${profile.location}` : ''}. ` +
+      (video ? 'No on-screen text, no watermark.' : 'Any text in the image is spelled exactly as quoted; no watermark.'),
+    `\nBRAND CONTEXT (match this; never invent products, prices or signage):\n${brand.briefDigest(profile.brandBrief, profile)}`,
+  ].filter(Boolean).join('\n');
+};
+
+// Rendering is the one place that spends real money per call, and how much
+// depends on the row: an image is ~$0.03, a video ~$0.30. So unlike every other
+// route the budget cannot be checked by mounted middleware — the bucket is not
+// known until the row is loaded.
+app.post('/api/media/:id/render', verifyToken, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
@@ -2185,33 +2376,94 @@ app.post('/api/media/:id/render', verifyToken, checkAiBudget, asyncRoute(async (
   if (row.mode !== 'full') {
     return res.status(400).json({ error: 'Only full-mode AI briefs can be rendered — guided briefs are filmed by you.' });
   }
-  if (row.kind === 'video') return res.status(501).json({ error: 'Video rendering is coming soon — image rendering is available now.' });
-  if (row.kind !== 'image') return res.status(400).json({ error: 'Only image briefs can be rendered' });
+  if (!['image', 'video'].includes(row.kind)) return res.status(400).json({ error: 'Only image or video briefs can be rendered' });
+  if (row.status === 'rendering') {
+    return res.status(409).json({ error: 'This video is already being generated — check back in a moment.', status: 'rendering' });
+  }
 
-  // Build the generation prompt from the stored creative brief + the owner's
-  // business context (concept first, then the visual spec fields).
-  const brief = row.brief || {};
-  const spec = brief.visualSpec || {};
-  const prompt = [
-    brief.concept || `A scroll-stopping marketing image for ${profile.businessName}${row.topic ? ` about ${row.topic}` : ''}`,
-    spec.composition && `Composition: ${spec.composition}`,
-    spec.palette && `Palette: ${spec.palette}`,
-    spec.mood && `Mood: ${spec.mood}`,
-    `Professional social-media photo for ${profile.businessName}, a ${(profile.category || 'business').toLowerCase()}` +
-      `${profile.location ? ` in ${profile.location}` : ''}. Photorealistic, no text, no watermark.`,
-  ].filter(Boolean).join('\n');
+  const bucket = row.kind === 'video' ? 'video' : 'image';
+  const denial = overBudget(req.user, bucket);
+  if (denial) return res.status(429).json(denial);
+
+  const prompt = renderPromptFor(row, profile);
 
   try {
+    if (row.kind === 'video') {
+      // Minutes, not seconds — so this returns a handle and the client polls
+      // /status. Charged HERE, at submit, because that is when the spend is
+      // committed upstream; a failed operation refunds it.
+      const { operationId } = await mediagen.startVideo({ prompt });
+      db.usage.record({ userId: req.user.id, kind: 'media_video', bucket: 'video' });
+      const updated = db.media.update(row.id, {
+        operationId, status: 'rendering', renderStartedAt: new Date().toISOString(),
+      });
+      return res.status(202).json({ id: updated.id, status: 'rendering' });
+    }
+
     const { filePath } = await mediagen.renderImage({ prompt });
     // Stored without the leading slash (same convention as /api/media/upload).
     const updated = db.media.update(row.id, { filePath: filePath.replace(/^\//, ''), status: 'rendered' });
-    db.usage.record({ userId: req.user.id, kind: 'media' });
-    res.json({ id: updated.id, url: filePath });
+    db.usage.record({ userId: req.user.id, kind: 'media_image', bucket: 'image' });
+    res.json({ id: updated.id, url: filePath, status: 'rendered' });
   } catch (err) {
     if (err instanceof mediagen.MediaEngineError) return res.status(err.status).json({ error: err.message });
     throw err;
   }
 }));
+
+/**
+ * Poll a video render. Cheap and unmetered — the money was already spent at
+ * submit, and charging someone to ask whether their job finished would be
+ * indefensible.
+ */
+app.get('/api/media/:id/status', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+
+  const row = db.media.findById(req.params.id);
+  if (!row || row.profileId !== profile.id) return res.status(404).json({ error: 'Media item not found' });
+  if (row.status !== 'rendering') {
+    return res.json({ id: row.id, status: row.status, url: row.filePath ? `/${row.filePath}` : null });
+  }
+
+  const settled = await settleVideoRender(row, req.user.id);
+  res.json(settled);
+}));
+
+/**
+ * Resolve one in-flight video job: poll upstream, and on completion download
+ * the result. On failure the owner's unit is refunded — they were charged at
+ * submit for output that never arrived.
+ *
+ * Shared by the poll route and the stale sweep, so a job settles identically
+ * whether the owner is watching or not.
+ */
+function failVideoRender(row, userId, message) {
+  const owner = userId || (db.profiles.findById(row.profileId) || {}).userId;
+  db.media.update(row.id, { status: 'failed', operationId: null });
+  if (owner) db.usage.refundLatest({ userId: owner, bucket: 'video' });
+  return { id: row.id, status: 'failed', error: message };
+}
+
+async function settleVideoRender(row, userId) {
+  try {
+    const result = await mediagen.pollVideo({ operationId: row.operationId });
+    if (!result.done) return { id: row.id, status: 'rendering' };
+    // A terminal upstream failure — the job is genuinely dead, so refund.
+    if (result.error) return failVideoRender(row, userId, result.error);
+
+    const { filePath } = await mediagen.downloadVideo({ uri: result.uri });
+    db.media.update(row.id, { filePath: filePath.replace(/^\//, ''), status: 'rendered', operationId: null });
+    return { id: row.id, status: 'rendered', url: filePath };
+  } catch (err) {
+    // Failing to ASK is not the same as the job having failed. A network blip
+    // or a download hiccup must not destroy a render the owner already paid
+    // for, so the job stays in flight and the next poll retries; only the
+    // stale sweep, after veoMaxWaitMs, ever gives up on it.
+    if (err instanceof mediagen.MediaEngineError) return { id: row.id, status: 'rendering' };
+    throw err;
+  }
+}
 
 app.get('/api/media', verifyToken, (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
@@ -2219,20 +2471,44 @@ app.get('/api/media', verifyToken, (req, res) => {
   res.json({ items: db.media.listByProfile(profile.id) });
 });
 
+/**
+ * Settle video jobs nobody is polling. Two cases: the operation has finished
+ * and the owner simply left (so we save the video they paid for), or it has
+ * been in flight past veoMaxWaitMs and is never coming back (so we fail it and
+ * refund). Either way a row never sits in 'rendering' indefinitely.
+ */
+async function runStaleRenderSweep(nowMs = Date.now()) {
+  // A minute of grace beyond the cap, so this never races a live poll.
+  const cutoff = new Date(nowMs - config.veoMaxWaitMs).toISOString();
+  for (const row of db.media.listStaleRenders(new Date(nowMs).toISOString())) {
+    const expired = !row.renderStartedAt || row.renderStartedAt < cutoff;
+    try {
+      if (!expired) {
+        await settleVideoRender(row, null);
+        continue;
+      }
+      failVideoRender(row, null, `Video generation did not finish within ${Math.round(config.veoMaxWaitMs / 60000)} minutes.`);
+      console.warn(`Media ${row.id}: video render exceeded ${config.veoMaxWaitMs}ms, failed and refunded.`);
+    } catch (err) {
+      console.warn(`Media ${row.id}: stale-render sweep failed:`, err.message);
+    }
+  }
+}
+
 // ==========================================
 // 3.6 AI AGENT & APPROVAL GATES (/api/agent)
 //   Markiv now has conversation memory (agent_messages), language-aware
 //   replies, and read/act tools (snapshot, calendar, drafting) passed into
 //   ai.js as closures. Money actions still always hit the approval gate.
 // ==========================================
-app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'A query is required' });
   const lang = ['en', 'uz', 'ru'].includes(req.body.lang) ? req.body.lang : 'en';
 
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
-  db.usage.record({ userId: req.user.id, kind: 'agent' });
+  db.usage.record({ userId: req.user.id, kind: 'agent', bucket: 'writing' });
 
   // Conversation memory: load the recent turns BEFORE recording the new
   // message, so the model sees prior context without a duplicate of it.
@@ -2314,7 +2590,25 @@ app.post('/api/agent/query', verifyToken, checkAiBudget, asyncRoute(async (req, 
       location: profile.location,
       brief: profile.brandBrief,
       preferences: db.feedback.recentExamples(profile.id),
+      // Markiv drafts in the customers' languages, not the owner's chat
+      // language — the post is read by one and written for the other.
+      languages: profile.audienceLanguages?.length ? profile.audienceLanguages : undefined,
     }),
+    // Deferred onboarding: a fact the owner mentioned in conversation lands in
+    // the same place the profile panel writes to, so the "!" badge drops by one
+    // and nobody is asked twice. Re-reads the profile because earlier turns in
+    // this same request may already have saved something.
+    saveBusinessDetail: ({ key, value }) => {
+      // An empty value means "skip" on the panel path, where the owner chose
+      // it. Coming from the model it can only be a malformed call, and
+      // silencing a question nobody answered is the one outcome to avoid.
+      if (!value || !String(value).trim()) return { saved: false, error: 'A non-empty value is required' };
+      const current = db.profiles.findById(profile.id);
+      const fields = profileQuestions.applyAnswers(current, { [key]: value }, 'markiv');
+      if (!fields) return { saved: false, error: `Unknown detail key: ${key}` };
+      const updated = db.profiles.update(profile.id, fields);
+      return { saved: true, key, remaining: profileQuestions.completion(updated).pendingCount };
+    },
   };
 
   const conn = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
@@ -2643,7 +2937,7 @@ app.post('/api/autonomous/context-request/answer', verifyToken, autonomousGate, 
 
 // "Run now" — user-initiated, budget-checked. Runs one Autopilot cycle for this
 // business immediately (ignores the cadence timer).
-app.post('/api/autonomous/run', verifyToken, autonomousGate, checkAiBudget, asyncRoute(async (req, res) => {
+app.post('/api/autonomous/run', verifyToken, autonomousGate, checkBudget('writing'), asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const cfg = db.autonomous.getConfig(profile.id);
@@ -2950,10 +3244,20 @@ if (require.main === module) {
   app.listen(config.port, () => {
     console.log(`🚀 Markivo API server running on port ${config.port}`);
   });
+  // Which engine actually answers is the first thing to check after a deploy.
+  console.log(config.geminiEnabled
+    ? `🧠 Text engine: ${config.geminiTextModel} (retry: ${config.geminiFallbackModel || 'off'}, thinking ${config.geminiThinkingLevel}); ` +
+      `media: ${config.geminiImageModel} + ${config.veoModel}`
+    : `🧠 Text engine: ${config.textEngine} (no GEMINI_API_KEY)`);
   // Scheduled-post worker: every 60s, publish due calendar posts.
   if (process.env.NODE_ENV !== 'test' && process.env.WORKER_ENABLED !== 'false') {
     setInterval(runScheduledPostsTick, 60000);
     console.log('⏱️  Scheduled-post worker running (60s tick)');
+
+    // Stale-render sweep: a video job whose owner closed the tab has nobody
+    // polling it. Without this the row shows a spinner forever and the unit
+    // charged at submit is never refunded.
+    setInterval(runStaleRenderSweep, 60000);
 
     // Autopilot worker: scan for due autonomous businesses and run each. A
     // re-entrancy guard skips a tick while the previous one is still running, so
@@ -2978,4 +3282,5 @@ module.exports = {
   runScheduledPostsTick,
   // Bound to the server's db/deps + publishers so tests can drive a cycle.
   runAutonomousTick: runAutopilotTick,
+  runStaleRenderSweep,
 };

@@ -5,6 +5,31 @@ const path = require('path');
 const secrets = require('./secrets');
 
 /**
+ * 00:00 UTC on the Monday of the given week, as an ISO string.
+ *
+ * Generation allowances refill weekly rather than monthly, and everyone's week
+ * turns over at the same instant — a single date the UI can name ("resets
+ * Monday") instead of a per-user anniversary nobody can predict. UTC because
+ * the reset must not drift with the server's timezone.
+ *
+ * @param {Date} [at]  Point in time to find the containing week for.
+ */
+function weekStartIso(at = new Date()) {
+  const d = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+  // getUTCDay(): 0 = Sunday, so Sunday is 6 days INTO the week, not 0 days in.
+  const daysSinceMonday = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - daysSinceMonday);
+  return d.toISOString();
+}
+
+/** 00:00 UTC on the Monday AFTER the given week — when the allowance refills. */
+function weekEndIso(at = new Date()) {
+  const start = new Date(weekStartIso(at));
+  start.setUTCDate(start.getUTCDate() + 7);
+  return start.toISOString();
+}
+
+/**
  * Markivo data-access layer (SQLite via better-sqlite3).
  *
  * Everything the server needs to read/write lives here. The rest of the app
@@ -475,6 +500,38 @@ module.exports = function createDb(dbPath) {
   // NULL = a profile-wide "analyze all tracked competitors" insight; set = a
   // single-competitor "analyze this channel" insight.
   addColumn('competitor_insights', 'competitor_id TEXT');
+  // Deferred onboarding. Signup asks only the essentials; the rest are asked in
+  // the profile panel and by Markiv. profile_questions caches the 2-5
+  // Gemini-written, business-specific questions (generated once, then stable so
+  // the owner never sees a different list on each visit); profile_answers is the
+  // key -> answer map for both those and the fixed set.
+  addColumn('profiles', 'profile_questions TEXT');
+  addColumn('profiles', 'profile_answers TEXT');
+  addColumn('profiles', 'profile_questions_at TEXT');
+  // Languages the owner's CUSTOMERS read, in the order they chose (JSON array
+  // of 'uz'|'ru'|'en'). Distinct from the owner's own UI language: it decides
+  // what language a caption, a spoken script, or an on-screen line is written
+  // in. Empty means never answered, which keeps the old auto-detect behaviour.
+  addColumn('profiles', 'audience_languages TEXT');
+  // Which weekly allowance a generation was charged against ('writing' |
+  // 'image' | 'video'). Stored rather than derived from `kind`, so remapping a
+  // kind later never rewrites what a user was already charged.
+  addColumn('ai_usage', 'bucket TEXT');
+  // Video generation is a long-running upstream operation, so a render can no
+  // longer be a single synchronous call: operation_id is the handle we poll,
+  // and the row sits in status 'rendering' until it resolves or the sweep
+  // fails it out.
+  addColumn('media', 'operation_id TEXT');
+  addColumn('media', 'render_started_at TEXT');
+
+  sqlite.exec(`
+    CREATE INDEX IF NOT EXISTS idx_ai_usage_bucket
+      ON ai_usage(user_id, bucket, created_at);
+  `);
+  // Every historical generation predates the split and was drawn from the one
+  // shared pool, which is what 'writing' now is. Idempotent; and because the
+  // window is a week, these rows stop mattering within seven days anyway.
+  sqlite.exec("UPDATE ai_usage SET bucket = 'writing' WHERE bucket IS NULL;");
 
   const id = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
@@ -495,6 +552,12 @@ module.exports = function createDb(dbPath) {
     googleRating: r.google_rating ?? null,
     googleReviewsCount: r.google_reviews_count ?? null,
     brandBrief: r.brand_brief ? JSON.parse(r.brand_brief) : null,
+    // Default to [] / {} rather than null: every consumer iterates these, and a
+    // profile that has simply never been asked is not a missing-data case.
+    profileQuestions: r.profile_questions ? JSON.parse(r.profile_questions) : [],
+    profileAnswers: r.profile_answers ? JSON.parse(r.profile_answers) : {},
+    profileQuestionsAt: r.profile_questions_at || null,
+    audienceLanguages: r.audience_languages ? JSON.parse(r.audience_languages) : [],
   };
   const mapPlatform = (r) => r && {
     id: r.id, profileId: r.profile_id, platformName: r.platform_name,
@@ -549,6 +612,8 @@ module.exports = function createDb(dbPath) {
     brief: r.brief ? JSON.parse(r.brief) : null,
     filePath: r.file_path, originalName: r.original_name,
     status: r.status, created_at: r.created_at,
+    operationId: r.operation_id || null,
+    renderStartedAt: r.render_started_at || null,
   };
   const mapAgentMessage = (r) => r && {
     id: r.id, profileId: r.profile_id, sender: r.sender, text: r.text, created_at: r.created_at,
@@ -609,6 +674,10 @@ module.exports = function createDb(dbPath) {
   return {
     _raw: sqlite,
     close: () => sqlite.close(),
+    // Week boundaries are part of the data contract (the allowance window), so
+    // callers read them from here rather than each re-deriving "which Monday".
+    weekStartIso,
+    weekEndIso,
 
     users: {
       create({ email, passwordHash, fullName, preferredLang = 'en', tier = 'freemium' }) {
@@ -727,6 +796,10 @@ module.exports = function createDb(dbPath) {
           slogan: 'slogan',
           logoMetadata: 'logo_metadata',
           brandBrief: 'brand_brief',
+          profileQuestions: 'profile_questions',
+          profileAnswers: 'profile_answers',
+          profileQuestionsAt: 'profile_questions_at',
+          audienceLanguages: 'audience_languages',
         };
         const sets = [];
         const params = { profileId };
@@ -736,6 +809,9 @@ module.exports = function createDb(dbPath) {
           if (key === 'isOnline') value = value ? 1 : 0;
           if (key === 'logoMetadata') value = value ? JSON.stringify(value) : null;
           if (key === 'brandBrief') value = value ? JSON.stringify(value) : null;
+          if (key === 'profileQuestions' || key === 'profileAnswers' || key === 'audienceLanguages') {
+            value = value ? JSON.stringify(value) : null;
+          }
           sets.push(`${col} = @${key}`);
           params[key] = value;
         }
@@ -1216,11 +1292,21 @@ module.exports = function createDb(dbPath) {
       findById(mediaId) {
         return mapMedia(sqlite.prepare('SELECT * FROM media WHERE id = ?').get(mediaId));
       },
+      // Video jobs that never resolved. A crashed poll, an abandoned tab, or an
+      // upstream operation that silently died would otherwise leave a row in
+      // 'rendering' forever — showing the owner a spinner for a job nobody is
+      // waiting on, having already charged them for it.
+      listStaleRenders(beforeIso) {
+        return sqlite.prepare(
+          "SELECT * FROM media WHERE status = 'rendering' AND (render_started_at IS NULL OR render_started_at < ?)"
+        ).all(beforeIso).map(mapMedia);
+      },
       // Partial update: only keys present in `fields` are written.
       update(mediaId, fields = {}) {
         const colFor = {
           kind: 'kind', mode: 'mode', topic: 'topic', brief: 'brief',
           filePath: 'file_path', originalName: 'original_name', status: 'status',
+          operationId: 'operation_id', renderStartedAt: 'render_started_at',
         };
         const sets = [];
         const params = { mediaId };
@@ -1239,17 +1325,30 @@ module.exports = function createDb(dbPath) {
     },
 
     usage: {
-      record({ userId, kind }) {
-        sqlite.prepare('INSERT INTO ai_usage (id, user_id, kind, created_at) VALUES (?, ?, ?, ?)')
-          .run(id(), userId, kind, now());
+      // `bucket` is what the allowance is counted against; `kind` is the finer
+      // audit trail ('content' vs 'agent' both land in 'writing'). The bucket is
+      // STORED rather than derived from kind at read time, so remapping a kind
+      // later cannot retroactively rewrite what a user was already charged.
+      record({ userId, kind, bucket = 'writing' }) {
+        sqlite.prepare('INSERT INTO ai_usage (id, user_id, kind, bucket, created_at) VALUES (?, ?, ?, ?, ?)')
+          .run(id(), userId, kind, bucket, now());
       },
-      // Generations used since the start of the current UTC month.
-      // ISO-8601 strings compare lexicographically, so a prefix bound works.
-      countThisMonth(userId) {
-        const monthStart = `${new Date().toISOString().slice(0, 7)}-01`;
+      // A refund. Video is charged when the job is SUBMITTED, because that is
+      // when the money is spent — but an operation that fails upstream produced
+      // nothing, so the unit goes back. Deletes the most recent matching row.
+      refundLatest({ userId, bucket }) {
+        const row = sqlite.prepare(
+          'SELECT id FROM ai_usage WHERE user_id = ? AND bucket = ? ORDER BY created_at DESC, rowid DESC LIMIT 1'
+        ).get(userId, bucket);
+        if (row) sqlite.prepare('DELETE FROM ai_usage WHERE id = ?').run(row.id);
+        return !!row;
+      },
+      // Generations used in one bucket since 00:00 UTC on the current Monday.
+      // ISO-8601 strings compare lexicographically, so a plain bound works.
+      countThisWeek(userId, bucket) {
         return sqlite.prepare(
-          'SELECT COUNT(*) AS n FROM ai_usage WHERE user_id = ? AND created_at >= ?'
-        ).get(userId, monthStart).n;
+          'SELECT COUNT(*) AS n FROM ai_usage WHERE user_id = ? AND bucket = ? AND created_at >= ?'
+        ).get(userId, bucket, weekStartIso()).n;
       },
     },
 
