@@ -79,11 +79,22 @@ const config = {
   // gemini.js — so a blank key never breaks the app or the tests.
   // Key: https://aistudio.google.com/apikey
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  // `gemini-flash-latest` is an alias that tracks the current Flash model, and
-  // it carries its own free-tier quota bucket — the pinned `gemini-2.5-flash`
-  // name is far more likely to be exhausted on a free project.
-  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-flash-latest',
-  geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 20000,
+  // Gemini 4 Argon is the one reasoning engine behind EVERY request: copy,
+  // Markiv, Autopilot, brand briefs, research, and the art direction that turns
+  // an owner's prompt into the image/video render prompt. Argon outputs text
+  // only, so the pixels themselves still come from the image model and Veo
+  // below. It is a paid-tier model (no free-tier quota) and is reached through
+  // the Interactions API, not generateContent.
+  geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-4-argon',
+  // Retried once when the primary model refuses the call (no paid tier, model
+  // not enabled for the key, quota). Keeps the product answering on Flash
+  // rather than collapsing to templates. Set blank to disable the retry.
+  geminiFallbackModel: process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-flash-latest',
+  // Argon thinks before it answers, and every token of that counts against
+  // max_output_tokens and the bill. `low` keeps a reply inside the 90s the
+  // nginx proxy allows; raise it for depth at the cost of latency.
+  geminiThinkingLevel: process.env.GEMINI_THINKING_LEVEL || 'low',
+  geminiTimeoutMs: parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 60000,
 
   // --- Media generation (Gemini image + Veo video, same GEMINI_API_KEY) ---
   // Rendering has no honest keyless fallback — a fabricated image would be a

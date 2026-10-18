@@ -1,5 +1,5 @@
 const config = require('./config');
-const anthropic = require('./providers/anthropic');
+const providers = require('./providers/textEngine');
 const prompts = require('./marketing/prompts');
 
 /**
@@ -108,15 +108,16 @@ function templateBrief(ctx) {
 }
 
 /**
- * Generate the brand brief. Live = one Claude (pipeline model) call; keyless =
- * the personalised template. Never throws — degrades to the template on any
+ * Generate the brand brief. Live = one call through the text-engine dispatcher
+ * (Gemini Argon first, then Claude's pipeline model); keyless = the
+ * personalised template. Never throws — degrades to the template on any
  * failure, so onboarding is never blocked.
  */
 async function generateBrandBrief(ctx = {}) {
-  if (!anthropic.isLive) return templateBrief(ctx);
+  if (!providers.isLive) return templateBrief(ctx);
   try {
     const vars = ctxVars(ctx);
-    const brief = await anthropic.completeJSON({
+    const brief = await providers.completeJSON({
       model: config.aiPipelineModel,
       system: prompts.brand.generationSystemPrompt,
       prompt: fillStr(prompts.brand.generationUserTemplate, vars),

@@ -478,6 +478,7 @@ export default function MediaStudio({ activeProfile }) {
           {brief && briefMode === 'full' && (
             <div className="brief-output animate-fade-in">
               {textBlock('fa-lightbulb', t('media.brief.conceptTitle', 'Concept'), brief.concept)}
+              {textBlock('fa-heading', t('media.brief.headlineTitle', 'Headline on the ad'), brief.headline)}
 
               <div className="brief-block">
                 <div className="brief-block-head">
@@ -535,7 +536,11 @@ export default function MediaStudio({ activeProfile }) {
                   </div>
                 ) : (
                   <>
-                    {engineNote(renders[briefId]?.notice || brief.note || enginePendingText)}
+                    {/* A live engine has nothing pending to warn about — only
+                        a failed render's notice is worth showing then. */}
+                    {brief.engineStatus === 'ready'
+                      ? (renders[briefId]?.notice && engineNote(renders[briefId].notice))
+                      : engineNote(renders[briefId]?.notice || brief.note || enginePendingText)}
                     <button
                       type="button"
                       className="btn btn-primary w-full"

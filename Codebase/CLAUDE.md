@@ -37,6 +37,11 @@
   later never rewrites what a user was already charged. Guard routes with
   `checkBudget('<bucket>')`; `/api/media/:id/render` checks inline instead, because
   image-vs-video is not known until the row is loaded.
+- Every text request runs on Gemini 4 Argon (`GEMINI_TEXT_MODEL`) through the Interactions
+  API (`gemini.js#createInteraction`, stateless `store: false`), retried once on
+  `GEMINI_FALLBACK_MODEL` when refused. Argon is text-only, so it art-directs media
+  instead: a full-mode brief carries Argon's `renderPrompt`, which the render route
+  sends to the image model / Veo together with the owner's own prompt.
 - Media rendering runs on `GEMINI_API_KEY` (images via the image model, video via Veo) —
   there is no separate media key. Video is a long-running job: charged at submit,
   refunded if it fails, swept out after `VEO_MAX_WAIT_MS`. A failure to *poll* is not a

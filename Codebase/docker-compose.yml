@@ -28,7 +28,12 @@ services:
       # This list is explicit, so a key missing HERE never reaches the container
       # no matter what .env says.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Blank = config default, Gemini 4 Argon, for every text request.
       GEMINI_TEXT_MODEL: ${GEMINI_TEXT_MODEL:-}
+      # `-` not `:-`: unset keeps the Flash retry, an explicit empty value
+      # disables it.
+      GEMINI_FALLBACK_MODEL: ${GEMINI_FALLBACK_MODEL-gemini-flash-latest}
+      GEMINI_THINKING_LEVEL: ${GEMINI_THINKING_LEVEL:-}
       GEMINI_TIMEOUT_MS: ${GEMINI_TIMEOUT_MS:-}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}

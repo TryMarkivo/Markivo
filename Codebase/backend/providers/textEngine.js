@@ -17,7 +17,9 @@ const isLive = config.geminiEnabled || anthropic.isLive;
 async function completeJSON({ model, system, prompt, schema, maxTokens, temperature } = {}) {
   if (config.geminiEnabled) {
     try {
-      return await gemini.callGeminiJSON({ system, prompt, schema, maxTokens, temperature });
+      // No temperature: Argon reasons before answering and ignores sampling
+      // parameters; the Interactions API has deprecated them.
+      return await gemini.callGeminiJSON({ system, prompt, schema, maxTokens });
     } catch (err) {
       console.warn('Gemini completeJSON failed, falling back to Anthropic:', err.message);
     }

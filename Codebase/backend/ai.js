@@ -980,58 +980,55 @@ async function runAgentAnthropic({ tools, messages, system, runTool }) {
 }
 
 // Gemini's tool-calling equivalent, same short-circuit/loop contract as
-// runAgentAnthropic above, built on Gemini's functionCall/functionResponse
-// wire format. `messages` is the SAME provider-agnostic flat turn list
+// runAgentAnthropic above, built on the Interactions API's step format.
+// `messages` is the SAME provider-agnostic flat turn list
 // ([{role:'user'|'assistant', content: string}]) agentAct already built for
-// Anthropic — converted here to Gemini's {role, parts} shape.
+// Anthropic — converted here to user_input / model_output steps.
 //
-// Verified live against the real API: a functionCall part carries a
-// thoughtSignature that MUST be echoed back verbatim in the next turn's
-// parts, or the API rejects the request — so the model's raw `content.parts`
-// is pushed back unmodified rather than reconstructed field-by-field.
+// The calls are stateless (store: false), so each turn resends the whole
+// history. The model's returned steps — thought steps with their signatures,
+// and the function_call steps — are pushed back exactly as received; the API
+// rejects a turn whose signatures were rebuilt or dropped.
 async function runAgentGemini({ tools, messages, system, runTool }) {
-  const contents = messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
+  const input = messages.map((m) => ({
+    type: m.role === 'assistant' ? 'model_output' : 'user_input',
+    content: [{ type: 'text', text: m.content }],
   }));
 
-  let content = await gemini.callGeminiWithTools({ system, contents, tools });
+  let { steps } = await gemini.callGeminiWithTools({ system, input, tools });
 
   for (let i = 0; i < 4; i++) {
-    const calls = (content.parts || []).filter((p) => p.functionCall);
+    const calls = steps.filter((s) => s.type === 'function_call');
     if (!calls.length) break;
 
-    const tgCall = calls.find((c) => c.functionCall.name === 'post_to_telegram');
-    if (tgCall && tgCall.functionCall.args?.text) {
-      return { type: 'telegram_post', text: tgCall.functionCall.args.text, note: tgCall.functionCall.args.note };
+    const tgCall = calls.find((c) => c.name === 'post_to_telegram');
+    if (tgCall && tgCall.arguments?.text) {
+      return { type: 'telegram_post', text: tgCall.arguments.text, note: tgCall.arguments.note };
     }
-    const ppCall = calls.find((c) => c.functionCall.name === 'publish_post');
-    if (ppCall && ppCall.functionCall.args?.text && ppCall.functionCall.args?.platform) {
-      return { type: 'platform_post', platform: ppCall.functionCall.args.platform, text: ppCall.functionCall.args.text, note: ppCall.functionCall.args.note };
+    const ppCall = calls.find((c) => c.name === 'publish_post');
+    if (ppCall && ppCall.arguments?.text && ppCall.arguments?.platform) {
+      return { type: 'platform_post', platform: ppCall.arguments.platform, text: ppCall.arguments.text, note: ppCall.arguments.note };
     }
 
-    contents.push({ role: 'model', parts: content.parts });
-    const responses = [];
+    input.push(...steps);
     for (const c of calls) {
       let out;
       try {
-        out = await runTool(c.functionCall.name, c.functionCall.args || {});
+        out = await runTool(c.name, c.arguments || {});
       } catch (err) {
         out = { error: err.message };
       }
-      responses.push({
-        functionResponse: {
-          name: c.functionCall.name,
-          id: c.functionCall.id,
-          response: (out !== null && typeof out === 'object') ? out : { result: out ?? null },
-        },
+      input.push({
+        type: 'function_result',
+        call_id: c.id,
+        name: c.name,
+        result: [{ type: 'text', text: typeof out === 'string' ? out : JSON.stringify(out ?? null) }],
       });
     }
-    contents.push({ role: 'user', parts: responses });
-    content = await gemini.callGeminiWithTools({ system, contents, tools });
+    ({ steps } = await gemini.callGeminiWithTools({ system, input, tools }));
   }
 
-  const reply = (content.parts || []).filter((p) => p.text).map((p) => p.text).join('').trim();
+  const reply = gemini.outputText({ steps });
   return reply ? { type: 'reply', reply } : null;
 }
 
@@ -1138,6 +1135,7 @@ const MEDIA_BRIEF_FULL_SCHEMA = {
   type: 'object',
   properties: {
     concept: { type: 'string' },
+    headline: { type: 'string' },
     caption: { type: 'string' },
     visualSpec: {
       type: 'object',
@@ -1145,8 +1143,9 @@ const MEDIA_BRIEF_FULL_SCHEMA = {
       required: ['composition', 'palette', 'mood'],
       additionalProperties: false,
     },
+    renderPrompt: { type: 'string' },
   },
-  required: ['concept', 'caption', 'visualSpec'],
+  required: ['concept', 'headline', 'caption', 'visualSpec', 'renderPrompt'],
   additionalProperties: false,
 };
 
@@ -1184,15 +1183,18 @@ async function generateMediaBrief(ctx) {
   const langRule = gemini.mediaLangRule(ctx.languages);
   // Full-mode briefs carry the render-engine status whichever engine wrote
   // them, so the Media Studio's render section behaves identically.
-  const withEngineStatus = (brief) => (guided ? brief : {
-    ...brief,
-    engineStatus: 'awaiting_media_api',
-    note: 'Rendering activates once a media-generation API key is configured.',
-  });
+  const withEngineStatus = (brief) => (guided ? brief : config.mediaEnabled
+    ? { ...brief, engineStatus: 'ready', note: undefined }
+    : {
+        ...brief,
+        engineStatus: 'awaiting_media_api',
+        note: 'Rendering activates once a media-generation API key is configured.',
+      });
 
-  const viaGemini = await gemini.generateMediaBrief(ctx);
+  const brandDigest = profile ? brand.briefDigest(profile.brandBrief, profile) : '';
+  const viaGemini = await gemini.generateMediaBrief({ ...ctx, brandDigest });
   if (viaGemini) return withEngineStatus(viaGemini);
-  if (!providers.isLive) return templateMediaBrief(ctx);
+  if (!providers.isLive) return withEngineStatus(templateMediaBrief(ctx));
   try {
     const parsed = await providers.completeJSON({
       model: config.aiContentModel,
@@ -1209,20 +1211,19 @@ async function generateMediaBrief(ctx) {
             'the scene, exact camera setup, lighting, composition, and a shot list where EVERY shot ' +
             'names its framing, angle, and direction to the person holding the camera. Be concrete and ' +
             'physical: real distances, real angles. No vague advice. Respond as JSON only.')
-        : "You are Markivo's creative director. Produce a generation-ready creative brief for an AI media engine: " +
-          'a concept, a caption that includes hashtags derived from the business name and category, ' +
-          'and a visual spec. Respond as JSON only.') + langRule,
-      prompt: profileLines(profile) + trendsLine(trends) + `Media kind: ${kind}\nWhat they want to shoot: ${topic}`,
+        : gemini.fullAdSystem(kind === 'video')) + langRule,
+      prompt: profileLines(profile) + trendsLine(trends) + `Media kind: ${kind}\n` +
+        (guided ? `What they want to shoot: ${topic}` : `OWNER'S PROMPT (the brief — follow it exactly):\n"""\n${topic}\n"""`),
       schema: guided
         ? (kind === 'video' ? MEDIA_BRIEF_GUIDED_VIDEO_SCHEMA : MEDIA_BRIEF_GUIDED_PHOTO_SCHEMA)
         : MEDIA_BRIEF_FULL_SCHEMA,
       maxTokens: 4000,
     });
-    if (!parsed) return templateMediaBrief(ctx);
+    if (!parsed) return withEngineStatus(templateMediaBrief(ctx));
     return withEngineStatus({ mode, kind, ...parsed });
   } catch (err) {
     console.error('AI generateMediaBrief failed, using template:', err.message);
-    return templateMediaBrief(ctx);
+    return withEngineStatus(templateMediaBrief(ctx));
   }
 }
 

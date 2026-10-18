@@ -2108,8 +2108,11 @@ app.post('/api/media/:id/apply-edit', verifyToken, asyncRoute(async (req, res) =
   if (denial) return res.status(429).json(denial);
 
   try {
+    // Argon turns the one-line request into a precise edit instruction; keyless
+    // or on failure, the owner's own words go through as before.
+    const directed = await gemini.directImageEdit({ instructions, topic: row.topic, profile });
     const { filePath } = await mediagen.editImage({
-      prompt: `${instructions}\n\nKeep the subject, framing and identity of the original photo intact — this is an edit, not a new image.`,
+      prompt: `${directed || instructions}\n\nKeep the subject, framing and identity of the original photo intact — this is an edit, not a new image.`,
       filePath: row.filePath,
     });
     const created = db.media.add({
@@ -2132,22 +2135,33 @@ app.post('/api/media/:id/apply-edit', verifyToken, asyncRoute(async (req, res) =
 // Render a full-mode AI brief into real media on the Gemini key: images
 // synchronously, video as a polled long-running job. Keyless answers 501.
 /**
- * Build the generation prompt from the stored creative brief plus the owner's
- * real brand context. The brief supplies the idea; briefDigest supplies the
- * voice, palette and the owner's own words — without it every business's
- * renders converge on the same stock look.
+ * Build the generation prompt for a full-mode brief.
+ *
+ * Argon writes `renderPrompt` at brief time — the art direction, with the
+ * brand brief already folded in — so the render engine gets it as-is. The
+ * owner's own prompt rides along EVERY time: it is the brief, and an ad that
+ * drifts from what they typed is the failure this exists to prevent.
+ *
+ * Briefs written before renderPrompt existed, or by the keyless template, are
+ * composed from their parts plus the brand digest instead.
  */
 const renderPromptFor = (row, profile) => {
   const brief = row.brief || {};
+  const video = row.kind === 'video';
+  const ownerAsk = row.topic ? `OWNER'S REQUEST (must be reflected exactly): ${row.topic}` : '';
+  if (brief.renderPrompt) return [brief.renderPrompt, ownerAsk].filter(Boolean).join('\n\n');
+
   const spec = brief.visualSpec || {};
   return [
-    brief.concept || `A scroll-stopping marketing image for ${profile.businessName}${row.topic ? ` about ${row.topic}` : ''}`,
+    ownerAsk,
+    brief.concept || `A scroll-stopping ${video ? 'video' : 'image'} ad for ${profile.businessName}`,
     spec.composition && `Composition: ${spec.composition}`,
     spec.palette && `Palette: ${spec.palette}`,
     spec.mood && `Mood: ${spec.mood}`,
-    `Professional social-media ${row.kind === 'video' ? 'video' : 'photo'} for ${profile.businessName}, ` +
+    !video && brief.headline && `Headline on the ad, spelled exactly: "${brief.headline}"`,
+    `A finished, professional social-media ${video ? 'video' : 'advertisement'} for ${profile.businessName}, ` +
       `a ${(profile.category || 'business').toLowerCase()}${profile.location ? ` in ${profile.location}` : ''}. ` +
-      'Photorealistic, no text, no watermark.',
+      (video ? 'No on-screen text, no watermark.' : 'Any text in the image is spelled exactly as quoted; no watermark.'),
     `\nBRAND CONTEXT (match this; never invent products, prices or signage):\n${brand.briefDigest(profile.brandBrief, profile)}`,
   ].filter(Boolean).join('\n');
 };
@@ -3019,6 +3033,11 @@ if (require.main === module) {
   app.listen(config.port, () => {
     console.log(`🚀 Markivo API server running on port ${config.port}`);
   });
+  // Which engine actually answers is the first thing to check after a deploy.
+  console.log(config.geminiEnabled
+    ? `🧠 Text engine: ${config.geminiTextModel} (retry: ${config.geminiFallbackModel || 'off'}, thinking ${config.geminiThinkingLevel}); ` +
+      `media: ${config.geminiImageModel} + ${config.veoModel}`
+    : `🧠 Text engine: ${config.textEngine} (no GEMINI_API_KEY)`);
   // Scheduled-post worker: every 60s, publish due calendar posts.
   if (process.env.NODE_ENV !== 'test' && process.env.WORKER_ENABLED !== 'false') {
     setInterval(runScheduledPostsTick, 60000);

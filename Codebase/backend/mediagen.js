@@ -111,15 +111,37 @@ async function renderImage({ prompt, sourceImage, aspectRatio = '1:1' }, { fetch
     body: {
       model: config.geminiImageModel,
       input,
+      store: false,
+      // No `delivery`: the image models reject it ("delivery mode is not
+      // supported") and return the image inline by default.
       response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: aspectRatio, image_size: '1K' },
     },
     fetchImpl,
   });
 
-  const out = data.output_image;
-  if (!out || !out.data) throw new MediaEngineError(502, 'Media engine returned no image');
+  const out = imageOf(data);
+  if (!out) {
+    // A model that declines (safety, an unrenderable request) answers in text
+    // instead — surface that rather than a bare "no image".
+    const said = textOf(data);
+    throw new MediaEngineError(502, `Media engine returned no image${said ? `: ${said.slice(0, 300)}` : ''}`);
+  }
   return save(Buffer.from(out.data, 'base64'), out.mime_type || 'image/jpeg', 'jpg');
 }
+
+// The REST resource carries generated media inside `steps`; `output_image` is
+// an SDK convenience that only some responses mirror. Last image wins, the
+// same rule the SDK applies.
+const modelContent = (data) =>
+  (data.steps || []).filter((s) => s.type === 'model_output').flatMap((s) => s.content || []);
+
+function imageOf(data) {
+  if (data.output_image && data.output_image.data) return data.output_image;
+  return modelContent(data).filter((c) => c.type === 'image' && c.data).pop() || null;
+}
+
+const textOf = (data) =>
+  modelContent(data).filter((c) => c.type === 'text').map((c) => c.text || '').join(' ').trim();
 
 /** Apply an edit to an image already on disk. Path is a stored `file_path`. */
 async function editImage({ prompt, filePath }, { fetchImpl = fetch } = {}) {
