@@ -19,6 +19,7 @@
 const config = require('./config');
 const prompts = require('./marketing/prompts');
 const i18n = require('./i18n');
+const humanVoice = require('./marketing/humanVoice');
 
 const API_HOST = 'https://generativelanguage.googleapis.com/v1beta';
 
@@ -531,9 +532,10 @@ async function translateText({ text, targetLanguage }) {
     const out = await callGemini({
       maxTokens: 1200,
       system:
-        `Translate the given text into ${targetLanguage}. Preserve the meaning, tone, emoji, ` +
-        'line breaks, and any hashtags/mentions exactly. Output ONLY the translated text — ' +
-        'no preamble, no quotes, no explanation.',
+        `Rewrite the given text in ${targetLanguage} the way a native copywriter there would post ` +
+        'it — natural and idiomatic, never word for word. Keep the meaning, every fact and number, ' +
+        'the tone, emoji, line breaks, and any hashtags/mentions exactly. Output ONLY the ' +
+        'translated text — no preamble, no quotes, no explanation.',
       user: String(text || '').slice(0, 4000),
     });
     return { text: out.trim() || String(text || ''), source: 'gemini' };
@@ -584,7 +586,8 @@ async function applyStyleTransform({ text, instruction, emojify }) {
       maxTokens: 1200,
       system:
         `${instruction}${emojify ? EMOJIFY_SUFFIX : ''} Keep the same underlying message and ` +
-        'language as the original — only change HOW it is written. Output ONLY the rewritten ' +
+        'language as the original — only change HOW it is written. It must still read like a ' +
+        'person wrote it: no markdown, no invented facts. Output ONLY the rewritten ' +
         'text — no preamble, no quotes, no explanation.',
       user: String(text || '').slice(0, 4000),
     });
@@ -745,7 +748,8 @@ async function generateContent(ctx) {
         (Array.isArray(avoid) && avoid.length ? `Never use these clichés: ${avoid.slice(0, 40).map((c) => `"${c}"`).join(', ')}. ` : '') +
         `${langInstruction} ${revising ? 'Revise the existing draft per the instruction — keep everything else about it intact.' : 'Write a single platform-native post that matches the brand voice.'}` +
         `${styleInstruction} ` +
-        'Keep hashtags OUT of the post body — return them separately. Respond as JSON only.',
+        'Keep hashtags OUT of the post body — return them separately. Respond as JSON only.\n\n' +
+        humanVoice.VOICE,
       user:
         `BUSINESS MEMORY:\n${business}\n\n` +
         `Platform: ${platform}\n` +
@@ -1112,7 +1116,9 @@ function fullAdSystem(video) {
     'from the business name and category. ' + render + ' Use only prices, numbers, dates and contact ' +
     'details stated in the owner\'s prompt or the brand facts — never invent them. No other brands\' ' +
     'logos, no watermarks. If no audience language is set below, write every customer-facing word in ' +
-    "the language of the owner's prompt. Respond as JSON only."
+    "the language of the owner's prompt. Respond as JSON only.\n\n" +
+    // The headline, caption and any spoken line are customer-facing copy.
+    humanVoice.VOICE
   );
 }
 
@@ -1158,7 +1164,7 @@ async function generateMediaBrief(ctx) {
   try {
     const parsed = await callGemini({
       maxTokens: 4000,
-      system: (guided ? guidedSystem : fullAdSystem(video)) + langRule,
+      system: (guided ? `${guidedSystem}\n\nFor the spoken script and on-screen lines — ${humanVoice.VOICE}` : fullAdSystem(video)) + langRule,
       user:
         profileLines +
         `Media type: ${video ? 'video' : 'photo'}\n` +

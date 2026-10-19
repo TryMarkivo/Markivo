@@ -4,6 +4,7 @@ const anthropic = require('./providers/anthropic');
 const brand = require('./brand');
 const frameworks = require('./marketing/frameworks');
 const rubric = require('./marketing/rubric');
+const humanVoice = require('./marketing/humanVoice');
 const marketing = require('./marketing/prompts');
 const preferences = require('./preferences');
 const gemini = require('./gemini');
@@ -593,24 +594,30 @@ const STRATEGY_SCHEMA = {
 // One refine pass — only when the local quality gate trips (e.g. a banned
 // cliche slips through). Reuses CONTENT_SCHEMA so multi-language copy stays
 // inside `post`, matching the existing UI contract.
-async function refineDraft({ platform, draft, ctx, langNames }) {
+async function refineDraft({ platform, draft, ctx, langNames, memory, tells = [] }) {
   try {
     const out = await providers.completeJSON({
       model: config.aiContentModel,
       system: rubric.refineSystemPrompt +
         '\n\nOUTPUT OVERRIDE: Return ONLY JSON {"post": string, "mediaTip": string, "hashtags": string[]}. ' +
-        'Put every requested language INSIDE `post`, English first, clearly separated — no separate ' +
-        'translations field, no changeLog.',
+        'Put every requested language INSIDE `post`, in the order listed under Languages, clearly ' +
+        'separated — no separate translations field, no changeLog.\n\n' + humanVoice.VOICE,
       prompt:
-        `Business: ${ctx.businessName || 'a local business'}\n` +
-        `Category: ${ctx.category || 'general'}\n` +
-        `Brand tone: ${ctx.brandTone || 'Cozy & Warm'}\n` +
-        `Location: ${ctx.location || 'n/a'}\n` +
+        // The whole memory when there is one, so the rewrite keeps every
+        // real fact the draft used instead of falling back to generic copy.
+        (memory
+          ? `BUSINESS MEMORY:\n${memory}\n\n`
+          : `Business: ${ctx.businessName || 'a local business'}\n` +
+            `Category: ${ctx.category || 'general'}\n` +
+            `Brand tone: ${ctx.brandTone || 'Cozy & Warm'}\n` +
+            `Location: ${ctx.location || 'n/a'}\n`) +
         `Platform: ${platform}\n` +
         `Languages: ${langNames || 'English'}\n\n` +
         `ORIGINAL DRAFT:\n${draft.post}\n\n` +
         `Hashtags: ${(draft.hashtags || []).join(' ')}\n\n` +
-        'Rewrite it to remove every cliche and clear the quality bar. Keep it ready-to-publish.',
+        (tells.length ? `IT STILL READS MACHINE-WRITTEN — fix each of these:\n- ${tells.join('\n- ')}\n\n` : '') +
+        'Rewrite it to remove every cliche and clear the quality bar, keeping every real fact. ' +
+        'Keep it ready-to-publish.',
       schema: CONTENT_SCHEMA,
       maxTokens: 1200,
     });
@@ -620,6 +627,18 @@ async function refineDraft({ platform, draft, ctx, langNames }) {
     console.error('AI refineDraft failed, keeping draft:', err.message);
     return null;
   }
+}
+
+/**
+ * The finishing pass every generated post goes through: when a draft still
+ * carries a banned cliché (rubric.js) or a machine-writing habit
+ * (humanVoice.js), it earns ONE rewrite with the problems named. Clean drafts
+ * cost nothing; a failed rewrite keeps the draft.
+ */
+async function polish({ platform, draft, ctx, langNames, memory }) {
+  const tells = humanVoice.aiTells(draft.post);
+  if (!tells.length && !rubric.hasCliche(draft.post)) return draft;
+  return (await refineDraft({ platform, draft, ctx, langNames, memory, tells })) || draft;
 }
 
 const PLAN_SCHEMA = {
@@ -665,7 +684,8 @@ async function analyzeAndPlan(ctx) {
         'voice, be built from concrete details in the business memory (never invent prices, hours ' +
         'or numbers), be ready to publish as-is, include a light call to action, and avoid ' +
         'repeating the recent posts. Respond as JSON only.' +
-        gemini.ownerLangRule(lang, 'the "analysis" (it explains the plan to the owner)'),
+        gemini.ownerLangRule(lang, 'the "analysis" (it explains the plan to the owner)') +
+        `\n\nFor every post's text — ${humanVoice.VOICE}`,
       prompt:
         (memory
           ? `BUSINESS MEMORY:\n${memory}\n\n`
@@ -689,12 +709,19 @@ async function analyzeAndPlan(ctx) {
       maxTokens: 2000,
     });
     if (!parsed) return templateAutonomousPlan(ctx);
-    const posts = (parsed.posts || [])
+    // Autopilot publishes without a human in the loop, so each post gets the
+    // same finishing pass as one written by hand.
+    const langNames = gemini.normalizeLanguages(postLangs).map((l) => gemini.LANG_NAMES[l]).join(', ');
+    const posts = await Promise.all((parsed.posts || [])
       .filter((p) => p && p.text)
-      .map((p) => ({
-        platform: String(p.platform || 'instagram').toLowerCase(),
-        topic: p.topic || '',
-        text: String(p.text).slice(0, 4000),
+      .map(async (p) => {
+        const platform = String(p.platform || 'instagram').toLowerCase();
+        const text = String(p.text).slice(0, 4000);
+        const polished = await polish({ platform, draft: { post: text, hashtags: [] }, ctx, langNames, memory });
+        // A rewrite returns hashtags apart from the body; a plan post carries
+        // them inline, so put them back when the original had any.
+        const tags = polished.post !== text && /#\w/.test(text) ? (polished.hashtags || []).join(' ') : '';
+        return { platform, topic: p.topic || '', text: `${polished.post}${tags ? `\n\n${tags}` : ''}`.slice(0, 4000) };
       }));
     return {
       analysis: parsed.analysis || '',
@@ -857,18 +884,13 @@ async function generateContent(ctx) {
     avoid: rubric.bannedCliches,
   });
   if (viaGemini) {
-    // Same local quality gate as the staged pipeline below: a cliché that
-    // slipped through earns one refine pass.
-    if (rubric.hasCliche(viaGemini.post)) {
-      // No explicit list means the post was written in the topic's own
-      // language — the refine must not translate it into English.
-      const langNames = ctx.languages == null
-        ? 'the same language(s) the draft is written in'
-        : gemini.normalizeLanguages(ctx.languages).map((l) => gemini.LANG_NAMES[l]).join(', ');
-      const refined = await refineDraft({ platform, draft: viaGemini, ctx, langNames });
-      if (refined) return refined;
-    }
-    return viaGemini;
+    // Same finishing pass as the staged pipeline below. No explicit language
+    // list means the post was written in the topic's own language — the
+    // rewrite must not translate it into English.
+    const langNames = ctx.languages == null
+      ? 'the same language(s) the draft is written in'
+      : gemini.normalizeLanguages(ctx.languages).map((l) => gemini.LANG_NAMES[l]).join(', ');
+    return polish({ platform, draft: viaGemini, ctx, langNames, memory });
   }
   if (!providers.isLive) return templateContent(ctx);
   const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => gemini.LANG_NAMES[l]);
@@ -900,7 +922,8 @@ async function generateContent(ctx) {
     // 2. Draft — execute the strategy into a final platform-native post.
     const draft = await providers.completeJSON({
       model: config.aiContentModel,
-      system: marketing.pipeline.draftSystemPrompt + (prefBlock ? `\n\n${prefBlock}` : '') + (styleBlock ? `\n\n${styleBlock}` : ''),
+      system: marketing.pipeline.draftSystemPrompt + (prefBlock ? `\n\n${prefBlock}` : '') + (styleBlock ? `\n\n${styleBlock}` : '') +
+        `\n\n${humanVoice.VOICE}`,
       prompt: fill(marketing.pipeline.draftUserTemplate, {
         platform, brief: digest, strategy: JSON.stringify(strategy), topic, languages: langNames,
       }),
@@ -909,14 +932,10 @@ async function generateContent(ctx) {
     });
     if (!draft || !draft.post) return templateContent(ctx);
 
-    let out = { post: draft.post, mediaTip: draft.mediaTip, hashtags: draft.hashtags || [] };
-
-    // 3. Local quality gate — if a banned cliche slipped through, one refine pass.
-    if (rubric.hasCliche(out.post)) {
-      const refined = await refineDraft({ platform, draft: out, ctx, langNames });
-      if (refined) out = refined;
-    }
-    return out;
+    // 3. Local quality gate — a cliché or a machine-writing habit earns one rewrite.
+    return polish({
+      platform, draft: { post: draft.post, mediaTip: draft.mediaTip, hashtags: draft.hashtags || [] }, ctx, langNames, memory: digest,
+    });
   } catch (err) {
     console.error('AI generateContent pipeline failed, using template:', err.message);
     return templateContent(ctx);
@@ -1139,6 +1158,7 @@ async function agentAct(ctx) {
   const system =
     marketing.pipeline.agentSystemPrompt + ' ' +
     `${AGENT_LANG_RULE[lang] || AGENT_LANG_RULE.en}` +
+    `\n\n${humanVoice.CHAT_VOICE}\n\nFor any post you draft — ${humanVoice.VOICE}` +
     (memory
       ? `\n\nBUSINESS MEMORY for ${profile?.businessName || 'this business'} — everything you know about ` +
         `them. Use it in every answer and draft, and never ask for what is already here:\n${memory}`
