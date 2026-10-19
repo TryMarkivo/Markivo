@@ -10,7 +10,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 28px;
-  margin-top: 20px;
+  /* Clears the fixed language/theme controls (App.jsx .floating-controls),
+     which otherwise sit on top of the header's "Start free" button. */
+  margin-top: 72px;
   margin-bottom: 60px;
 }
 
@@ -539,6 +541,25 @@
   }
   .hero-title {
     font-size: 2.8rem;
+  }
+}
+
+/* Phones: the section links do not fit beside the logo and the two buttons —
+   the page itself scrolls through those sections. */
+@media (max-width: 768px) {
+  .header-nav {
+    display: none;
+  }
+  .landing-header {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .header-actions {
+    gap: 8px;
+  }
+  .header-actions .btn {
+    padding: 8px 14px;
+    font-size: 0.9rem;
   }
 }
 

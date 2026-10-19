@@ -155,17 +155,14 @@ test('Autopilot asks for missing context in the owner\'s language', () => {
   assert.match(out.rationale, /^Avtopilotda/);
 });
 
-test('connect guidance and style names read in Uzbek', async () => {
+test('connect guidance and style names go out in English — the client translates them by key', async () => {
+  // ConnectCard and AIEditorModal match on this exact text to translate into
+  // every UI language, so the server must not translate it first.
   const status = await (await get('/api/connect/status')).json();
   const english = new Map(connectors.catalogue().map((c) => [c.key, c]));
-  for (const c of status.catalogue) {
-    const en = english.get(c.key);
-    [...c.requirements, ...c.howToConnect].forEach((line) => {
-      assert.ok(![...en.requirements, ...en.howToConnect].includes(line), `${c.key}: still English — ${line}`);
-    });
-  }
+  for (const c of status.catalogue) assert.deepStrictEqual(c.howToConnect, english.get(c.key).howToConnect);
   const presets = await (await get('/api/styles/presets')).json();
-  assert.ok(presets.every((p) => p.label !== gemini.STYLE_PRESETS.find((s) => s.key === p.key).label));
+  assert.ok(presets.every((p) => p.label === gemini.STYLE_PRESETS.find((s) => s.key === p.key).label));
 });
 
 test('when the live engine fails, the fallback still speaks to the Uzbek owner in Uzbek', async () => {

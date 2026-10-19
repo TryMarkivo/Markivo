@@ -25,7 +25,7 @@ const adapter = {
     'Send /newbot and follow the prompts to name your bot.',
     'Copy the bot token BotFather gives you and paste it here.',
     'Add the bot as an ADMIN of your channel or group.',
-    'Post any message in that channel, then press "Detect channel".',
+    'Post any message in that channel, then press "Find my channel".',
   ],
 
   // "Live" = the feature flag is on. Telegram uses per-business bot tokens

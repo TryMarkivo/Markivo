@@ -125,11 +125,11 @@ const AGENT_CANNED = {
   },
   uz: {
     comingSoon: () =>
-      `Telegramga joylash tez orada qo'shiladi — bu versiyada hali yoqilmagan. Hozircha men siz uchun post matnini tayyorlab beraman: mavzuni ayting yoki "Kontent" bo'limidan foydalaning.`,
+      `Telegramga joylash tez orada qo'shiladi — bu versiyada hali yoqilmagan. Hozircha men siz uchun post matnini tayyorlab beraman: mavzuni ayting yoki "AI kontent" bo'limidan foydalaning.`,
     notConnected: () =>
-      `Buni siz uchun joylagan bo'lardim, lekin Telegram hali ulanmagan. Dashboard'dagi Telegram kartasini oching — bir daqiqa kifoya: @BotFather orqali bot yarating, tokenni kiriting va botni kanalingizga qo'shing. Keyin yana so'rang!`,
+      `Buni siz uchun joylagan bo'lardim, lekin Telegram hali ulanmagan. Dashborddagi Telegram kartasini oching — bir daqiqa kifoya: @BotFather orqali bot yarating, tokenni kiriting va botni kanalingizga qo'shing. Keyin yana so'rang!`,
     drafted: ({ name, tone }) =>
-      `Men ${name} uchun "Kontent" bo'limida, "${tone}" ohangingizga mos post tayyorladim. Uni Telegramga joylaymi?`,
+      `Men ${name} uchun "AI kontent" bo'limida, "${tone}" ohangingizga mos post tayyorladim. Uni Telegramga joylaymi?`,
     competitors: () =>
       `Mahalliy raqobatchilar haftasiga o'rtacha 8-10 ta post joylaydi; sizda ~3 ta. Bu farqni yopsangiz, organik qamrovingiz sezilarli oshadi.`,
     greeting: () =>

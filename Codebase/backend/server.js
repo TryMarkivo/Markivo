@@ -1504,7 +1504,7 @@ app.delete('/api/styles/:id', verifyToken, (req, res) => {
 // Chip metadata for the AI Editor's Style tab — the instruction text itself
 // (the actual rewrite prompt) is never sent to the client.
 app.get('/api/styles/presets', verifyToken, (req, res) => {
-  res.json(gemini.STYLE_PRESETS.map(({ key, label, emoji }) => ({ key, label: i18n.tr(req.lang, label), emoji })));
+  res.json(gemini.STYLE_PRESETS.map(({ key, label, emoji }) => ({ key, label, emoji })));
 });
 
 // Apply a one-tap style transform to text already in the composer — either a
@@ -1894,12 +1894,9 @@ const verifyConnectState = (state) => {
 // Always returns the FULL catalogue — the dashboard shows unconnected
 // platforms too (dimmed), so the owner can see what is available.
 app.get('/api/connect/status', verifyToken, asyncRoute(async (req, res) => {
-  // The connect guidance is owner-facing copy, so it reads in their language.
-  const catalogue = connectors.catalogue().map((c) => ({
-    ...c,
-    requirements: (c.requirements || []).map((line) => i18n.tr(req.lang, line)),
-    howToConnect: (c.howToConnect || []).map((line) => i18n.tr(req.lang, line)),
-  }));
+  // The guidance lines go out in English: the client translates them into
+  // every UI language (ConnectCard), matching on this exact text.
+  const catalogue = connectors.catalogue();
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.json({ catalogue, status: {} });
   res.json({ catalogue, status: await connectors.statusAll({ db, profile }) });
@@ -1915,7 +1912,7 @@ app.post('/api/connect/:key/start', verifyToken, asyncRoute(async (req, res) => 
     return res.status(400).json({
       error: `${adapter.label} connects with its own setup card, not OAuth.`,
       authType: 'token',
-      howToConnect: (adapter.howToConnect || []).map((line) => i18n.tr(req.lang, line)),
+      howToConnect: adapter.howToConnect || [],
     });
   }
 
@@ -2677,7 +2674,7 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
     }
     if (!conn || !conn.chatId) {
       const reply = conn
-        ? i18n.tr(lang, 'Your bot @{{bot}} is connected, but no channel is linked yet. Open the Telegram card on your dashboard, add the bot to your channel as admin, and click Detect — then I can post for you.', { bot: conn.botUsername })
+        ? i18n.tr(lang, 'Your bot @{{bot}} is connected, but no channel is linked yet. Open the Telegram card on your dashboard, add the bot to your channel as admin, and click "Find my channel" — then I can post for you.', { bot: conn.botUsername })
         : i18n.tr(lang, "Your Telegram isn't connected yet. Open the Telegram card on your dashboard — it takes about a minute — and then I can post for you.");
       recordAgentReply(reply);
       return res.json({ reply });
