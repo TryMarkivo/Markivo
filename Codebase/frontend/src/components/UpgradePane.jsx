@@ -9,7 +9,7 @@ const TIER_ORDER = ['freemium', 'pro', 'ultimate'];
  * Dashboard "Upgrade" tab: plan & billing — pick a tier and see current usage limits.
  */
 export default function UpgradePane({ onBillingChanged }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [billing, setBilling] = useState(null); // GET /api/billing/status payload
   const [billingError, setBillingError] = useState(false);
@@ -133,7 +133,7 @@ export default function UpgradePane({ onBillingChanged }) {
               <p className="settings-muted plan-period">
                 {t('settings.plan.periodEnd', {
                   defaultValue: 'Current period ends {{date}}',
-                  date: new Date(billing.currentPeriodEnd).toLocaleDateString(),
+                  date: new Date(billing.currentPeriodEnd).toLocaleDateString(i18n.language),
                 })}
               </p>
             )}

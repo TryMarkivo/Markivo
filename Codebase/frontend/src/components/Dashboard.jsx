@@ -21,6 +21,7 @@ import AIGenerationModal from './AIGenerationModal';
 import TemplatesModal from './TemplatesModal';
 import StylesModal from './StylesModal';
 import { metaFor, composerKeyFor } from '../lib/platforms';
+import { categoryLabel, locationLabel } from '../lib/businessVocab';
 import api from '../lib/api';
 import logoUrl from '../assets/markivo-logo.png';
 import './Dashboard.css';
@@ -306,7 +307,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <small>
               {pendingQuestions > 0
                 ? t('profileQuestions.badgeHint', 'Tell us {{count}} more things about your business', { count: pendingQuestions })
-                : activeProfile.category}
+                : categoryLabel(t, activeProfile.category)}
             </small>
           </div>
           <i className="fa-solid fa-chevron-right active-profile-cue" aria-hidden="true"></i>
@@ -415,11 +416,16 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       <main className="dashboard-main-content">
         {/* TOP BAR */}
         <header className="main-header glass-card">
-          <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          <button
+            className="sidebar-toggle"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={t('dashboard.toggleSidebar', 'Show or hide the sidebar')}
+            aria-expanded={sidebarOpen}
+          >
             <i className="fa-solid fa-bars"></i>
           </button>
           <div className="header-location">
-            <i className="fa-solid fa-location-dot text-accent"></i> <span>{activeProfile.location || t('dashboard.defaultLocation', 'Tashkent, Uzbekistan')}</span>
+            <i className="fa-solid fa-location-dot text-accent"></i> <span>{locationLabel(t, activeProfile.location) || t('dashboard.defaultLocation', 'Tashkent, Uzbekistan')}</span>
           </div>
           <div className="header-badge-wrap">
             <span className="badge badge-success"><i className="fa-solid fa-circle-check"></i> {t('dashboard.systemOperational', 'System Operational')}</span>

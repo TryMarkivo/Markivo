@@ -30,7 +30,10 @@
     "themeToDark": "Tungi mavzuga o'tish",
     "themeToggle": "Mavzuni almashtirish",
     "language": "Til",
-    "retry": "Qayta urinish"
+    "retry": "Qayta urinish",
+    "other": "Boshqa",
+    "saving": "Saqlanmoqda…",
+    "edit": "Tahrirlash"
   },
   "auth": {
     "login": "Kirish",
@@ -75,7 +78,8 @@
     "tiers": {
       "free": "Bepul",
       "pro": "Pro",
-      "ultimate": "Ultimate"
+      "ultimate": "Ultimate",
+      "freemium": "Bepul"
     },
     "buckets": {
       "writing": "Matnlar",
@@ -222,7 +226,10 @@
       "button": "Bugun bepul boshlang"
     },
     "footer": {
-      "copyright": "© {{year}} Markivo. Noldan to'liq ishlashgacha. Barcha huquqlar himoyalangan."
+      "copyright": "© {{year}} Markivo. Noldan to'liq ishlashgacha. Barcha huquqlar himoyalangan.",
+      "privacy": "Maxfiylik siyosati",
+      "terms": "Foydalanish shartlari",
+      "dataDeletion": "Ma'lumotlarni o'chirish"
     }
   },
   "onboarding": {
@@ -256,7 +263,9 @@
       "namePlaceholder": "masalan, Noir Coffee & Workspace",
       "locationLabel": "Shahar / Joylashuv",
       "locationPlaceholder": "masalan, Toshkent",
-      "scanCta": "Raqamli mavjudligimni skanerlash"
+      "scanCta": "Raqamli mavjudligimni skanerlash",
+      "defaultLocation": "Toshkent",
+      "discoveredDescription": "{{location}} hududida joylashgan, skanerlash orqali topilgan biznes."
     },
     "pathB": {
       "badge": "B yo'li: Noldan qurish",
@@ -467,6 +476,7 @@
     "nav": {
       "metrics": "Boshqaruv paneli",
       "content": "AI kontent dvigateli",
+      "calendar": "Kalendar",
       "media": "Media studiya",
       "competitors": "Raqobatchilar tahlili",
       "autopilot": "Avtopilot"
@@ -480,7 +490,9 @@
       "telegramMembers": "Telegram kanal a'zolari",
       "past30Days": "so'nggi 30 kun",
       "changePositive": "+{{change}}%",
-      "drillDown": "{{platform}} boʻyicha batafsil statistikani koʻrsatish"
+      "drillDown": "{{platform}} bo'yicha batafsil statistikani ko'rsatish",
+      "collecting": "Ma'lumotlar yig'ilmoqda…",
+      "trendLabel": "Dinamika"
     },
     "aiSearch": {
       "title": "AI qidiruvdagi ko'rinish",
@@ -491,7 +503,7 @@
       "chatgptRank": "ChatGPT tavsiya reytingi",
       "perplexityCitations": "Perplexity iqtiboslari",
       "active": "Faol",
-      "rankTop10": "Top 10"
+      "rankTop10": "Top-10"
     },
     "_DISABLED_seo": {
       "title": "Mahalliy SEO reytinglari",
@@ -504,7 +516,9 @@
         "medium": "O'rtacha",
         "veryHigh": "Juda yuqori"
       }
-    }
+    },
+    "toggleSidebar": "Yon panelni ochish yoki yopish",
+    "onlineLocation": "Onlayn / masofaviy"
   },
   "contentEngine": {
     "title": "Kontent dvigateli",
@@ -528,7 +542,17 @@
       "topicPlaceholderByCategory": "Masalan: {{category}} mijozlaringizga yoqadigan dam olish kunlari uchun maxsus taklif!",
       "generating": "Mahalliylashtirilgan qoralamalar tayyorlanmoqda...",
       "generateCta": "Platforma qoralamalarini yaratish ✦",
-      "subtitleForPlatform": "{{platform}} uchun yozyapmiz — shu kanal kutgan formatda."
+      "subtitleForPlatform": "{{platform}} uchun yozyapmiz — shu kanal kutgan formatda.",
+      "languageHint": "Kerakli tillarni bosing. Ular postda siz bosgan tartibda — barchasi bitta xabarda chiqadi.",
+      "languageOrder": "Tartib:",
+      "mediaLabel": "Foto yoki video",
+      "mediaRequired": "Instagram faqat matndan iborat postni e'lon qila olmaydi — haqiqiy e'lon uchun foto yoki video biriktiring.",
+      "mediaOptional": "Ixtiyoriy. Shu post bilan birga chiqadigan rasm yoki videoni biriktiring.",
+      "lang": {
+        "uz": "O'zbekcha",
+        "ru": "Ruscha",
+        "en": "Inglizcha"
+      }
     },
     "output": {
       "toneOptimized": "Platforma ohangiga moslangan",
@@ -542,7 +566,10 @@
       "postingNow": "Joylanmoqda…",
       "postNowFailed": "Joylashda xatolik yuz berdi",
       "postedSimulated": "Joylangan deb belgilandi — kanallarga jonli e'lon qilish integratsiyalar ulanganda ishga tushadi",
-      "postedReal": "E'lon qilindi: {{target}}!"
+      "postedReal": "E'lon qilindi: {{target}}!",
+      "editLabel": "E'lon qilishdan oldin postni tahrirlang",
+      "edited": "Tahrirlandi — Markiv o'zgarishlaringizdan o'rganadi",
+      "instagramNeedsMedia": "Instagram uchun foto yoki video kerak. Yuqorida biriktiring, aks holda bu faqat qoralama sifatida qayd etiladi."
     },
     "schedule": {
       "stepDate": "1-qadam · Sanani tanlang",
@@ -602,10 +629,19 @@
     },
     "platformTabsLabel": "Platforma",
     "modeCompose": "Post yozish",
-    "modeTemplates": "Shablonlar"
+    "modeTemplates": "Shablonlar",
+    "yourChannels": "Kanallaringiz",
+    "noConnections": "Hali birorta kanal ulanmagan — haqiqiy e'lon qilish uchun Ulanishlar bo'limida kanal ulang.",
+    "goToConnections": "Ulanishlarga o'tish"
   },
   "media": {
     "title": "Media studiya",
+    "picker": {
+      "title": "Media qo'shish",
+      "library": "Kutubxona",
+      "upload": "Yangisini yuklash",
+      "empty": "Kutubxonangiz hali bo'sh — «Yangisini yuklash» bo'limiga o'ting."
+    },
     "subtitle": "{{businessName}} uchun skrollni to'xtatadigan kontentni rejalashtiring, suratga oling va montaj qiling",
     "modes": {
       "fullTitle": "To'liq AI generatsiya",
@@ -634,14 +670,22 @@
       "shotListTitle": "Kadrlar ro'yxati",
       "cameraTitle": "Kamera",
       "lightingTitle": "Yorug'lik",
-      "audioTitle": "Audio",
+      "audioTitle": "Ovoz",
       "tipsTitle": "Pro maslahatlar",
       "conceptTitle": "Konsepsiya",
       "headlineTitle": "Reklamadagi sarlavha",
       "captionTitle": "Tayyor izoh",
       "copy": "Nusxalash",
       "copied": "Nusxalandi!",
-      "visualSpecTitle": "Vizual spetsifikatsiya"
+      "visualSpecTitle": "Vizual spetsifikatsiya",
+      "scenarioTitle": "Syujet",
+      "flowTitle": "Voqealar rivoji",
+      "sceneTitle": "Sahna",
+      "setupTitle": "Tayyorgarlik",
+      "compositionTitle": "Kompozitsiya",
+      "bRollTitle": "Qo'shimcha kadrlar (B-roll)",
+      "transitionsTitle": "O'tishlar",
+      "postTitle": "Suratga olishdan keyin"
     },
     "spec": {
       "composition": "Kompozitsiya",
@@ -673,7 +717,7 @@
       "crop": "Kadrlash",
       "colorGrade": "Rang korreksiyasi",
       "captions": "Subtitrlar",
-      "audio": "Audio",
+      "audio": "Ovoz",
       "exportTitle": "Eksport parametrlari",
       "locked": "AI montaj rejasini ochish uchun media yuklang."
     },
@@ -700,6 +744,52 @@
       "successVideo": "Video tayyor — postlaringizda ishlatishingiz mumkin.",
       "failed": "Yaratib bo'lmadi — limitingiz qaytarildi.",
       "stillGoing": "Hali yaratilmoqda — tayyor bo'lgach kutubxonangizda paydo bo'ladi."
+    },
+    "full": {
+      "title": "Nimani xohlayotganingizni tasvirlab bering",
+      "explainer": "Dizaynerga tushuntirgandek yozing: nima tasvirlanadi, qanday kayfiyat va qayerga joylanadi. Bir-ikki gap kifoya — qolganini AI o'zi to'ldiradi.",
+      "promptLabel": "Sizning so'rovingiz",
+      "promptPlaceholder": "masalan: Yog'och stol ustidagi yangi mavsumiy lattemiz, yuqoridan olingan iliq kadr, ertalabki yorug'lik, shinam va jozibali",
+      "generateCta": "Yaratish",
+      "generating": "Yaratilmoqda..."
+    },
+    "guided": {
+      "title": "Nimani suratga olmoqchisiz?",
+      "explainer": "Nimani suratga yoki videoga olayotganingizni yozing va yuboring. Javobda to'liq suratga olish rejasini olasiz — sahnani qanday tayyorlash, kamerani aniq sozlash va olinadigan har bir kadr.",
+      "placeholderPhoto": "masalan: Peshtaxtadagi yangi mavsumiy lattemiz",
+      "placeholderVideo": "masalan: Firmaviy lattemizni qanday tayyorlashimizni ko'rsatadigan qisqa rils",
+      "sendCta": "Yuborish",
+      "thinking": "Suratga olish rejalashtirilmoqda..."
+    },
+    "camera": {
+      "device": "Qurilma",
+      "lens": "Obyektiv",
+      "settings": "Sozlamalar",
+      "whiteBalance": "Oq balans",
+      "stabilisation": "Stabilizatsiya"
+    },
+    "shot": {
+      "framing": "Kadr",
+      "angle": "Rakurs",
+      "movement": "Harakat",
+      "duration": "Davomiylik"
+    },
+    "attach": {
+      "previewAlt": "Biriktirilgan media",
+      "remove": "Olib tashlash",
+      "tooLarge": "Fayl juda katta — maksimal 8MB.",
+      "failed": "Yuklab bo'lmadi",
+      "readFailed": "Faylni o'qib bo'lmadi",
+      "video": "Video",
+      "photo": "Foto",
+      "replace": "Almashtirish",
+      "uploading": "Yuklanmoqda…",
+      "cta": "Foto yoki video biriktirish"
+    },
+    "post": {
+      "ready": "Mediangiz tayyor",
+      "readyHint": "Uni ulangan kanallaringizga yuboring — hoziroq yoki jadval bo'yicha.",
+      "cta": "Joylash"
     }
   },
   "competitors": {
@@ -739,7 +829,8 @@
       "partialHintNoApi": "Bu platforma faqat profil ma'lumotlarini ochiq ko'rsatadi — sarlavha yoki video yo'q, shuning uchun trend tahliliga material bera olmaydi.",
       "partialHintGeneric": "Profil topildi, lekin postlarni o'qib bo'lmadi — «Yangilash»ni sinab ko'ring.",
       "noFollowerData": "ma'lumot yo'q",
-      "partialHintInstagram": "Hali post kontenti yo'q — bu yerda haqiqiy sarlavha va faollik ma'lumotlarini ochish uchun Sozlamalar → Ulanishlar (Meta) bo'limida o'z Instagram'ingizni ulang va bu raqobatchi ochiq Biznes yoki Ijodkor akkaunti ekanligiga ishonch hosil qiling."
+      "partialHintInstagram": "Hali post kontenti yo'q — bu yerda haqiqiy sarlavha va faollik ma'lumotlarini ochish uchun Sozlamalar → Ulanishlar (Meta) bo'limida o'z Instagram'ingizni ulang va bu raqobatchi ochiq Biznes yoki Ijodkor akkaunti ekanligiga ishonch hosil qiling.",
+      "analyzeChannel": "Shu kanalni tahlil qilish"
     },
     "addModal": {
       "title": "Raqobatchi qo'shish",
@@ -749,7 +840,8 @@
       "platform": {
         "instagram": "Instagram",
         "youtube": "YouTube",
-        "facebook": "Facebook"
+        "facebook": "Facebook",
+        "telegram": "Telegram"
       },
       "needOneLink": "Kamida bitta profil havolasini qo'shing",
       "adding": "Qo'shilmoqda va yuklanmoqda…",
@@ -763,7 +855,10 @@
       "needData": "Avval kamida bitta raqobatchini qo'shing va yuklab oling",
       "empty": "Trendlarni ko'rish uchun kontenti yuklab olingan kamida bitta raqobatchi qo'shing, so'ng tahlil qiling.",
       "recommendationLabel": "💡 Tavsiya:",
-      "generateCta": "Shundan kontent yaratish →"
+      "generateCta": "Shundan kontent yaratish →",
+      "analyzeAllHint": "Barcha kuzatilayotgan kanallarni birdaniga tahlil qiladi — faqat bitta kanalni tahlil qilish uchun uning kartasidagi sehrli tayoqcha belgisini bosing.",
+      "analyzeAllCta": "Barcha kanallarni tahlil qilish",
+      "generating": "Yaratilmoqda…"
     },
     "gaps": {
       "title": "Amaliy AI ustunlik tavsiyalari",
@@ -777,6 +872,18 @@
       "seoTitle": "SEO kalit so'z bo'shliqlari",
       "seoText": "Yaqin-atrofdagi raqobatchilar profillaringizda umuman tilga olinmaydigan <1>{{category}} bilan bog'liq mahalliy qidiruv so'rovlari</1> bo'yicha faol reytinglanmoqda. Siz bu mahalliy qidiruv yo'nalishini butunlay boy beryapsiz.",
       "seoSolution": "Keyingi yaratilgan Telegram kontentingizga {{category}} bilan bog'liq mahalliy qidiruv iboralarini va ideal mijozlaringiz haqiqatda qidiradigan so'zlarni singdiring."
+    },
+    "posts": {
+      "noCaption": "(matnsiz)",
+      "topBadge": "★ Eng yaxshi post",
+      "engagementUnavailable": "faollik ma'lumoti yo'q",
+      "detailTitle": "Raqobatchi posti",
+      "likes_one": "{{count}} ta layk",
+      "likes_other": "{{count}} ta layk",
+      "comments_one": "{{count}} ta izoh",
+      "comments_other": "{{count}} ta izoh",
+      "views_one": "{{count}} marta ko'rilgan",
+      "views_other": "{{count}} marta ko'rilgan"
     }
   },
   "agent": {
@@ -856,7 +963,9 @@
     "doneHint": "Endi chat panelida <1>Markiv</1>ga shunchaki ayting: <3>\"Dam olish kuni taklifimizni Telegramga joyla\"</3> — siz tasdiqlaysiz, u e'lon qiladi. 🚀",
     "chatTypes": {
       "channel": "kanal",
-      "group": "guruh"
+      "group": "guruh",
+      "supergroup": "superguruh",
+      "private": "shaxsiy chat"
     },
     "pillTitleSoon": "Telegram integratsiyasi tez kunda",
     "pillTitleBot": "Bot @{{username}}",
@@ -877,7 +986,7 @@
     "location": "Joylashuv",
     "tone": "Brend ohangi",
     "audience": "Maqsadli auditoriya",
-    "slogan": "Slogan",
+    "slogan": "Shior",
     "description": "Biznes tavsifi",
     "descriptionPh": "Nima taklif qilasiz, nimangiz bilan ajralib turasiz, kimga xizmat qilasiz…",
     "saving": "Saqlanmoqda…",
@@ -911,7 +1020,19 @@
     "logoTitle": "Logotipingiz",
     "logoHint": "Ixtiyoriy. O'z belgingizni yuklang yoki nom va ohangdan kelib chiqib yaratib oling.",
     "logoEmpty": "Hozircha logotip yo'q — panelda nomingizning bosh harfi ko'rsatiladi.",
-    "logoSave": "Logotipni saqlash"
+    "logoSave": "Logotipni saqlash",
+    "danger": {
+      "title": "Xavfli hudud",
+      "blurb": "Hisobni o'chirish biznes profillaringiz, barcha kontent va yuklangan medialar, har bir platforma ulanishi hamda tarixingizni butunlay o'chirib yuboradi. Bu amalni ortga qaytarib bo'lmaydi.",
+      "learnMore": "Nimalar o'chiriladi",
+      "deleteAccount": "Hisobni o'chirish",
+      "confirmWord": "O'CHIRISH",
+      "prompt": "Tasdiqlash uchun {{word}} deb yozing:",
+      "deleting": "O'chirilmoqda…",
+      "confirmDelete": "Butunlay o'chirish",
+      "done": "Hisobingiz va unga bog'liq barcha ma'lumotlar butunlay o'chirildi.\n\nTasdiqlash kodi: {{code}}\n\nBu kodni saqlab qo'ying — o'chirilganini /data-deletion.html sahifasida tekshirishingiz mumkin.",
+      "failed": "Hisobingizni o'chirib bo'lmadi. Iltimos, qayta urinib ko'ring."
+    }
   },
   "autopilot": {
     "title": "Avtopilot",
@@ -953,7 +1074,8 @@
       "skipped": "To'xtatildi",
       "error": "Xato",
       "context_needed": "Ko'proq kontekst kerak",
-      "context_answered": "Siz Avtopilotga javob berdingiz"
+      "context_answered": "Siz Avtopilotga javob berdingiz",
+      "external_content": "Haqiqiy kontentga tayandi"
     },
     "context": {
       "title": "Avtopilot to'xtatildi — unga biroz ko'proq kontekst kerak",
@@ -966,48 +1088,89 @@
       "thanks": "Rahmat — Avtopilot buni keyingi ishga tushirishda hisobga oladi.",
       "answerError": "Javobingizni saqlab bo'lmadi.",
       "hint": "Avtopilot buni eslab qoladi — faqat bir marta javob berasiz."
+    },
+    "queue": {
+      "title": "Tasdiq kutilmoqda",
+      "subtitle": "Avtopilot bularni tayyorladi va biror narsa chiqishidan oldin sizning tasdig'ingizni kutmoqda.",
+      "autopilotFallback": "Avtopilot",
+      "approve": "Tasdiqlash",
+      "reject": "Rad etish",
+      "approved": "Tasdiqlandi va e'lon qilindi.",
+      "approveError": "Bu postni tasdiqlab bo'lmadi.",
+      "rejected": "Rad etildi — u e'lon qilinmaydi.",
+      "rejectError": "Bu postni rad etib bo'lmadi."
     }
   },
   "templates": {
     "title": "Xabar shablonlari",
     "yourChannels": "kanallaringiz",
-    "subtitle": "{{platform}} da doim yuboradigan xabaringizni joylashtiring — o‘zgaruvchi qismlarni bir necha soniyada to‘ldiriladigan o‘zgaruvchilarga aylantiramiz.",
+    "subtitle": "{{platform}} da doim yuboradigan xabaringizni joylashtiring — o'zgaruvchi qismlarni bir necha soniyada to'ldiriladigan o'zgaruvchilarga aylantiramiz.",
     "sampleLabel": "Tez-tez yuboradigan xabaringiz",
     "samplePlaceholder": "masalan: Stadion No:141, 9 ta joy qoldi✅",
     "analyzeCta": "Tahlil qilib shablon yasash ✦",
-    "analyzing": "O‘zgaruvchi qismlar qidirilmoqda…",
-    "startManual": "O‘zgaruvchilarni o‘zim belgilayman",
+    "analyzing": "O'zgaruvchi qismlar qidirilmoqda…",
+    "startManual": "O'zgaruvchilarni o'zim belgilayman",
     "engineGemini": "Gemini",
     "engineOffline": "Oflayn tahlil",
     "nameLabel": "Shablon nomi",
     "namePlaceholder": "masalan: Qolgan joylar",
     "templateLabel": "Shablon",
-    "makeVariable": "O‘zgaruvchi qilish",
-    "editHint": "Yuqoridagi istalgan matnni belgilab «O‘zgaruvchi qilish» tugmasini bosing yoki quyidagi o‘zgaruvchini o‘chirib, qiymatini qaytaring.",
-    "variablesLabel": "O‘zgaruvchilar ({{count}})",
-    "noVariables": "Hozircha o‘zgaruvchi yo‘q — xabarning o‘zgaradigan qismini belgilab «O‘zgaruvchi qilish» tugmasini bosing.",
-    "variableName": "O‘zgaruvchi nomi",
+    "makeVariable": "O'zgaruvchi qilish",
+    "editHint": "Yuqoridagi istalgan matnni belgilab «O'zgaruvchi qilish» tugmasini bosing yoki quyidagi o'zgaruvchini o'chirib, qiymatini qaytaring.",
+    "variablesLabel": "O'zgaruvchilar ({{count}})",
+    "noVariables": "Hozircha o'zgaruvchi yo'q — xabarning o'zgaradigan qismini belgilab «O'zgaruvchi qilish» tugmasini bosing.",
+    "variableName": "O'zgaruvchi nomi",
     "examplePlaceholder": "Namuna qiymat",
-    "removeVariable": "{{key}} o‘zgaruvchisini o‘chirish",
-    "selectFirst": "Avval xabarning o‘zgaradigan qismini belgilang, so‘ng «O‘zgaruvchi qilish» tugmasini bosing.",
-    "alreadyVariable": "Belgilangan qismda allaqachon o‘zgaruvchi bor.",
-    "preview": "Ko‘rinishi",
+    "removeVariable": "{{key}} o'zgaruvchisini o'chirish",
+    "selectFirst": "Avval xabarning o'zgaradigan qismini belgilang, so'ng «O'zgaruvchi qilish» tugmasini bosing.",
+    "alreadyVariable": "Belgilangan qismda allaqachon o'zgaruvchi bor.",
+    "preview": "Ko'rinishi",
     "saveCta": "Shablonni saqlash",
     "saving": "Saqlanmoqda…",
     "savedTitle": "{{platform}} uchun saqlanganlar",
-    "savedEmpty": "Bu platforma uchun hali shablon yo‘q.",
+    "savedEmpty": "Bu platforma uchun hali shablon yo'q.",
     "untitled": "Nomsiz shablon",
     "useCta": "Ishlatish",
-    "deleteTemplate": "Shablonni o‘chirish",
-    "fixedTemplate": "Bu shablonda o‘zgaruvchi yo‘q — qanday yozilgan bo‘lsa, shundayligicha yuboriladi.",
+    "deleteTemplate": "Shablonni o'chirish",
+    "fixedTemplate": "Bu shablonda o'zgaruvchi yo'q — qanday yozilgan bo'lsa, shundayligicha yuboriladi.",
     "sendToComposer": "Muharrirga yuborish",
-    "fromTemplateTip": "Saqlangan shablonlaringizdan biri to‘ldirildi — tekshiring, so‘ng joylang yoki rejalashtiring."
+    "fromTemplateTip": "Saqlangan shablonlaringizdan biri to'ldirildi — tekshiring, so'ng joylang yoki rejalashtiring.",
+    "editVariable": "Bu o'zgaruvchi nomini yoki namunasini o'zgartirish",
+    "editingBadge": "Saqlangan shablon tahrirlanmoqda",
+    "newBadge": "Yangi shablon",
+    "makeVariableFrom": "«{{text}}»ni o'zgaruvchi qilish",
+    "doneEditingText": "Matnni tahrirlashni tugatish",
+    "editText": "Matnni tahrirlash",
+    "inlineHint": "Istalgan matnni belgilab o'zgaruvchiga aylantiring, nomini o'zgartirish uchun o'zgaruvchi ustiga bosing yoki uni oddiy matnga qaytarish uchun × ni bosing.",
+    "mediaLabel": "Bu shablon uchun foto yoki video",
+    "mediaHint": "Ixtiyoriy. Shu shablondan yaratilgan har bir post ushbu media bilan birga yuboriladi.",
+    "saveChanges": "O'zgarishlarni saqlash",
+    "hasMedia": "Media biriktirilgan"
   },
   "styles": {
     "importLabel": "Yoki Telegram eksportini yuklang",
-    "importHint": "Telegram Desktop'ning «Chat tarixini eksport qilish» funksiyasidan olingan .json yoki .html faylni yuklang — butun kanal ohangini o‘rganamiz.",
+    "importHint": "Telegram Desktop'ning «Chat tarixini eksport qilish» funksiyasidan olingan .json yoki .html faylni yuklang — butun kanal ohangini o'rganamiz.",
     "importCta": "Faylni yuklash",
-    "importing": "Fayl o‘qilmoqda…"
+    "importing": "Fayl o'qilmoqda…",
+    "title": "Yozish uslublari",
+    "subtitle": "Postni joylashtiring — o'zingiznikini yoki raqobatchidan nusxalanganini — va uning ohangini o'rganing, shunda xuddi shunday jaranglaydigan yangi postlar yoza olasiz.",
+    "sampleLabel": "Ohangini qayta ishlatmoqchi bo'lgan post",
+    "samplePlaceholder": "Istalgan postni shu yerga joylashtiring — o'zingiznikini yoki raqobatchinikini. Biz nima deyilganini emas, QANDAY yozilganini o'rganamiz.",
+    "analyzing": "Ohang o'rganilmoqda…",
+    "analyzeCta": "Uslubni tahlil qilish ✦",
+    "editingBadge": "Saqlangan uslub tahrirlanmoqda",
+    "newBadge": "Yangi uslub",
+    "nameLabel": "Uslub nomi",
+    "namePlaceholder": "masalan: O'ynoqi va emojiga boy",
+    "summaryLabel": "Ohang tavsifi",
+    "summaryHint": "Bu yangi postlarni yo'naltirish uchun ishlatiladi — bemalol tahrirlang, namunaga so'zma-so'z mos kelishi shart emas.",
+    "saving": "Saqlanmoqda…",
+    "saveChanges": "O'zgarishlarni saqlash",
+    "saveCta": "Uslubni saqlash",
+    "savedTitle": "Saqlangan uslublar",
+    "savedEmpty": "Hali saqlangan uslub yo'q.",
+    "untitled": "Nomsiz uslub",
+    "deleteStyle": "Uslubni o'chirish"
   },
   "aiEditor": {
     "title": "AI muharrir",
@@ -1024,24 +1187,44 @@
     "translateOtherPlaceholder": "Tilni kiriting…",
     "translateCta": "Tarjima qilish",
     "translating": "Tarjima qilinmoqda…",
-    "applyTranslation": "Tarjimani qo‘llash",
-    "fixIntro": "Faqat grammatika, imlo va tinish belgilari tuzatiladi — boshqa hech narsa o‘zgarmaydi.",
+    "applyTranslation": "Tarjimani qo'llash",
+    "fixIntro": "Faqat grammatika, imlo va tinish belgilari tuzatiladi — boshqa hech narsa o'zgarmaydi.",
     "fixCta": "Tuzatish ✦",
     "fixing": "Tuzatilmoqda…",
-    "applyFix": "Tuzatishni qo‘llash",
+    "applyFix": "Tuzatishni qo'llash",
     "stylePresetsTitle": "Tezkor uslublar",
     "styleYoursTitle": "Sizning uslublaringiz",
-    "styleAddNew": "+ Yangi uslub qo‘shish",
-    "styleApplying": "Uslub o‘zgartirilmoqda…",
-    "applyStyle": "Uslubni qo‘llash",
+    "styleAddNew": "+ Yangi uslub qo'shish",
+    "styleApplying": "Uslub o'zgartirilmoqda…",
+    "applyStyle": "Uslubni qo'llash",
     "emojify": "emoji",
-    "unavailableNotice": "AI hali sozlanmagan, shu sabab matn o‘zgarishsiz qoldi — buni yoqish uchun Gemini kalitini ulang."
+    "unavailableNotice": "AI hali sozlanmagan, shu sabab matn o'zgarishsiz qoldi — buni yoqish uchun Gemini kalitini ulang.",
+    "languages": {
+      "english": "Inglizcha",
+      "uzbek": "O'zbekcha",
+      "russian": "Ruscha",
+      "turkish": "Turkcha",
+      "arabic": "Arabcha",
+      "spanish": "Ispancha"
+    },
+    "presets": {
+      "formal": "Rasmiy",
+      "short": "Qisqa",
+      "friendly": "Samimiy",
+      "persuasive": "Ishontiruvchi",
+      "playful": "O'ynoqi",
+      "tribal": "Qabilaviy",
+      "biblical": "Muqaddas kitob uslubi",
+      "corporate": "Korporativ",
+      "minimalist": "Minimalistik",
+      "storyteller": "Hikoyanavis"
+    }
   },
   "connections": {
     "title": "Platforma ulanishlari",
-    "subtitle": "Markiv siz nomingizdan post joylay oladigan platformalarni ulang — har bir platformaning rasmiy API’si orqali va faqat siz tasdiqlaganingizdan keyin.",
+    "subtitle": "Markiv siz nomingizdan post joylay oladigan platformalarni ulang — har bir platformaning rasmiy API'si orqali va faqat siz tasdiqlaganingizdan keyin.",
     "connectedToast": "Ulandi ✓",
-    "errorToast": "{{label}} ulanmadi — qaytadan urinib ko‘ring.",
+    "errorToast": "{{label}} ulanmadi — qaytadan urinib ko'ring.",
     "connect": "Ulash",
     "manage": "Boshqarish",
     "howToCta": "Qanday ulanadi",
@@ -1053,12 +1236,12 @@
       "soon": "Tez orada"
     },
     "setupTitle": "{{label}} ni ulash",
-    "howItWorks": "Markivo {{label}} ga siz nomingizdan rasmiy API orqali post joylaydi va har bir post avval sizning tasdiqingizdan o‘tadi — hisobingizga hech qachon kirmaydi.",
+    "howItWorks": "Markivo {{label}} ga siz nomingizdan rasmiy API orqali post joylaydi va har bir post avval sizning tasdiqingizdan o'tadi — hisobingizga hech qachon kirmaydi.",
     "requirementsTitle": "Avval nima kerak",
     "howToTitle": "Qanday ulanadi",
     "officialDocs": "Rasmiy hujjatlar",
-    "comingSoonNote": "{{label}} hali yoqilmagan — yoqilganda quyidagi qadamlar kerak bo‘ladi.",
-    "sandboxNote": "Sinov rejimi — bu platforma uchun hali haqiqiy kalitlar sozlanmagan, shuning uchun ulanish taqlid qilinadi (haqiqiy post ketmaydi). Ishga tushirish uchun platformaning API kalitlarini qo‘shing.",
+    "comingSoonNote": "{{label}} hali yoqilmagan — yoqilganda quyidagi qadamlar kerak bo'ladi.",
+    "sandboxNote": "Sinov rejimi — bu platforma uchun hali haqiqiy kalitlar sozlanmagan, shuning uchun ulanish taqlid qilinadi (haqiqiy post ketmaydi). Ishga tushirish uchun platformaning API kalitlarini qo'shing.",
     "connecting": "Ulanmoqda…",
     "connectLiveCta": "{{label}} ni ulash →",
     "connectSandboxCta": "{{label}} ni ulash (sinov)",
@@ -1066,9 +1249,180 @@
     "disconnected": "{{label}} uzildi",
     "statusConnected": "Ulangan",
     "statusSandbox": "Ulangan (sinov rejimi)",
-    "connectedHint": "Chat panelida Markiv’dan {{label}} ga post joylashni so‘rang — siz tasdiqlaysiz, u joylaydi.",
+    "connectedHint": "Chat panelida Markiv'dan {{label}} ga post joylashni so'rang — siz tasdiqlaysiz, u joylaydi.",
     "disconnectCta": "Uzish",
-    "working": "Bajarilmoqda…"
+    "working": "Bajarilmoqda…",
+    "guide": {
+      "telegram": {
+        "requirements": [
+          "Telegram akkaunti",
+          "Botingiz administrator bo'lgan kanal yoki guruh"
+        ],
+        "steps": [
+          "Telegramni oching va @BotFather bilan chat boshlang.",
+          "/newbot buyrug'ini yuboring va ko'rsatmalarga amal qilib botingizga nom bering.",
+          "BotFather bergan bot tokenini nusxalab, shu yerga joylashtiring.",
+          "Botni kanalingiz yoki guruhingizga ADMINISTRATOR sifatida qo'shing.",
+          "O'sha kanalga istalgan xabarni joylang, so'ng «Kanalimni aniqlash» tugmasini bosing."
+        ]
+      },
+      "meta_instagram": {
+        "requirements": [
+          "Instagram professional akkaunti (Business yoki Creator)",
+          "Shu akkaunt siz boshqaradigan Facebook sahifasiga bog'langan bo'lishi",
+          "Har bir post uchun foto yoki video — Instagramda faqat matnli post yo'q"
+        ],
+        "steps": [
+          "Instagram ilovasida: Sozlamalar → Akkaunt turi → Business yoki Creator'ga o'ting.",
+          "Instagram sozlamalarining o'zida akkauntni Facebook sahifangizga bog'lang.",
+          "Shu yerda «Ulash» tugmasini bosing va o'sha Facebook akkaunti bilan kiring.",
+          "Ruxsatlar oynasida ham sahifani, ham bog'langan Instagram akkauntini belgilang."
+        ]
+      },
+      "meta_facebook": {
+        "requirements": [
+          "Siz boshqaradigan Facebook sahifasi",
+          "Shu sahifaga administrator yoki muharrir huquqi"
+        ],
+        "steps": [
+          "Shu yerda «Ulash» tugmasini bosing va Facebook akkauntingiz bilan kiring.",
+          "Markivo post joylashi kerak bo'lgan Facebook sahifasini tanlang.",
+          "Markivo postlarni tayyorlab, e'lon qila olishi uchun barcha ruxsatlarni belgilang."
+        ]
+      },
+      "google_business": {
+        "requirements": [
+          "Biznesingiz uchun Google Business Profile sahifasi",
+          "Google tomonidan TASDIQLANGAN sahifa (pochta kartochkasi, telefon yoki email orqali)",
+          "Kiradigan Google akkauntingizda egasi yoki menejer huquqi"
+        ],
+        "steps": [
+          "Agar hali qilmagan bo'lsangiz, business.google.com saytida sahifangizga egalik huquqini tasdiqlang.",
+          "Google tasdiqlashini yakunlang — tasdiqlanmagan sahifalarga post joylab bo'lmaydi.",
+          "«Ulash» tugmasini bosing va sahifa egasi bo'lgan Google akkaunti bilan kiring.",
+          "Business Profile ruxsatini tasdiqlang, so'ng post joylanadigan filialni tanlang."
+        ]
+      }
+    }
+  },
+  "calendar": {
+    "title": "Jadval",
+    "subtitle": "Markivo rejalashtirgan yoki allaqachon bajargan hamma narsa — yagona vaqt chizig'ida.",
+    "today": "Bugun",
+    "prev": "Oldingi",
+    "next": "Keyingi",
+    "prevMonth": "Oldingi oy",
+    "nextMonth": "Keyingi oy",
+    "emptyDay": "Bu kunga hech narsa rejalashtirilmagan.",
+    "cancelEvent": "Bu postni bekor qilish",
+    "dragHint": "Rejalashtirilgan postni boshqa kunga ko'chirish uchun uni sudrab o'tkazing. Avtopilot tarixini o'zgartirib bo'lmaydi.",
+    "showMore": "+ Yana ko'rsatish ({{count}})",
+    "aiGeneration": "AI generatsiya",
+    "editTemplates": "Shablonlarni tahrirlash",
+    "viewMode": "Ko'rinish",
+    "displayMode": "Ko'rsatish usuli",
+    "calendarView": "Kalendar ko'rinishi",
+    "listView": "Ro'yxat ko'rinishi",
+    "viewModes": {
+      "day": "Kun",
+      "week": "Hafta",
+      "month": "Oy"
+    },
+    "list": {
+      "filter": {
+        "all": "Hammasi",
+        "scheduled": "Rejalashtirilgan",
+        "draft": "Qoralamalar",
+        "published": "E'lon qilingan"
+      },
+      "status": {
+        "scheduled": "Rejalashtirilgan",
+        "draft": "Qoralama",
+        "posted": "E'lon qilingan",
+        "failed": "Xatolik",
+        "cancelled": "Bekor qilingan"
+      },
+      "emptyAll": "Postlar yo'q",
+      "emptyScheduled": "Rejalashtirilgan postlar yo'q",
+      "emptyDraft": "Qoralama postlar yo'q",
+      "emptyPublished": "E'lon qilingan postlar yo'q",
+      "page": "{{page}}-sahifa, jami {{count}}"
+    },
+    "detail": {
+      "autopilot": "Avtopilot"
+    },
+    "editStyles": "Uslublarni tahrirlash"
+  },
+  "createPost": {
+    "title": "Post yaratish",
+    "editTitle": "Postni tahrirlash",
+    "selectAll": "Hammasini tanlash",
+    "deselectAll": "Tanlovni bekor qilish",
+    "globalEdit": "Umumiy matn",
+    "platformEdit": "{{label}} uchun matn",
+    "globalPlaceholder": "Bu matn barcha kanallarga birgalikda joylanadi…",
+    "overridePlaceholder": "Faqat {{label}} uchun matn yozing…",
+    "insertMedia": "Media qo'shish",
+    "templates": "Shablonlar",
+    "aiEditor": "AI muharrir",
+    "addPost": "Post qo'shish",
+    "addPostPlaceholder": "{{n}}-post — yuqoridagisidan so'ng darhol yuboriladi…",
+    "removePost": "Bu postni olib tashlash",
+    "emoji": "Emoji",
+    "tag": "Teg",
+    "tagPlaceholder": "Teg qo'shing…",
+    "repeat": "Takrorlash",
+    "repeatNone": "Takrorlanmaydi",
+    "repeatDaily": "Har kuni takrorlash",
+    "repeatWeekly": "Har hafta takrorlash",
+    "repeatMonthly": "Har oy takrorlash",
+    "resetToGlobal": "Umumiy matnga qaytarish",
+    "resetConfirm": "Bu kanalda alohida matn bor — uni umumiy matn va mediaga qaytarasizmi? Bu amalni ortga qaytarib bo'lmaydi.",
+    "saveDraft": "Qoralama sifatida saqlash",
+    "saving": "Saqlanmoqda…",
+    "postNow": "Hozir joylash",
+    "posting": "Joylanmoqda…",
+    "addToCalendar": "Kalendarga qo'shish",
+    "scheduling": "Rejalashtirilmoqda…",
+    "scheduled": "Kalendarga qo'shildi",
+    "update": "Yangilash",
+    "updating": "Yangilanmoqda…",
+    "deletePost": "Postni o'chirish",
+    "deleteConfirm": "Bu post o'chirilsinmi? Bu amalni ortga qaytarib bo'lmaydi.",
+    "result": {
+      "draft": "Qoralama sifatida saqlandi",
+      "scheduled": "Kalendarga qo'shildi",
+      "posted": "Joylandi"
+    },
+    "previewTitle": "Post ko'rinishi",
+    "previewEmpty": "Post qanday ko'rinishini ko'rish uchun kanal tanlang.",
+    "previewNothing": "Hali hech narsa yozilmagan…",
+    "overLimit": "Belgilar soni chegaradan oshdi: {{names}}",
+    "emptyText": "Rejalashtirishdan oldin biror narsa yozing.",
+    "noneConnected": "Avval kanal ulang — shunda u post joylash uchun shu yerda paydo bo'ladi.",
+    "goToConnections": "Ulanishlarga o'tish",
+    "tagSuggestions": {
+      "promo": "Aksiya",
+      "announcement": "E'lon",
+      "behindTheScenes": "Sahna ortida",
+      "newProduct": "Yangi mahsulot",
+      "event": "Tadbir",
+      "sale": "Chegirma"
+    },
+    "emptyTextPost": "Joylashdan oldin biror narsa yozing."
+  },
+  "aiGeneration": {
+    "title": "AI generatsiya",
+    "channel": "Kanal",
+    "generateCta": "Matn yaratish ✦",
+    "draftLabel": "Qoralama",
+    "feedbackPlaceholder": "O'zgartirish so'rang… masalan, \"qisqaroq qil\" yoki \"ko'proq emoji qo'sh\"",
+    "revise": "Qayta ishlash",
+    "revising": "Qayta ishlanmoqda…",
+    "startOver": "Boshidan boshlash",
+    "approve": "Tasdiqlash va davom etish",
+    "styleLabel": "Uslub",
+    "styleNone": "Standart brend ohangi"
   },
   "platformDetail": {
     "subtitle": "Kanal statistikasi",
@@ -1077,8 +1431,8 @@
     "connect": "Ulash",
     "accountStats": "Akkaunt",
     "trend": "Qayd etilgan dinamika",
-    "trendHint": "Kuniga bitta oʻlchov — dashboard har ochilganda yoziladi.",
-    "recentPosts": "{{platform}}dagi soʻnggi postlar",
+    "trendHint": "Kuniga bitta o'lchov — dashbord har ochilganda yoziladi.",
+    "recentPosts": "{{platform}}dagi so'nggi postlar",
     "fromMarkivo": "Markivo rejalashtirgan",
     "countPosted": "joylandi",
     "countScheduled": "navbatda",
@@ -1086,26 +1440,28 @@
     "noneScheduled": "Bu kanal uchun hali hech narsa rejalashtirilmagan.",
     "noCaption": "(matnsiz)",
     "open": "Ochish",
-    "notReported": "maʼlumot yoʻq",
-    "engagementUnavailable": "faollik maʼlumoti yoʻq",
+    "notReported": "ma'lumot yo'q",
+    "engagementUnavailable": "faollik ma'lumoti yo'q",
     "hasMedia": "Media bor",
     "stat": {
       "followers": "Obunachilar",
       "following": "Obunalar",
       "posts": "Postlar",
-      "members": "Aʼzolar"
+      "members": "A'zolar"
     },
     "status": {
       "posted": "joylandi",
       "scheduled": "navbatda",
-      "failed": "xato"
+      "failed": "xato",
+      "draft": "qoralama",
+      "cancelled": "bekor qilindi"
     },
     "notice": {
-      "connectInstagram": "Obunachilar va har bir post uchun layk va izohlarni koʻrish uchun Instagramni ulang.",
+      "connectInstagram": "Obunachilar va har bir post uchun layk va izohlarni ko'rish uchun Instagramni ulang.",
       "instagramError": "Instagram javob bermadi ({{error}}). Raqamlarni yangilash uchun akkauntni qayta ulang.",
-      "linkTelegram": "Aʼzolar sonini jonli koʻrish uchun Telegram kanalini bogʻlang.",
+      "linkTelegram": "A'zolar sonini jonli ko'rish uchun Telegram kanalini bog'lang.",
       "telegramError": "Telegram javob bermadi ({{error}}).",
-      "noIntegration": "Bu kanalda hali jonli integratsiya yoʻq, shuning uchun faqat Markivo rejalashtirgan narsalar koʻrsatiladi."
+      "noIntegration": "Bu kanalda hali jonli integratsiya yo'q, shuning uchun faqat Markivo rejalashtirgan narsalar ko'rsatiladi."
     },
     "engagementNote": "Har bir post uchun layk va izohlar faqat ulangan Instagram Business yoki Creator akkauntlarida mavjud. Bu kanal ularni bermaydi."
   },
@@ -1155,7 +1511,8 @@
       "publishedTitle": "Instagram'ga joylandi!",
       "publishedTo": "{{handle}} ga joylandi.",
       "viewPost": "Instagram'da postni ko'rish ↗",
-      "another": "Yana joylash"
+      "another": "Yana joylash",
+      "previewAlt": "Post ko'rinishi"
     }
   },
   "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable.",
@@ -1214,6 +1571,183 @@
       "uz": "O'zbekcha",
       "ru": "Ruscha",
       "en": "Inglizcha"
+    },
+    "loadError": "Savollaringizni yuklab bo'lmadi.",
+    "saveError": "Javoblaringizni saqlab bo'lmadi.",
+    "template": {
+      "busiest_hours": {
+        "label": "Qachon eng gavjum bo'ladi, qachon esa sokin?",
+        "hint": "Postlarni siz to'ldirmoqchi bo'lgan sokin soatlarga rejalashtiramiz.",
+        "placeholder": "masalan, 8:00–10:00 gavjum, 15:00 dan keyin sokin"
+      },
+      "seating_setup": {
+        "label": "Zal qanday jihozlangan?",
+        "hint": "Rasm izohini aynan sizga xos qiladigan tafsilot.",
+        "placeholder": "masalan, 6 ta stol, deraza bo'ylab uzun bar, har bir joyda rozetka"
+      },
+      "beans_or_supplier": {
+        "label": "Qahva donlari yoki masalliqlaringiz qayerdan keladi?",
+        "hint": "Mahsulot manbai — raqobatchilar ko'chira olmaydigan hikoya.",
+        "placeholder": "masalan, mahalliy qovurilgan, Efiopiya single origin"
+      },
+      "top_service": {
+        "label": "Qaysi xizmatingizga ko'proq yozilishlarini xohlaysiz?",
+        "hint": "Postlarni tarqatib yubormay, aynan shu xizmatni oldinga suramiz.",
+        "placeholder": "masalan, balayaj bo'yash"
+      },
+      "appointment_length": {
+        "label": "Odatdagi tashrif qancha davom etadi?",
+        "hint": "Mijoz yozilishidan oldin to'g'ri tasavvurga ega bo'ladi.",
+        "placeholder": "masalan, bo'yash 90 daqiqa, soch olish 30 daqiqa"
+      },
+      "master_names": {
+        "label": "Mijozlar qaysi ustalarni nomi bilan so'rashadi?",
+        "hint": "Ismi aytilgan ustalar nomsiz salon suratlaridan yaxshiroq ishlaydi.",
+        "placeholder": "masalan, Dilnoza (bo'yash), Aziz (barber)"
+      },
+      "membership_options": {
+        "label": "Joydan qanday foydalanish mumkin — soatlab, kunlik yoki oylik?",
+        "hint": "Bo'lajak a'zo birinchi bo'lib shuni bilmoqchi bo'ladi.",
+        "placeholder": "masalan, soatlik, kunlik abonement, oylik stol"
+      },
+      "quiet_rules": {
+        "label": "Shovqin, qo'ng'iroqlar va majlis xonalari bo'yicha qanday qoidalar bor?",
+        "hint": "Odamlarni bron qilishdan to'xtatadigan e'tirozga javob beradi.",
+        "placeholder": "masalan, qo'ng'iroqlar faqat kabinalarda, 2 ta majlis xonasi"
+      },
+      "amenities": {
+        "label": "Odamlar haqiqatan sezadigan qanday qulayliklar bor?",
+        "hint": "Aniq qulayliklar «ajoyib muhit» degan gapdan yaxshiroq ishlaydi.",
+        "placeholder": "masalan, 200 Mbit/s, bepul qahva, printer, shkafchalar"
+      },
+      "restock_rhythm": {
+        "label": "Yangi mahsulotlar qanchalik tez-tez keladi?",
+        "hint": "Yangi kelgan mahsulotlar — eng oson muntazam post.",
+        "placeholder": "masalan, har ikki haftada juma kuni yangi kolleksiya"
+      },
+      "size_range": {
+        "label": "Qanday o'lcham yoki variantlar bor?",
+        "hint": "Xaridorning hafsalasini pir qiladigan post yozmasligimiz uchun.",
+        "placeholder": "masalan, XS–XXL, poyabzal 36–42"
+      },
+      "return_policy": {
+        "label": "Almashtirish yoki qaytarish shartlaringiz qanday?",
+        "hint": "Birinchi xariddan oldingi ikkilanishni yo'qotadi.",
+        "placeholder": "masalan, chek bilan 7 kun ichida almashtirish"
+      },
+      "signature_dish_story": {
+        "label": "Birinchi marta kelgan mehmon qaysi taomni buyurtma qilishini xohlardingiz?",
+        "hint": "Takror-takror tilga olinadigan bitta taom joyni tanitadi.",
+        "placeholder": "masalan, buyurtma asosida pishiriladigan qo'y go'shtli palov"
+      },
+      "delivery_setup": {
+        "label": "Yetkazib berish yoki olib ketish bo'lsa, odamlar qanday buyurtma beradi?",
+        "hint": "Yetkazib berishni faqat haqiqatan qilsangiz eslatamiz.",
+        "placeholder": "masalan, Telegram orqali buyurtma, 21:00 dan keyin faqat olib ketish"
+      },
+      "group_capacity": {
+        "label": "Guruhlar yoki tadbirlarni qabul qila olasizmi, necha kishigacha?",
+        "hint": "Guruh bronlari — eng qimmatli post turi.",
+        "placeholder": "masalan, bir kun oldin aytilsa, 20 kishigacha"
+      },
+      "core_service": {
+        "label": "Qanday loyihalar ko'proq bo'lishini xohlaysiz?",
+        "hint": "Har bir postni siz haqiqatan xohlagan ishga yo'naltiradi.",
+        "placeholder": "masalan, mahalliy do'konlar uchun mobil ilovalar"
+      },
+      "project_timeline": {
+        "label": "Odatdagi loyiha qancha davom etadi?",
+        "hint": "Birinchi qo'ng'iroqdan oldin kutilmalarni belgilaydi.",
+        "placeholder": "masalan, brifdan ishga tushirishgacha 6–8 hafta"
+      },
+      "proof_point": {
+        "label": "O'tgan ishlaringizdan qanday natijani ko'rsata olasiz?",
+        "hint": "Aniq natija — eng ishonchli dalil.",
+        "placeholder": "masalan, mijozning to'lov jarayonini 5 qadamdan 2 qadamga qisqartirdik"
+      },
+      "best_seller": {
+        "label": "Mijozlar ko'pincha nima uchun qaytib kelishadi?",
+        "hint": "Postlaringizda takrorlashga arziydigan asosiy narsa.",
+        "placeholder": "masalan, ertalabki setimiz"
+      },
+      "how_to_buy": {
+        "label": "Mijoz sizdan qanday xarid qiladi?",
+        "hint": "Har bir post oxiridagi chaqiriqqa aylanadi.",
+        "placeholder": "masalan, kirib kelish yoki Telegram'da bizga yozish"
+      },
+      "one_difference": {
+        "label": "Yaqin atrofdagi bizneslar qilmaydigan nimani qilasiz?",
+        "hint": "Busiz postlar umumiy maqtovga aylanib qoladi.",
+        "placeholder": "masalan, har kuni ertalab joyida qovuramiz"
+      }
     }
+  },
+  "publish": {
+    "title": "Bu mediani joylash",
+    "previewAlt": "Joylanadigan media",
+    "platformsLabel": "Qayerga joylash",
+    "noneConnected": "Hali birorta kanal ulanmagan — e'lon qilish uchun Ulanishlar bo'limida kanal ulang.",
+    "captionLabel": "Izoh",
+    "captionPh": "Izoh yozing… #hashtaglar mumkin",
+    "schedule": "Rejalashtirish",
+    "posting": "Joylanmoqda…",
+    "postNow": "Hozir joylash",
+    "pickDate": "Sanani tanlang",
+    "pickTime": "Vaqtni tanlang",
+    "time": {
+      "morning": "Ertalab 09:00",
+      "lunch": "Tushlik 13:00",
+      "evening": "Kechqurun 18:30"
+    },
+    "scheduling": "Rejalashtirilmoqda…",
+    "confirmSchedule": "Rejani tasdiqlash",
+    "scheduled": "Rejalashtirildi",
+    "published": "E'lon qilindi",
+    "loggedSimulated": "Qayd etildi — jonli e'lon qilish shu integratsiya ulanganda ishga tushadi"
+  },
+  "brand": {
+    "title": "Brend qiyofasi",
+    "subtitle": "Markiv har bir post, izoh va dizayndan oldin o'qiydigan brend brifi — hammasi sizning ovozingizda jaranglashi uchun.",
+    "loading": "Brend qiyofangiz yuklanmoqda…",
+    "generate": "Brend qiyofasini yaratish",
+    "regenerate": "Qayta yaratish",
+    "regenerating": "O'ylanmoqda…",
+    "regenerated": "Brend qiyofasi yangilandi.",
+    "emptyBody": "Hali brend brifi yo'q. Uni yarating — Markiv biznes profilingiz asosida pozitsiyalash, ohang, auditoriya, kontent ustunlari va vizual yo'nalishni tuzib beradi.",
+    "positioning": "Pozitsiyalash",
+    "usp": "Sizni nima ajratib turadi",
+    "voice": "Ovoz va ohang",
+    "do": "Qiling",
+    "dont": "Qilmang",
+    "persona": "Kimga xizmat qilasiz",
+    "moment": "Vaziyat",
+    "wants": "Xohlaydi",
+    "objection": "E'tiroz",
+    "pillars": "Kontent ustunlari",
+    "visual": "Vizual yo'nalish",
+    "taglines": "Shior g'oyalari",
+    "facts": "Biznes haqida faktlar",
+    "factsHelp": "Haqiqiy ma'lumotlaringizni qo'shing — shunda Markiv aniq va to'g'ri postlar yozadi. U siz bermagan narx, ish vaqti yoki raqamlarni hech qachon o'ylab topmaydi.",
+    "factsSaved": "Saqlandi — Markiv shu haqiqiy ma'lumotlardan foydalanadi (va boshqasini o'ylab topmaydi).",
+    "signatureItems": "Firmaviy mahsulotlar / xizmatlar",
+    "signaturePh": "masalan: kardamonli bulochka, flet uayt, soqol olish",
+    "prices": "Narxlar",
+    "pricesPh": "masalan: qahva 18 000 so'mdan",
+    "hours": "Ish vaqti",
+    "hoursPh": "masalan: har kuni 8:00–22:00",
+    "booking": "Bron / buyurtma havolasi",
+    "phone": "Telefon",
+    "offer": "Joriy taklif (ixtiyoriy)",
+    "offerType": "Turi",
+    "offerTypePh": "chegirma, sovg'a, kombo…",
+    "offerValue": "Qiymati",
+    "offerValuePh": "masalan: 20% chegirma, bepul pishiriq",
+    "offerDeadline": "Qachongacha",
+    "offerDeadlinePh": "masalan: yakshanbagacha",
+    "saveFacts": "Faktlarni saqlash"
+  },
+  "errors": {
+    "network": "Markivo serveriga ulanib bo'lmadi. Internet aloqangizni tekshirib, qaytadan urinib ko'ring.",
+    "requestFailed": "So'rov bajarilmadi ({{status}})"
   }
 }

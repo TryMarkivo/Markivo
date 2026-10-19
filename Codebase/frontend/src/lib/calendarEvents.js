@@ -13,6 +13,15 @@ export const isAutopilot = (ev) => sourceOf(ev) === 'autopilot';
 export const statusOf = (ev) => ev.extendedProperties?.private?.markivoStatus || (isAutopilot(ev) ? 'posted' : 'scheduled');
 
 export const tagOf = (ev) => ev.extendedProperties?.private?.tag || '';
+
+// The feed's summary for Autopilot history is "Autopilot · <activity kind>"
+// with the raw kind code — rebuild it in the interface language instead.
+export const summaryOf = (ev, t) => {
+  if (!isAutopilot(ev)) return ev.summary;
+  const kind = ev.extendedProperties?.private?.activityKind;
+  const title = t('autopilot.title', 'Autopilot');
+  return kind ? `${title} · ${t(`autopilot.kind.${kind}`, kind)}` : title;
+};
 export const repeatOf = (ev) => ev.extendedProperties?.private?.repeatRule || '';
 
 // A calendar chip can be opened in the Edit Post composer only if it is a real

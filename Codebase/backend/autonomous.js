@@ -23,6 +23,7 @@
 const autopilotContext = require('./autopilotContext');
 const businessContextService = require('./businessContextService');
 const geminiDefault = require('./gemini');
+const i18n = require('./i18n');
 
 const FREQ_MS = {
   test: 60 * 1000, // 1 minute — for demos and tests
@@ -91,6 +92,8 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   if (!profile || !cfg || !cfg.enabled) return { skipped: 'not-enabled' };
 
   const user = db.users.findById(profile.userId);
+  // No request here — what the owner reads follows their saved UI language.
+  const lang = i18n.langOr(user && user.preferredLang);
   const nowIso = new Date(nowMs).toISOString();
   const nextRunAt = nextRunFrom(cfg.frequency, nowMs);
 
@@ -110,7 +113,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   // would let Autopilot quietly outspend everyone who writes by hand.
   const budget = user ? writingRemaining(db, config, user.id, user.tier) : Infinity;
   if (budget <= 0) {
-    db.autonomous.logActivity({ profileId, kind: 'skipped', summary: 'Weekly writing allowance reached — Autopilot paused until it resets on Monday.' });
+    db.autonomous.logActivity({ profileId, kind: 'skipped', summary: i18n.tr(lang, 'Weekly writing allowance reached — Autopilot paused until it resets on Monday.') });
     return { skipped: 'budget' };
   }
 
@@ -140,7 +143,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
       competitorHighlights = gathered.competitorHighlights;
       externalActivityCounts = gathered;
     } catch (err) {
-      db.autonomous.logActivity({ profileId, kind: 'error', summary: `Own/competitor content read failed: ${err.message}` });
+      db.autonomous.logActivity({ profileId, kind: 'error', summary: i18n.tr(lang, 'Own/competitor content read failed: {{reason}}', { reason: err.message }) });
     }
   }
 
@@ -151,7 +154,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   // Runs BEFORE db.usage.record below, so a paused run costs the owner nothing.
   // (The assessment itself is a cheap Flash call and is not metered, the same
   // way the onboarding brand brief isn't.)
-  const gate = await autopilotContext.ensureContext({ db, gemini, profileId, platforms, nowMs });
+  const gate = await autopilotContext.ensureContext({ db, gemini, profileId, platforms, nowMs, lang });
   if (!gate.ok) {
     return { paused: 'needs-context', reason: gate.reason, requestId: gate.request ? gate.request.id : null };
   }
@@ -159,6 +162,8 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   let plan;
   try {
     plan = await ai.analyzeAndPlan({
+      lang,
+      languages: profile.audienceLanguages,
       platforms,
       businessName: profile.businessName,
       category: profile.category,
@@ -180,7 +185,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
       adType: gate.context.adType,
     });
   } catch (err) {
-    db.autonomous.logActivity({ profileId, kind: 'error', summary: `Analysis failed: ${err.message}` });
+    db.autonomous.logActivity({ profileId, kind: 'error', summary: i18n.tr(lang, 'Analysis failed: {{reason}}', { reason: err.message }) });
     return { error: err.message };
   }
 
@@ -189,7 +194,10 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     db.autonomous.logActivity({
       profileId,
       kind: 'external_content',
-      summary: `Grounded this plan in ${externalActivityCounts.ownPostCount} real post${externalActivityCounts.ownPostCount === 1 ? '' : 's'} from your own connected accounts and ${externalActivityCounts.competitorPostCount} from tracked competitors.`,
+      summary: i18n.tr(lang, externalActivityCounts.ownPostCount === 1
+        ? 'Grounded this plan in {{own}} real post from your own connected accounts and {{competitor}} from tracked competitors.'
+        : 'Grounded this plan in {{own}} real posts from your own connected accounts and {{competitor}} from tracked competitors.',
+      { own: externalActivityCounts.ownPostCount, competitor: externalActivityCounts.competitorPostCount }),
       // The actual snippets that fed the prompt — otherwise they're used once
       // and thrown away, leaving the owner with only a count in the summary.
       payload: { ownExternalActivity: ownExternalActivity.slice(0, 5), competitorHighlights: competitorHighlights.slice(0, 5) },
@@ -229,7 +237,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     // approval. Skip it.
     if (platform !== 'telegram' && !connectors.get(platform)) {
       errors += 1;
-      db.autonomous.logActivity({ profileId, kind: 'error', summary: `Skipped a post for unknown channel "${platform}".` });
+      db.autonomous.logActivity({ profileId, kind: 'error', summary: i18n.tr(lang, 'Skipped a post for unknown channel "{{platform}}".', { platform }) });
       continue;
     }
 
@@ -252,9 +260,9 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
         profileId,
         actionType: isTg ? 'telegram_post' : 'platform_post',
         actionPayload: {
-          action: `Publish ${isTg ? 'Telegram' : (adapter ? adapter.label : platform)} Post`,
-          cost: 'Free — organic post',
-          target: isTg ? ((tgConn && tgConn.chatTitle) || 'your channel') : (adapter ? adapter.label : platform),
+          action: i18n.tr(lang, 'Publish {{platform}} Post', { platform: isTg ? 'Telegram' : (adapter ? adapter.label : platform) }),
+          cost: i18n.tr(lang, 'Free — organic post'),
+          target: isTg ? ((tgConn && tgConn.chatTitle) || i18n.tr(lang, 'your channel')) : (adapter ? adapter.label : platform),
           creative: post.text,
           text: post.text,
           platform: isTg ? undefined : (adapter ? adapter.key : platform),
@@ -289,7 +297,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     db.autonomous.logActivity({
       profileId,
       kind: 'skipped',
-      summary: `Weekly writing allowance reached — ${unaffordable} of ${plan.posts.length} posts were not created. Resets Monday.`,
+      summary: i18n.tr(lang, 'Weekly writing allowance reached — {{skipped}} of {{total}} posts were not created. Resets Monday.', { skipped: unaffordable, total: plan.posts.length }),
     });
   }
 

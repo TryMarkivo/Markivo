@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import i18n from '../i18n/i18n';
 import './MediaAttach.css';
 
 const MAX_BYTES = 8 * 1024 * 1024; // matches backend MAX_UPLOAD_BYTES
@@ -10,7 +11,7 @@ const readAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
-    r.onerror = () => reject(new Error('Could not read the file'));
+    r.onerror = () => reject(new Error(i18n.t('media.attach.readFailed', 'Could not read the file')));
     r.readAsDataURL(file);
   });
 

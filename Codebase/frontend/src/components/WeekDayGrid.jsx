@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HOURS, ymd } from '../lib/calendar';
-import { chipMetaFor, isReadOnly, sourceOf } from '../lib/calendarEvents';
+import { chipMetaFor, isReadOnly, sourceOf, summaryOf } from '../lib/calendarEvents';
 import './AutomationCalendar.css';
 
 const HOUR_PX = 56;
@@ -13,7 +13,7 @@ const HOUR_PX = 56;
  * draggable onto any other slot to reschedule down to the hour.
  */
 export default function WeekDayGrid({ days, byDay, onSlotClick, onDropSlot, onViewEvent, busyId }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const scrollRef = useRef(null);
   const [hoverSlot, setHoverSlot] = useState(null); // `${dayKey}-${hour}`
   const todayKey = ymd(new Date());
@@ -107,7 +107,7 @@ export default function WeekDayGrid({ days, byDay, onSlotClick, onDropSlot, onVi
                           onClick={(e) => { e.stopPropagation(); onViewEvent?.(ev); }}
                         >
                           <i className={m.icon}></i>
-                          <span className="wdg-chip-text">{ev.description || ev.summary}</span>
+                          <span className="wdg-chip-text">{ev.description || summaryOf(ev, t)}</span>
                         </button>
                       );
                     })}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import { toneLabel } from '../lib/businessVocab';
 
 /**
  * The other half of onboarding.
@@ -14,7 +15,7 @@ import api from '../lib/api';
  * the "!" on the profile icon.
  */
 export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [state, setState] = useState({ loading: true, error: '', questions: [], pendingCount: 0, engine: null });
   const [drafts, setDrafts] = useState({});
@@ -36,7 +37,7 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
       setDrafts({});
       onCountChange?.(data.pendingCount || 0);
     } catch (err) {
-      setState((s) => ({ ...s, loading: false, error: err.message || 'Could not load your questions.' }));
+      setState((s) => ({ ...s, loading: false, error: err.message || t('profileQuestions.loadError', 'Could not load your questions.') }));
     }
   };
 
@@ -44,12 +45,23 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
   // the panel shows the same list rather than a freshly invented one.
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The fixed set is the same for everyone, so it is translated here. The
-  // AI-written half cannot be — it is generated per business, in English — and
-  // falls through to the server's own wording.
-  const label = (q) => (q.fixed ? t(`profileQuestions.fixed.${q.key}.label`, q.label) : q.label);
-  const hint = (q) => (q.fixed ? t(`profileQuestions.fixed.${q.key}.hint`, q.hint) : q.hint);
-  const placeholder = (q) => (q.fixed ? t(`profileQuestions.fixed.${q.key}.placeholder`, q.placeholder) : q.placeholder);
+  // The fixed set is the same for everyone, so it is translated here, and so
+  // is the keyless template set (source 'template' — deterministic per
+  // category). A template line is only swapped while the server's English
+  // still matches the English it was translated from. The AI-written half
+  // cannot be — it is generated per business — and falls through to the
+  // server's own wording.
+  const field = (q, name) => {
+    if (q.fixed) return t(`profileQuestions.fixed.${q.key}.${name}`, q[name]);
+    if (q.source === 'template') {
+      const key = `profileQuestions.template.${q.key}.${name}`;
+      if (i18n.getResource('en', 'translation', key) === q[name]) return t(key);
+    }
+    return q[name];
+  };
+  const label = (q) => field(q, 'label');
+  const hint = (q) => field(q, 'hint');
+  const placeholder = (q) => field(q, 'placeholder');
 
   const valueOf = (q) => (drafts[q.key] !== undefined ? drafts[q.key] : q.value);
   const setDraft = (key, value) => {
@@ -76,7 +88,7 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
       onCountChange?.(data.pendingCount || 0);
       if (data.profile) onProfileUpdate?.(data.profile);
     } catch (err) {
-      setState((s) => ({ ...s, error: err.message || 'Could not save your answers.' }));
+      setState((s) => ({ ...s, error: err.message || t('profileQuestions.saveError', 'Could not save your answers.') }));
     }
     setBusy(false);
   };
@@ -122,7 +134,7 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
           onChange={(e) => setDraft(q.key, e.target.value)}
         >
           <option value="">{t('profileQuestions.choose', 'Choose one…')}</option>
-          {q.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+          {q.options.map((opt) => <option key={opt} value={opt}>{toneLabel(t, opt)}</option>)}
         </select>
       );
     }

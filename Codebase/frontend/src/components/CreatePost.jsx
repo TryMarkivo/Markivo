@@ -20,7 +20,16 @@ const EMOJI_PALETTE = [
   '⭐', '🎁', '📍', '⏰', '🚀', '💡', '🌟', '🥳', '👀', '💬',
 ];
 
-const TAG_SUGGESTIONS = ['Promo', 'Announcement', 'Behind the scenes', 'New product', 'Event', 'Sale'];
+// Suggested tags, offered in the interface language — a tag is the owner's own
+// free text, so whichever wording they pick is simply what gets stored.
+const TAG_SUGGESTIONS = [
+  ['promo', 'Promo'],
+  ['announcement', 'Announcement'],
+  ['behindTheScenes', 'Behind the scenes'],
+  ['newProduct', 'New product'],
+  ['event', 'Event'],
+  ['sale', 'Sale'],
+];
 
 const newExtraPost = () => ({ id: `extra_${Date.now()}_${Math.random().toString(36).slice(2)}`, text: '', media: null });
 
@@ -289,7 +298,7 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
   const postNow = async () => {
     if (!selected.length || busy) return;
     if (!selected.some((k) => effectiveFor(k).text.trim().length)) {
-      setError(t('createPost.emptyText', 'Write something before posting.'));
+      setError(t('createPost.emptyTextPost', 'Write something before posting.'));
       return;
     }
 
@@ -585,7 +594,7 @@ export default function CreatePost({ onClose, onScheduled, onGoToConnections, in
                   aria-label={t('createPost.tag', 'Tag')}
                 />
                 <datalist id="cp_tag_suggestions">
-                  {TAG_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
+                  {TAG_SUGGESTIONS.map(([key, fallback]) => <option key={key} value={t(`createPost.tagSuggestions.${key}`, fallback)} />)}
                 </datalist>
                 <select
                   className="input-field cp-repeat-select"

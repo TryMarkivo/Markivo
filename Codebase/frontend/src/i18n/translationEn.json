@@ -30,7 +30,10 @@
     "themeToDark": "Switch to dark theme",
     "themeToggle": "Toggle color theme",
     "language": "Language",
-    "retry": "Retry"
+    "retry": "Retry",
+    "other": "Other",
+    "saving": "Saving…",
+    "edit": "Edit"
   },
   "auth": {
     "login": "Sign In",
@@ -75,7 +78,8 @@
     "tiers": {
       "free": "Free",
       "pro": "Pro",
-      "ultimate": "Ultimate"
+      "ultimate": "Ultimate",
+      "freemium": "Free"
     },
     "buckets": {
       "writing": "Writing",
@@ -222,7 +226,10 @@
       "button": "Start Free Today"
     },
     "footer": {
-      "copyright": "© {{year}} Markivo. From zero to fully running. All rights reserved."
+      "copyright": "© {{year}} Markivo. From zero to fully running. All rights reserved.",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "dataDeletion": "Data Deletion"
     }
   },
   "onboarding": {
@@ -256,7 +263,9 @@
       "namePlaceholder": "e.g. Noir Coffee & Workspace",
       "locationLabel": "City / Location",
       "locationPlaceholder": "e.g. Tashkent",
-      "scanCta": "Scan My Digital Presence"
+      "scanCta": "Scan My Digital Presence",
+      "defaultLocation": "Tashkent",
+      "discoveredDescription": "A discovered business located in {{location}}."
     },
     "pathB": {
       "badge": "Path B: Build From Scratch",
@@ -481,7 +490,9 @@
       "telegramMembers": "Telegram Channel Members",
       "past30Days": "past 30 days",
       "changePositive": "+{{change}}%",
-      "drillDown": "Show detailed {{platform}} statistics"
+      "drillDown": "Show detailed {{platform}} statistics",
+      "collecting": "Collecting data…",
+      "trendLabel": "Trend"
     },
     "aiSearch": {
       "title": "AI Search Visibility",
@@ -505,7 +516,9 @@
         "medium": "Medium",
         "veryHigh": "Very High"
       }
-    }
+    },
+    "toggleSidebar": "Show or hide the sidebar",
+    "onlineLocation": "Online / Remote"
   },
   "contentEngine": {
     "title": "Content Engine",
@@ -529,7 +542,17 @@
       "topicPlaceholderByCategory": "e.g. A weekend special offer your {{category}} customers will love!",
       "generating": "Crafting localized drafts...",
       "generateCta": "Generate Platform Drafts ✦",
-      "subtitleForPlatform": "Writing for {{platform}} — formatted the way that channel expects."
+      "subtitleForPlatform": "Writing for {{platform}} — formatted the way that channel expects.",
+      "languageHint": "Tap the languages you want. They appear in the post in the order you tap them — all in one message.",
+      "languageOrder": "Order:",
+      "mediaLabel": "Photo or video",
+      "mediaRequired": "Instagram cannot publish a text-only post — attach a photo or video to post for real.",
+      "mediaOptional": "Optional. Attach the image or video that should go out with this post.",
+      "lang": {
+        "uz": "Uzbek",
+        "ru": "Russian",
+        "en": "English"
+      }
     },
     "output": {
       "toneOptimized": "Platform Tone-Optimized",
@@ -543,7 +566,10 @@
       "postingNow": "Posting…",
       "postNowFailed": "Posting failed",
       "postedSimulated": "Logged as posted — live channel publishing activates with integrations",
-      "postedReal": "Published to {{target}}!"
+      "postedReal": "Published to {{target}}!",
+      "editLabel": "Edit the post before publishing",
+      "edited": "Edited — Mark will learn from your changes",
+      "instagramNeedsMedia": "Instagram needs a photo or video. Attach one above, or this will only be logged as a draft."
     },
     "schedule": {
       "stepDate": "Step 1 · Pick a date",
@@ -605,7 +631,8 @@
     "modeCompose": "Compose",
     "modeTemplates": "Templates",
     "yourChannels": "Your channels",
-    "noConnections": "No channels connected yet — connect one in Connections to publish for real."
+    "noConnections": "No channels connected yet — connect one in Connections to publish for real.",
+    "goToConnections": "Go to Connections"
   },
   "media": {
     "title": "Media Studio",
@@ -746,6 +773,23 @@
       "angle": "Angle",
       "movement": "Movement",
       "duration": "Duration"
+    },
+    "attach": {
+      "previewAlt": "Attached media",
+      "remove": "Remove",
+      "tooLarge": "File is too large — 8MB maximum.",
+      "failed": "Upload failed",
+      "readFailed": "Could not read the file",
+      "video": "Video",
+      "photo": "Photo",
+      "replace": "Replace",
+      "uploading": "Uploading…",
+      "cta": "Attach photo or video"
+    },
+    "post": {
+      "ready": "Your media is ready",
+      "readyHint": "Send it to your connected channels — now or on a schedule.",
+      "cta": "Post"
     }
   },
   "competitors": {
@@ -785,7 +829,8 @@
       "partialHintNoApi": "This platform only exposes profile info publicly — no captions or videos, so it can't feed trend analysis.",
       "partialHintGeneric": "Profile found, but no posts could be read this time — try Refresh.",
       "noFollowerData": "no data",
-      "partialHintInstagram": "No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account."
+      "partialHintInstagram": "No post content yet — connect your own Instagram in Settings → Connections (Meta) to unlock real captions and engagement here, and make sure this competitor is a public Business or Creator account.",
+      "analyzeChannel": "Analyze this channel"
     },
     "addModal": {
       "title": "Add a Competitor",
@@ -795,7 +840,8 @@
       "platform": {
         "instagram": "Instagram",
         "youtube": "YouTube",
-        "facebook": "Facebook"
+        "facebook": "Facebook",
+        "telegram": "Telegram"
       },
       "needOneLink": "Add at least one profile link",
       "adding": "Adding & fetching…",
@@ -809,7 +855,10 @@
       "needData": "Add and fetch at least one competitor first",
       "empty": "Add at least one competitor with fetched content, then analyze to see trends.",
       "recommendationLabel": "💡 Recommendation:",
-      "generateCta": "Generate content from this →"
+      "generateCta": "Generate content from this →",
+      "analyzeAllHint": "Analyzes every tracked channel at once — use the wand icon on a single card to analyze just that channel.",
+      "analyzeAllCta": "Analyze all channels",
+      "generating": "Generating…"
     },
     "gaps": {
       "title": "Actionable AI Moat Recommendations",
@@ -823,6 +872,18 @@
       "seoTitle": "SEO Keyword Gaps",
       "seoText": "Nearby competitors are actively ranking for <1>{{category}}-relevant local search phrases</1> that your profiles never mention. You are completely missing this local search vector.",
       "seoSolution": "Weave {{category}}-relevant local search phrases and the wording your ideal customers actually search for into your next generated Telegram content copy."
+    },
+    "posts": {
+      "noCaption": "(no caption)",
+      "topBadge": "★ Top post",
+      "engagementUnavailable": "engagement not reported",
+      "detailTitle": "Competitor post",
+      "likes_one": "{{count}} like",
+      "likes_other": "{{count}} likes",
+      "comments_one": "{{count}} comment",
+      "comments_other": "{{count}} comments",
+      "views_one": "{{count}} view",
+      "views_other": "{{count}} views"
     }
   },
   "agent": {
@@ -902,7 +963,9 @@
     "doneHint": "Now just tell <1>Markiv</1> in the chat panel: <3>\"Post our weekend offer to Telegram\"</3> — you approve, it publishes. 🚀",
     "chatTypes": {
       "channel": "channel",
-      "group": "group"
+      "group": "group",
+      "supergroup": "supergroup",
+      "private": "private chat"
     },
     "pillTitleSoon": "Telegram integration is coming soon",
     "pillTitleBot": "Bot @{{username}}",
@@ -957,7 +1020,19 @@
     "logoTitle": "Your logo",
     "logoHint": "Optional. Upload the mark you already use, or have one designed from your name and tone.",
     "logoEmpty": "No logo yet — your dashboard shows your initial instead.",
-    "logoSave": "Save logo"
+    "logoSave": "Save logo",
+    "danger": {
+      "title": "Danger zone",
+      "blurb": "Deleting your account permanently erases your business profiles, all content and uploaded media, every platform connection, and your history. This cannot be undone.",
+      "learnMore": "What gets deleted",
+      "deleteAccount": "Delete account",
+      "confirmWord": "DELETE",
+      "prompt": "Type {{word}} to confirm:",
+      "deleting": "Deleting…",
+      "confirmDelete": "Permanently delete",
+      "done": "Your account and all associated data have been permanently deleted.\n\nConfirmation code: {{code}}\n\nKeep this code — you can check the deletion at /data-deletion.html",
+      "failed": "Could not delete your account. Please try again."
+    }
   },
   "autopilot": {
     "title": "Autopilot",
@@ -999,7 +1074,8 @@
       "skipped": "Paused",
       "error": "Error",
       "context_needed": "Needs more context",
-      "context_answered": "You answered Autopilot"
+      "context_answered": "You answered Autopilot",
+      "external_content": "Grounded in real content"
     },
     "context": {
       "title": "Autopilot paused — it needs a bit more context",
@@ -1012,6 +1088,17 @@
       "thanks": "Thanks — Autopilot will use that on its next run.",
       "answerError": "Couldn't save your answer.",
       "hint": "Autopilot remembers this — you only answer once."
+    },
+    "queue": {
+      "title": "Pending approval",
+      "subtitle": "Autopilot drafted these and is waiting on you before anything goes out.",
+      "autopilotFallback": "Autopilot",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approved": "Approved and published.",
+      "approveError": "Couldn't approve that post.",
+      "rejected": "Rejected — it will not be published.",
+      "rejectError": "Couldn't reject that post."
     }
   },
   "templates": {
@@ -1047,13 +1134,43 @@
     "deleteTemplate": "Delete template",
     "fixedTemplate": "This template has no variables — it sends exactly as written.",
     "sendToComposer": "Send to composer",
-    "fromTemplateTip": "Filled from one of your saved templates — review it, then post or schedule."
+    "fromTemplateTip": "Filled from one of your saved templates — review it, then post or schedule.",
+    "editVariable": "Rename this variable or change its example",
+    "editingBadge": "Editing saved template",
+    "newBadge": "New template",
+    "makeVariableFrom": "Make “{{text}}” a variable",
+    "doneEditingText": "Done editing text",
+    "editText": "Edit wording",
+    "inlineHint": "Highlight any text to turn it into a variable, click a variable to rename it, or press × to turn it back into plain text.",
+    "mediaLabel": "Photo or video for this template",
+    "mediaHint": "Optional. Every post made from this template goes out with this media attached.",
+    "saveChanges": "Save changes",
+    "hasMedia": "Has attached media"
   },
   "styles": {
     "importLabel": "Or import a Telegram export",
     "importHint": "Upload a .json or .html file from Telegram Desktop's \"Export chat history\" to learn a voice from a whole channel.",
     "importCta": "Import file",
-    "importing": "Reading file…"
+    "importing": "Reading file…",
+    "title": "Writing Styles",
+    "subtitle": "Paste a post — your own, or copied from a competitor — and learn its voice, so you can write new posts that sound like it.",
+    "sampleLabel": "A post whose voice you want to reuse",
+    "samplePlaceholder": "Paste any post here — yours or a competitor's. We learn HOW it's written, not what it says.",
+    "analyzing": "Reading the voice…",
+    "analyzeCta": "Analyze style ✦",
+    "editingBadge": "Editing saved style",
+    "newBadge": "New style",
+    "nameLabel": "Style name",
+    "namePlaceholder": "e.g. Playful & emoji-heavy",
+    "summaryLabel": "Voice description",
+    "summaryHint": "This is used to steer new posts — edit it freely, it never needs to match the sample word for word.",
+    "saving": "Saving…",
+    "saveChanges": "Save changes",
+    "saveCta": "Save style",
+    "savedTitle": "Saved styles",
+    "savedEmpty": "No saved styles yet.",
+    "untitled": "Untitled style",
+    "deleteStyle": "Delete style"
   },
   "connections": {
     "title": "Platform Connections",
@@ -1086,7 +1203,59 @@
     "statusSandbox": "Connected (sandbox)",
     "connectedHint": "Ask Markiv in the chat panel to post to {{label}} — you approve, it publishes.",
     "disconnectCta": "Disconnect",
-    "working": "Working…"
+    "working": "Working…",
+    "guide": {
+      "telegram": {
+        "requirements": [
+          "A Telegram account",
+          "A channel or group where your bot is an admin"
+        ],
+        "steps": [
+          "Open Telegram and start a chat with @BotFather.",
+          "Send /newbot and follow the prompts to name your bot.",
+          "Copy the bot token BotFather gives you and paste it here.",
+          "Add the bot as an ADMIN of your channel or group.",
+          "Post any message in that channel, then press \"Detect channel\"."
+        ]
+      },
+      "meta_instagram": {
+        "requirements": [
+          "An Instagram Professional account (Business or Creator)",
+          "That account linked to a Facebook Page you administer",
+          "A photo or video for every post — Instagram has no text-only post"
+        ],
+        "steps": [
+          "In the Instagram app: Settings → Account type → switch to Business or Creator.",
+          "Still in Instagram settings, link the account to your Facebook Page.",
+          "Press Connect here and sign in with that Facebook account.",
+          "Tick both the Page and the linked Instagram account on the permissions screen."
+        ]
+      },
+      "meta_facebook": {
+        "requirements": [
+          "A Facebook Page you administer",
+          "Admin/Editor access to that Page"
+        ],
+        "steps": [
+          "Press Connect here and log in with your Facebook account.",
+          "Select the Facebook Page you want Markivo to post to.",
+          "Tick all permissions so Markivo can draft and publish posts."
+        ]
+      },
+      "google_business": {
+        "requirements": [
+          "A Google Business Profile listing for your business",
+          "The listing VERIFIED by Google (postcard, phone, or email)",
+          "Owner or manager access on the Google account you sign in with"
+        ],
+        "steps": [
+          "Claim your listing at business.google.com if you have not already.",
+          "Finish Google’s verification — unverified listings cannot receive posts.",
+          "Press Connect and sign in with the Google account that owns the listing.",
+          "Approve the Business Profile permission, then pick the location to post to."
+        ]
+      }
+    }
   },
   "calendar": {
     "title": "Schedule",
@@ -1122,7 +1291,8 @@
         "scheduled": "Scheduled",
         "draft": "Draft",
         "posted": "Published",
-        "failed": "Failed"
+        "failed": "Failed",
+        "cancelled": "Cancelled"
       },
       "emptyAll": "No posts",
       "emptyScheduled": "No scheduled posts",
@@ -1132,7 +1302,8 @@
     },
     "detail": {
       "autopilot": "Autopilot"
-    }
+    },
+    "editStyles": "Edit Styles"
   },
   "createPost": {
     "title": "Create Post",
@@ -1181,7 +1352,16 @@
     "overLimit": "Over the character limit for: {{names}}",
     "emptyText": "Write something before scheduling.",
     "noneConnected": "Connect a channel first — then it shows up here to post to.",
-    "goToConnections": "Go to Connections"
+    "goToConnections": "Go to Connections",
+    "tagSuggestions": {
+      "promo": "Promo",
+      "announcement": "Announcement",
+      "behindTheScenes": "Behind the scenes",
+      "newProduct": "New product",
+      "event": "Event",
+      "sale": "Sale"
+    },
+    "emptyTextPost": "Write something before posting."
   },
   "aiGeneration": {
     "title": "AI Generation",
@@ -1192,7 +1372,9 @@
     "revise": "Revise",
     "revising": "Revising…",
     "startOver": "Start over",
-    "approve": "Approve & continue"
+    "approve": "Approve & continue",
+    "styleLabel": "Style",
+    "styleNone": "Default brand voice"
   },
   "aiEditor": {
     "title": "AI Editor",
@@ -1220,7 +1402,27 @@
     "styleApplying": "Restyling…",
     "applyStyle": "Apply Style",
     "emojify": "emojify",
-    "unavailableNotice": "AI isn't configured yet, so this is the original text unchanged — connect a Gemini key to enable this."
+    "unavailableNotice": "AI isn't configured yet, so this is the original text unchanged — connect a Gemini key to enable this.",
+    "languages": {
+      "english": "English",
+      "uzbek": "Uzbek",
+      "russian": "Russian",
+      "turkish": "Turkish",
+      "arabic": "Arabic",
+      "spanish": "Spanish"
+    },
+    "presets": {
+      "formal": "Formal",
+      "short": "Short",
+      "friendly": "Friendly",
+      "persuasive": "Persuasive",
+      "playful": "Playful",
+      "tribal": "Tribal",
+      "biblical": "Biblical",
+      "corporate": "Corporate",
+      "minimalist": "Minimalist",
+      "storyteller": "Storyteller"
+    }
   },
   "platformDetail": {
     "subtitle": "Channel statistics",
@@ -1250,7 +1452,9 @@
     "status": {
       "posted": "published",
       "scheduled": "queued",
-      "failed": "failed"
+      "failed": "failed",
+      "draft": "draft",
+      "cancelled": "cancelled"
     },
     "notice": {
       "connectInstagram": "Connect Instagram to see followers and per-post likes and comments.",
@@ -1307,7 +1511,8 @@
       "publishedTitle": "Published to Instagram!",
       "publishedTo": "Posted to {{handle}}.",
       "viewPost": "View post on Instagram ↗",
-      "another": "Post another"
+      "another": "Post another",
+      "previewAlt": "Post preview"
     }
   },
   "_note_2026_08_13": "SEO/Meta keys prefixed _DISABLED_ are commented-out features — see 2026-08-13. JSON has no comment syntax; drop the prefix to re-enable.",
@@ -1366,6 +1571,183 @@
       "uz": "Uzbek",
       "ru": "Russian",
       "en": "English"
+    },
+    "loadError": "Could not load your questions.",
+    "saveError": "Could not save your answers.",
+    "template": {
+      "busiest_hours": {
+        "label": "When is the place busiest, and when is it quiet?",
+        "hint": "We schedule posts into the quiet hours you want to fill.",
+        "placeholder": "e.g. packed 8-10am, quiet after 3pm"
+      },
+      "seating_setup": {
+        "label": "What is the room like to sit in?",
+        "hint": "The detail that makes a photo caption specific to you.",
+        "placeholder": "e.g. 6 tables, a long window bar, power at every seat"
+      },
+      "beans_or_supplier": {
+        "label": "Where do your beans or ingredients come from?",
+        "hint": "Sourcing is a story competitors cannot copy.",
+        "placeholder": "e.g. roasted locally, Ethiopian single origin"
+      },
+      "top_service": {
+        "label": "Which service do you most want to be booked for?",
+        "hint": "We push this one instead of spreading posts thin.",
+        "placeholder": "e.g. balayage colouring"
+      },
+      "appointment_length": {
+        "label": "How long does a typical appointment take?",
+        "hint": "Lets posts set the right expectation before someone books.",
+        "placeholder": "e.g. 90 minutes for colour, 30 for a trim"
+      },
+      "master_names": {
+        "label": "Who are the masters clients ask for by name?",
+        "hint": "Named people outperform anonymous salon photos.",
+        "placeholder": "e.g. Dilnoza (colour), Aziz (barber)"
+      },
+      "membership_options": {
+        "label": "How can someone use the space — by hour, day, or month?",
+        "hint": "The first thing a prospective member wants to know.",
+        "placeholder": "e.g. hourly, day pass, monthly desk"
+      },
+      "quiet_rules": {
+        "label": "What are the rules on noise, calls, and meeting rooms?",
+        "hint": "Answers the objection that stops people booking.",
+        "placeholder": "e.g. calls only in booths, 2 meeting rooms"
+      },
+      "amenities": {
+        "label": "What is included that people actually notice?",
+        "hint": "Concrete amenities beat \"great atmosphere\".",
+        "placeholder": "e.g. 200 Mbps, free coffee, printer, lockers"
+      },
+      "restock_rhythm": {
+        "label": "How often does new stock arrive?",
+        "hint": "New arrivals are the easiest recurring post you have.",
+        "placeholder": "e.g. a new drop every second Friday"
+      },
+      "size_range": {
+        "label": "What sizes or variants do you carry?",
+        "hint": "Stops us writing a post that disappoints a buyer.",
+        "placeholder": "e.g. XS-XXL, shoes 36-42"
+      },
+      "return_policy": {
+        "label": "What is your exchange or return policy?",
+        "hint": "Removes the hesitation before a first purchase.",
+        "placeholder": "e.g. exchange within 7 days with the receipt"
+      },
+      "signature_dish_story": {
+        "label": "Which dish would you want a first-time guest to order?",
+        "hint": "One dish, repeated, is what makes a place recognisable.",
+        "placeholder": "e.g. the lamb plov, cooked to order"
+      },
+      "delivery_setup": {
+        "label": "How do people order for delivery or pickup, if you offer it?",
+        "hint": "We only mention delivery if you actually do it.",
+        "placeholder": "e.g. Telegram orders, pickup only after 21:00"
+      },
+      "group_capacity": {
+        "label": "Can you take groups or events, and how large?",
+        "hint": "Group bookings are the highest-value post you can run.",
+        "placeholder": "e.g. up to 20 people with a day of notice"
+      },
+      "core_service": {
+        "label": "What kind of project do you want more of?",
+        "hint": "Aims every post at the work you actually want.",
+        "placeholder": "e.g. mobile apps for local retailers"
+      },
+      "project_timeline": {
+        "label": "How long does a typical engagement run?",
+        "hint": "Sets expectations before the first call.",
+        "placeholder": "e.g. 6-8 weeks from brief to launch"
+      },
+      "proof_point": {
+        "label": "What result can you point to from past work?",
+        "hint": "A concrete outcome is the only proof that travels.",
+        "placeholder": "e.g. cut a client checkout from 5 steps to 2"
+      },
+      "best_seller": {
+        "label": "What do customers come back for most often?",
+        "hint": "The one thing worth repeating across your posts.",
+        "placeholder": "e.g. our morning set"
+      },
+      "how_to_buy": {
+        "label": "How does a customer actually buy from you?",
+        "hint": "Becomes the call to action on every post.",
+        "placeholder": "e.g. walk in, or message us on Telegram"
+      },
+      "one_difference": {
+        "label": "What do you do that nearby businesses do not?",
+        "hint": "Without this, posts default to generic praise.",
+        "placeholder": "e.g. we roast on site every morning"
+      }
     }
+  },
+  "publish": {
+    "title": "Post this media",
+    "previewAlt": "Media to post",
+    "platformsLabel": "Post to",
+    "noneConnected": "No channels connected yet — connect one in Connections to publish.",
+    "captionLabel": "Caption",
+    "captionPh": "Write a caption… #hashtags welcome",
+    "schedule": "Schedule",
+    "posting": "Posting…",
+    "postNow": "Post Now",
+    "pickDate": "Pick a date",
+    "pickTime": "Pick a time",
+    "time": {
+      "morning": "Morning 09:00",
+      "lunch": "Lunch 13:00",
+      "evening": "Evening 18:30"
+    },
+    "scheduling": "Scheduling…",
+    "confirmSchedule": "Confirm schedule",
+    "scheduled": "Scheduled",
+    "published": "Published",
+    "loggedSimulated": "Logged — live publishing activates with this integration"
+  },
+  "brand": {
+    "title": "Brand Identity",
+    "subtitle": "The brand brief Mark reads on every post, caption, and design — so everything sounds like you.",
+    "loading": "Loading your brand identity…",
+    "generate": "Generate brand identity",
+    "regenerate": "Regenerate",
+    "regenerating": "Thinking…",
+    "regenerated": "Brand identity refreshed.",
+    "emptyBody": "No brand brief yet. Generate one — Mark will build your positioning, voice, audience, content pillars and visual direction from your business profile.",
+    "positioning": "Positioning",
+    "usp": "What makes you different",
+    "voice": "Voice & tone",
+    "do": "Do",
+    "dont": "Don't",
+    "persona": "Who you serve",
+    "moment": "Moment",
+    "wants": "Wants",
+    "objection": "Objection",
+    "pillars": "Content pillars",
+    "visual": "Visual direction",
+    "taglines": "Tagline ideas",
+    "facts": "Business facts",
+    "factsHelp": "Add your real details so Mark can write specific, true posts — it will never invent prices, hours, or numbers you haven't given.",
+    "factsSaved": "Saved — Mark will use these real details (and never invent others).",
+    "signatureItems": "Signature items / services",
+    "signaturePh": "e.g. cardamom bun, flat white, beard trim",
+    "prices": "Price points",
+    "pricesPh": "e.g. coffee from 18,000 so’m",
+    "hours": "Opening hours",
+    "hoursPh": "e.g. 8:00–22:00 daily",
+    "booking": "Booking / order link",
+    "phone": "Phone",
+    "offer": "Current offer (optional)",
+    "offerType": "Type",
+    "offerTypePh": "discount, freebie, combo…",
+    "offerValue": "Value",
+    "offerValuePh": "e.g. 20% off, free pastry",
+    "offerDeadline": "Until",
+    "offerDeadlinePh": "e.g. Sunday",
+    "saveFacts": "Save facts"
+  },
+  "errors": {
+    "network": "Cannot reach the Markivo server. Please check your connection and try again.",
+    "requestFailed": "Request failed ({{status}})"
   }
 }

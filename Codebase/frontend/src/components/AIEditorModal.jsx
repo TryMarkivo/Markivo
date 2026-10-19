@@ -6,6 +6,8 @@ import TemplateStudio from './TemplateStudio';
 import './AIEditorModal.css';
 
 const TABS = ['translate', 'style', 'fix', 'templates'];
+// The value is what the translate route is asked for (English language names);
+// the chip itself is labelled in the interface language.
 const TRANSLATE_LANGUAGES = ['English', 'Uzbek', 'Russian', 'Turkish', 'Arabic', 'Spanish'];
 
 // Shared Original/Result view used by Translate, Style, and Fix — Telegram's
@@ -92,7 +94,7 @@ function TranslateTab({ t, text, onApply }) {
       <div className="aie-chip-row">
         {TRANSLATE_LANGUAGES.map((lang) => (
           <button key={lang} type="button" className={`aie-chip ${language === lang ? 'active' : ''}`} onClick={() => pickLanguage(lang)} disabled={!text.trim()}>
-            {lang}
+            {t(`aiEditor.languages.${lang.toLowerCase()}`, lang)}
           </button>
         ))}
         <button type="button" className={`aie-chip ${language === 'other' ? 'active' : ''}`} onClick={() => pickLanguage('other')} disabled={!text.trim()}>
@@ -234,7 +236,7 @@ function StyleTab({ t, text, onApply }) {
               id={`btn_aie_preset_${p.key}`}
             >
               <span className="aie-preset-emoji">{p.emoji}</span>
-              <span className="aie-preset-label">{p.label}</span>
+              <span className="aie-preset-label">{t(`aiEditor.presets.${p.key}`, p.label)}</span>
             </button>
           ))}
         </div>

@@ -22,7 +22,10 @@ export default function SettingsPane({ activeProfile, theme, onToggleTheme, onLa
   const [error, setError] = useState('');
 
   const CONFIRM_WORD = t('settings.danger.confirmWord', 'DELETE');
-  const canDelete = typed.trim().toUpperCase() === CONFIRM_WORD.toUpperCase();
+  // Uzbek's word has an apostrophe (O'CHIRISH) that phone keyboards type as
+  // any of several characters, so compare with them folded together.
+  const foldWord = (s) => s.trim().toUpperCase().replace(/[\u2018\u2019\u02BB\u02BC`]/g, "'");
+  const canDelete = foldWord(typed) === foldWord(CONFIRM_WORD);
 
   const cancel = () => {
     setConfirming(false);

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { chipMetaFor, isReadOnly, statusOf } from '../lib/calendarEvents';
+import { chipMetaFor, isReadOnly, statusOf, summaryOf } from '../lib/calendarEvents';
 import './AutomationCalendar.css';
 
 const PAGE_SIZE = 8;
@@ -115,7 +115,7 @@ export default function PostListView({ events, onCancel, onViewEvent, busyId }) 
                   >
                     <span className="plv-row-bar" />
                     <i className={m.icon} style={{ color: m.color }}></i>
-                    <span className="plv-row-text">{ev.description || ev.summary}</span>
+                    <span className="plv-row-text">{ev.description || summaryOf(ev, t)}</span>
                     <span className={`plv-row-status ${statusOf(ev)}`}>{t(`calendar.list.status.${statusOf(ev)}`, statusOf(ev))}</span>
                     <span className="plv-row-time">{time}</span>
                     {canCancel && (

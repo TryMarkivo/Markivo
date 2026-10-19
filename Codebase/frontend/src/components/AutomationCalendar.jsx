@@ -6,7 +6,7 @@ import WeekDayGrid from './WeekDayGrid';
 import PostListView from './PostListView';
 import PostDetailModal from './PostDetailModal';
 import { DAY_MS, monthGrid, weekGrid, startOfDay, ymd } from '../lib/calendar';
-import { chipMetaFor, isReadOnly, sourceOf, statusOf, tagOf } from '../lib/calendarEvents';
+import { chipMetaFor, isReadOnly, sourceOf, statusOf, summaryOf, tagOf } from '../lib/calendarEvents';
 import './AutomationCalendar.css';
 
 const VIEW_MODES = ['day', 'week', 'month'];
@@ -271,7 +271,7 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
                         }}
                       >
                         <i className={m.icon}></i>
-                        <span className="cal-chip-text">{ev.description || ev.summary}</span>
+                        <span className="cal-chip-text">{ev.description || summaryOf(ev, t)}</span>
                         {hasMedia && <i className="fa-solid fa-image cal-chip-media"></i>}
                       </span>
                     );
@@ -318,7 +318,7 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
                     >
                       <span className="cal-event-time">{time}</span>
                       <div className="cal-event-body">
-                        <strong>{ev.summary}</strong>
+                        <strong>{summaryOf(ev, t)}</strong>
                         {ev.description && <p className="cal-event-desc">{ev.description}</p>}
                         {tag && <span className="cal-event-tag">{tag}</span>}
                       </div>
@@ -378,7 +378,7 @@ export default function AutomationCalendar({ activeProfile, onCreatePost, onOpen
                   >
                     <span className="cal-event-time">{time}</span>
                     <div className="cal-event-body">
-                      <strong><i className={m.icon} style={{ color: m.color }}></i> {ev.summary}</strong>
+                      <strong><i className={m.icon} style={{ color: m.color }}></i> {summaryOf(ev, t)}</strong>
                       {ev.description && <p className="cal-event-desc">{ev.description}</p>}
                     </div>
                   </li>

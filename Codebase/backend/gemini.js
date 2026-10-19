@@ -18,6 +18,7 @@
 
 const config = require('./config');
 const prompts = require('./marketing/prompts');
+const i18n = require('./i18n');
 
 const API_HOST = 'https://generativelanguage.googleapis.com/v1beta';
 
@@ -387,7 +388,9 @@ const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu;
 // Deterministic, never-wrong-in-a-surprising-way style read — the same
 // philosophy as heuristicTemplate: measurable facts about the text, phrased
 // as a style guide rather than a content summary.
-function heuristicStyle(sample) {
+// `lang` is the owner's UI language — the summary is shown to them to review.
+function heuristicStyle(sample, lang = 'en') {
+  const tr = (text, params) => i18n.tr(lang, text, params);
   const text = String(sample || '').trim();
   const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
   const words = text.match(/[\p{L}\p{N}']+/gu) || [];
@@ -406,29 +409,31 @@ function heuristicStyle(sample) {
   const bits = [];
   bits.push(
     avgSentenceLen <= 6
-      ? `very short, punchy sentences (avg ~${avgSentenceLen} words)`
+      ? tr('very short, punchy sentences (avg ~{{n}} words)', { n: avgSentenceLen })
       : avgSentenceLen <= 14
-        ? `short-to-medium sentences (avg ~${avgSentenceLen} words)`
-        : `longer, more descriptive sentences (avg ~${avgSentenceLen} words)`
+        ? tr('short-to-medium sentences (avg ~{{n}} words)', { n: avgSentenceLen })
+        : tr('longer, more descriptive sentences (avg ~{{n}} words)', { n: avgSentenceLen })
   );
   bits.push(
     distinctEmojis.length
-      ? `${emojiDensity > 0.08 ? 'heavy' : 'light'} emoji use (e.g. ${distinctEmojis.join(' ')})`
-      : 'no emoji'
+      ? tr(emojiDensity > 0.08 ? 'heavy emoji use (e.g. {{examples}})' : 'light emoji use (e.g. {{examples}})', { examples: distinctEmojis.join(' ') })
+      : tr('no emoji')
   );
-  if (exclaimCount) bits.push(`uses exclamation marks (${exclaimCount} in this sample)`);
-  if (questionCount) bits.push('asks questions to engage the reader');
-  if (capsWords.length) bits.push(`occasional ALL-CAPS emphasis (e.g. "${capsWords[0]}")`);
+  if (exclaimCount) bits.push(tr('uses exclamation marks ({{count}} in this sample)', { count: exclaimCount }));
+  if (questionCount) bits.push(tr('asks questions to engage the reader'));
+  if (capsWords.length) bits.push(tr('occasional ALL-CAPS emphasis (e.g. "{{word}}")', { word: capsWords[0] }));
   bits.push(
     hashtags.length
-      ? `uses ${hashtags.length} hashtag${hashtags.length === 1 ? '' : 's'} (e.g. ${hashtags.slice(0, 3).join(' ')})`
-      : 'no hashtags'
+      ? tr(hashtags.length === 1 ? 'uses {{count}} hashtag (e.g. {{examples}})' : 'uses {{count}} hashtags (e.g. {{examples}})', { count: hashtags.length, examples: hashtags.slice(0, 3).join(' ') })
+      : tr('no hashtags')
   );
-  bits.push(lines.length > 1 ? `breaks into ${lines.length} short lines rather than one paragraph` : 'writes as one continuous block, no line breaks');
+  bits.push(lines.length > 1
+    ? tr('breaks into {{count}} short lines rather than one paragraph', { count: lines.length })
+    : tr('writes as one continuous block, no line breaks'));
 
   return {
     name: defaultName(text, 'Style'),
-    styleSummary: `Voice: ${bits.join('; ')}.`,
+    styleSummary: tr('Voice: {{traits}}.', { traits: bits.join('; ') }),
     source: 'heuristic',
   };
 }
@@ -447,8 +452,8 @@ const STYLE_SCHEMA = {
 // reusable voice profile another draft can be written in. Keyless -> the
 // deterministic heuristic above.
 async function analyzeStyle(ctx) {
-  const { sample, businessName, category } = ctx;
-  if (!config.geminiEnabled) return heuristicStyle(sample);
+  const { sample, businessName, category, lang } = ctx;
+  if (!config.geminiEnabled) return heuristicStyle(sample, lang);
 
   try {
     const parsed = await callGemini({
@@ -464,7 +469,10 @@ async function analyzeStyle(ctx) {
         'vocabulary flavor (casual/formal/playful/technical). Write styleSummary as 3-6 tight ' +
         'sentences, in English, usable as a standing instruction to an AI copywriter. Also ' +
         'return a short "name" (max 6 words) that identifies this voice (e.g. "Playful & ' +
-        'emoji-heavy", "Formal, no-emoji, data-led"). Respond as JSON only.',
+        'emoji-heavy", "Formal, no-emoji, data-led"). Respond as JSON only.' +
+        // The owner reviews and edits the guide; an Uzbek or Russian guide
+        // instructs the copywriter just as well.
+        ownerLangRule(lang, 'the "name" and the "styleSummary"'),
       user:
         `Business: ${businessName || 'a local business'}\n` +
         `Category: ${category || 'general'}\n\n` +
@@ -473,7 +481,7 @@ async function analyzeStyle(ctx) {
     });
 
     const styleSummary = String(parsed.styleSummary || '').trim();
-    if (!styleSummary) return heuristicStyle(sample);
+    if (!styleSummary) return heuristicStyle(sample, lang);
     return {
       name: String(parsed.name || defaultName(sample, 'Style')).slice(0, 60),
       styleSummary,
@@ -481,7 +489,7 @@ async function analyzeStyle(ctx) {
     };
   } catch (err) {
     console.error('Gemini analyzeStyle failed, using heuristic style read:', err.message);
-    return heuristicStyle(sample);
+    return heuristicStyle(sample, lang);
   }
 }
 
@@ -640,21 +648,48 @@ function langInstructionFor(languages) {
  * the first group follows the audience languages; translating a director's
  * instructions would help nobody.
  *
- * Empty when the owner has not answered the question, which leaves the brief
- * exactly as it was before.
+ * The owner's directions are written in the owner's UI language (`ownerLang`),
+ * English by default. The render prompt is never translated: it is read by the
+ * image/video model, which follows English best.
+ *
+ * Empty for an English owner who has not answered the audience question, which
+ * leaves the brief exactly as it was before.
  */
-function mediaLangRule(languages) {
-  if (!Array.isArray(languages) || !languages.length) return '';
+function mediaLangRule(languages, ownerLang) {
+  const owner = ownerLang && ownerLang !== 'en' ? LANG_NAMES[ownerLang] : null;
+  const ownerLine = owner
+    ? `Your directions TO THE OWNER (concept, visual spec, staging, setup, camera, lighting, ` +
+      `composition, shot list, editing, tips) are written in ${owner} — the owner reads the app in ` +
+      'it. The renderPrompt stays in English. '
+    : 'Your directions TO THE OWNER (staging, setup, camera, lighting, composition, shot list, ' +
+      'editing) stay in English — they are instructions, not content. ';
+  if (!Array.isArray(languages) || !languages.length) {
+    return owner
+      ? `\n\nOWNER LANGUAGE: ${ownerLine}Write what a CUSTOMER will read or hear (caption, headline, ` +
+        "spoken script, on-screen text) in the language of the owner's own request."
+      : '';
+  }
   const langs = normalizeLanguages(languages);
   const names = langs.map((l) => LANG_NAMES[l]).join(', then ');
   return (
     '\n\nAUDIENCE LANGUAGE: every word a CUSTOMER will read or hear — the caption, the spoken ' +
     `script, and any on-screen text — must be written in ${names}` +
     `${langs.length > 1 ? ', in exactly that order' : ''}. ` +
-    'Your directions TO THE OWNER (staging, setup, camera, lighting, composition, shot list, ' +
-    'editing) stay in English — they are instructions, not content. Do not add a language that ' +
-    'is not listed.'
+    ownerLine + 'Do not add a language that is not listed.'
   );
+}
+
+/**
+ * The language for text only the OWNER reads — analysis, plans, questions,
+ * explanations. It is their UI language, which can differ from their
+ * customers', so it never governs post copy or anything a model renders.
+ * Empty for English, the language every prompt is already written in.
+ */
+function ownerLangRule(lang, what) {
+  if (!lang || lang === 'en' || !LANG_NAMES[lang]) return '';
+  return `\n\nOWNER LANGUAGE: the business owner reads this app in ${LANG_NAMES[lang]}. ` +
+    `Write ${what} in ${LANG_NAMES[lang]}, whatever the instructions above say about English. ` +
+    'Keep proper names, brand names and @handles as they are.';
 }
 
 // Keyless best-effort script/keyword sniff for the offline template fallback,
@@ -811,7 +846,7 @@ const SLOGAN_SCHEMA = {
 // `digest` is businessContextService.contextDigest(...) — the ONLY business
 // input. Passing the digest rather than raw profile columns is what keeps one
 // business's context from leaking into another's slogans.
-async function generateSlogans({ digest, businessName }) {
+async function generateSlogans({ digest, businessName, lang }) {
   if (!config.geminiEnabled) return null;
   if (!digest) return null; // no stored context yet — let the caller fall through
 
@@ -823,7 +858,11 @@ async function generateSlogans({ digest, businessName }) {
         'original brand slogans (max 6 words each) grounded in the business ' +
         'context below. They must be specific to THIS business — reject anything ' +
         'that would read the same for any company in the category. Never invent ' +
-        'prices, hours, or numbers. Respond as JSON only.',
+        'prices, hours, or numbers. Respond as JSON only.' +
+        // A slogan is customer-facing, but it is picked during onboarding,
+        // before any audience language is known — the owner's language is
+        // the best guess at their customers'.
+        ownerLangRule(lang, 'the slogans'),
       user: `${digest}\n\nBusiness name: ${businessName || 'this business'}\n\nWrite the 3 slogans.`,
       schema: SLOGAN_SCHEMA,
     });
@@ -877,7 +916,8 @@ async function assessAdContext(signals) {
         'and ask AT MOST 3 short, plain-language questions the owner can each ' +
         'answer in one line — covering what kind of post they want right now, the ' +
         'campaign goal, and the target action (visit / call / order / book / ' +
-        'follow). Never ask for anything already stated below. Respond as JSON only.',
+        'follow). Never ask for anything already stated below. Respond as JSON only.' +
+        ownerLangRule(s.lang, 'the "rationale" and the "questions"'),
       user:
         `Business: ${profile.businessName || 'unknown'}\n` +
         `Category: ${profile.category || 'unknown'}\n` +
@@ -1083,7 +1123,7 @@ async function generateMediaBrief(ctx) {
   const { kind = 'image', mode = 'guided', topic, profile, trends, brandDigest } = ctx;
   const guided = mode === 'guided';
   const video = kind === 'video';
-  const langRule = mediaLangRule(ctx.languages);
+  const langRule = mediaLangRule(ctx.languages, ctx.lang);
 
   const profileLines =
     `Business: ${profile?.businessName || 'a local business'}\n` +
@@ -1203,7 +1243,7 @@ const QUESTIONS_SCHEMA = {
  * The caller still sanitizes the result: a live model can return duplicate
  * keys, re-ask a known field, or overshoot the count.
  */
-async function businessQuestions({ name, category, location, description, audience, fixedLabels } = {}) {
+async function businessQuestions({ name, category, location, description, audience, fixedLabels, lang } = {}) {
   if (!config.geminiEnabled) return null;
   const vars = {
     name: name || 'this business',
@@ -1215,7 +1255,8 @@ async function businessQuestions({ name, category, location, description, audien
   };
   try {
     const out = await callGemini({
-      system: fill(prompts.profileQuestions.systemPrompt, vars),
+      system: fill(prompts.profileQuestions.systemPrompt, vars) +
+        ownerLangRule(lang, 'each question\'s "label", "hint" and "placeholder" (the "key" stays English snake_case)'),
       user: fill(prompts.profileQuestions.userTemplate, vars),
       schema: QUESTIONS_SCHEMA,
       maxTokens: 1200,
@@ -1227,11 +1268,50 @@ async function businessQuestions({ name, category, location, description, audien
   }
 }
 
+/**
+ * The owner's cached follow-up questions, reworded into `lang`. Keys, types and
+ * order never change — answers are stored by key — only the words the owner
+ * reads. Null when Gemini is unavailable or the answer does not line up.
+ */
+async function translateQuestions({ questions, lang } = {}) {
+  if (!config.geminiEnabled || !LANG_NAMES[lang] || !Array.isArray(questions) || !questions.length) return null;
+  try {
+    const out = await callGemini({
+      system:
+        `You translate the follow-up questions a marketing app asks a small-business owner into ${LANG_NAMES[lang]}. ` +
+        'Keep every "key" exactly as given. Translate "label", "hint" and "placeholder" the way a native ' +
+        'speaker would ask them — warm, direct and short. Keep names, numbers and brand names as they are. ' +
+        'Respond as JSON only.',
+      user: JSON.stringify({
+        questions: questions.map(({ key, label, hint, placeholder }) => ({ key, label, hint, placeholder })),
+      }),
+      schema: QUESTIONS_SCHEMA,
+      maxTokens: 1200,
+    });
+    const byKey = new Map(((out && out.questions) || []).map((q) => [q.key, q]));
+    if (!questions.every((q) => byKey.get(q.key) && byKey.get(q.key).label)) return null;
+    return questions.map((q) => {
+      const t = byKey.get(q.key);
+      return {
+        ...q,
+        label: String(t.label).trim().slice(0, 120),
+        hint: String(t.hint || '').trim().slice(0, 160),
+        placeholder: String(t.placeholder || '').trim().slice(0, 80),
+        lang,
+      };
+    });
+  } catch (err) {
+    console.error('Gemini translateQuestions failed:', err.message);
+    return null;
+  }
+}
+
 module.exports = {
   enabled: config.geminiEnabled,
   model: config.geminiTextModel,
   generateContent,
   businessQuestions,
+  translateQuestions,
   QUESTIONS_SCHEMA,
   generateMediaBrief,
   fullAdSystem,
@@ -1265,4 +1345,5 @@ module.exports = {
   blankPreview,
   toKey,
   LANG_NAMES,
+  ownerLangRule,
 };

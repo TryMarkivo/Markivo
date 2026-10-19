@@ -12,7 +12,7 @@ import './Onboarding.css';
  * official API, behind approval — it never logs into their account.
  */
 export default function ConnectCard({ platform, status, meta, onChanged, onClose }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -23,8 +23,19 @@ export default function ConnectCard({ platform, status, meta, onChanged, onClose
   const comingSoon = !!status?.comingSoon;
   // Connect guidance travels with the platform from /api/connect/status, so
   // this modal explains any platform without hardcoding per-platform copy.
-  const requirements = platform.requirements || [];
-  const steps = platform.howToConnect || [];
+  // The server sends it in English; a line is swapped for its translation only
+  // while it still matches the English it was translated from, so new or
+  // reworded server copy shows as sent instead of a stale translation.
+  const localizeGuide = (kind, lines) => {
+    const key = `connections.guide.${platform.key}.${kind}`;
+    const en = i18n.getResource('en', 'translation', key);
+    const local = t(key, { returnObjects: true });
+    return lines.map((line, i) => (
+      Array.isArray(en) && Array.isArray(local) && en[i] === line && local[i] ? local[i] : line
+    ));
+  };
+  const requirements = localizeGuide('requirements', platform.requirements || []);
+  const steps = localizeGuide('steps', platform.howToConnect || []);
   // Telegram-style platforms are connected with a pasted token, not OAuth —
   // there is no button to press here, only instructions.
   const tokenAuth = platform.authType === 'token';

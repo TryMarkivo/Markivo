@@ -4,6 +4,8 @@
 // - Tokens live in localStorage; access tokens are short-lived and this client
 //   transparently refreshes them once on a 401/403 before retrying the request.
 
+import i18n from '../i18n/i18n';
+
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
 const ACCESS_KEY = 'markivo_token';
@@ -40,7 +42,9 @@ async function tryRefresh() {
 }
 
 async function request(path, { method = 'GET', body, auth = true, _retried = false } = {}) {
-  const headers = {};
+  // The UI language rides on every call, so the server answers in it: its
+  // messages and the AI's explanations to the owner.
+  const headers = { 'Accept-Language': i18n.language || 'en' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const access = tokens.access();
   if (auth && access) headers['Authorization'] = `Bearer ${access}`;
@@ -53,7 +57,7 @@ async function request(path, { method = 'GET', body, auth = true, _retried = fal
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    const e = new Error('Cannot reach the Markivo server. Please ensure the backend is running.');
+    const e = new Error(i18n.t('errors.network', 'Cannot reach the Markivo server. Please check your connection and try again.'));
     e.isNetwork = true;
     throw e;
   }
@@ -65,7 +69,7 @@ async function request(path, { method = 'GET', body, auth = true, _retried = fal
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const e = new Error(data.error || `Request failed (${res.status})`);
+    const e = new Error(data.error || i18n.t('errors.requestFailed', 'Request failed ({{status}})', { status: res.status }));
     e.status = res.status;
     e.data = data;
     throw e;

@@ -25,4 +25,13 @@ i18n
     }
   });
 
+// Keep <html lang> in the UI language (index.html ships lang="en"), so screen
+// readers pronounce Uzbek/Russian correctly and the browser does not offer to
+// "translate this page from English".
+const syncHtmlLang = (lng) => {
+  if (typeof document !== 'undefined' && lng) document.documentElement.lang = lng;
+};
+i18n.on('languageChanged', syncHtmlLang);
+syncHtmlLang(i18n.language);
+
 export default i18n;

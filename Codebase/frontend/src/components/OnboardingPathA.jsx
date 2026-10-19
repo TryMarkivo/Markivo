@@ -20,7 +20,7 @@ const Stars = ({ rating }) => {
 export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
   const { t } = useTranslation();
   const [businessName, setBusinessName] = useState('');
-  const [location, setLocation] = useState('Tashkent');
+  const [location, setLocation] = useState(() => t('onboarding.pathA.defaultLocation', 'Tashkent'));
   const [step, setStep] = useState(1); // 1: Search Form, 2: Scanning, 3: Verify Results
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStatus, setScanStatus] = useState(t('onboarding.scan.statusInit', 'Initiating global scan...'));
@@ -136,7 +136,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       location,
       onboardPath: 'A (Discovery)',
       category: g?.category || 'Cafe / Local Shop',
-      description: `A discovered business located in ${location}.`,
+      description: t('onboarding.pathA.discoveredDescription', { defaultValue: 'A discovered business located in {{location}}.', location }),
       platforms: connections,
       // No logo is invented here. Discovery cannot know what a business's mark
       // looks like, and a coffee cup on a nail salon is a claim we never had.

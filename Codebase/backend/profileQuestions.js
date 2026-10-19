@@ -19,6 +19,7 @@
 // the badge counts what is missing and the owner can ignore it forever.
 
 const gemini = require('./gemini');
+const i18n = require('./i18n');
 
 // The tone vocabulary the rest of the app already speaks (OnboardingPathB's
 // TONE_KEYS, brand.js's default). Kept as a closed list so brand_tone stays a
@@ -192,11 +193,22 @@ const FALLBACK_DEFAULT = [
   { key: 'one_difference', label: 'What do you do that nearby businesses do not?', hint: 'Without this, posts default to generic praise.', placeholder: 'e.g. we roast on site every morning' },
 ];
 
-/** Deterministic extras for a category. Always 3, always tagged as template. */
-function fallbackQuestions(category) {
+/**
+ * Deterministic extras for a category, in the owner's language (`lang`).
+ * Always 3, always tagged as template.
+ */
+function fallbackQuestions(category, lang = 'en') {
   const set = FALLBACK_SETS.find((s) => s.match.test(String(category || '')));
   const questions = (set ? set.questions : FALLBACK_DEFAULT);
-  return questions.map((q) => ({ ...q, type: 'text', source: 'template' }));
+  return questions.map((q) => ({
+    ...q,
+    label: i18n.tr(lang, q.label),
+    hint: i18n.tr(lang, q.hint),
+    placeholder: i18n.tr(lang, q.placeholder),
+    type: 'text',
+    source: 'template',
+    lang,
+  }));
 }
 
 // --- sanitizing the model's answer ------------------------------------------
@@ -235,11 +247,12 @@ function sanitize(raw) {
 }
 
 /**
- * The personalised half of the set. Never throws and never returns empty:
- * gemini.businessQuestions already degrades to null when keyless or on error,
- * and a null (or unusable) answer becomes the category template.
+ * The personalised half of the set, worded in the owner's language (`lang`).
+ * Never throws and never returns empty: gemini.businessQuestions already
+ * degrades to null when keyless or on error, and a null (or unusable) answer
+ * becomes the category template.
  */
-async function generateQuestions(profile = {}) {
+async function generateQuestions(profile = {}, lang = 'en') {
   const raw = await gemini.businessQuestions({
     name: profile.businessName,
     category: profile.category,
@@ -247,8 +260,29 @@ async function generateQuestions(profile = {}) {
     description: profile.description,
     audience: profile.targetAudience || profile.audience,
     fixedLabels: FIXED.map((q) => `- ${q.label}`).join('\n'),
+    lang,
   });
-  return sanitize(raw) || fallbackQuestions(profile.category);
+  const live = sanitize(raw);
+  return live ? live.map((q) => ({ ...q, lang })) : fallbackQuestions(profile.category, lang);
+}
+
+/**
+ * The cached set reworded into `lang`, or null when it already reads in it (or
+ * cannot be reworded right now). The owner keeps seeing the SAME questions —
+ * keys never change, so their answers stay attached — just in the language
+ * they now use the app in. A set written before languages were tracked is
+ * English.
+ */
+async function translateQuestions(profile = {}, lang = 'en') {
+  const set = Array.isArray(profile.profileQuestions) ? profile.profileQuestions : [];
+  if (!set.length || set.every((q) => (q.lang || 'en') === lang)) return null;
+  if (set.every((q) => q.source === 'template')) {
+    // A template set is regenerated rather than translated — but only when the
+    // category still maps to the same keys.
+    const fresh = fallbackQuestions(profile.category, lang);
+    return fresh.map((q) => q.key).join() === set.map((q) => q.key).join() ? fresh : null;
+  }
+  return gemini.translateQuestions({ questions: set, lang });
 }
 
 // --- answered / pending -----------------------------------------------------
@@ -439,6 +473,7 @@ module.exports = {
   fallbackQuestions,
   sanitize,
   generateQuestions,
+  translateQuestions,
   allQuestions,
   completion,
   view,

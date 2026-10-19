@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import { chipMetaFor, isEditable, isReadOnly, statusOf, tagOf, toEditable } from '../lib/calendarEvents';
+import { chipMetaFor, isEditable, isReadOnly, statusOf, summaryOf, tagOf, toEditable } from '../lib/calendarEvents';
 import './AutomationCalendar.css';
 
 /**
@@ -74,7 +74,7 @@ export default function PostDetailModal({ event, onClose, onEdit, onCancel, busy
             : <img src={api.mediaUrl(media.url)} alt="" className="post-detail-media" />
         )}
 
-        <p className="post-detail-text">{event.description || event.summary}</p>
+        <p className="post-detail-text">{event.description || summaryOf(event, t)}</p>
 
         {(canCancel || canEdit) && (
           <div className="publish-actions">

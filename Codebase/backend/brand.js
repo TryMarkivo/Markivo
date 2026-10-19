@@ -1,6 +1,8 @@
 const config = require('./config');
 const providers = require('./providers/textEngine');
 const prompts = require('./marketing/prompts');
+const { ownerLangRule } = require('./gemini');
+const i18n = require('./i18n');
 
 /**
  * Brand Identity Engine.
@@ -101,10 +103,20 @@ const fillDeep = (v, vars) =>
       ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fillDeep(x, vars)]))
       : fillStr(v, vars);
 
-/** The keyless template brief, personalised to the profile via ${placeholders}. */
-function templateBrief(ctx) {
-  const base = JSON.parse(JSON.stringify(prompts.brand.templateFallback));
-  return fillDeep(base, ctxVars(ctx));
+/**
+ * The keyless template brief, personalised to the profile via ${placeholders}.
+ * The owner reads it in Brand settings, so an Uzbek owner (ctx.lang) gets the
+ * Uzbek template, with the tone named as the app's tone picker names it.
+ */
+function templateBrief(ctx = {}) {
+  const uz = ctx.lang === 'uz';
+  const base = JSON.parse(JSON.stringify(uz ? prompts.brand.templateFallbackUz : prompts.brand.templateFallback));
+  const vars = ctxVars(ctx);
+  if (uz) {
+    vars.name = ctx.businessName || 'biznesimiz';
+    vars.tone = i18n.tr('uz', vars.tone);
+  }
+  return fillDeep(base, vars);
 }
 
 /**
@@ -119,7 +131,10 @@ async function generateBrandBrief(ctx = {}) {
     const vars = ctxVars(ctx);
     const brief = await providers.completeJSON({
       model: config.aiPipelineModel,
-      system: prompts.brand.generationSystemPrompt,
+      // The owner reads the brief in Brand settings, so it is written in their
+      // UI language (ctx.lang); every generator reads it fine either way.
+      system: prompts.brand.generationSystemPrompt +
+        ownerLangRule(ctx.lang, 'every text field of the brief (taglineOptions may mix in the languages of the local market)'),
       prompt: fillStr(prompts.brand.generationUserTemplate, vars),
       schema: BRAND_SCHEMA,
       maxTokens: 2600,

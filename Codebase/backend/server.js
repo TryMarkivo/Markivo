@@ -27,6 +27,7 @@ const competitorFetch = require('./competitorFetch');
 const competitorAnalytics = require('./competitorAnalytics');
 const ownContentFetch = require('./ownContentFetch');
 const { limitFor } = require('./postLimits');
+const i18n = require('./i18n');
 const {
   validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate,
   validateAddCompetitor, validateCompetitorSource,
@@ -43,6 +44,8 @@ const corsOptions = config.corsOrigins.includes('*')
   ? {}
   : { origin: config.corsOrigins };
 app.use(cors(corsOptions));
+// req.lang from the client's UI language; outgoing error messages follow it.
+app.use(i18n.localize);
 // Media uploads arrive as base64 data URLs — route-scoped larger JSON limit.
 // Must be mounted BEFORE the global 1mb parser (the first parser to run wins;
 // later body-parsers skip an already-parsed body).
@@ -474,6 +477,7 @@ app.post('/api/competitors/analyze', verifyToken, checkBudget('writing'), asyncR
     }));
 
   const analysis = await ai.analyzeCompetitorTrends({
+    lang: req.lang,
     businessName: profile.businessName,
     category: profile.category,
     brandTone: profile.brandTone,
@@ -508,6 +512,7 @@ app.post('/api/competitors/:id/analyze', verifyToken, checkBudget('writing'), as
   }];
 
   const analysis = await ai.analyzeCompetitorTrends({
+    lang: req.lang,
     businessName: profile.businessName,
     category: profile.category,
     brandTone: profile.brandTone,
@@ -551,7 +556,7 @@ app.post('/api/onboarding/slogans', verifyToken, checkBudget('writing'), asyncRo
     ? businessContext.contextDigest(businessContext.getBusinessContext(db, profile.id))
     : '';
 
-  const slogans = await ai.generateSlogans({ businessName, category, tone, description, digest });
+  const slogans = await ai.generateSlogans({ businessName, category, tone, description, digest, lang: req.lang });
   db.usage.record({ userId: req.user.id, kind: 'slogans', bucket: 'writing' });
   res.json({ slogans });
 }));
@@ -668,6 +673,7 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
   let brandBrief = null;
   try {
     brandBrief = await brand.generateBrandBrief({
+      lang: req.lang,
       businessName,
       category: safeCategory,
       description,
@@ -758,11 +764,16 @@ app.get('/api/profile/completion', verifyToken, asyncRoute(async (req, res) => {
 
   let current = profile;
   if (!Array.isArray(current.profileQuestions) || !current.profileQuestions.length) {
-    const questions = await profileQuestions.generateQuestions(current);
+    const questions = await profileQuestions.generateQuestions(current, req.lang);
     current = db.profiles.update(current.id, {
       profileQuestions: questions,
       profileQuestionsAt: new Date().toISOString(),
     });
+  } else {
+    // The same questions, reworded when the owner now reads the app in a
+    // different language from the one they were written in.
+    const reworded = await profileQuestions.translateQuestions(current, req.lang);
+    if (reworded) current = db.profiles.update(current.id, { profileQuestions: reworded });
   }
 
   const state = profileQuestions.completion(current);
@@ -837,6 +848,7 @@ app.post('/api/brand/generate', verifyToken, checkBudget('writing'), asyncRoute(
   if (!profile) return res.status(404).json({ error: 'Business profile not found — complete onboarding first' });
 
   const brandBrief = await brand.generateBrandBrief({
+    lang: req.lang,
     businessName: profile.businessName,
     category: profile.category,
     description: profile.description,
@@ -1422,6 +1434,7 @@ app.post('/api/styles/analyze', verifyToken, checkBudget('writing'), asyncRoute(
   if (sample.length > 2000) return res.status(400).json({ error: 'Sample must be 2000 characters or fewer' });
 
   const draft = await gemini.analyzeStyle({
+    lang: req.lang,
     sample,
     businessName: profile.businessName,
     category: profile.category,
@@ -1491,7 +1504,7 @@ app.delete('/api/styles/:id', verifyToken, (req, res) => {
 // Chip metadata for the AI Editor's Style tab — the instruction text itself
 // (the actual rewrite prompt) is never sent to the client.
 app.get('/api/styles/presets', verifyToken, (req, res) => {
-  res.json(gemini.STYLE_PRESETS.map(({ key, label, emoji }) => ({ key, label, emoji })));
+  res.json(gemini.STYLE_PRESETS.map(({ key, label, emoji }) => ({ key, label: i18n.tr(req.lang, label), emoji })));
 });
 
 // Apply a one-tap style transform to text already in the composer — either a
@@ -1881,7 +1894,12 @@ const verifyConnectState = (state) => {
 // Always returns the FULL catalogue — the dashboard shows unconnected
 // platforms too (dimmed), so the owner can see what is available.
 app.get('/api/connect/status', verifyToken, asyncRoute(async (req, res) => {
-  const catalogue = connectors.catalogue();
+  // The connect guidance is owner-facing copy, so it reads in their language.
+  const catalogue = connectors.catalogue().map((c) => ({
+    ...c,
+    requirements: (c.requirements || []).map((line) => i18n.tr(req.lang, line)),
+    howToConnect: (c.howToConnect || []).map((line) => i18n.tr(req.lang, line)),
+  }));
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.json({ catalogue, status: {} });
   res.json({ catalogue, status: await connectors.statusAll({ db, profile }) });
@@ -1897,7 +1915,7 @@ app.post('/api/connect/:key/start', verifyToken, asyncRoute(async (req, res) => 
     return res.status(400).json({
       error: `${adapter.label} connects with its own setup card, not OAuth.`,
       authType: 'token',
-      howToConnect: adapter.howToConnect || [],
+      howToConnect: (adapter.howToConnect || []).map((line) => i18n.tr(req.lang, line)),
     });
   }
 
@@ -2221,9 +2239,10 @@ app.post('/api/media/brief', verifyToken, checkBudget('writing'), asyncRoute(asy
 
   // The customer-facing words in a brief — the caption, the spoken script, the
   // on-screen lines — are written in the audience's languages. The directing
-  // instructions to the owner are not; see ai.generateMediaBrief.
+  // instructions to the owner are in the owner's UI language; see
+  // ai.generateMediaBrief.
   const brief = await ai.generateMediaBrief({
-    kind, mode, topic, profile, trends,
+    kind, mode, topic, profile, trends, lang: req.lang,
     languages: profile.audienceLanguages?.length ? profile.audienceLanguages : undefined,
     memory: businessContext.memoryDigest(db, profile),
   });
@@ -2278,7 +2297,7 @@ app.post('/api/media/:id/edit', verifyToken, checkBudget('writing'), asyncRoute(
     return res.status(400).json({ error: 'Instructions must be 2-500 characters' });
   }
 
-  const plan = await ai.generateEditPlan({ instructions, media: row, profile });
+  const plan = await ai.generateEditPlan({ instructions, media: row, profile, lang: req.lang });
   db.media.update(row.id, { brief: { ...(row.brief || {}), editPlan: plan }, status: 'edit_plan' });
   db.usage.record({ userId: req.user.id, kind: 'media_edit_plan', bucket: 'writing' });
   res.json({ id: row.id, plan });
@@ -2514,7 +2533,7 @@ async function runStaleRenderSweep(nowMs = Date.now()) {
 app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'A query is required' });
-  const lang = ['en', 'uz', 'ru'].includes(req.body.lang) ? req.body.lang : 'en';
+  const lang = i18n.SUPPORTED.includes(req.body.lang) ? req.body.lang : req.lang;
 
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
@@ -2543,9 +2562,12 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
       profileId: profile.id,
       actionType: 'ad_creation',
       actionPayload: {
-        action: 'Create Meta Ad Campaign',
-        cost: '$5.00 / day',
-        target: `${profile.targetAudience || 'Local customers'} near ${profile.location || 'Tashkent'}`,
+        action: i18n.tr(lang, 'Create Meta Ad Campaign'),
+        cost: i18n.tr(lang, '$5.00 / day'),
+        target: i18n.tr(lang, '{{audience}} near {{location}}', {
+          audience: profile.targetAudience || i18n.tr(lang, 'Local customers'),
+          location: profile.location || 'Tashkent',
+        }),
         creative: `🎯 Preview: "Discover #${profile.businessName} — ${adPitch}."`,
       },
     });
@@ -2649,14 +2671,14 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
   // Markiv proposed a Telegram publish → route through the human approval gate.
   if (action.type === 'telegram_post') {
     if (!config.telegramEnabled) {
-      const reply = 'Telegram publishing is coming soon — it is not enabled in this version yet. Meanwhile I can draft the post text for you in the Content Engine.';
+      const reply = i18n.tr(lang, 'Telegram publishing is coming soon — it is not enabled in this version yet. Meanwhile I can draft the post text for you in the Content Engine.');
       recordAgentReply(reply);
       return res.json({ reply });
     }
     if (!conn || !conn.chatId) {
       const reply = conn
-        ? `Your bot @${conn.botUsername} is connected, but no channel is linked yet. Open the Telegram card on your dashboard, add the bot to your channel as admin, and click Detect — then I can post for you.`
-        : `Your Telegram isn't connected yet. Open the Telegram card on your dashboard — it takes about a minute — and then I can post for you.`;
+        ? i18n.tr(lang, 'Your bot @{{bot}} is connected, but no channel is linked yet. Open the Telegram card on your dashboard, add the bot to your channel as admin, and click Detect — then I can post for you.', { bot: conn.botUsername })
+        : i18n.tr(lang, "Your Telegram isn't connected yet. Open the Telegram card on your dashboard — it takes about a minute — and then I can post for you.");
       recordAgentReply(reply);
       return res.json({ reply });
     }
@@ -2664,14 +2686,14 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
       profileId: profile.id,
       actionType: 'telegram_post',
       actionPayload: {
-        action: 'Publish Telegram Post',
-        cost: 'Free — organic post',
+        action: i18n.tr(lang, 'Publish {{platform}} Post', { platform: 'Telegram' }),
+        cost: i18n.tr(lang, 'Free — organic post'),
         target: `${conn.chatTitle || conn.chatId} (${conn.chatType || 'channel'})`,
         creative: action.text,
         text: action.text,
       },
     });
-    const reply = action.note || 'I drafted this post for your Telegram channel — review and approve to publish.';
+    const reply = action.note || i18n.tr(lang, 'I drafted this post for your Telegram channel — review and approve to publish.');
     recordAgentReply(reply);
     return res.json({
       triggerApproval: true,
@@ -2685,7 +2707,7 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
   if (action.type === 'platform_post') {
     const adapter = connectors.get(action.platform);
     if (!adapter) {
-      const reply = "I couldn't tell which platform to post to — could you name it (e.g. Instagram, Telegram)?";
+      const reply = i18n.tr(lang, "I couldn't tell which platform to post to — could you name it (e.g. Instagram, Telegram)?");
       recordAgentReply(reply);
       return res.json({ reply });
     }
@@ -2693,15 +2715,15 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
       profileId: profile.id,
       actionType: 'platform_post',
       actionPayload: {
-        action: `Publish ${adapter.label} Post`,
-        cost: 'Free — organic post',
+        action: i18n.tr(lang, 'Publish {{platform}} Post', { platform: adapter.label }),
+        cost: i18n.tr(lang, 'Free — organic post'),
         target: adapter.label,
         creative: action.text,
         text: action.text,
         platform: adapter.key,
       },
     });
-    const reply = action.note || `I drafted this post for your ${adapter.label} — review and approve to publish.`;
+    const reply = action.note || i18n.tr(lang, 'I drafted this post for your {{platform}} — review and approve to publish.', { platform: adapter.label });
     recordAgentReply(reply);
     return res.json({ triggerApproval: true, approvalId: approval.id, payload: approval.action_payload, reply });
   }
@@ -2761,7 +2783,7 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
       });
       return res.json({
         success: true,
-        message: `✅ Published to ${result.chatTitle}! Your subscribers can see it now.`,
+        message: i18n.tr(req.lang, '✅ Published to {{channel}}! Your subscribers can see it now.', { channel: result.chatTitle }),
       });
     } catch (err) {
       db.approvals.updateStatus(approvalId, 'failed');
@@ -2786,8 +2808,8 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
       return res.json({
         success: true,
         message: result.simulated
-          ? `✅ Drafted & queued for ${adapter ? adapter.label : platform} (sandbox — connect live credentials to publish for real).`
-          : `✅ Published to ${adapter ? adapter.label : platform}!`,
+          ? i18n.tr(req.lang, '✅ Drafted & queued for {{platform}} (sandbox — connect live credentials to publish for real).', { platform: adapter ? adapter.label : platform })
+          : i18n.tr(req.lang, '✅ Published to {{platform}}!', { platform: adapter ? adapter.label : platform }),
       });
     } catch (err) {
       db.approvals.updateStatus(approvalId, 'failed');
@@ -2799,7 +2821,7 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
   const updated = db.approvals.updateStatus(approvalId, 'approved');
   res.json({
     success: true,
-    message: `Campaign authorized! Launched localized ad campaign costing ${updated.action_payload.cost}. (Simulation — Meta Ads integration coming soon.)`,
+    message: i18n.tr(req.lang, 'Campaign authorized! Launched localized ad campaign costing {{cost}}. (Simulation — Meta Ads integration coming soon.)', { cost: updated.action_payload.cost }),
   });
 }));
 

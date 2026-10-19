@@ -20,7 +20,7 @@ const KIND_META = {
 const FREQUENCIES = ['daily', 'weekly', 'test'];
 
 export default function AutonomousAgent({ activeProfile }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [catalogue, setCatalogue] = useState([]);
@@ -461,7 +461,7 @@ export default function AutonomousAgent({ activeProfile }) {
                       </ul>
                     )}
                   </div>
-                  <time className="ap-activity-time">{new Date(a.created_at).toLocaleString()}</time>
+                  <time className="ap-activity-time">{new Date(a.created_at).toLocaleString(i18n.language)}</time>
                 </li>
               );
             })}

@@ -22,13 +22,14 @@
 // ==========================================================================
 
 const businessContextService = require('./businessContextService');
+const i18n = require('./i18n');
 
 // An unanswered question must not wedge Autopilot forever. After this long the
 // gate expires the ask and re-assesses from scratch.
 const CONTEXT_REQUEST_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // The three things we need from the owner when we cannot work it out ourselves.
-// Kept as plain English here; the UI renders them through i18n.
+// English here; translated into the owner's language when asked (locales/).
 const DEFAULT_QUESTIONS = [
   'What kind of post do you want right now (offer, announcement, reminder, something else)?',
   'What is the goal of this campaign — more visits, more orders, more followers?',
@@ -65,7 +66,8 @@ function gatherChannelSignals({ db, profileId, platforms }) {
 }
 
 // The deterministic, keyless assessment. Pure — no db, no network.
-function heuristicAssessment(signals) {
+// `lang` is the owner's UI language for the rationale and questions.
+function heuristicAssessment(signals, lang = 'en') {
   const s = signals || {};
   const profile = s.profile || {};
 
@@ -83,7 +85,7 @@ function heuristicAssessment(signals) {
     return {
       sufficient: true,
       adType: 'general promotional post',
-      rationale: 'Working from the stored business context and the connected channel.',
+      rationale: i18n.tr(lang, 'Working from the stored business context and the connected channel.'),
       questions: [],
       source: 'heuristic',
     };
@@ -92,30 +94,28 @@ function heuristicAssessment(signals) {
   return {
     sufficient: false,
     adType: '',
-    rationale:
-      'Autopilot has no business description, no connected channel, no post history and no tracked '
-      + 'competitors to work from, so anything it wrote would be generic.',
-    questions: DEFAULT_QUESTIONS.slice(),
+    rationale: i18n.tr(lang, 'Autopilot has no business description, no connected channel, no post history and no tracked competitors to work from, so anything it wrote would be generic.'),
+    questions: DEFAULT_QUESTIONS.map((q) => i18n.tr(lang, q)),
     source: 'heuristic',
   };
 }
 
 // Gemini first, deterministic heuristic when it is unavailable or misses.
-async function assessContext({ db, gemini, profileId, platforms, signals }) {
+async function assessContext({ db, gemini, profileId, platforms, signals, lang = 'en' }) {
   const sig = signals || gatherChannelSignals({ db, profileId, platforms });
   let assessment = null;
   try {
-    assessment = gemini && gemini.assessAdContext ? await gemini.assessAdContext(sig) : null;
+    assessment = gemini && gemini.assessAdContext ? await gemini.assessAdContext({ ...sig, lang }) : null;
   } catch (err) {
     // gemini.assessAdContext swallows its own errors; this is belt-and-braces.
     console.error('assessAdContext threw unexpectedly, using heuristic:', err.message);
   }
-  return assessment || heuristicAssessment(sig);
+  return assessment || heuristicAssessment(sig, lang);
 }
 
 // The gate itself. Returns { ok: true, context } to proceed, or
 // { ok: false, reason, request } to halt the run.
-async function ensureContext({ db, gemini, profileId, platforms, nowMs = Date.now() }) {
+async function ensureContext({ db, gemini, profileId, platforms, nowMs = Date.now(), lang = 'en' }) {
   // 1. An outstanding question already put to the owner. Do NOT re-assess, do
   //    NOT create a second row, do NOT log again — on the 'test' cadence the
   //    worker ticks every 60s, which would flood the activity log and burn
@@ -150,7 +150,7 @@ async function ensureContext({ db, gemini, profileId, platforms, nowMs = Date.no
     };
   }
 
-  const assessment = await assessContext({ db, gemini, profileId, platforms, signals });
+  const assessment = await assessContext({ db, gemini, profileId, platforms, signals, lang });
 
   if (assessment.sufficient) {
     return {

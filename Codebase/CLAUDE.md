@@ -48,6 +48,13 @@
   failed job — never refund on a transient error, or a blip destroys a paid-for render.
 - `VEO_MODEL` and `VEO_DURATION_SECONDS` are money dials (Veo bills per second). Treat a
   change to either as a pricing decision, not a config tweak.
+- Two languages, never mixed up: the OWNER's UI language (`req.lang`, from the client's
+  `Accept-Language`; `users.preferred_lang` for the Autopilot worker) governs everything
+  the owner reads — AI explanations via `gemini.ownerLangRule`, fixed sentences via
+  `i18n.tr(lang, 'English text')`, and error messages (translated on the way out by
+  `i18n.localize`). Post copy, captions, scripts and on-image text follow the business's
+  AUDIENCE languages; render prompts stay English. New owner-facing English needs an
+  entry in `backend/locales/uz.json` — `test/owner-language.test.js` fails without one.
 - Tests are `node:test`; env vars must be set BEFORE requiring the app (config caches
   env at load; each test file gets its own process). Test files that make many
   generations must raise `AI_LIMIT_FREEMIUM_WRITING` or they run dry mid-file.

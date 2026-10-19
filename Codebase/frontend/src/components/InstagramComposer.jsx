@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import i18n from '../i18n/i18n';
 import './Onboarding.css';
 
 const MAX_BYTES = 8 * 1024 * 1024; // matches backend MAX_UPLOAD_BYTES
@@ -11,7 +12,7 @@ const readAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
-    r.onerror = () => reject(new Error('Could not read the file'));
+    r.onerror = () => reject(new Error(i18n.t('media.attach.readFailed', 'Could not read the file')));
     r.readAsDataURL(file);
   });
 
@@ -136,7 +137,7 @@ export default function InstagramComposer({ status, onPosted, onClose }) {
               <div className="mb-20" style={{ textAlign: 'center' }}>
                 {isVideo
                   ? <video src={previewUrl} controls style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8 }} />
-                  : <img src={previewUrl} alt="preview" style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8 }} />}
+                  : <img src={previewUrl} alt={t('instagram.composer.previewAlt', 'Post preview')} style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8 }} />}
                 <div className="mt-10">
                   <button className="btn btn-text" onClick={() => fileRef.current?.click()} disabled={!!busy} id="btn_ig_change">
                     {t('instagram.composer.change', 'Change file')}

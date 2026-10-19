@@ -9,6 +9,7 @@ const preferences = require('./preferences');
 const gemini = require('./gemini');
 const providers = require('./providers/textEngine');
 const profileQuestions = require('./profileQuestions');
+const i18n = require('./i18n');
 
 // Shared Anthropic client (constructed once in providers/anthropic.js). Null in
 // keyless mode, so every function falls back to a smart template.
@@ -68,7 +69,19 @@ function templateContent({ platform, topic, businessName, category, description,
   return mocks[(platform || 'instagram').toLowerCase()] || mocks.instagram;
 }
 
-function templateSlogans({ category, tone, description }) {
+// Uzbek slogans per tone. They never inline the category: it is usually an
+// English label, and Uzbek would have to inflect it.
+const SLOGANS_UZ = {
+  'Cozy & Warm': ['Kuningiz uchun shinam burchak.', 'Iliq muhit, yaqin insonlar.', "Har bir tafsilotda qo'l mehri."],
+  'Modern & Minimalist': ['Soddalik — nafis darajada.', 'Sifat kelajagi — bugun.', 'Toza estetika. Yuksak standart.'],
+  'Energetic & Fast-paced': ['Kuningizni quvvat bilan boshlang!', 'Tez. Yangi. Dadil.', "Murosasiz. To'liq quvvat bilan."],
+  'Professional & Trustworthy': ["Ishonsa bo'ladigan mukammallik.", 'Jamiyatimiz uchun kafolatlangan sifat.', 'Sizning ishonchli hamkoringiz.'],
+  'Playful & Fun': ['Kuningizga bir tomchi quvonch!', 'Avval tabassum, savollar keyin.', 'Kundalik quvonch ulushingiz.'],
+  'Luxury & Premium': ["Siz munosib bo'lgan hashamat.", 'Eng nafisini qadrlaydiganlar uchun.', 'Premium darajadagi nafislik.'],
+};
+
+function templateSlogans({ category, tone, description, lang }) {
+  if (lang === 'uz') return [...(SLOGANS_UZ[tone] || SLOGANS_UZ['Cozy & Warm'])];
   const templates = {
     'Cozy & Warm': [`Your cozy corner for all things ${category || 'delicious'}.`, `Where local flavor meets heartfelt warmth.`, `Handcrafted comfort in every detail.`],
     'Modern & Minimalist': [`Simplicity, refined.`, `The future of ${category || 'quality'}, today.`, `Clean aesthetics. Superior standards.`],
@@ -163,12 +176,57 @@ function templateAgentAct({ query, profile, telegram, lang, history }) {
   return { type: 'reply', reply: t.greeting() };
 }
 
+// What a CUSTOMER reads or hears in a keyless media brief: the spoken script,
+// the on-screen text and the caption. Same contract as gemini.mediaLangRule —
+// these follow the audience's languages, stacked in the owner's chosen order,
+// or the owner's own language when the audience was never set. The owner's
+// directions around them follow ctx.lang alone. The subject is whatever the
+// owner typed, so it only ever stands on its own, never inflected.
+const MEDIA_AUDIENCE_LINES = {
+  en: (subject, name) => ({
+    title: `${subject} — at ${name}`,
+    how: 'Here is how we do it.',
+    fresh: 'Made fresh, right here',
+    invite: 'Come see for yourself.',
+    open: `${name} — open today`,
+    caption: `✨ ${subject} — now at ${name}! Come see it for yourself.`,
+  }),
+  uz: (subject, name) => ({
+    title: `${name} taqdim etadi: ${subject}`,
+    how: 'Mana, biz buni qanday qilamiz.',
+    fresh: 'Yangi tayyorlangan — aynan shu yerda',
+    invite: "Kelib, o'zingiz ko'ring.",
+    open: `${name} — bugun ochiq`,
+    caption: `✨ Yangi: ${subject}! ${name} sizni kutadi — kelib, o'zingiz ko'ring.`,
+  }),
+  ru: (subject, name) => ({
+    title: `${subject} — в ${name}`,
+    how: 'Вот как мы это делаем.',
+    fresh: 'Свежее — прямо здесь',
+    invite: 'Приходите и убедитесь сами.',
+    open: `${name} — ждём вас сегодня`,
+    caption: `✨ ${subject} — теперь в ${name}! Приходите и убедитесь сами.`,
+  }),
+};
+
+/** say(key) — one customer line in every audience language, in order. */
+function mediaAudienceLines({ languages, lang }, subject, name) {
+  const langs = gemini.normalizeLanguages(Array.isArray(languages) && languages.length ? languages : [lang]);
+  const sets = langs.map((l) => MEDIA_AUDIENCE_LINES[l](subject, name));
+  return (key, sep = '\n') => sets.map((s) => s[key]).join(sep);
+}
+
+const UZ_MEDIA_KIND = { image: 'rasm', video: 'video' };
+
 // Media Studio fallback: a concrete, profile-tailored brief without any key.
-function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile, trends }) {
+function templateMediaBrief(ctx) {
+  if (ctx.lang === 'uz') return templateMediaBriefUz(ctx);
+  const { kind = 'image', mode = 'guided', topic, profile, trends } = ctx;
   const name = profile?.businessName || 'your business';
   const category = (profile?.category || 'business').toLowerCase();
   const tone = profile?.brandTone || 'Cozy & Warm';
   const subject = (topic && topic.trim()) || `your ${category}`;
+  const say = mediaAudienceLines(ctx, subject, name);
   const trendTip = trends ? [`Trend note: ${String(trends).slice(0, 160)}`] : [];
 
   // Guided = the owner is holding the camera, so the fallback still has to be a
@@ -220,10 +278,10 @@ function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile, t
         // The subject is whatever the owner typed, so it only ever appears as a
         // standalone line — never inlined into a sentence that assumes a noun.
         script: [
-          { time: '0:00-0:02', spoken: '', onScreenText: `${subject} — at ${name}` },
-          { time: '0:02-0:08', spoken: 'Here is how we do it.', onScreenText: '' },
-          { time: '0:08-0:18', spoken: 'Let the visuals carry it — no voice needed here.', onScreenText: 'Made fresh, right here' },
-          { time: '0:18-0:25', spoken: 'Come see for yourself.', onScreenText: `${name} — open today` },
+          { time: '0:00-0:02', spoken: '', onScreenText: say('title') },
+          { time: '0:02-0:08', spoken: say('how'), onScreenText: '' },
+          { time: '0:08-0:18', spoken: 'Let the visuals carry it — no voice needed here.', onScreenText: say('fresh') },
+          { time: '0:18-0:25', spoken: say('invite'), onScreenText: say('open') },
         ],
         shotList: [
           { name: 'Establishing', framing: 'Wide', angle: 'Eye level', movement: 'Slow push in', duration: '3s', direction: `Start at the door of ${name} and walk one step forward.` },
@@ -277,19 +335,143 @@ function templateMediaBrief({ kind = 'image', mode = 'guided', topic, profile, t
       `A scroll-stopping ${kind} built around ${subject}: the ${tone.toLowerCase()} world of ${name}, ` +
       `told through one bold ${category} moment that makes viewers want to visit.` +
       (trends ? ` Inspired by a current trend: ${String(trends).slice(0, 140)}.` : ''),
-    caption: `✨ ${subject} — now at ${name}! Come see it for yourself. ${cleanTag(name)} ${cleanTag(category)}`,
+    caption: `${say('caption', '\n\n')} ${cleanTag(name)} ${cleanTag(category)}`,
     visualSpec: {
       composition: `Rule-of-thirds with ${subject} on the right intersection and clean negative space left for a text overlay`,
       palette: `Drawn from the "${tone}" brand tone with one strong accent colour pop`,
       mood: `${tone}, unmistakably ${category}`,
     },
     engineStatus: 'awaiting_media_api',
-    note: 'Rendering activates once a media-generation API key is configured.',
+  };
+}
+
+// The Uzbek twin of templateMediaBrief, for an owner who reads the app in
+// Uzbek: same shape, every direction to the owner in Uzbek. The subject and the
+// business name arrive as typed (often English), so they only sit where Uzbek
+// needs no suffix on them — as a subject, in parentheses, before uchun/bilan.
+function templateMediaBriefUz(ctx) {
+  const { kind = 'image', mode = 'guided', topic, profile, trends } = ctx;
+  const name = profile?.businessName || 'biznesingiz';
+  const category = (profile?.category || 'business').toLowerCase(); // hashtag only
+  const tone = i18n.tr('uz', profile?.brandTone || 'Cozy & Warm');
+  const subject = (topic && topic.trim()) || 'asosiy mahsulotingiz';
+  const say = mediaAudienceLines(ctx, subject, name);
+  const trendTip = trends ? [`Trend bo'yicha eslatma: ${String(trends).slice(0, 160)}`] : [];
+
+  if (mode === 'guided') {
+    const camera = {
+      device: "Har qanday zamonaviy smartfon yetarli — oynasiz (mirrorless) kamera faqat u sizda allaqachon bo'lsa o'zini oqlaydi.",
+      lens: kind === 'video'
+        ? "Hamma kadrlar uchun asosiy (1x) obyektiv; 0.5x ga faqat umumiy tanishtiruv kadri uchun o'ting."
+        : "Asosiy kadrlar uchun 1x obyektiv, detallar uchun 2x — bundan ortiq raqamli zumdan foydalanmang.",
+      settings: kind === 'video'
+        ? "4K, 30 kadr/s; har bir dubldan oldin ekspozitsiya va fokusni QULFLANG (ekranni bosib turing), to'r chiziqlarini yoqing."
+        : "HDR va to'r chiziqlarini yoqing, obyektga bosib fokuslang va qulflang, harakatli sahnalar uchun seriyali suratga olishni yoqing.",
+      whiteBalance: "Oq balansni asosiy yorug'likka moslab qulflang — shunda kadrdan kadrga rang o'zgarib ketmaydi.",
+      stabilisation: kind === 'video'
+        ? "Ikkala tirsagingizni tanangizga mahkam tirang; bilaklarni burish o'rniga butun gavdangiz bilan siljing."
+        : "Devor yoki stol chetiga tayaning; qo'l titramasligi uchun ovoz tugmasi yoki 2 soniyalik taymerdan foydalaning.",
+    };
+    const setup = [
+      `Kadrda faqat ${subject} va biznesingiz hikoyasiga tegishli narsalar qolsin — qolganini olib tashlang.`,
+      `Suratga olinadigan narsa (${subject}) telefondan taxminan 60-80 sm uzoqlikda tursin, orqa fon esa toza va ortiqcha narsalarsiz bo'lsin.`,
+      "Eng katta derazangiz obyektga nisbatan 45° burchakda bo'lsin — yon yorug'lik shakl beradi, old yorug'lik esa tasvirni yassilashtiradi.",
+      `"${tone}" ohangiga mos, o'z makoningizdan bitta kichik buyum qo'shing — shunda kadrda stok surat emas, aynan ${name} ekani bilinadi.`,
+      "Obyektivni arting, so'ng bitta sinov kadri oling va asosiy suratga olishdan oldin kadr chetlarida ortiqcha narsa yo'qligini tekshiring.",
+    ];
+    const lighting = "Deraza yonida yoki ochiq havoda, quyosh chiqqanidan keyingi yoki botishidan oldingi 2 soat ichida suratga oling; aralash shift chiroqlaridan qoching va hech qachon yorug'lik manbaiga qarshi suratga olmang.";
+    const tips = [
+      "Avval obyektivni arting — bu sifatni oshirishning eng arzon yo'li.",
+      'Har bir kadrni 3 martadan oling — shunda eng yaxshi lahzani tanlab olasiz.',
+      "Hech qachon yorug'lik manbaiga qarshi suratga olmang — u yoningizda yoki orqangizda bo'lsin.",
+      `"${tone}" brend ohangingizga sodiq qoling: ranglar, sur'at va kadrlash — hammasi unga mos bo'lsin.`,
+    ];
+
+    if (kind === 'video') {
+      return {
+        mode,
+        kind,
+        scenario:
+          `20-30 soniyalik video (${name}), mavzusi — ${subject}. Kimdir keladi, uni kashf etadi va munosabat bildiradi. ` +
+          "Bitta odam, bitta joy, bitta yorqin yakun — tasvirning o'zi gapirsa, ovozli izoh kerak emas.",
+        flow:
+          "Birinchi 1,5 soniyada eng kuchli kadr bilan e'tiborni torting, o'rtada harakat va detallar bilan qiziqishni " +
+          "ushlab turing, oxirida esa brendni va bitta aniq chaqiriqni ko'rsating.",
+        scene: `Sizning haqiqiy makoningiz (${name}); har bir kadrning bosh qahramoni — ${subject}.`,
+        setup,
+        camera,
+        lighting,
+        composition: `Vertikal 9:16. Asosiy obyekt (${subject}) uchdan bir qoidasi chiziqlaridan birida tursin; tepada platforma tugmalari uchun bo'sh joy qoldiring.`,
+        script: [
+          { time: '0:00-0:02', spoken: '', onScreenText: say('title') },
+          { time: '0:02-0:08', spoken: say('how'), onScreenText: '' },
+          { time: '0:08-0:18', spoken: "Bu yerda tasvirning o'zi gapirsin — ovoz kerak emas.", onScreenText: say('fresh') },
+          { time: '0:18-0:25', spoken: say('invite'), onScreenText: say('open') },
+        ],
+        shotList: [
+          { name: 'Tanishtiruv kadri', framing: 'Umumiy plan', angle: "Ko'z darajasida", movement: 'Sekin yaqinlashish', duration: '3 s', direction: `${name} eshigi oldidan boshlang va bir qadam oldinga yuring.` },
+          { name: "Asosiy ko'rinish", framing: "O'rta plan", angle: 'Biroz yuqoridan', movement: 'Harakatsiz', duration: '3 s', direction: `Asosiy obyektni (${subject}) kadr markaziga qo'ying va telefonni mutlaqo qimirlatmang.` },
+          { name: 'Detallar', framing: 'Makro', angle: '45° yuqoridan', movement: "Chapdan o'ngga sekin siljish", duration: '4 s', direction: "Obyektni emas, telefonni harakatlantiring; fokus qulflangan bo'lsin." },
+          { name: "Kadrda qo'llar", framing: 'Yirik plan', angle: 'Yelka ortidan', movement: "Qo'llarni kuzatib borish", duration: '4 s', direction: `Kimdir haqiqatan ${subject} bilan ishlayotgan paytni videoga oling.` },
+          { name: 'Munosabat', framing: "O'rta-yirik plan", angle: "Ko'z darajasida", movement: 'Harakatsiz', duration: '3 s', direction: "Haqiqiy mijoz yoki jamoa a'zosining munosabati — samimiy, sahnalashtirilmagan." },
+          { name: 'Brend bilan yakun', framing: "O'rta plan", angle: "Ko'z darajasida", movement: 'Sekin uzoqlashish', duration: '3 s', direction: `Oxirida kadrda ${subject} va ${name} peshlavhasi birga ko'rinsin.` },
+        ],
+        bRoll: [
+          "Makoningiz asta odamlar bilan to'layotgan umumiy kadr",
+          "Nimanidir tayyorlayotgan yoki terayotgan qo'llar, yuzlarsiz",
+          `Teksturaning yirik plani (${subject}), orqa fon xiralashgan holda`,
+        ],
+        transitions: [
+          "Harakat ustida keskin kesish — qo'l yoki kamera hali harakatlanayotganda kesing",
+          `"Detallar" kadridan "Kadrda qo'llar" kadriga mos o'tish (match cut)`,
+          "Musiqa qo'shsangiz, ritmga mos kesing",
+        ],
+        audio: "Obyektga yaqin joyda toza fon ovozini yozib oling; keyin platforma muharririda trenddagi yoki litsenziyali musiqa qo'shing va har qanday gap paytida musiqani pasaytiring.",
+        postProcessing: "Har bir klipni eng kuchli 2-4 soniyasigacha qisqartiring, soyalarni biroz yoriting, subtitrlarni videoga muhrlang va 1080x1920 o'lchamda vertikal 9:16 formatda eksport qiling.",
+        tips: [...tips, "Har bir klip 5 soniyadan qisqa bo'lsin — tez almashadigan kadrlar e'tiborni ushlab turadi.", ...trendTip],
+      };
+    }
+
+    return {
+      mode,
+      kind,
+      scene: `Asosiy obyekt (${subject}) ${name} makonining haqiqiy muhitida bezatilsin — shunda kadrda stok surat emas, aynan sizning joyingiz ekani bilinadi.`,
+      setup,
+      camera,
+      lighting,
+      composition: `Uchdan bir qoidasi: ${subject} chiziqlar kesishgan nuqtalardan birida tursin, matn uchun esa toza bo'sh joy qoldiring.`,
+      shotList: [
+        { name: 'Asosiy kadr', framing: "O'rta-yirik plan", angle: "Ko'z darajasida", direction: `Asosiy obyekt (${subject}) markazda tursin, fon esa undan 1-2 m orqada — shunda fon xiralashadi.` },
+        { name: 'Tepadan (flat lay)', framing: 'Umumiy plan', angle: '90° — tik tepadan', direction: "To'ppa-to'g'ri tepada turing; daraja ko'rsatkichi yordamida telefonni sirtga parallel ushlang." },
+        { name: 'Makro detal', framing: 'Makro', angle: '45°', direction: `Butun kadrni tekstura bilan to'ldiring (${subject}); eng yaqin chetiga bosib fokuslang.` },
+        { name: 'Muhitda', framing: 'Umumiy plan', angle: "Ko'z darajasida", direction: `Asosiy obyektni (${subject}) xona ichida ko'rsating — tomoshabin uning qayerda turganini ko'rsin.` },
+        { name: 'Inson omili', framing: 'Yirik plan', angle: 'Yelka ortidan', direction: "Unga cho'zilayotgan yoki uni ushlab turgan qo'llar — harakat oddiy suratni jonlantiradi." },
+      ],
+      postProcessing: "Gorizontni to'g'rilang, lenta uchun 4:5 formatda kesing, soyalarni biroz yoriting va ozgina iliqlik qo'shing; to'plamdagi barcha suratlarga bir xil ishlov bering.",
+      tips: [...tips, ...trendTip],
+    };
+  }
+
+  return {
+    mode,
+    kind,
+    concept:
+      `Skrollni to'xtatadigan ${UZ_MEDIA_KIND[kind] || kind}, markazida — ${subject}: ${name} brendining "${tone}" olami ` +
+      "bitta yorqin lahza orqali ochiladi va tomoshabinda kelish istagini uyg'otadi." +
+      (trends ? ` Joriy trenddan ilhomlangan: ${String(trends).slice(0, 140)}.` : ''),
+    caption: `${say('caption', '\n\n')} ${cleanTag(name)} ${cleanTag(category)}`,
+    visualSpec: {
+      composition: `Uchdan bir qoidasi: ${subject} o'ng tomondagi kesishish nuqtasida, chapda esa matn uchun toza bo'sh joy`,
+      palette: `"${tone}" brend ohangidan olingan, bitta yorqin urg'u rangi bilan`,
+      mood: `${tone}, sohangizga xos`,
+    },
+    engineStatus: 'awaiting_media_api',
   };
 }
 
 // Media Studio fallback: a concrete edit plan the future engine can execute.
-function templateEditPlan({ instructions, media, profile }) {
+function templateEditPlan({ instructions, media, profile, lang }) {
+  if (lang === 'uz') return templateEditPlanUz({ instructions, media, profile });
   const kind = media?.kind || 'media';
   const tone = profile?.brandTone || 'Cozy & Warm';
   const want = (instructions || 'polish it').trim();
@@ -311,6 +493,34 @@ function templateEditPlan({ instructions, media, profile }) {
       instagram: '1080x1350 (4:5) feed / 1080x1920 (9:16) reels & stories',
       telegram: '1280x1280 (1:1), under 10MB for instant preview',
       googleBusiness: '1200x900 (4:3) photo posts',
+    },
+    engineStatus: 'awaiting_media_api',
+  };
+}
+
+// The Uzbek twin of templateEditPlan — same shape, same numbers.
+function templateEditPlanUz({ instructions, media, profile }) {
+  const kind = UZ_MEDIA_KIND[media?.kind] || 'media';
+  const tone = i18n.tr('uz', profile?.brandTone || 'Cozy & Warm');
+  const want = (instructions || 'sayqal bering').trim();
+  return {
+    steps: [
+      `Xom ${kind}ni ko'rib chiqing va eng kuchli 3-5 soniyani yoki eng yaxshi bitta kadrni belgilang`,
+      `Avval so'rovingizni qo'llang: ${want}`,
+      "Boshidagi keraksiz bo'sh qismni qirqib tashlang — asosiy obyekt birinchi soniyadayoq ko'rinishi kerak",
+      `Natija "${tone}" brend ohangiga mos bo'lishi uchun ekspozitsiya va oq nuqtani muvozanatlang`,
+      "E'tiborni tortish uchun yengil vinyetka qo'shing va obyekt aniqligini ~10% oshiring",
+      "Subtitrlarni platformaning xavfsiz hududiga joylang (yuqori va pastki 15% bo'sh qolsin)",
+      "Bitta asosiy nusxani eksport qiling, so'ng har bir platforma uchun tomonlar nisbatini undan oling",
+    ],
+    crop: "Obyektni markazga qo'ying, so'ng asosiy nusxadan har bir platforma uchun alohida kesing — hech qachon cho'zmang.",
+    colorGrade: `"${tone}" ohangiga mos yagona rang korreksiyasi — soyalar biroz yoritilgan, yengil iliqlik, og'ir filtrlarsiz.`,
+    captions: "Qisqa, kontrastli subtitrlar (bir qatorda ko'pi bilan 6 so'z), kesimlar bilan sinxron; ovozsiz tomosha qiladiganlar uchun ularni albatta qo'shing.",
+    audio: "Ovozni -14 LUFS darajasiga normallashtiring; nutq paytida musiqani -8 dB ga pasaytiring; oxirgi soniyada ovozni asta so'ndiring.",
+    exportSpec: {
+      instagram: '1080x1350 (4:5) lenta / 1080x1920 (9:16) Reels va Stories',
+      telegram: "1280x1280 (1:1), tezkor ko'rinish uchun 10MB dan kichik",
+      googleBusiness: '1200x900 (4:3) rasmli postlar',
     },
     engineStatus: 'awaiting_media_api',
   };
@@ -344,7 +554,18 @@ function templateAutonomousPlan(ctx) {
       text: `${c.post}${tags ? `\n\n${tags}` : ''}`.slice(0, 4000),
     };
   });
-  const analysis = `Drafted ${posts.length} promotional post${posts.length === 1 ? '' : 's'} for ${businessName || 'your business'} from your profile${description ? ' and description' : ''}.`;
+  // The analysis is the owner's to read (ctx.lang); the posts keep following
+  // the audience, as templateContent decides.
+  const { lang } = ctx;
+  const one = posts.length === 1;
+  const analysis = i18n.tr(lang, description
+    ? (one
+      ? 'Drafted {{count}} promotional post for {{name}} from your profile and description.'
+      : 'Drafted {{count}} promotional posts for {{name}} from your profile and description.')
+    : (one
+      ? 'Drafted {{count}} promotional post for {{name}} from your profile.'
+      : 'Drafted {{count}} promotional posts for {{name}} from your profile.'),
+  { count: posts.length, name: businessName || i18n.tr(lang, 'your business') });
   return { analysis, posts };
 }
 
@@ -428,9 +649,12 @@ async function analyzeAndPlan(ctx) {
   const {
     platforms = ['instagram'], businessName, category, description,
     brandTone, audience, location, recentPosts = [], competitors = [],
-    ownExternalActivity = [], competitorHighlights = [], memory, userContext,
+    ownExternalActivity = [], competitorHighlights = [], memory, userContext, languages, lang,
   } = ctx;
   const targets = platforms.length ? platforms : ['instagram'];
+  // Posts follow the audience's languages; an owner who never set them gets
+  // posts in the language they use the app in.
+  const postLangs = languages && languages.length ? languages : [lang || 'en'];
   try {
     const parsed = await providers.completeJSON({
       model: config.aiContentModel,
@@ -440,7 +664,8 @@ async function analyzeAndPlan(ctx) {
         'promotional posts — exactly one per requested platform. Each post must match the brand ' +
         'voice, be built from concrete details in the business memory (never invent prices, hours ' +
         'or numbers), be ready to publish as-is, include a light call to action, and avoid ' +
-        'repeating the recent posts. Respond as JSON only.',
+        'repeating the recent posts. Respond as JSON only.' +
+        gemini.ownerLangRule(lang, 'the "analysis" (it explains the plan to the owner)'),
       prompt:
         (memory
           ? `BUSINESS MEMORY:\n${memory}\n\n`
@@ -456,7 +681,8 @@ async function analyzeAndPlan(ctx) {
         `Recently posted organically on your own channels, outside Markivo (do NOT repeat, but stay consistent with it): ${ownExternalActivity.slice(0, 5).join(' | ') || 'none found'}\n` +
         `Competitor signals: ${competitors.slice(0, 5).join(', ') || 'n/a'}\n` +
         `Real recent competitor posts (for inspiration, never copy): ${competitorHighlights.slice(0, 5).join(' | ') || 'none tracked with content yet'}\n` +
-        `Target platforms: ${targets.join(', ')}\n\n` +
+        `Target platforms: ${targets.join(', ')}\n` +
+        `Post language: ${gemini.langInstructionFor(postLangs)}\n\n` +
         `Return a short "analysis" (2-3 sentences on what to post and why) and a "posts" array ` +
         `with exactly one post per target platform ({platform, topic, text}).`,
       schema: PLAN_SCHEMA,
@@ -498,16 +724,19 @@ const COMPETITOR_TRENDS_SCHEMA = {
   additionalProperties: false,
 };
 
+// Every sentence goes through i18n.tr, so an Uzbek owner (ctx.lang) reads it
+// in Uzbek; English stays the default and the key.
 function templateCompetitorTrends(ctx) {
-  const { businessName, competitorStats = [], trackedCompetitors = [] } = ctx;
+  const { businessName, competitorStats = [], trackedCompetitors = [], lang } = ctx;
   const withData = competitorStats.filter((s) => s.postCount > 0);
   if (!withData.length) {
     // Nothing tracked at all yet.
     if (!trackedCompetitors.length) {
       return {
-        analysis: `No competitors tracked yet for ${businessName || 'your business'} — add one in Competitor Intel to start tracking trends.`,
+        analysis: i18n.tr(lang, 'No competitors tracked yet for {{name}} — add one in Competitor Intel to start tracking trends.',
+          { name: businessName || i18n.tr(lang, 'your business') }),
         themes: [],
-        recommendation: 'Add a competitor by pasting their Instagram, YouTube, or Facebook profile link.',
+        recommendation: i18n.tr(lang, 'Add a competitor by pasting their Instagram, YouTube, or Facebook profile link.'),
       };
     }
     // Tracked, but no platform returned real post content yet. Reasons
@@ -522,40 +751,45 @@ function templateCompetitorTrends(ctx) {
     const platformsSeen = new Set(trackedCompetitors.flatMap((c) => c.platforms || []));
     const onlyFacebook = platformsSeen.size > 0 && [...platformsSeen].every((p) => p === 'facebook');
     const hasInstagram = platformsSeen.has('instagram');
-    const prefix = `${trackedCompetitors.length} competitor${trackedCompetitors.length === 1 ? ' is' : 's are'} tracked` +
-      `${names ? ` (${names})` : ''}, but none of their linked platforms have returned post content yet.`;
+    const prefix = i18n.tr(lang, trackedCompetitors.length === 1
+      ? '{{count}} competitor is tracked{{names}}, but none of their linked platforms have returned post content yet.'
+      : '{{count}} competitors are tracked{{names}}, but none of their linked platforms have returned post content yet.',
+    { count: trackedCompetitors.length, names: names ? ` (${names})` : '' });
 
     if (onlyFacebook) {
       return {
-        analysis: `${prefix} Facebook only exposes profile info publicly (no captions or videos), so content trends aren't available from that alone.`,
+        analysis: `${prefix} ${i18n.tr(lang, "Facebook only exposes profile info publicly (no captions or videos), so content trends aren't available from that alone.")}`,
         themes: [],
-        recommendation: 'For real content-trend analysis, also track this competitor on Instagram (once your own Instagram is connected via Settings → Connections) or YouTube.',
+        recommendation: i18n.tr(lang, 'For real content-trend analysis, also track this competitor on Instagram (once your own Instagram is connected via Settings → Connections) or YouTube.'),
       };
     }
     if (hasInstagram) {
       return {
-        analysis: `${prefix} For Instagram specifically, real post content needs YOUR OWN Instagram connected via Settings → Connections (Meta) — once it is, captions and engagement become available for competitors that are public Business or Creator accounts.`,
+        analysis: `${prefix} ${i18n.tr(lang, 'For Instagram specifically, real post content needs YOUR OWN Instagram connected via Settings → Connections (Meta) — once it is, captions and engagement become available for competitors that are public Business or Creator accounts.')}`,
         themes: [],
-        recommendation: 'Connect your Instagram via Settings → Connections (Meta), or track this competitor on YouTube instead.',
+        recommendation: i18n.tr(lang, 'Connect your Instagram via Settings → Connections (Meta), or track this competitor on YouTube instead.'),
       };
     }
     return {
-      analysis: `${prefix} A fetch may have failed or been blocked — try refreshing, or track the same competitor on another platform.`,
+      analysis: `${prefix} ${i18n.tr(lang, 'A fetch may have failed or been blocked — try refreshing, or track the same competitor on another platform.')}`,
       themes: [],
-      recommendation: 'Try "Refresh" on the tracked competitor, or add their YouTube profile as a second source.',
+      recommendation: i18n.tr(lang, 'Try "Refresh" on the tracked competitor, or add their YouTube profile as a second source.'),
     };
   }
   const avgCadence = Math.round((withData.reduce((sum, s) => sum + (s.postsPerWeek || 0), 0) / withData.length) * 10) / 10;
   const avgVideoShare = Math.round(withData.reduce((sum, s) => sum + (s.videoSharePercent || 0), 0) / withData.length);
   const videoLeaning = avgVideoShare >= 50;
   return {
-    analysis:
-      `Across ${withData.length} tracked competitor${withData.length === 1 ? '' : 's'}, average posting cadence is ` +
-      `${avgCadence} posts/week and about ${avgVideoShare}% of their content is video.`,
-    themes: [videoLeaning ? 'Short-form video is the dominant format among your competitors' : 'A mix of photo and video content is common among your competitors'],
+    analysis: i18n.tr(lang, withData.length === 1
+      ? 'Across {{count}} tracked competitor, average posting cadence is {{cadence}} posts/week and about {{videoShare}}% of their content is video.'
+      : 'Across {{count}} tracked competitors, average posting cadence is {{cadence}} posts/week and about {{videoShare}}% of their content is video.',
+    { count: withData.length, cadence: avgCadence, videoShare: avgVideoShare }),
+    themes: [videoLeaning
+      ? i18n.tr(lang, 'Short-form video is the dominant format among your competitors')
+      : i18n.tr(lang, 'A mix of photo and video content is common among your competitors')],
     recommendation: videoLeaning
-      ? 'Consider a short filmable video this week — your competitors are leaning heavily on video.'
-      : 'A strong photo post is a safe next move — most of your competitors are not out-posting you on video yet.',
+      ? i18n.tr(lang, 'Consider a short filmable video this week — your competitors are leaning heavily on video.')
+      : i18n.tr(lang, 'A strong photo post is a safe next move — most of your competitors are not out-posting you on video yet.'),
   };
 }
 
@@ -570,7 +804,8 @@ async function analyzeCompetitorTrends(ctx) {
         "You are Markivo's competitive-intelligence analyst for a small business. Given REAL posting-cadence " +
         'and content-type data for its tracked competitors, plus sample captions, identify the dominant content ' +
         'trends and recommend ONE concrete next move for this business. Be specific and grounded only in the data ' +
-        'given — never invent statistics not present in it. Respond as JSON only.',
+        'given — never invent statistics not present in it. Respond as JSON only.' +
+        gemini.ownerLangRule(ctx.lang, 'the "analysis", the "themes" and the "recommendation"'),
       prompt:
         `Business: ${businessName || 'a local business'}\n` +
         `Category: ${category || 'general'}\n` +
@@ -704,7 +939,7 @@ async function generateSlogans(ctx) {
   // provider-preference pattern as generateContent/generateMediaBrief; the
   // dispatcher below is the fallback layer (Gemini again if the above failed
   // for some reason, else Anthropic, else the template).
-  const viaGemini = await gemini.generateSlogans({ digest: ctx.digest, businessName: ctx.businessName });
+  const viaGemini = await gemini.generateSlogans({ digest: ctx.digest, businessName: ctx.businessName, lang: ctx.lang });
   if (viaGemini) return viaGemini;
 
   if (!providers.isLive) return templateSlogans(ctx);
@@ -712,7 +947,7 @@ async function generateSlogans(ctx) {
   try {
     const parsed = await providers.completeJSON({
       model: config.aiContentModel,
-      system: 'You are a brand strategist. Generate exactly 3 short, memorable, original English brand slogans (max 6 words each). Respond as JSON only.',
+      system: `You are a brand strategist. Generate exactly 3 short, memorable, original ${gemini.LANG_NAMES[ctx.lang] || 'English'} brand slogans (max 6 words each). Respond as JSON only.`,
       prompt:
         (ctx.digest ? `${ctx.digest}\n\n` : '') +
         `Business: ${businessName || 'a local business'}\n` +
@@ -768,7 +1003,7 @@ async function agentAct(ctx) {
         type: 'object',
         properties: {
           text: { type: 'string', description: 'The complete, final post text, ready to publish.' },
-          note: { type: 'string', description: 'One short sentence to show the owner about this draft.' },
+          note: { type: 'string', description: 'One short sentence to show the owner about this draft, in the language you reply in.' },
         },
         required: ['text'],
       },
@@ -789,7 +1024,7 @@ async function agentAct(ctx) {
         properties: {
           platform: { type: 'string', description: `Which platform to publish to. One of: ${keys}.` },
           text: { type: 'string', description: 'The complete, final post text, ready to publish.' },
-          note: { type: 'string', description: 'One short sentence to show the owner about this draft.' },
+          note: { type: 'string', description: 'One short sentence to show the owner about this draft, in the language you reply in.' },
         },
         required: ['platform', 'text'],
       },
@@ -1211,18 +1446,17 @@ async function generateMediaBrief(ctx) {
   const { kind, mode, topic, profile, trends } = ctx;
   const guided = mode === 'guided';
   // Customer-facing words (caption, spoken script, on-screen text) follow the
-  // audience's languages; the directions to the owner stay in English. Empty
-  // string when the owner has not answered that question yet.
-  const langRule = gemini.mediaLangRule(ctx.languages);
+  // audience's languages; the directions to the owner follow the owner's UI
+  // language (ctx.lang), English by default.
+  const langRule = gemini.mediaLangRule(ctx.languages, ctx.lang);
   // Full-mode briefs carry the render-engine status whichever engine wrote
-  // them, so the Media Studio's render section behaves identically.
-  const withEngineStatus = (brief) => (guided ? brief : config.mediaEnabled
-    ? { ...brief, engineStatus: 'ready', note: undefined }
-    : {
-        ...brief,
-        engineStatus: 'awaiting_media_api',
-        note: 'Rendering activates once a media-generation API key is configured.',
-      });
+  // them, so the Media Studio's render section behaves identically. The
+  // "engine pending" wording itself lives in the UI's translations.
+  const withEngineStatus = (brief) => (guided ? brief : {
+    ...brief,
+    engineStatus: config.mediaEnabled ? 'ready' : 'awaiting_media_api',
+    note: undefined,
+  });
 
   const brandDigest = ctx.memory || (profile ? brand.briefDigest(profile.brandBrief, profile) : '');
   const viaGemini = await gemini.generateMediaBrief({ ...ctx, brandDigest });
@@ -1292,7 +1526,8 @@ async function generateEditPlan(ctx) {
       system:
         "You are Markivo's photo/video editor. Produce a concrete edit plan an editing engine can execute: " +
         '5-8 numbered steps, crop guidance, a colour grade, caption treatment, audio treatment, ' +
-        'and per-platform export specs. Respond as JSON only.',
+        'and per-platform export specs. Respond as JSON only.' +
+        gemini.ownerLangRule(ctx.lang, 'every field of the plan'),
       prompt:
         profileLines(profile) +
         `Media kind: ${media?.kind || 'video'}\n` +
