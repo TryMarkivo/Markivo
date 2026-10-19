@@ -220,25 +220,31 @@ function briefDigest(brief, profile = {}) {
   if (extra) lines.push(extra);
 
   // business facts (owner-entered) — the only source of real numbers
-  const f = brief.businessFacts;
-  if (f && typeof f === 'object') {
-    const fl = [];
-    if (asArray(f.signatureItems).length) fl.push(`signature: ${asArray(f.signatureItems).join(', ')}`);
-    if (f.pricePoints) fl.push(`prices: ${f.pricePoints}`);
-    if (f.hours) fl.push(`hours: ${f.hours}`);
-    if (f.bookingLink) fl.push(`booking: ${f.bookingLink}`);
-    if (f.phone) fl.push(`phone: ${f.phone}`);
-    if (f.offer && (f.offer.value || f.offer.type)) {
-      fl.push(`offer: ${[f.offer.type, f.offer.value, f.offer.deadline].filter(Boolean).join(' ')}`);
-    }
-    lines.push(fl.length
-      ? `FACTS (use ONLY these; never invent prices/hours/numbers): ${fl.join(' | ')}`
-      : 'FACTS: none provided — do NOT invent prices, hours, or numbers; write so the owner can drop them in.');
-  } else {
-    lines.push('FACTS: none provided — do NOT invent prices, hours, or numbers; write so the owner can drop them in.');
-  }
+  const facts = factsLine(brief.businessFacts);
+  lines.push(facts
+    ? `FACTS (use ONLY these; never invent prices/hours/numbers): ${facts}`
+    : 'FACTS: none provided — do NOT invent prices, hours, or numbers; write so the owner can drop them in.');
 
   return lines.join('\n');
+}
+
+/**
+ * The owner-entered business facts (signature items, prices, hours, booking,
+ * phone, offer) as one line, or '' when none are set. These are the ONLY real
+ * numbers any generator may use.
+ */
+function factsLine(f) {
+  if (!f || typeof f !== 'object') return '';
+  const fl = [];
+  if (asArray(f.signatureItems).length) fl.push(`signature: ${asArray(f.signatureItems).join(', ')}`);
+  if (f.pricePoints) fl.push(`prices: ${f.pricePoints}`);
+  if (f.hours) fl.push(`hours: ${f.hours}`);
+  if (f.bookingLink) fl.push(`booking: ${f.bookingLink}`);
+  if (f.phone) fl.push(`phone: ${f.phone}`);
+  if (f.offer && (f.offer.value || f.offer.type)) {
+    fl.push(`offer: ${[f.offer.type, f.offer.value, f.offer.deadline].filter(Boolean).join(' ')}`);
+  }
+  return fl.join(' | ');
 }
 
 module.exports = {
@@ -247,4 +253,5 @@ module.exports = {
   templateBrief,
   briefDigest,
   answeredDetails,
+  factsLine,
 };

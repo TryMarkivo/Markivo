@@ -673,7 +673,10 @@ function detectLanguage(text) {
 // the call fails, so ai.generateContent can fall through to its next provider.
 async function generateContent(ctx) {
   if (!config.geminiEnabled) return null;
-  const { platform = 'instagram', topic, businessName, category, description, brandTone, audience, previousText, feedback, styleSummary } = ctx;
+  const {
+    platform = 'instagram', topic, businessName, category, description, brandTone, audience,
+    previousText, feedback, styleSummary, memory, platformRules, avoid,
+  } = ctx;
   const langInstruction = langInstructionFor(ctx.languages);
   // A follow-up prompt ("shorter", "add more emojis", …) revises the draft
   // already on screen instead of writing a brand-new one from the topic.
@@ -683,22 +686,35 @@ async function generateContent(ctx) {
   const styleInstruction = styleSummary
     ? ` WRITING STYLE TO MATCH: ${styleSummary} Write in this voice — its tone, sentence rhythm, and emoji/punctuation habits — but never copy any subject matter from wherever that style was learned; the topic below is the only source of what to write about.`
     : '';
+  // The business memory (businessContextService.memoryDigest) is everything
+  // known about THIS business; the bare profile fields are only the fallback
+  // for a caller that has none.
+  const business = memory ||
+    `Business: ${businessName || 'a local business'}\n` +
+    `Category: ${category || 'general'}\n` +
+    `Business description: ${description || 'n/a'}\n` +
+    `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
+    `Target audience: ${audience || 'local customers'}`;
 
   try {
     const parsed = await callGemini({
       maxTokens: 1500,
       system:
-        "You are Markivo's expert social-media copywriter for small businesses. " +
-        `${langInstruction} ${revising ? 'Revise the existing draft per the instruction — keep everything else about it intact.' : 'Write a single platform-native post that matches the brand tone.'}` +
+        'You are a senior social-media copywriter writing for ONE specific small business. Everything ' +
+        'known about it is in the BUSINESS MEMORY — build the post from its concrete details (the real ' +
+        'products, offer, place, facts and voice) so it could only belong to this business, and never ' +
+        'invent a price, hour, number or claim that is not there. Write like a professional: a first ' +
+        'line that earns the second (never a greeting or the business name), one clear message, ' +
+        'specifics instead of adjectives, and exactly one call to action that fits the platform. ' +
+        (platformRules ? 'Follow the PLATFORM RULES. ' : '') +
+        (Array.isArray(avoid) && avoid.length ? `Never use these clichés: ${avoid.slice(0, 40).map((c) => `"${c}"`).join(', ')}. ` : '') +
+        `${langInstruction} ${revising ? 'Revise the existing draft per the instruction — keep everything else about it intact.' : 'Write a single platform-native post that matches the brand voice.'}` +
         `${styleInstruction} ` +
         'Keep hashtags OUT of the post body — return them separately. Respond as JSON only.',
       user:
-        `Business: ${businessName || 'a local business'}\n` +
-        `Category: ${category || 'general'}\n` +
-        `Business description: ${description || 'n/a'}\n` +
-        `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
-        `Target audience: ${audience || 'local customers'}\n` +
+        `BUSINESS MEMORY:\n${business}\n\n` +
         `Platform: ${platform}\n` +
+        (platformRules ? `PLATFORM RULES: ${platformRules}\n` : '') +
         `Post topic: ${topic || 'a friendly general promotion'}\n\n` +
         (revising
           ? `Current draft:\n${previousText}\n\nRevision instruction: ${feedback}\n\nReturn the revised post, an updated one-line phone photography/video tip, and 4-6 relevant hashtags.`
@@ -741,7 +757,7 @@ const BUSINESS_CONTEXT_SCHEMA = {
 
 async function generateBusinessContext(profileData) {
   if (!config.geminiEnabled) return null;
-  const { businessName, category, description, tone, audience, location } = profileData || {};
+  const { businessName, category, description, tone, audience, location, details } = profileData || {};
 
   try {
     const parsed = await callGemini({
@@ -759,8 +775,11 @@ async function generateBusinessContext(profileData) {
         `What the business does (owner's own words): ${description || 'n/a'}\n` +
         `Stated tone/voice preference: ${tone || 'not specified'}\n` +
         `Stated target audience: ${audience || 'not specified'}\n` +
-        `Location: ${location || 'not specified'}\n\n` +
-        'Produce the working context.',
+        `Location: ${location || 'not specified'}\n` +
+        // Everything the owner added after signup — answered questions, facts
+        // Markiv saved from chat. Newer than the fields above, so it wins.
+        (details ? `\nDetails the owner has told us since signup (newest truth — fold them in):\n${details}\n` : '') +
+        '\nProduce the working context.',
       schema: BUSINESS_CONTEXT_SCHEMA,
     });
     // A context with no summary is unusable downstream — treat it as a miss so
@@ -1073,7 +1092,7 @@ async function generateMediaBrief(ctx) {
     `Target audience: ${profile?.targetAudience || 'local customers'}\n` +
     `Brand tone: ${profile?.brandTone || 'Cozy & Warm'}\n` +
     (brandDigest
-      ? `\nBRAND BRIEF (match its voice and visuals; its FACTS are the only real numbers):\n${brandDigest}\n`
+      ? `\nBUSINESS MEMORY (match its voice and visuals; its FACTS are the only real numbers):\n${brandDigest}\n`
       : '') +
     (trends
       ? `\nCOMPETITOR TREND CONTEXT (real data from tracked competitors — let it inform the concept/shot ` +
@@ -1129,7 +1148,7 @@ async function generateMediaBrief(ctx) {
 // request becomes a precise instruction for the image model, which receives it
 // alongside the original image. Null when keyless or on failure, so the caller
 // sends the owner's own words through unchanged.
-async function directImageEdit({ instructions, topic, profile } = {}) {
+async function directImageEdit({ instructions, topic, profile, memory } = {}) {
   if (!config.geminiEnabled) return null;
   try {
     const text = await callGemini({
@@ -1138,9 +1157,11 @@ async function directImageEdit({ instructions, topic, profile } = {}) {
         'You write instructions for an image-EDITING model that receives the original image alongside ' +
         "your text. Rewrite the owner's request as one precise edit instruction in English: say exactly " +
         'what changes, and that everything else — subject, identity, framing, product, existing text — ' +
-        'stays as it is. Quote any words that must appear in the image exactly, in their final language. ' +
-        'Never add prices, numbers or claims the owner did not ask for. Reply with the instruction only.',
+        'stays as it is. Keep anything you add on-brand for the business below. Quote any words that ' +
+        'must appear in the image exactly, in their final language. Never add prices, numbers or claims ' +
+        'the owner did not ask for. Reply with the instruction only.',
       user:
+        (memory ? `BUSINESS MEMORY:\n${memory}\n\n` : '') +
         `Business: ${profile?.businessName || 'a local business'}\n` +
         `Category: ${profile?.category || 'general'}\n` +
         `What the image shows: ${topic || 'n/a'}\n` +

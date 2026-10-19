@@ -428,7 +428,7 @@ async function analyzeAndPlan(ctx) {
   const {
     platforms = ['instagram'], businessName, category, description,
     brandTone, audience, location, recentPosts = [], competitors = [],
-    ownExternalActivity = [], competitorHighlights = [],
+    ownExternalActivity = [], competitorHighlights = [], memory, userContext,
   } = ctx;
   const targets = platforms.length ? platforms : ['instagram'];
   try {
@@ -438,15 +438,20 @@ async function analyzeAndPlan(ctx) {
         "You are Markivo's autonomous marketing strategist for a small business. " +
         'Briefly analyze the business and its recent activity, then write platform-native ' +
         'promotional posts — exactly one per requested platform. Each post must match the brand ' +
-        'tone, be ready to publish as-is, include a light call to action, and avoid repeating the ' +
-        'recent posts. Respond as JSON only.',
+        'voice, be built from concrete details in the business memory (never invent prices, hours ' +
+        'or numbers), be ready to publish as-is, include a light call to action, and avoid ' +
+        'repeating the recent posts. Respond as JSON only.',
       prompt:
-        `Business: ${businessName || 'a local business'}\n` +
-        `Category: ${category || 'general'}\n` +
-        `Description: ${description || 'n/a'}\n` +
-        `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
-        `Audience: ${audience || 'local customers'}\n` +
+        (memory
+          ? `BUSINESS MEMORY:\n${memory}\n\n`
+          : `Business: ${businessName || 'a local business'}\n` +
+            `Category: ${category || 'general'}\n` +
+            `Description: ${description || 'n/a'}\n` +
+            `Brand tone: ${brandTone || 'Cozy & Warm'}\n` +
+            `Audience: ${audience || 'local customers'}\n`) +
         `Location: ${location || 'Tashkent'}\n` +
+        // The owner's answer when Autopilot last paused to ask what they want.
+        (userContext && userContext.answer ? `What the owner asked Autopilot for: ${userContext.answer}\n` : '') +
         `Recent posts (do NOT repeat): ${recentPosts.slice(0, 5).map((p) => `- ${String(p).slice(0, 80)}`).join('\n') || 'none yet'}\n` +
         `Recently posted organically on your own channels, outside Markivo (do NOT repeat, but stay consistent with it): ${ownExternalActivity.slice(0, 5).join(' | ') || 'none found'}\n` +
         `Competitor signals: ${competitors.slice(0, 5).join(', ') || 'n/a'}\n` +
@@ -603,17 +608,41 @@ async function analyzeCompetitorTrends(ctx) {
  * the return shape ({ post, mediaTip, hashtags }) are unchanged.
  */
 async function generateContent(ctx) {
-  const viaGemini = await gemini.generateContent(ctx);
-  if (viaGemini) return viaGemini;
-  if (!providers.isLive) return templateContent(ctx);
   const platform = ctx.platform || 'instagram';
+  const rule = frameworks.rulesFor(platform);
+  // The business memory, when the caller has it, already carries the brand
+  // brief and the published examples; otherwise rebuild those two from ctx.
+  const memory = ctx.memory ||
+    [brand.briefDigest(ctx.brief, ctx), preferences.preferenceDigest(ctx.preferences)].filter(Boolean).join('\n\n');
+
+  const viaGemini = await gemini.generateContent({
+    ...ctx,
+    memory,
+    platformRules: rule ? JSON.stringify(rule) : '',
+    avoid: rubric.bannedCliches,
+  });
+  if (viaGemini) {
+    // Same local quality gate as the staged pipeline below: a cliché that
+    // slipped through earns one refine pass.
+    if (rubric.hasCliche(viaGemini.post)) {
+      // No explicit list means the post was written in the topic's own
+      // language — the refine must not translate it into English.
+      const langNames = ctx.languages == null
+        ? 'the same language(s) the draft is written in'
+        : gemini.normalizeLanguages(ctx.languages).map((l) => gemini.LANG_NAMES[l]).join(', ');
+      const refined = await refineDraft({ platform, draft: viaGemini, ctx, langNames });
+      if (refined) return refined;
+    }
+    return viaGemini;
+  }
+  if (!providers.isLive) return templateContent(ctx);
   const langs = (ctx.languages && ctx.languages.length ? ctx.languages : ['en']).filter((l) => gemini.LANG_NAMES[l]);
   const langNames = (langs.length ? langs : ['en']).map((l) => gemini.LANG_NAMES[l]).join(', ');
-  const digest = brand.briefDigest(ctx.brief, ctx);
-  const rule = frameworks.rulesFor(platform);
+  const digest = ctx.memory || brand.briefDigest(ctx.brief, ctx);
   const topic = ctx.topic || 'a friendly general promotion that drives a visit';
-  // Preference memory: what this owner has actually published (per-business taste).
-  const prefBlock = preferences.preferenceDigest(ctx.preferences);
+  // Preference memory: what this owner has actually published (per-business
+  // taste). Already inside ctx.memory when that was supplied.
+  const prefBlock = ctx.memory ? '' : preferences.preferenceDigest(ctx.preferences);
   // A selected saved Style (see content_styles / gemini.js#analyzeStyle) steers
   // HOW the post is written; it must never leak the sample post's own content.
   const styleBlock = ctx.styleSummary
@@ -721,8 +750,9 @@ const AGENT_LANG_RULE = {
  */
 async function agentAct(ctx) {
   if (!providers.isLive) return templateAgentAct(ctx);
-  const { query, history = [], lang = 'en', profile, telegram, platforms = [], snapshot, actions = {}, preferences: ownerExamples = [] } = ctx;
-  const agentPrefBlock = preferences.preferenceDigest(ownerExamples);
+  const { query, history = [], lang = 'en', profile, telegram, platforms = [], snapshot, actions = {}, preferences: ownerExamples = [], memory } = ctx;
+  // Already part of the business memory when the caller supplied one.
+  const agentPrefBlock = memory ? '' : preferences.preferenceDigest(ownerExamples);
 
   const tools = [];
   if (telegram?.connected) {
@@ -874,10 +904,13 @@ async function agentAct(ctx) {
   const system =
     marketing.pipeline.agentSystemPrompt + ' ' +
     `${AGENT_LANG_RULE[lang] || AGENT_LANG_RULE.en}` +
-    (profile
-      ? `\n\nBRAND BRIEF for this business (${profile.businessName}):\n` +
-        `${brand.briefDigest(profile.brandBrief, profile)}`
-      : '') +
+    (memory
+      ? `\n\nBUSINESS MEMORY for ${profile?.businessName || 'this business'} — everything you know about ` +
+        `them. Use it in every answer and draft, and never ask for what is already here:\n${memory}`
+      : profile
+        ? `\n\nBRAND BRIEF for this business (${profile.businessName}):\n` +
+          `${brand.briefDigest(profile.brandBrief, profile)}`
+        : '') +
     (agentPrefBlock ? `\n\n${agentPrefBlock}` : '') +
     (askBlock ? `\n${askBlock}` : '') +
     (snapshot
@@ -1191,7 +1224,7 @@ async function generateMediaBrief(ctx) {
         note: 'Rendering activates once a media-generation API key is configured.',
       });
 
-  const brandDigest = profile ? brand.briefDigest(profile.brandBrief, profile) : '';
+  const brandDigest = ctx.memory || (profile ? brand.briefDigest(profile.brandBrief, profile) : '');
   const viaGemini = await gemini.generateMediaBrief({ ...ctx, brandDigest });
   if (viaGemini) return withEngineStatus(viaGemini);
   if (!providers.isLive) return withEngineStatus(templateMediaBrief(ctx));

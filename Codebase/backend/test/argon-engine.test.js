@@ -39,32 +39,39 @@ const completed = (text) => ({
 const config = require('../config');
 const gemini = require('../gemini');
 const mediagen = require('../mediagen');
+const businessContext = require('../businessContextService');
+const createDb = require('../db');
 const { app } = require('../server');
 
 // A 1x1 PNG — the smallest thing /api/media/upload accepts.
 const PNG_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-let server, base, access;
-const post = (p, body) =>
+let server, base, access, db, profileId;
+const send = (method) => (p, body) =>
   realFetch(base + p, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', ...(access ? { Authorization: `Bearer ${access}` } : {}) },
     body: JSON.stringify(body || {}),
   });
+const post = send('POST');
+const put = send('PUT');
 
 before(async () => {
   server = app.listen(0);
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
+  db = createDb(config.dbPath);
   const reg = await post('/api/auth/register', { email: `argon${Date.now()}@m.uz`, password: 'secret123', fullName: 'Argon Owner' });
   access = (await reg.json()).accessToken;
-  await post('/api/onboarding/construct', { businessName: 'Noir Cafe', category: 'Cafe / Coffee Shop' });
+  const construct = await (await post('/api/onboarding/construct', { businessName: 'Noir Cafe', category: 'Cafe / Coffee Shop' })).json();
+  profileId = (construct.profile || construct).id;
 });
 
 after(() => {
   onGemini = null;
   global.fetch = realFetch;
+  db.close();
   server.close();
   for (const f of [TMP_DB, `${TMP_DB}-shm`, `${TMP_DB}-wal`]) {
     try { fs.unlinkSync(f); } catch { /* ignore */ }
@@ -255,4 +262,106 @@ test('renderImage surfaces the model\'s refusal instead of a bare "no image"', a
     mediagen.renderImage({ prompt: 'x' }, { fetchImpl }),
     (err) => err instanceof mediagen.MediaEngineError && err.status === 502 && /can't create images/.test(err.message)
   );
+});
+
+// ---------------------------------------------------------------------------
+// Business memory: every generator gets everything known about the business,
+// and the memory re-learns the business when the owner tells us something new
+// ---------------------------------------------------------------------------
+
+const isDistil = (body) => String(body.system_instruction || '').startsWith('You distil a small business');
+
+// The refresh is fire-and-forget from the routes, so a test waits for its
+// effect on the stored cell rather than for the request.
+async function cellMatching(pattern, ms = 2000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const cell = db.businessContext.get(profileId);
+    if (cell && pattern.test(cell.summary)) return cell;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  return db.businessContext.get(profileId);
+}
+
+test('telling Markivo a new fact re-learns the business in the background', async () => {
+  const seen = [];
+  onGemini = (body) => {
+    if (!isDistil(body)) return null;
+    seen.push(body.input);
+    return completed(JSON.stringify({
+      summary: 'Noir Cafe is a specialty coffee bar serving breakfast until noon.',
+      tone: 'calm, modern', audience: 'students and remote workers', sellingPoints: ['breakfast until noon'],
+    }));
+  };
+
+  const res = await put('/api/brand', { businessFacts: { hours: 'Breakfast until noon, open 8:00-22:00' } });
+  assert.strictEqual(res.status, 200);
+
+  const cell = await cellMatching(/breakfast until noon/);
+  assert.match(cell.summary, /breakfast until noon/, 'the stored memory now carries the new fact');
+  assert.match(seen[0], /Breakfast until noon, open 8:00-22:00/, 'the owner\'s own fact went into the re-distillation');
+});
+
+test('a failed refresh keeps the existing memory instead of overwriting it', async () => {
+  const before = db.businessContext.get(profileId).summary;
+  onGemini = (body) => (isDistil(body) ? { status: 500, body: { error: { message: 'backend error' } } } : null);
+  const cell = await businessContext.refreshBusinessContext(db, profileId);
+  assert.strictEqual(cell, null);
+  assert.strictEqual(db.businessContext.get(profileId).summary, before);
+});
+
+test('a burst of saves is coalesced into at most two refreshes', async () => {
+  let calls = 0;
+  onGemini = (body) => {
+    if (!isDistil(body)) return null;
+    calls += 1;
+    return completed(JSON.stringify({ summary: `pass ${calls}`, tone: 't', audience: 'a', sellingPoints: [] }));
+  };
+  await Promise.all([1, 2, 3, 4].map(() => businessContext.refreshBusinessContext(db, profileId)));
+  assert.strictEqual(calls, 2, 'one pass for the first save, one more that sees the rest');
+});
+
+test('post copy is written from the whole business memory, to a professional standard', async () => {
+  db.feedback.record({ profileId, platform: 'instagram', signal: 'approved', finalText: 'Cold brew season is open — come taste it on the terrace.' });
+  db.businessContext.upsert({
+    profileId, summary: 'Noir Cafe is a specialty coffee bar near Amir Temur square.',
+    tone: 'calm, modern', audience: 'students', sellingPoints: ['single-origin espresso'], source: 'gemini',
+  });
+
+  let request;
+  onGemini = (body) => {
+    if (!String(body.input).includes('Post topic: weekend breakfast')) return null;
+    request = body;
+    return completed(JSON.stringify({ post: 'Breakfast runs until noon this weekend.', mediaTip: 'tip', hashtags: ['#noircafe'] }));
+  };
+  const res = await post('/api/content/copywrite', { platform: 'instagram', topic: 'weekend breakfast' });
+  assert.strictEqual(res.status, 200);
+  assert.ok(request, 'the copy went to the model');
+
+  const input = String(request.input);
+  assert.match(input, /BUSINESS CONTEXT/, 'the stored context cell');
+  assert.match(input, /single-origin espresso/);
+  assert.match(input, /Breakfast until noon, open 8:00-22:00/, 'the owner\'s facts');
+  assert.match(input, /Cold brew season is open/, 'what the owner actually published');
+  assert.match(input, /20% off iced lattes/, 'the ads already made');
+  assert.match(input, /PLATFORM RULES/);
+  assert.match(request.system_instruction, /senior social-media copywriter/);
+  assert.match(request.system_instruction, /Never use these clichés: "something special"/);
+});
+
+test('the memory is per business — another owner\'s facts never reach this prompt', async () => {
+  const other = await (await realFetch(`${base}/api/auth/register`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: `other${Date.now()}@m.uz`, password: 'secret123', fullName: 'Other' }),
+  })).json();
+  const otherProfile = (await (await realFetch(`${base}/api/onboarding/construct`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${other.accessToken}` },
+    body: JSON.stringify({ businessName: 'Tash Barbers', category: 'Barbershop' }),
+  })).json()).profile;
+
+  const mine = businessContext.memoryDigest(db, db.profiles.findById(profileId));
+  const theirs = businessContext.memoryDigest(db, db.profiles.findById(otherProfile.id));
+  assert.match(mine, /Noir Cafe/);
+  assert.doesNotMatch(mine, /Tash Barbers/);
+  assert.doesNotMatch(theirs, /Noir Cafe|Breakfast until noon|Cold brew/);
 });

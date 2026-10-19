@@ -21,6 +21,7 @@
 // ==========================================================================
 
 const autopilotContext = require('./autopilotContext');
+const businessContextService = require('./businessContextService');
 const geminiDefault = require('./gemini');
 
 const FREQ_MS = {
@@ -172,6 +173,9 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
       // The stored per-business context cell plus whatever the owner told us
       // when Autopilot last asked, so generation is grounded in THIS business.
       businessContext: gate.context.businessContext,
+      // Everything remembered about this business, the same block every
+      // other generator gets (businessContextService.memoryDigest).
+      memory: businessContextService.memoryDigest(db, profile),
       userContext: gate.context.userContext,
       adType: gate.context.adType,
     });

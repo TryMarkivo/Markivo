@@ -423,7 +423,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           </div>
           <div className="header-badge-wrap">
             <span className="badge badge-success"><i className="fa-solid fa-circle-check"></i> {t('dashboard.systemOperational', 'System Operational')}</span>
-            <span className="badge badge-primary">{t('dashboard.versionBadge', 'V1 Live')}</span>
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </div>
         </header>

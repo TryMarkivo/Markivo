@@ -730,6 +730,8 @@ app.put('/api/profile', verifyToken, (req, res) => {
     slogan,
     logoMetadata: req.body.logoMetadata !== undefined ? req.body.logoMetadata : req.body.logo,
   });
+  // The owner changed what the business is: re-learn it in the background.
+  businessContext.refreshBusinessContext(db, updated.id);
 
   // Return the profile WITH a platforms map so the dashboard can render
   // immediately without a follow-up fetch (same shape as construct).
@@ -789,6 +791,7 @@ app.post('/api/profile/answers', verifyToken, (req, res) => {
   if (!fields) return res.status(400).json({ error: 'No known question keys were supplied' });
 
   const updated = db.profiles.update(profile.id, fields);
+  businessContext.refreshBusinessContext(db, updated.id);
   const state = profileQuestions.completion(updated);
   const platformsMap = {};
   db.platforms.listByProfile(updated.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
@@ -862,6 +865,8 @@ app.put('/api/brand', verifyToken, (req, res) => {
   }
   const merged = { ...(profile.brandBrief || {}), ...incoming };
   const updated = db.profiles.update(profile.id, { brandBrief: merged });
+  // Edited business facts (prices, hours, offer) are things to remember.
+  businessContext.refreshBusinessContext(db, updated.id);
   res.json({ success: true, brandBrief: updated.brandBrief });
 });
 
@@ -915,6 +920,8 @@ app.post('/api/content/copywrite', verifyToken, checkBudget('writing'), asyncRou
     location: profile?.location,
     brief: profile?.brandBrief,
     preferences: profile ? db.feedback.recentExamples(profile.id) : [],
+    // Everything remembered about this business — see businessContextService.
+    memory: profile ? businessContext.memoryDigest(db, profile) : undefined,
     // A follow-up prompt revises the draft already on screen ("shorter",
     // "add emojis") instead of writing a fresh one from the topic alone.
     previousText: typeof req.body.previousText === 'string' ? req.body.previousText : undefined,
@@ -2218,6 +2225,7 @@ app.post('/api/media/brief', verifyToken, checkBudget('writing'), asyncRoute(asy
   const brief = await ai.generateMediaBrief({
     kind, mode, topic, profile, trends,
     languages: profile.audienceLanguages?.length ? profile.audienceLanguages : undefined,
+    memory: businessContext.memoryDigest(db, profile),
   });
   const row = db.media.add({ profileId: profile.id, kind, mode, topic, brief, status: 'brief' });
   db.usage.record({ userId: req.user.id, kind: 'media_brief', bucket: 'writing' });
@@ -2307,7 +2315,9 @@ app.post('/api/media/:id/apply-edit', verifyToken, asyncRoute(async (req, res) =
   try {
     // Argon turns the one-line request into a precise edit instruction; keyless
     // or on failure, the owner's own words go through as before.
-    const directed = await gemini.directImageEdit({ instructions, topic: row.topic, profile });
+    const directed = await gemini.directImageEdit({
+      instructions, topic: row.topic, profile, memory: businessContext.memoryDigest(db, profile),
+    });
     const { filePath } = await mediagen.editImage({
       prompt: `${directed || instructions}\n\nKeep the subject, framing and identity of the original photo intact — this is an edit, not a new image.`,
       filePath: row.filePath,
@@ -2582,6 +2592,7 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
     draftContent: ({ platform, topic }) => ai.generateContent({
       platform,
       topic,
+      memory: businessContext.memoryDigest(db, db.profiles.findById(profile.id)),
       businessName: profile.businessName,
       category: profile.category,
       description: profile.description,
@@ -2607,6 +2618,8 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
       const fields = profileQuestions.applyAnswers(current, { [key]: value }, 'markiv');
       if (!fields) return { saved: false, error: `Unknown detail key: ${key}` };
       const updated = db.profiles.update(profile.id, fields);
+      // Something new about the business: re-learn it in the background.
+      businessContext.refreshBusinessContext(db, profile.id);
       return { saved: true, key, remaining: profileQuestions.completion(updated).pendingCount };
     },
   };
@@ -2630,6 +2643,7 @@ app.post('/api/agent/query', verifyToken, checkBudget('writing'), asyncRoute(asy
     snapshot,
     actions,
     preferences: db.feedback.recentExamples(profile.id),
+    memory: businessContext.memoryDigest(db, profile),
   });
 
   // Markiv proposed a Telegram publish → route through the human approval gate.
