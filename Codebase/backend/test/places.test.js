@@ -144,7 +144,7 @@ test('construct stores google identity and real competitors replace the seeds', 
   const res = await post('/api/onboarding/construct', {
     businessName: 'Noir Coffee',
     category: 'Coffee Shop',
-    platforms: { googleBusiness: true },
+    platforms: { instagram: true },
     google: { placeId: 'pid_x', rating: 4.6, reviewsCount: 89 },
     competitors: [
       { competitorName: 'Rival Cafe', rating: 4.4, platformsDetected: ['google'] },

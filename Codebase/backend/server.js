@@ -28,6 +28,7 @@ const competitorAnalytics = require('./competitorAnalytics');
 const ownContentFetch = require('./ownContentFetch');
 const { limitFor } = require('./postLimits');
 const i18n = require('./i18n');
+const contentTranslate = require('./contentTranslate');
 const {
   validateRegister, validateLogin, validateScan, validateCompetitors, validateProfileUpdate, validateMeUpdate,
   validateAddCompetitor, validateCompetitorSource,
@@ -387,7 +388,7 @@ app.post('/api/competitors', verifyToken, asyncRoute(async (req, res) => {
   res.status(201).json({ competitor: { ...finalCompetitor, sources: createdSources } });
 }));
 
-app.get('/api/competitors', verifyToken, (req, res) => {
+app.get('/api/competitors', verifyToken, asyncRoute(async (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.json({ competitors: [] });
   // Only manually-added (paste-a-link) rows — onboarding's demo/benchmark
@@ -396,8 +397,12 @@ app.get('/api/competitors', verifyToken, (req, res) => {
   const competitors = db.competitors.listByProfile(profile.id)
     .filter((c) => c.source === 'manual')
     .map(competitorWithSources);
-  res.json({ competitors });
-});
+  // Each channel's saved insight, in the language the owner reads now.
+  const localized = await Promise.all(competitors.map(async (c) => (
+    c.insight ? { ...c, insight: await contentTranslate.localizeInsight(db, c.insight, req.lang) } : c
+  )));
+  res.json({ competitors: localized });
+}));
 
 app.post('/api/competitors/:id/sources', verifyToken, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
@@ -485,7 +490,7 @@ app.post('/api/competitors/analyze', verifyToken, checkBudget('writing'), asyncR
     sampleCaptions,
     trackedCompetitors,
   });
-  const insight = db.competitorInsights.add({ profileId: profile.id, analysis });
+  const insight = db.competitorInsights.add({ profileId: profile.id, analysis: { ...analysis, lang: req.lang } });
   db.usage.record({ userId: req.user.id, kind: 'competitor_trends', bucket: 'writing' });
   res.json({ insight, competitorStats });
 }));
@@ -520,16 +525,17 @@ app.post('/api/competitors/:id/analyze', verifyToken, checkBudget('writing'), as
     sampleCaptions,
     trackedCompetitors,
   });
-  const insight = db.competitorInsights.add({ profileId: profile.id, analysis, competitorId: competitor.id });
+  const insight = db.competitorInsights.add({ profileId: profile.id, analysis: { ...analysis, lang: req.lang }, competitorId: competitor.id });
   db.usage.record({ userId: req.user.id, kind: 'competitor_trends', bucket: 'writing' });
   res.json({ insight, competitorStats: competitorStats[0] });
 }));
 
-app.get('/api/competitors/trends', verifyToken, (req, res) => {
+app.get('/api/competitors/trends', verifyToken, asyncRoute(async (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.json({ insight: null });
-  res.json({ insight: db.competitorInsights.latestByProfile(profile.id) });
-});
+  // Saved in the language it was written in; shown in the one read now.
+  res.json({ insight: await contentTranslate.localizeInsight(db, db.competitorInsights.latestByProfile(profile.id), req.lang) });
+}));
 
 // Short one-line digest of the latest trend analysis, for MediaStudio's
 // "use competitor trends" toggle — passed as ai.js ctx.trends.
@@ -577,6 +583,18 @@ app.post('/api/onboarding/logos', verifyToken, checkBudget('writing'), asyncRout
   res.json({ logos });
 }));
 
+// The onboarding channel list (`platforms` table) as the { name: connected }
+// map the dashboard reads. Profiles created before Google Business Profile was
+// removed still carry a 'googleBusiness' row; it is left in the database and
+// skipped here, so it never lights up a channel that no longer exists.
+const activeChannelRows = (profileId) => db.platforms.listByProfile(profileId)
+  .filter((pl) => !connectors.isRetired(pl.platformName));
+const platformsMapFor = (profileId) => {
+  const map = {};
+  activeChannelRows(profileId).forEach((pl) => { map[pl.platformName] = pl.isConnected; });
+  return map;
+};
+
 // Cap + type-coerce competitor rows arriving from the client (Path A passes
 // real Places results through; anything malformed degrades to nothing).
 const sanitizeCompetitors = (list) => (Array.isArray(list) ? list : [])
@@ -619,10 +637,11 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
     googleReviewsCount: Number.isFinite(+g.reviewsCount) ? +g.reviewsCount : null,
   });
 
-  // Platform connections selected in the wizard.
-  const selected = platforms || { googleBusiness: true, instagram: true, telegram: true };
+  // Platform connections selected in the wizard. A client built before Google
+  // Business Profile was removed may still send `googleBusiness`; it is dropped.
+  const selected = platforms || { instagram: true, telegram: true };
   Object.keys(selected).forEach((key) => {
-    if (selected[key]) {
+    if (selected[key] && !connectors.isRetired(key)) {
       db.platforms.add({
         profileId: profile.id,
         platformName: key,
@@ -700,18 +719,14 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
 
   // Return the profile WITH a platforms map so the dashboard can render
   // immediately without a follow-up fetch.
-  const platformsMap = {};
-  db.platforms.listByProfile(profile.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
-  res.json({ success: true, profile: { ...profile, brandBrief, platforms: platformsMap } });
+  res.json({ success: true, profile: { ...profile, brandBrief, platforms: platformsMapFor(profile.id) } });
 }));
 
 app.get('/api/onboarding/active', verifyToken, (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.status(200).json({ onboarded: false });
 
-  const platformsMap = {};
-  db.platforms.listByProfile(profile.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
-  res.json({ onboarded: true, ...profile, platforms: platformsMap });
+  res.json({ onboarded: true, ...profile, platforms: platformsMapFor(profile.id) });
 });
 
 // ==========================================
@@ -741,9 +756,7 @@ app.put('/api/profile', verifyToken, (req, res) => {
 
   // Return the profile WITH a platforms map so the dashboard can render
   // immediately without a follow-up fetch (same shape as construct).
-  const platformsMap = {};
-  db.platforms.listByProfile(updated.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
-  res.json({ success: true, profile: { ...updated, platforms: platformsMap } });
+  res.json({ success: true, profile: { ...updated, platforms: platformsMapFor(updated.id) } });
 });
 
 // ==========================================
@@ -804,11 +817,9 @@ app.post('/api/profile/answers', verifyToken, (req, res) => {
   const updated = db.profiles.update(profile.id, fields);
   businessContext.refreshBusinessContext(db, updated.id);
   const state = profileQuestions.completion(updated);
-  const platformsMap = {};
-  db.platforms.listByProfile(updated.id).forEach((pl) => { platformsMap[pl.platformName] = pl.isConnected; });
   res.json({
     success: true,
-    profile: { ...updated, platforms: platformsMap },
+    profile: { ...updated, platforms: platformsMapFor(updated.id) },
     pendingCount: state.pendingCount,
     complete: state.complete,
     questions: profileQuestions.view(updated),
@@ -991,6 +1002,8 @@ app.post('/api/content/schedule', verifyToken, (req, res) => {
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
   const key = (platform || 'instagram').toLowerCase();
+  // A client from before Google Business Profile was removed can still ask for it.
+  if (connectors.isRetired(key)) return res.status(400).json({ error: 'Unknown platform' });
   const text = typeof postText === 'string' ? postText : '';
   const limit = limitFor(key);
   if (text.length > limit) {
@@ -1032,6 +1045,7 @@ app.post('/api/content/post-now', verifyToken, asyncRoute(async (req, res) => {
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
   const platform = String(req.body.platform || 'instagram').toLowerCase();
+  if (connectors.isRetired(platform)) return res.status(400).json({ error: 'Unknown platform' });
   const postText = typeof req.body.postText === 'string' ? req.body.postText.trim() : '';
   if (!postText) return res.status(400).json({ error: 'Post text is required' });
   if (postText.length > 4000) return res.status(400).json({ error: 'Post text must be 4000 characters or fewer' });
@@ -1178,8 +1192,13 @@ app.get('/api/calendar/events', verifyToken, (req, res) => {
     return (min === null || t >= min) && (max === null || t <= max);
   };
 
+  // Posts for a removed platform (Google Business Profile) stay in the
+  // database but are left off the calendar: that channel no longer exists, so
+  // they can neither be published nor edited into anything useful.
   const items = [
-    ...db.calendar.listByProfile(profile.id).filter((p) => inWindow(p.scheduled_time)).map(postToEvent),
+    ...db.calendar.listByProfile(profile.id)
+      .filter((p) => inWindow(p.scheduled_time) && !connectors.isRetired(p.platform))
+      .map(postToEvent),
     ...db.autonomous.listActivity(profile.id, 200).filter((a) => inWindow(a.created_at)).map(activityToEvent),
   ].sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime));
 
@@ -1849,8 +1868,8 @@ async function executeInstagramPost(profile, { imageUrl, videoUrl, mediaType, ca
 }
 
 // Generic connector executor — used by the approval gate AND Autopilot to
-// publish a post to ANY registered platform (Instagram/Facebook/Google
-// Business/YouTube) through its adapter. Adapters with no live credentials
+// publish a post to ANY registered platform (Instagram/Facebook, and any
+// future connector) through its adapter. Adapters with no live credentials
 // return a simulated result; either way the post is recorded as a posted
 // calendar row so the dashboard reflects the activity (mirrors
 // executeInstagramPost). mediaUrl is optional — some platforms require it.
@@ -1872,8 +1891,8 @@ async function executePlatformPost(profile, platform, text, mediaUrl) {
 // 3.55 PLATFORM CONNECTORS (/api/connect)
 //   The generic connect surface every adapter in connectors/* was built
 //   against: one catalogue endpoint the Connections screen renders from, and
-//   start/callback/disconnect that work identically for Facebook, Instagram,
-//   Google Business, and YouTube. Adapters with no live credentials
+//   start/callback/disconnect that work identically for every OAuth platform
+//   (today Facebook and Instagram). Adapters with no live credentials
 //   return a null auth URL, so `start` connects them in sandbox instead —
 //   keyless still gets a working, honest flow.
 // ==========================================
@@ -2008,8 +2027,8 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
   // instead of a hardcoded number.
   const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const yourPostsPerWeek = db.calendar.listByProfile(profile.id)
-    .filter((p) => p.status === 'posted' && p.scheduled_time >= weekAgoIso).length;
-  const yourChannelsConnected = db.platforms.listByProfile(profile.id).filter((p) => p.isConnected).length;
+    .filter((p) => p.status === 'posted' && p.scheduled_time >= weekAgoIso && !connectors.isRetired(p.platform)).length;
+  const yourChannelsConnected = activeChannelRows(profile.id).filter((p) => p.isConnected).length;
 
   // Telegram subscribers: REAL count when the integration is on and a chat is
   // linked; the demo number otherwise (other metrics await their integrations).
@@ -2042,9 +2061,10 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
+  // Google Business Profile (and with it the googleViews / googleCalls demo
+  // metrics) was removed — see 2026-10-19. Their old metric_history rows stay
+  // in the database; nothing reads them any more.
   const metrics = {
-    googleViews: { current: 4320, change: 12.4, live: false },
-    googleCalls: { current: 148, change: 8.2, live: false },
     instagramFollowers,
     telegramSubscribers,
   };
@@ -2100,7 +2120,6 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
 const PLATFORM_METRIC = {
   instagram: 'instagramFollowers',
   telegram: 'telegramSubscribers',
-  google: 'googleViews',
 };
 
 app.get('/api/dashboard/platform/:key', verifyToken, asyncRoute(async (req, res) => {
@@ -2243,7 +2262,9 @@ app.post('/api/media/brief', verifyToken, checkBudget('writing'), asyncRoute(asy
     languages: profile.audienceLanguages?.length ? profile.audienceLanguages : undefined,
     memory: businessContext.memoryDigest(db, profile),
   });
-  const row = db.media.add({ profileId: profile.id, kind, mode, topic, brief, status: 'brief' });
+  // Tagged with the language it was written in, so a later view in another
+  // language knows to translate it (contentTranslate.js).
+  const row = db.media.add({ profileId: profile.id, kind, mode, topic, brief: { ...brief, lang: req.lang }, status: 'brief' });
   db.usage.record({ userId: req.user.id, kind: 'media_brief', bucket: 'writing' });
   res.json({ id: row.id, brief });
 }));
@@ -2295,7 +2316,7 @@ app.post('/api/media/:id/edit', verifyToken, checkBudget('writing'), asyncRoute(
   }
 
   const plan = await ai.generateEditPlan({ instructions, media: row, profile, lang: req.lang });
-  db.media.update(row.id, { brief: { ...(row.brief || {}), editPlan: plan }, status: 'edit_plan' });
+  db.media.update(row.id, { brief: { ...(row.brief || {}), editPlan: { ...plan, lang: req.lang } }, status: 'edit_plan' });
   db.usage.record({ userId: req.user.id, kind: 'media_edit_plan', bucket: 'writing' });
   res.json({ id: row.id, plan });
 }));
@@ -2491,11 +2512,32 @@ async function settleVideoRender(row, userId) {
   }
 }
 
+// The cached translations stay on the server.
+const withoutTranslations = (row) => {
+  if (!row || !row.brief) return row;
+  const { translations, editPlan, ...brief } = row.brief; // eslint-disable-line no-unused-vars
+  if (editPlan) {
+    const { translations: planCache, ...plan } = editPlan; // eslint-disable-line no-unused-vars
+    brief.editPlan = plan;
+  }
+  return { ...row, brief };
+};
+
 app.get('/api/media', verifyToken, (req, res) => {
   const profile = db.profiles.findByUserId(req.user.id);
   if (!profile) return res.json({ items: [] });
-  res.json({ items: db.media.listByProfile(profile.id) });
+  res.json({ items: db.media.listByProfile(profile.id).map(withoutTranslations) });
 });
+
+// One item, its brief and edit plan in the language the owner reads now — the
+// Media Studio refetches the brief on screen when the UI language changes.
+app.get('/api/media/:id', verifyToken, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const row = db.media.findById(req.params.id);
+  if (!row || row.profileId !== profile.id) return res.status(404).json({ error: 'Media item not found' });
+  res.json({ item: await contentTranslate.localizeMedia(db, row, req.lang, { audienceLanguages: profile.audienceLanguages }) });
+}));
 
 /**
  * Settle video jobs nobody is polling. Two cases: the operation has finished
@@ -2788,8 +2830,10 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
     }
   }
 
-  // Approved platform posts (Instagram/Facebook/Google Business/YouTube)
-  // publish via the connector — sandbox connectors return a simulated result.
+  // Approved platform posts (Instagram/Facebook) publish via the connector —
+  // sandbox connectors return a simulated result. An approval queued for a
+  // platform that has since been removed (Google Business Profile) fails here
+  // with "Unknown platform" and is marked failed; it never publishes.
   if (approval.action_type === 'platform_post') {
     const platform = approval.action_payload.platform;
     const adapter = connectors.get(platform);
@@ -2873,9 +2917,14 @@ const runAutopilotTick = (opts = {}) =>
 app.get('/api/autonomous/status', verifyToken, (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
+  const cfg = db.autonomous.getConfig(profile.id);
   res.json({
     enabled: config.autonomousEnabled,
-    config: db.autonomous.getConfig(profile.id) || { enabled: false, platforms: [], frequency: 'daily', autoPublish: true },
+    // A config saved before Google Business Profile was removed can still list
+    // 'google_business'; only platforms that exist today go back to the client.
+    config: cfg
+      ? { ...cfg, platforms: (cfg.platforms || []).filter((p) => connectors.has(p)) }
+      : { enabled: false, platforms: [], frequency: 'daily', autoPublish: true },
     activity: db.autonomous.listActivity(profile.id, 30),
   });
 });
@@ -3233,15 +3282,17 @@ async function runScheduledPostsTick() {
       continue;
     }
 
-    // Every other platform (Facebook/Google Business/YouTube, and any
-    // future connector) goes through the SAME generic adapter dispatch the
-    // approval gate and Autopilot already use (executePlatformPost). An
+    // Every other platform (Facebook, and any future connector) goes through
+    // the SAME generic adapter dispatch the approval gate and Autopilot
+    // already use (executePlatformPost). An
     // adapter with no live credentials still publishes — as a recorded sandbox
     // simulation (connectors/base.js simulatedPublish) — so a scheduled post
     // never gets silently stuck at 'scheduled' forever just because the
     // platform hasn't gone live yet.
     const adapter = connectors.get(row.platform);
-    if (!adapter) continue; // unknown platform key — leave the row alone, don't guess
+    // Unknown or retired platform key (e.g. a Google Business Profile post
+    // scheduled before that channel was removed) — leave the row alone, don't guess.
+    if (!adapter) continue;
     const profile = db.profiles.findById(row.profileId);
     if (!profile) continue;
     try {

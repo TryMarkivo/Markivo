@@ -50,7 +50,7 @@ test('every dashboard metric carries a recorded history series', async () => {
   assert.strictEqual(res.status, 200);
   const { metrics } = await res.json();
 
-  for (const key of ['googleViews', 'instagramFollowers', 'telegramSubscribers']) {
+  for (const key of ['instagramFollowers', 'telegramSubscribers']) {
     assert.ok(Array.isArray(metrics[key].history), `${key} should carry a history array`);
     assert.strictEqual(metrics[key].history.length, 1, `${key} should have today's reading`);
     assert.strictEqual(metrics[key].history[0].value, metrics[key].current);
@@ -64,7 +64,29 @@ test('fetching the dashboard repeatedly does not stack duplicate days', async ()
   const { metrics } = await (await get('/api/dashboard/stats', access)).json();
   // The dashboard is opened many times a day; only the latest reading for a
   // given day survives, so the series stays one point per day.
-  assert.strictEqual(metrics.googleViews.history.length, 1);
+  assert.strictEqual(metrics.instagramFollowers.history.length, 1);
+});
+
+test('the Google Maps views metric is gone, and leftover rows from it break nothing', async () => {
+  const channelsBefore = (await (await get('/api/dashboard/stats', access)).json()).yourChannelsConnected;
+
+  // History and an onboarding channel row written before Google Business
+  // Profile was removed (see 2026-10-19). Both stay in the database.
+  db.metricHistory.record({ profileId, metric: 'googleViews', day: '2026-07-01', value: 4320 });
+  db.platforms.add({ profileId, platformName: 'googleBusiness', isConnected: true });
+
+  const res = await get('/api/dashboard/stats', access);
+  assert.strictEqual(res.status, 200);
+  const stats = await res.json();
+  assert.deepStrictEqual(Object.keys(stats.metrics).sort(), ['instagramFollowers', 'telegramSubscribers']);
+  assert.strictEqual(stats.yourChannelsConnected, channelsBefore, 'the leftover Google row is not counted as a connected channel');
+
+  // The profile's channel map no longer lights up a Google chip either.
+  const active = await (await get('/api/onboarding/active', access)).json();
+  assert.strictEqual(active.platforms.googleBusiness, undefined);
+
+  // And its drill-down is no longer a platform.
+  assert.strictEqual((await get('/api/dashboard/platform/google', access)).status, 404);
 });
 
 test('the series is oldest-first and reflects real recorded movement', () => {

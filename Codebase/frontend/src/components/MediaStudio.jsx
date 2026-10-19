@@ -30,7 +30,7 @@ const CAMERA_FIELDS = [
 ];
 
 export default function MediaStudio({ activeProfile }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Brief creation
   const [mode, setMode] = useState('full'); // 'full' | 'guided'
@@ -61,6 +61,7 @@ export default function MediaStudio({ activeProfile }) {
 
   // Library + errors
   const [items, setItems] = useState([]);
+  const [openingId, setOpeningId] = useState(null); // library item being reopened
   const [error, setError] = useState(null);
 
   // Competitor trend context — an optional toggle that grounds the brief in
@@ -92,7 +93,53 @@ export default function MediaStudio({ activeProfile }) {
     api.get('/api/competitors/trends')
       .then((data) => setTrendInsight(data.insight))
       .catch(() => {});
-  }, [loadLibrary]);
+  }, [loadLibrary, i18n.language]);
+
+  // The brief and edit plan on screen were written in the language of that
+  // moment. When the owner switches language, fetch them again — the server
+  // translates them once and remembers.
+  const shownLang = useRef(i18n.language);
+  useEffect(() => {
+    if (shownLang.current === i18n.language) return;
+    shownLang.current = i18n.language;
+    if (briefId && brief) {
+      api.get(`/api/media/${briefId}`)
+        .then(({ item }) => { if (item?.brief) setBrief(item.brief); })
+        .catch(() => {});
+    }
+    if (uploaded?.id && plan) {
+      api.get(`/api/media/${uploaded.id}`)
+        .then(({ item }) => { if (item?.brief?.editPlan) setPlan(item.brief.editPlan); })
+        .catch(() => {});
+    }
+  }, [i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reopen a saved brief from the library. It is fetched fresh, so it reads in
+  // the language the owner is using now — not the one it was written in.
+  const openItem = async (item) => {
+    setError(null);
+    setOpeningId(item.id);
+    try {
+      const { item: full } = await api.get(`/api/media/${item.id}`);
+      if (!full?.brief) return;
+      const fullMode = full.mode === 'guided' ? 'guided' : 'full';
+      setMode(fullMode);
+      setKind(full.kind === 'video' ? 'video' : 'image');
+      setBriefId(full.id);
+      setBrief(full.brief);
+      setBriefMode(fullMode);
+      setBriefKind(full.kind);
+      setBriefTopic(full.topic || '');
+      setCopied(false);
+      if (full.status === 'rendered' && full.filePath) {
+        setRenders((r) => ({ ...r, [full.id]: { url: `/${String(full.filePath).replace(/^\//, '')}` } }));
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setError(err.message);
+    }
+    setOpeningId(null);
+  };
 
   const handleBrief = async (e) => {
     e?.preventDefault();
@@ -889,7 +936,20 @@ export default function MediaStudio({ activeProfile }) {
                   <i className={`fa-solid ${item.kind === 'video' ? 'fa-video' : 'fa-image'}`}></i>
                   <span className={`media-status-chip ${item.status}`}>{statusLabels[item.status] || item.status}</span>
                 </div>
-                <span className="media-library-topic">{item.topic}</span>
+                {item.brief && (item.mode === 'full' || item.mode === 'guided') ? (
+                  <button
+                    type="button"
+                    className="media-library-topic media-library-open"
+                    onClick={() => openItem(item)}
+                    disabled={openingId !== null}
+                    title={t('media.library.open', 'Open this brief')}
+                  >
+                    {openingId === item.id && <i className="fa-solid fa-spinner fa-spin"></i>}{' '}
+                    {item.topic}
+                  </button>
+                ) : (
+                  <span className="media-library-topic">{item.topic}</span>
+                )}
                 {renders[item.id]?.url && (
                   <img
                     className="media-library-thumb animate-fade-in"

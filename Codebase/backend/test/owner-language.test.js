@@ -181,6 +181,36 @@ test('when the live engine fails, the fallback still speaks to the Uzbek owner i
   assert.strictEqual(en.brief.tips[0], 'Wipe the lens first — it is the cheapest quality upgrade there is.');
 });
 
+test('a brief and a competitor insight made in English come back in Uzbek after a language switch', async () => {
+  const translator = (body) => {
+    if (!/^Translate each item/.test(body.system_instruction || '')) return null;
+    const { items } = JSON.parse(body.input);
+    return completed({ items: items.map((it) => ({ id: it.id, text: `UZ:${it.text}` })) });
+  };
+  onGemini = (body) => translator(body) || (String(body.input).includes('a croissant flat lay')
+    ? completed({
+      concept: 'A croissant on linen.', headline: 'Fresh at 8', caption: 'Warm croissants.',
+      visualSpec: { composition: 'flat lay', palette: 'butter', mood: 'calm' },
+      renderPrompt: 'Photoreal ad: a croissant.',
+    })
+    : null);
+
+  const made = await (await post('/api/media/brief', { kind: 'image', mode: 'full', topic: 'a croissant flat lay' }, 'en')).json();
+  assert.strictEqual(made.brief.concept, 'A croissant on linen.');
+
+  const shown = await (await get(`/api/media/${made.id}`)).json();
+  assert.strictEqual(shown.item.brief.concept, 'UZ:A croissant on linen.');
+  assert.strictEqual(shown.item.brief.renderPrompt, 'Photoreal ad: a croissant.');
+  assert.strictEqual(shown.item.brief.translations, undefined);
+  const list = await (await get('/api/media')).json();
+  assert.ok(list.items.every((it) => !it.brief || it.brief.translations === undefined), 'the cache stays on the server');
+
+  const analyzed = await (await post('/api/competitors/analyze', {}, 'en')).json();
+  assert.ok(analyzed.insight.analysis.analysis);
+  const trends = await (await get('/api/competitors/trends')).json();
+  assert.ok(trends.insight.analysis.analysis.startsWith('UZ:'), trends.insight.analysis.analysis);
+});
+
 test('every sentence the server routes through tr() has an Uzbek translation', () => {
   const dir = path.join(__dirname, '..');
   const files = ['.', 'connectors'].flatMap((d) => fs.readdirSync(path.join(dir, d))

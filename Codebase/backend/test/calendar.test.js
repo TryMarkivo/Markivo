@@ -10,7 +10,7 @@ process.env.DB_PATH = TMP_DB;
 process.env.JWT_SECRET = 'test_secret';
 process.env.NODE_ENV = 'test';
 
-const { app } = require('../server');
+const { app, db, runScheduledPostsTick } = require('../server');
 
 const post = (p, body, token) =>
   fetch(base + p, {
@@ -27,7 +27,7 @@ const patch = (p, body, token) =>
 const get = (p, token) => fetch(base + p, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
 const del = (p, token) => fetch(base + p, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
 
-let server, base, token;
+let server, base, token, profileId;
 const NEXT_WEEK = new Date(Date.now() + 7 * 86400000).toISOString();
 
 before(async () => {
@@ -38,10 +38,11 @@ before(async () => {
   const email = `cal${Date.now()}@markivo.uz`;
   const reg = await (await post('/api/auth/register', { email, password: 'secret123', fullName: 'Calendar Owner' })).json();
   token = reg.accessToken;
-  await post('/api/onboarding/construct', {
+  const onb = await (await post('/api/onboarding/construct', {
     businessName: 'Noir Cafe', category: 'Cafe / Coffee Shop', tone: 'Cozy & Warm',
     platforms: { instagram: true },
-  }, token);
+  }, token)).json();
+  profileId = onb.profile.id;
 });
 after(() => {
   server.close();
@@ -133,4 +134,28 @@ test('DELETE cancels a scheduled post, and an already-posted one cannot be moved
 
 test('/api/calendar requires a session', async () => {
   assert.strictEqual((await get('/api/calendar/events')).status, 401);
+});
+
+// Google Business Profile was removed (see 2026-10-19). Posts saved for it
+// before then stay in the database, but nothing may trip over them.
+test('a leftover google_business post is kept off the calendar and skipped by the worker', async () => {
+  const due = new Date(Date.now() - 60000).toISOString();
+  const legacy = db.calendar.add({
+    profileId, platform: 'google_business', postText: 'Old Google update', scheduledTime: due, status: 'scheduled',
+  });
+
+  const res = await get('/api/calendar/events', token);
+  assert.strictEqual(res.status, 200);
+  assert.ok(!(await res.json()).items.some((e) => e.description === 'Old Google update'));
+
+  // The scheduled-post worker leaves it alone instead of failing on it.
+  await runScheduledPostsTick();
+  assert.strictEqual(db.calendar.findById(legacy.id).status, 'scheduled');
+});
+
+test('a client that still asks for Google Business Profile is told it is unknown', async () => {
+  const sched = await post('/api/content/schedule', { platform: 'google_business', postText: 'Hi', scheduledTime: NEXT_WEEK }, token);
+  assert.strictEqual(sched.status, 400);
+  const now = await post('/api/content/post-now', { platform: 'google_business', postText: 'Hi' }, token);
+  assert.strictEqual(now.status, 400);
 });

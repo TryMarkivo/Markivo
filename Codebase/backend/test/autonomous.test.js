@@ -19,14 +19,16 @@ process.env.AUTONOMOUS_ENABLED = 'true';
 // Room for the whole file: the budget tests below drive the limit down
 // deliberately, so the default must not run dry before they get there.
 process.env.AI_LIMIT_FREEMIUM_WRITING = '30';
+// Meta pinned to SANDBOX: defining the credentials as '' keeps dotenv from
+// backfilling real ones, so every connector publish below is simulated
+// (connectors/base.js simulatedPublish) and never touches the network.
+process.env.META_CLIENT_ID = '';
+process.env.META_CLIENT_SECRET = '';
 
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// These cases used 'meta_instagram' as the test platform. With the Meta
-// adapters out of the connector registry, they run against 'google_business'
-// instead — same sandbox publish path (connectors/googleBusiness.js ->
-// simulatedPublish), no network. Swap back to 'meta_instagram' when Meta is
-// re-enabled. (TikTok, the platform this suite used before it, was removed
-// entirely — see 2026-08-15.)
+// These cases publish to 'meta_facebook' through the generic connector path.
+// They ran against 'google_business' until Google Business Profile was
+// removed (see 2026-10-19), and against TikTok before that (removed
+// 2026-08-15).
 const { app, db, runAutonomousTick } = require('../server');
 const autonomous = require('../autonomous');
 const realConfig = require('../config');
@@ -70,16 +72,17 @@ after(() => {
 
 test('config: enabling Autopilot stores platforms and makes it due', async () => {
   const res = await put('/api/autonomous/config', {
-    enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true,
+    enabled: true, platforms: ['meta_facebook'], frequency: 'test', autoPublish: true,
   }, access);
   assert.equal(res.status, 200);
   const { config } = await res.json();
   assert.equal(config.enabled, true);
-  assert.deepEqual(config.platforms, ['google_business']);
+  assert.deepEqual(config.platforms, ['meta_facebook']);
   assert.equal(config.autoPublish, true);
   // Bad platform keys are dropped by the validator.
-  const res2 = await put('/api/autonomous/config', { enabled: true, platforms: ['google_business', 'not_a_platform'], frequency: 'test' }, access);
-  assert.deepEqual((await res2.json()).config.platforms, ['google_business']);
+  // That includes a platform that has been removed (Google Business Profile).
+  const res2 = await put('/api/autonomous/config', { enabled: true, platforms: ['meta_facebook', 'not_a_platform', 'google_business'], frequency: 'test' }, access);
+  assert.deepEqual((await res2.json()).config.platforms, ['meta_facebook']);
 });
 
 test('tick auto-publishes an organic post (sandbox) and never creates an ad', async () => {
@@ -88,7 +91,7 @@ test('tick auto-publishes an organic post (sandbox) and never creates an ad', as
 
   const posted = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted');
   assert.ok(posted.length >= 1, 'an organic post was published (sandbox-simulated)');
-  assert.ok(posted.some((p) => p.platform === 'google_business'));
+  assert.ok(posted.some((p) => p.platform === 'meta_facebook'));
 
   // INVARIANT: Autopilot must never create or run a paid ad campaign.
   const approvals = db.approvals.listByProfile(profileId);
@@ -110,7 +113,7 @@ test('manual "Run now" publishes immediately and returns activity', async () => 
 test('queue mode creates PENDING organic approvals, never auto-approved', async () => {
   // Re-save config (enabling resets next_run_at to now, so it is due again).
   await put('/api/autonomous/config', {
-    enabled: true, platforms: ['google_business', 'telegram'], frequency: 'test', autoPublish: false,
+    enabled: true, platforms: ['meta_facebook', 'telegram'], frequency: 'test', autoPublish: false,
   }, access);
 
   const before = db.approvals.listByProfile(profileId, 100).length;
@@ -138,13 +141,13 @@ test('GET /api/autonomous/approvals lists the pending queue; approve and reject 
   const noAuth = await get('/api/autonomous/approvals');
   assert.equal(noAuth.status, 401);
 
-  // Approve specifically the 'google_business' one (always sandbox-safe here,
-  // since GOOGLE_CLIENT_ID is unset in this test env) rather than an arbitrary
+  // Approve specifically the 'meta_facebook' one (always sandbox-safe here,
+  // since META_CLIENT_ID is pinned to '' in this test env) rather than an arbitrary
   // array element — a 'telegram_post' approval could hit a real, differently-
   // configured Telegram integration in other environments and 400 on publish,
   // which isn't what this test is about. Rejecting never publishes anything,
   // so any other pending row is safe to use there.
-  const toApprove = approvals.find((a) => a.action_payload?.platform === 'google_business') || approvals[0];
+  const toApprove = approvals.find((a) => a.action_payload?.platform === 'meta_facebook') || approvals[0];
   const toReject = approvals.find((a) => a.id !== toApprove.id);
 
   const rejectRes = await post('/api/agent/reject', { approvalId: toReject.id }, access);
@@ -163,7 +166,7 @@ test('GET /api/autonomous/approvals lists the pending queue; approve and reject 
 });
 
 test('a second overlapping tick does not double-run the same profile', async () => {
-  await put('/api/autonomous/config', { enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['meta_facebook'], frequency: 'test', autoPublish: true }, access);
   const now = Date.now() + 20 * 60 * 1000; // safely past the cadence -> due
   const postedBefore = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted').length;
 
@@ -180,7 +183,7 @@ test('a second overlapping tick does not double-run the same profile', async () 
 
 test('Autopilot spends one writing unit per post it creates', async () => {
   await put('/api/autonomous/config', { enabled: false }, access);
-  await put('/api/autonomous/config', { enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['meta_facebook'], frequency: 'test', autoPublish: true }, access);
 
   const before = db.usage.countThisWeek(userId, 'writing');
   const result = await runAutonomousTick({ now: Date.now() });
@@ -294,4 +297,61 @@ test('runProfileAutopilot reads own-connected-account content, persists it, and 
     ownContentFetch: stubOwnContentFetch, profileId: pid, nowMs: Date.now(), force: true,
   });
   assert.deepEqual(fetchCalls, ['meta_instagram'], 'cooldown must prevent a second fetch this soon');
+});
+
+// ---------------------------------------------------------------------------
+// Google Business Profile was removed (see 2026-10-19). A business that set
+// Autopilot up before then still has 'google_business' in its saved config and
+// a connection row for it. Neither may break a run or steer it toward a
+// channel nothing can publish to.
+// ---------------------------------------------------------------------------
+
+test('a config and connection left over from Google Business Profile do not break Autopilot', async () => {
+  // A fresh business, so its weekly allowance is untouched by the budget tests above.
+  const reg = await post('/api/auth/register', { email: `legacygbp${Date.now()}@m.uz`, password: 'secret123', fullName: 'Legacy GBP' });
+  const token = (await reg.json()).accessToken;
+  const onb = await post('/api/onboarding/construct', {
+    businessName: 'Legacy Cafe', category: 'Cafe', description: 'A small cafe in Chilonzor.',
+  }, token);
+  const pid = (await onb.json()).profile.id;
+
+  // Rows as they were saved before the removal, written straight to the db —
+  // the config route's validator would drop the key today.
+  db.connections.upsert({
+    profileId: pid, platform: 'google_business', status: 'sandbox', accountHandle: 'Google Business Profile (sandbox)',
+  });
+  db.autonomous.upsertConfig({
+    profileId: pid, enabled: true, platforms: ['google_business', 'meta_facebook'],
+    frequency: 'test', autoPublish: true, nextRunAt: new Date().toISOString(),
+  });
+
+  // The status route only hands back platforms that still exist.
+  const status = await (await get('/api/autonomous/status', undefined, token)).json();
+  assert.deepEqual(status.config.platforms, ['meta_facebook']);
+
+  const result = await runAutonomousTick({ now: Date.now() });
+  const run = result.results.find((r) => r.profileId === pid);
+  assert.ok(run, 'the business was due and ran');
+  assert.ok(!run.error, 'the run did not throw');
+  assert.equal(run.errors, 0, 'no post was aimed at the removed platform');
+  assert.ok(run.published >= 1, 'the platform that still exists got its post');
+
+  const rows = db.calendar.listByProfile(pid);
+  assert.ok(!rows.some((p) => p.platform === 'google_business'), 'nothing is written for the removed platform');
+  assert.ok(rows.some((p) => p.platform === 'meta_facebook' && p.status === 'posted'));
+  assert.ok(!db.autonomous.listActivity(pid, 50).some((a) => a.kind === 'error'), 'no error is logged for the leftover key');
+
+  await put('/api/autonomous/config', { enabled: false }, token);
+});
+
+test('approving a queued post for Google Business Profile fails cleanly instead of publishing', async () => {
+  // Queued by Autopilot before the platform was removed, still pending.
+  const legacy = db.approvals.create({
+    profileId, actionType: 'platform_post',
+    actionPayload: { action: 'Publish Google Business Profile Post', text: 'Old update', platform: 'google_business', autonomous: true },
+  });
+  const res = await post('/api/agent/approve', { approvalId: legacy.id }, access);
+  assert.equal(res.status, 400);
+  assert.equal(db.approvals.findById(legacy.id).status, 'failed');
+  assert.ok(!db.calendar.listByProfile(profileId).some((p) => p.platform === 'google_business'));
 });

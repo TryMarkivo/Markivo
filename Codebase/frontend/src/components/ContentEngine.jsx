@@ -112,8 +112,8 @@ export default function ContentEngine({ activeProfile, onGoToConnections }) {
     setPostNowError(null);
   };
 
-  // Switching platform tabs clears the draft — copy written for TikTok should
-  // never silently ship to Google Business.
+  // Switching platform tabs clears the draft — copy written for Telegram should
+  // never silently ship to Instagram.
   const handleSelectPlatform = (key) => {
     // Nothing connected yet: the menu is only showing the full catalogue so the
     // engine is explorable. Writing a post here would go nowhere, so send the

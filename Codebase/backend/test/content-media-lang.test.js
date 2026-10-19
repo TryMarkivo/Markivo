@@ -205,7 +205,7 @@ test('post-now to Instagram WITH an uploaded mediaId publishes for real', async 
 test('a non-Instagram platform still records a simulated post, with its media', async () => {
   const mediaId = await uploadMedia();
   const res = await post('/api/content/post-now', {
-    platform: 'google_business', postText: 'Behind the counter', mediaId,
+    platform: 'meta_facebook', postText: 'Behind the counter', mediaId,
   }, access);
   const data = await res.json();
   assert.strictEqual(data.simulated, true);

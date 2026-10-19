@@ -59,7 +59,7 @@ test('PUT /api/profile returns 404 before onboarding', async () => {
 test('PUT /api/profile updates fields and returns platforms map', async () => {
   const construct = await post('/api/onboarding/construct', {
     businessName: 'Noir Cafe', category: 'Cafe / Coffee Shop', tone: 'Cozy & Warm',
-    platforms: { googleBusiness: true, instagram: true, telegram: true },
+    platforms: { instagram: true, telegram: true },
   }, token);
   assert.strictEqual(construct.status, 200);
 

@@ -7,14 +7,20 @@
 // is UNRELATED to this connector — it reads a stranger's public channel for
 // Competitor Intelligence and stays fully live.
 //
+// RESTORING: Google Business Profile was removed on 2026-10-19 and took the
+// shared Google OAuth client config with it. Before uncommenting this file,
+// add `google: { clientId: process.env.GOOGLE_CLIENT_ID || '', clientSecret:
+// process.env.GOOGLE_CLIENT_SECRET || '', enabled: false }` back to
+// config.connectors in config.js, plus the line that computes its `enabled`
+// flag, and document both variables in .env.example.
+//
 // // YouTube adapter — connect a Google account's YouTube channel and "publish" by
 // // uploading a video through the official YouTube Data API v3, on the user's
 // // behalf, behind Markivo's human approval gate. Never scrapes, never impersonates.
 // //
-// // SHARED Google OAuth: YouTube and Google Business Profile both authenticate with
-// // ONE Google Cloud OAuth client (config.connectors.google). Each adapter requests
-// // its own scopes and registers its own redirect URI; the client id/secret is the
-// // same. This adapter is therefore gated by config.connectors.google.enabled.
+// // Google OAuth: authenticates with a Google Cloud OAuth client
+// // (config.connectors.google), requesting only its own upload scope. This
+// // adapter is therefore gated by config.connectors.google.enabled.
 // //
 // // Official docs this adapter follows:
 // //   OAuth 2.0 (web server flow):
@@ -118,8 +124,7 @@
 //     'Google sends you back here and the channel shows as connected.',
 //   ],
 //
-//   // Shares the Google OAuth client (and thus the dashboard "Google" grouping)
-//   // with the Google Business Profile adapter.
+//   // Grouped under the Google OAuth client it signs in with.
 //   group: 'google',
 //
 //   // Live only when the shared Google OAuth client is configured.

@@ -1274,6 +1274,52 @@ async function businessQuestions({ name, category, location, description, audien
   }
 }
 
+const TRANSLATE_STRINGS_SCHEMA = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { id: { type: 'string' }, text: { type: 'string' } },
+        required: ['id', 'text'],
+      },
+    },
+  },
+  required: ['items'],
+};
+
+/**
+ * Translate a batch of short texts the app already wrote for an owner (brief
+ * directions, insights, plans) into `lang`. `items` is [{id, text}]; returns
+ * {id: translated} with every id, or null when Gemini is unavailable or the
+ * answer does not cover them all — the caller then shows the original.
+ */
+async function translateStrings({ items, lang } = {}) {
+  if (!config.geminiEnabled || !LANG_NAMES[lang] || !Array.isArray(items) || !items.length) return null;
+  try {
+    const out = await callGemini({
+      maxTokens: 6000,
+      system:
+        `Translate each item's "text" into ${LANG_NAMES[lang]}. They are notes a marketing app wrote ` +
+        'for a small-business owner: directions, analysis, plans. Write each the way a native writer ' +
+        'would — natural and concise, never word for word. Keep numbers, prices, times, @handles, ' +
+        '#hashtags, brand and product names, emoji and line breaks exactly. Return every id exactly ' +
+        'once with its translation. Respond as JSON only.',
+      user: JSON.stringify({ items }),
+      schema: TRANSLATE_STRINGS_SCHEMA,
+    });
+    const map = {};
+    for (const it of (out && out.items) || []) {
+      if (it && typeof it.id === 'string' && typeof it.text === 'string' && it.text.trim()) map[it.id] = it.text;
+    }
+    return items.every((it) => map[it.id] != null) ? map : null;
+  } catch (err) {
+    console.error('Gemini translateStrings failed:', err.message);
+    return null;
+  }
+}
+
 /**
  * The owner's cached follow-up questions, reworded into `lang`. Keys, types and
  * order never change — answers are stored by key — only the words the owner
@@ -1318,6 +1364,7 @@ module.exports = {
   generateContent,
   businessQuestions,
   translateQuestions,
+  translateStrings,
   QUESTIONS_SCHEMA,
   generateMediaBrief,
   fullAdSystem,

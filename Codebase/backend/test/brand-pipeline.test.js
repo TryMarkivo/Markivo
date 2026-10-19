@@ -28,7 +28,9 @@ const PROFILE = {
 
 test('marketing knowledge modules load with the expected surface', () => {
   assert.ok(frameworks.rulesFor('instagram'), 'instagram platform rules present');
-  assert.ok(frameworks.rulesFor('google_business'), 'google_business rules present');
+  assert.ok(frameworks.rulesFor('telegram'), 'telegram platform rules present');
+  // Google Business Profile was removed (see 2026-10-19) — no voice rules left for it.
+  assert.strictEqual(frameworks.rulesFor('google_business'), null);
   assert.ok(Array.isArray(rubric.dimensions) && rubric.dimensions.length >= 5);
   assert.ok(Array.isArray(rubric.bannedCliches) && rubric.bannedCliches.length >= 20);
   assert.ok(exemplars.forPlatform('instagram'), 'instagram exemplars present');

@@ -25,7 +25,7 @@ const engagementScore = (p) =>
 const fmtCount = (n) => (n == null ? null : Number(n).toLocaleString());
 
 export default function CompetitorIntel({ stats, activeProfile, onGenerateToComposer }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const benchmarkCompetitors = stats.competitors || [];
   const yourPostsPerWeek = stats.yourPostsPerWeek ?? 0;
   const yourChannelsConnected = stats.yourChannelsConnected
@@ -58,7 +58,9 @@ export default function CompetitorIntel({ stats, activeProfile, onGenerateToComp
     api.get('/api/competitors/trends').then((data) => setInsight(data.insight)).catch(() => {});
   }, []);
 
-  useEffect(() => { loadCompetitors(); loadTrends(); }, [loadCompetitors, loadTrends]);
+  // Saved insights come back in the language the owner reads now, so a
+  // language switch reloads them (the server translates and remembers).
+  useEffect(() => { loadCompetitors(); loadTrends(); }, [loadCompetitors, loadTrends, i18n.language]);
 
   const handleRefresh = async (id) => {
     setRefreshingId(id);

@@ -21,7 +21,6 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
   const [drafts, setDrafts] = useState({});
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [showAnswered, setShowAnswered] = useState(false);
 
   const load = async () => {
     setState((s) => ({ ...s, loading: true, error: '' }));
@@ -182,8 +181,6 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
     );
   }
 
-  const pending = state.questions.filter((q) => !q.answered);
-  const answered = state.questions.filter((q) => q.answered);
   const dirty = Object.keys(drafts).length > 0;
 
   return (
@@ -206,50 +203,44 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
         )}
       </div>
 
-      {pending.map((q) => (
-        <div className="form-group completion-question" key={q.key}>
-          <label className="form-label" htmlFor={`pq_${q.key}`}>{label(q)}</label>
+      {/* One list in a fixed order. A question stays where it is once it is
+          answered — now showing the answer, still editable — instead of
+          moving out of sight, so the owner sees what they told Markivo. */}
+      {state.questions.map((q) => (
+        <div className={`form-group completion-question ${q.answered && !q.skipped ? 'is-answered' : ''}`} key={q.key}>
+          <label className="form-label" htmlFor={`pq_${q.key}`}>
+            {label(q)}
+            {q.answered && !q.skipped && (
+              <span className="completion-done" title={t('profileQuestions.answeredMark', 'Answered')}>
+                <i className="fa-solid fa-circle-check"></i>
+              </span>
+            )}
+            {q.answeredBy === 'markiv' && (
+              <span className="completion-badge-src" title={t('profileQuestions.fromMarkiv', 'You told Markiv this in chat')}>
+                <i className="fa-solid fa-comment-dots"></i>
+              </span>
+            )}
+          </label>
           {q.hint && <small className="completion-hint">{hint(q)}</small>}
           {renderInput(q)}
-          <button
-            type="button"
-            className="btn-link completion-skip"
-            onClick={() => submit({ [q.key]: '' })}
-            disabled={busy}
-            id={`btn_skip_${q.key}`}
-          >
-            {t('profileQuestions.skip', "Skip — I'd rather not say")}
-          </button>
+          {!q.answered && (
+            <button
+              type="button"
+              className="btn-link completion-skip"
+              onClick={() => submit({ [q.key]: '' })}
+              disabled={busy}
+              id={`btn_skip_${q.key}`}
+            >
+              {t('profileQuestions.skip', "Skip — I'd rather not say")}
+            </button>
+          )}
+          {q.skipped && (
+            <small className="completion-hint completion-skipped">
+              {t('profileQuestions.skippedNote', 'Skipped. You can still answer it here any time.')}
+            </small>
+          )}
         </div>
       ))}
-
-      {answered.length > 0 && (
-        <>
-          <button
-            type="button"
-            className="btn-link completion-toggle"
-            onClick={() => setShowAnswered((v) => !v)}
-            id="btn_toggle_answered"
-          >
-            <i className={`fa-solid ${showAnswered ? 'fa-chevron-down' : 'fa-chevron-right'}`}></i>{' '}
-            {t('profileQuestions.answeredToggle', 'Already answered ({{count}})', { count: answered.length })}
-          </button>
-          {showAnswered && answered.map((q) => (
-            <div className="form-group completion-question is-answered" key={q.key}>
-              <label className="form-label" htmlFor={`pq_${q.key}`}>
-                {label(q)}
-                {q.answeredBy === 'markiv' && (
-                  <span className="completion-badge-src" title={t('profileQuestions.fromMarkiv', 'You told Markiv this in chat')}>
-                    <i className="fa-solid fa-comment-dots"></i>
-                  </span>
-                )}
-              </label>
-              {q.hint && <small className="completion-hint">{hint(q)}</small>}
-              {renderInput(q)}
-            </div>
-          ))}
-        </>
-      )}
 
       <div className="completion-actions">
         <button className="btn btn-primary" onClick={() => submit()} disabled={busy || !dirty} id="btn_save_answers">

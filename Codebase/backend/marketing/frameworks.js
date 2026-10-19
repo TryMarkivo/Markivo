@@ -57,24 +57,7 @@ const PLATFORM_RULES = {
       "Don't rely on hashtags for discovery — there isn't a feed"
     ]
   },
-  "google_business": {
-    "structure": "Plain, factual, SEO-aware. First sentence states what + where (helps local search). Include the offer, the key detail, hours/dates, and a Google action button (Order, Book, Call, Learn more). No hooks-for-hooks'-sake — searchers have intent already; answer it clearly.",
-    "lengthGuide": "100-300 chars shown before 'more'; keep the essential info in the first 1-2 sentences. Posts expire (~7 days for What's New), so keep them current and specific.",
-    "hashtagPolicy": "None. Hashtags do nothing on Google Business Profile. Use natural keywords instead (category + neighbourhood + service).",
-    "emojiPolicy": "Minimal, 0-1. This is a search surface — keep it clean and professional. An emoji can lead an offer but don't decorate.",
-    "doList": [
-      "Front-load city/neighbourhood + category keywords for local SEO",
-      "Always attach a CTA button (Book/Order/Call/Learn more)",
-      "Post real offers, events, and updates with dates",
-      "Add a clear, well-lit photo of the actual product/place"
-    ],
-    "dontList": [
-      "Don't use hashtags or social-media slang",
-      "Don't keyword-stuff — write a natural sentence a searcher would read",
-      "Don't leave posts stale; expired offers hurt trust",
-      "Don't omit hours, address, or the action button"
-    ]
-  },
+  // Google Business Profile removed — see 2026-10-19.
   // DISABLED: YouTube temporarily off — see 2026-08-15. This is the voice/
   // rules block for PUBLISHING to YouTube via the connector, not the
   // Competitor Intelligence YouTube tracking (which stays live). Uncomment

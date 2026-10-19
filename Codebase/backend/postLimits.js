@@ -6,7 +6,7 @@ const PLATFORM_LIMITS = {
   instagram: 2200,
   meta_facebook: 63206,
   telegram: 4096,
-  google_business: 1500,
+  // Google Business Profile removed — see 2026-10-19.
   // DISABLED: YouTube temporarily off — see 2026-08-15
   // youtube: 5000,
   // TikTok removed — see 2026-08-15.

@@ -245,7 +245,7 @@
   "Drafted {{count}} promotional posts for {{name}} from your profile and description.": "Profilingiz va tavsifingiz asosida {{name}} uchun {{count}} ta reklama posti tayyorlandi.",
   "Drafted {{count}} promotional post for {{name}} from your profile.": "Profilingiz asosida {{name}} uchun {{count}} ta reklama posti tayyorlandi.",
   "Drafted {{count}} promotional posts for {{name}} from your profile.": "Profilingiz asosida {{name}} uchun {{count}} ta reklama posti tayyorlandi.",
-  "No competitors tracked yet for {{name}} — add one in Competitor Intel to start tracking trends.": "Hali {{name}} uchun birorta raqobatchi kuzatilmayapti — trendlarni kuzatishni boshlash uchun \"Raqobatchilar tahlili\" bo'limida raqobatchi qo'shing.",
+  "No competitors tracked yet for {{name}} — add one under Competitors to start tracking trends.": "Hali {{name}} uchun birorta raqobatchi kuzatilmayapti — trendlarni kuzatishni boshlash uchun \"Raqobatchilar\" bo'limida raqobatchi qo'shing.",
   "Add a competitor by pasting their Instagram, YouTube, or Facebook profile link.": "Raqobatchining Instagram, YouTube yoki Facebook profil havolasini qo'yib, uni qo'shing.",
   "{{count}} competitor is tracked{{names}}, but none of their linked platforms have returned post content yet.": "{{count}} ta raqobatchi kuzatilmoqda{{names}}, lekin unga bog'langan platformalarning hech biridan hali post kontenti olinmadi.",
   "{{count}} competitors are tracked{{names}}, but none of their linked platforms have returned post content yet.": "{{count}} ta raqobatchi kuzatilmoqda{{names}}, lekin ularga bog'langan platformalarning hech biridan hali post kontenti olinmadi.",

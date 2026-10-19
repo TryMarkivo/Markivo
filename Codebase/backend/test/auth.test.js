@@ -84,10 +84,13 @@ test('onboarding construct returns profile with platforms map', async () => {
   const reg = await (await post('/api/auth/register', { email, password: 'secret123', fullName: 'Owner' })).json();
   const res = await post('/api/onboarding/construct', {
     businessName: 'Noir Cafe', category: 'Cafe / Coffee Shop', tone: 'Cozy & Warm',
+    // A client built before Google Business Profile was removed still sends
+    // `googleBusiness`; it is dropped instead of becoming a channel row.
     platforms: { googleBusiness: true, instagram: true, telegram: true },
   }, reg.accessToken);
   assert.strictEqual(res.status, 200);
   const data = await res.json();
   assert.strictEqual(data.success, true);
   assert.strictEqual(data.profile.platforms.instagram, true);
+  assert.strictEqual(data.profile.platforms.googleBusiness, undefined);
 });

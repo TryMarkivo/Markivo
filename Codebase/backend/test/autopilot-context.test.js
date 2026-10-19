@@ -15,6 +15,9 @@ process.env.NODE_ENV = 'test';
 process.env.AUTONOMOUS_ENABLED = 'true';
 process.env.GEMINI_API_KEY = '';
 process.env.ANTHROPIC_API_KEY = '';
+// Meta pinned to sandbox, so publishing to 'meta_facebook' below is simulated.
+process.env.META_CLIENT_ID = '';
+process.env.META_CLIENT_SECRET = '';
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');
@@ -70,7 +73,7 @@ after(() => {
 // --- The keyless contract -------------------------------------------------
 
 test('keyless: a profile with any real signal is judged sufficient', () => {
-  const signals = autopilotContext.gatherChannelSignals({ db, profileId, platforms: ['google_business'] });
+  const signals = autopilotContext.gatherChannelSignals({ db, profileId, platforms: ['meta_facebook'] });
   // Onboarding gives this profile a description AND seeds a welcome post, so
   // there is genuinely something to work from.
   assert.ok(signals.recentPosts.length > 0 || signals.profile.description);
@@ -96,10 +99,21 @@ test('keyless: a profile with nothing at all asks the owner up to three question
   assert.ok(assessment.rationale.length > 0, 'the owner is told why it stopped');
 });
 
+test('a connection left over from Google Business Profile is not a channel signal', () => {
+  // Saved before that platform was removed (see 2026-10-19); the row stays in
+  // the database, but it must not count as a connected channel.
+  db.connections.upsert({
+    profileId, platform: 'google_business', status: 'sandbox', accountHandle: 'Google Business Profile (sandbox)',
+  });
+  const signals = autopilotContext.gatherChannelSignals({ db, profileId, platforms: ['meta_facebook'] });
+  assert.ok(!signals.connectedPlatforms.includes('google_business'));
+  db.connections.remove(profileId, 'google_business');
+});
+
 // --- The interrupt --------------------------------------------------------
 
 test('Autopilot halts with paused:needs-context and generates nothing', async () => {
-  await put('/api/autonomous/config', { enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['meta_facebook'], frequency: 'test', autoPublish: true }, access);
 
   const postedBefore = db.calendar.listByProfile(profileId).filter((p) => p.status === 'posted').length;
   const approvalsBefore = db.approvals.listByProfile(profileId, 100).length;
@@ -129,7 +143,7 @@ test('an unanswered request is not re-asked on the next tick', async () => {
   assert.ok(pending, 'the previous test left one open question');
 
   const asksBefore = db.autonomous.listActivity(profileId, 100).filter((a) => a.kind === 'context_needed').length;
-  await put('/api/autonomous/config', { enabled: true, platforms: ['google_business'], frequency: 'test', autoPublish: true }, access);
+  await put('/api/autonomous/config', { enabled: true, platforms: ['meta_facebook'], frequency: 'test', autoPublish: true }, access);
   await runAutonomousTick({ now: Date.now() + 30 * 60 * 1000, gemini: stubInsufficient });
 
   const rows = db.autonomous.listContextRequests(profileId, 50).filter((r) => r.status === 'pending');

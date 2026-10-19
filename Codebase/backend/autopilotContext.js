@@ -22,6 +22,7 @@
 // ==========================================================================
 
 const businessContextService = require('./businessContextService');
+const connectors = require('./connectors/registry');
 const i18n = require('./i18n');
 
 // An unanswered question must not wedge Autopilot forever. After this long the
@@ -41,7 +42,11 @@ const DEFAULT_QUESTIONS = [
 function gatherChannelSignals({ db, profileId, platforms }) {
   const profile = db.profiles.findById(profileId);
 
-  const connectedPlatforms = db.connections.listByProfile(profileId).map((c) => c.platform);
+  // Only platforms that still exist count as a connected channel — a row left
+  // behind by a removed one (Google Business Profile) is not a signal.
+  const connectedPlatforms = db.connections.listByProfile(profileId)
+    .map((c) => c.platform)
+    .filter((p) => connectors.has(p));
   const tg = db.telegram.findByProfile(profileId);
   const ig = db.instagram.findByProfile(profileId);
 

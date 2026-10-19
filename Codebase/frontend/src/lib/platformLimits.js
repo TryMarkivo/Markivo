@@ -7,7 +7,6 @@ export const PLATFORM_LIMITS = {
   instagram: 2200,
   meta_facebook: 63206,
   telegram: 4096,
-  google_business: 1500,
   youtube: 5000,
 };
 

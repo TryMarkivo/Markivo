@@ -114,8 +114,8 @@
       "menuDashboard": "Dashboard",
       "menuContent": "Posts",
       "menuCompetitors": "Competitors",
-      "statGoogle": "Google Maps views",
       "statInstagram": "Instagram growth",
+      "statTelegram": "Telegram growth",
       "agentName": "Markiv, your AI marketer",
       "agentStatus": "Written and scheduled. Waiting for your OK.",
       "postText": "\"Warm pastries, a proper espresso and a quiet booth to get some work done. ☕ We open at 8. Come early: the window seats go first.\"",
@@ -146,7 +146,7 @@
       "pathBTitle": "\"I have nothing yet\"",
       "pathBStep1": "Tell Markivo what you do, where, and who your customers are",
       "pathBStep2": "Pick a logo and slogan made for your business",
-      "pathBStep3": "Markivo sets up your Google Business Profile and social pages",
+      "pathBStep3": "Markivo sets up your social pages",
       "pathBStep4": "It plans your first posts, then starts publishing",
       "pathBCta": "Start from scratch",
       "outro": "Once you're set up, <1>Markiv</1>, your AI marketer, takes over the daily work: writing posts, sorting your inbox, reading the numbers and suggesting your next move."
@@ -157,7 +157,7 @@
       "brandTitle": "A brand from day one",
       "brandText": "Your logo, slogan and tone of voice, made in seconds. You have a complete brand before your first post.",
       "postingTitle": "All your pages, one place",
-      "postingText": "Instagram, Telegram, Facebook and Google. Posts are written, scheduled and published from one screen.",
+      "postingText": "Instagram, Telegram and Facebook. Posts are written, scheduled and published from one screen.",
       "contentTitle": "Photos and video",
       "contentText": "Markivo shows you how to shoot on your phone, touches up your photos and video, and makes AI video sized for each platform.",
       "inboxTitle": "Your inbox, handled",
@@ -179,7 +179,6 @@
         "desc": "Everything you need to get online",
         "feat1": "Full setup on either path",
         "feat2": "AI logo and slogan",
-        "feat3": "Google Business setup",
         "feat4": "Social channels connected",
         "feat5": "25 AI generations a month",
         "cta": "Start free"
@@ -365,8 +364,6 @@
       "luxury": "Luxury & premium"
     },
     "channels": {
-      "googleTitle": "Google Business Profile",
-      "googleOauth": "Sign in with Google to manage your listing from Markivo",
       "instagramTitle": "Instagram Creator account",
       "instagramOauth": "Sign in to manage your Instagram from Markivo",
       "telegramTitle": "Telegram channel",
@@ -395,7 +392,7 @@
       "ratingReviews_other": "{{rating}} · {{count}} reviews",
       "viewOnMaps": "View on Google Maps",
       "googleNotFoundTitle": "Not found on Google Maps",
-      "googleNotFoundText": "We couldn't find \"{{businessName}}\" in {{location}}. Check the spelling and the city, or set up a Google Business Profile. Markivo will walk you through it later.",
+      "googleNotFoundText": "We couldn't find \"{{businessName}}\" in {{location}}. Check the spelling and the city, then search again.",
       "alternativesIntro": "Not your business? We also found:",
       "alternativeItem": "· {{name}} — {{address}} (★ {{rating}})",
       "altSelectTitle": "Use this business instead",
@@ -411,7 +408,7 @@
       "insightFoundCompetitors_one": ", and we spotted {{count}} competitor nearby",
       "insightFoundCompetitors_other": ", and we spotted {{count}} competitors nearby",
       "insightFoundTail": ". Connect your channels and Markivo can keep an eye on those competitors, help people nearby find you in search, and write posts for your customers.",
-      "insightNotFound": "We couldn't find you on Google Maps yet, and for a local business that listing matters more than any other channel. Markivo will help you get listed and start watching your competitors from day one.",
+      "insightNotFound": "We couldn't find you on Google Maps yet. You can still go ahead: connect your channels and Markivo will start watching your competitors from day one.",
       "confirmCta": "Connect and open my dashboard",
       "sampleData": "This is sample data. Add a Google Maps API key to search for your real business."
     },
@@ -420,7 +417,6 @@
       "subtitle": "Hang on a moment while Markivo creates your profiles.",
       "logBrand": "Putting together your brand look…",
       "logLogo": "Saving your logo files…",
-      "logGoogle": "Setting up Google Business Profile…",
       "logInstagram": "Setting up your Instagram profile…",
       "logTelegram": "Setting up your Telegram bot…",
       "logCalendar": "Adding your first draft posts to the calendar…",
@@ -481,14 +477,9 @@
       "competitors": "Competitors",
       "autopilot": "Autopilot"
     },
-    "channels": {
-      "google": "Google Profile"
-    },
     "stats": {
-      "googleViews": "Views on Google Maps",
       "instagramFollowers": "Instagram followers",
       "telegramMembers": "Telegram channel members",
-      "past30Days": "last 30 days",
       "changePositive": "+{{change}}%",
       "drillDown": "See {{platform}} details",
       "collecting": "Not enough data for a trend yet",
@@ -723,7 +714,8 @@
     },
     "library": {
       "title": "Your media",
-      "empty": "Nothing here yet. Make something above or upload a photo or video, and it'll show up here."
+      "empty": "Nothing here yet. Make something above or upload a photo or video, and it'll show up here.",
+      "open": "Open this brief"
     },
     "status": {
       "brief": "Brief",
@@ -899,7 +891,7 @@
     "fallback": {
       "instagramDraft": "I've drafted an Instagram post for you. It's written in your \"{{tone}}\" tone, with local hashtags, and it's ready to go. Want me to schedule it?",
       "competitorGap": "I compared you with competitors nearby. They post 8–12 times a week on average, and you post 3. I'd schedule 3–4 more posts this week to get more likes and comments without paying for ads.",
-      "generic": "You asked me to \"{{query}}\". I can write posts, check what your competitors are doing, or improve the keywords on your Google profile. Type \"create ad campaign\" or tap a suggestion below to approve changes outside Markivo."
+      "generic": "You asked me to \"{{query}}\". I can write posts or check what your competitors are doing. Type \"create ad campaign\" or tap a suggestion below to approve changes outside Markivo."
     },
     "prompts": {
       "draftAnnouncement": "Draft a short announcement post for our business",
@@ -1241,19 +1233,6 @@
           "Select the Facebook Page you want Markivo to post to.",
           "Tick all permissions so Markivo can draft and publish posts."
         ]
-      },
-      "google_business": {
-        "requirements": [
-          "A Google Business Profile listing for your business",
-          "The listing VERIFIED by Google (postcard, phone, or email)",
-          "Owner or manager access on the Google account you sign in with"
-        ],
-        "steps": [
-          "Claim your listing at business.google.com if you have not already.",
-          "Finish Google’s verification — unverified listings cannot receive posts.",
-          "Press Connect and sign in with the Google account that owns the listing.",
-          "Approve the Business Profile permission, then pick the location to post to."
-        ]
       }
     }
   },
@@ -1526,7 +1505,6 @@
     "skip": "Skip, I'd rather not say",
     "save": "Save answers",
     "savedShort": "Saved",
-    "answeredToggle": "Already answered ({{count}})",
     "fromMarkiv": "You told Markiv this in chat",
     "badgeAria": "Questions left about your business: {{count}}",
     "badgeHint": "Finish your profile ({{count}} left)",
@@ -1680,7 +1658,9 @@
         "hint": "Without this, posts default to generic praise.",
         "placeholder": "e.g. we roast on site every morning"
       }
-    }
+    },
+    "answeredMark": "Answered",
+    "skippedNote": "Skipped. You can still answer it here any time."
   },
   "publish": {
     "title": "Post this to your channels",

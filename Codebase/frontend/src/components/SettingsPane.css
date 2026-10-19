@@ -250,7 +250,17 @@
 }
 
 .completion-question.is-answered {
-  opacity: 0.75;
+  border-left: 2px solid var(--accent-success);
+  padding-left: 12px;
+}
+
+.completion-done {
+  margin-left: 6px;
+  color: var(--accent-success);
+}
+
+.completion-skipped {
+  margin: 6px 0 0;
 }
 
 .completion-hint {

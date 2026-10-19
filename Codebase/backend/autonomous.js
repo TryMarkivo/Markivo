@@ -120,11 +120,16 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   // Target platforms: the owner's chosen set intersected with what's actually
   // connected (Telegram counts when a bot is linked). Fall back to the chosen
   // set, then to Instagram, so a keyless/sandbox setup still produces drafts.
+  // Keys with no adapter are dropped first: a config or connection saved before
+  // a platform was removed (Google Business Profile) must not steer the plan
+  // toward a channel nothing can publish to.
+  const known = (p) => p === 'telegram' || !!connectors.get(p);
   const tgConn = db.telegram.findByProfile(profileId);
-  const connected = new Set(db.connections.listByProfile(profileId).map((c) => c.platform));
+  const connected = new Set(db.connections.listByProfile(profileId).map((c) => c.platform).filter(known));
   if (tgConn) connected.add('telegram');
-  let platforms = (cfg.platforms || []).filter((p) => connected.size === 0 || connected.has(p));
-  if (!platforms.length) platforms = (cfg.platforms && cfg.platforms.length) ? cfg.platforms : ['meta_instagram'];
+  const chosen = (cfg.platforms || []).filter(known);
+  let platforms = chosen.filter((p) => connected.size === 0 || connected.has(p));
+  if (!platforms.length) platforms = chosen.length ? chosen : ['meta_instagram'];
 
   const recentPosts = db.calendar.listByProfile(profileId).slice(-5).map((p) => p.post_text).filter(Boolean);
   const competitors = db.competitors.listByProfile(profileId).filter((c) => c.source === 'manual' || c.source === 'places').slice(0, 5).map((c) => c.competitor_name).filter(Boolean);

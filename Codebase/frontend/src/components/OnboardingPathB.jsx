@@ -22,7 +22,6 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
 
   // Channels to create
   const [channels, setChannels] = useState({
-    googleBusiness: true,
     instagram: true,
     telegram: true,
   });
@@ -37,10 +36,6 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
       { text: t('onboarding.pipeline.logBrand', 'Generating brand identity visual package...'), icon: 'fa-palette' },
       { text: t('onboarding.pipeline.logQuestions', 'Preparing follow-up questions about your business...'), icon: 'fa-clipboard-question' }
     ];
-
-    if (channels.googleBusiness) {
-      logs.push({ text: t('onboarding.pipeline.logGoogle', 'Configuring Google Business Profile endpoints...'), icon: 'fa-map-location-dot' });
-    }
 
     if (channels.instagram) {
       logs.push({ text: t('onboarding.pipeline.logInstagram', 'Scaffolding Instagram Business profile structure...'), icon: 'fa-instagram' });
@@ -235,20 +230,6 @@ export default function OnboardingPathB({ onOnboardSuccess }) {
           <p className="subtitle">{t('onboarding.pathB.step4Subtitle', 'Choose which accounts to scaffold automatically. Markivo creates draft structures verified for Central Asia.')}</p>
 
           <div className="results-grid">
-            {/* GOOGLE BUSINESS */}
-            <div className={`result-item glass-card ${channels.googleBusiness ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, googleBusiness: !p.googleBusiness }))} id="btn_select_google">
-              <div className="result-status">
-                <span className="platform-icon google"><i className="fa-brands fa-google"></i></span>
-                <div>
-                  <h4>{t('onboarding.channels.googleTitle', 'Google Business Profile')}</h4>
-                  <p>{t('onboarding.channels.googleOauth', 'Connect via OAuth to manage your Business Profile')}</p>
-                </div>
-              </div>
-              <div className="checkbox-wrap">
-                <i className={`fa-solid ${channels.googleBusiness ? 'fa-square-check checked-icon' : 'fa-square unchecked-icon'}`}></i>
-              </div>
-            </div>
-
             {/* INSTAGRAM */}
             <div className={`result-item glass-card ${channels.instagram ? 'active' : ''}`} onClick={() => setChannels(p => ({ ...p, instagram: !p.instagram }))} id="btn_select_instagram">
               <div className="result-status">

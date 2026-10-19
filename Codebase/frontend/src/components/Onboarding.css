@@ -721,6 +721,11 @@
   cursor: default;
 }
 
+/* Shown for reference, not a toggle (the Google Maps listing the scan found). */
+.result-item.is-info {
+  cursor: default;
+}
+
 .result-meta {
   display: flex;
   align-items: center;

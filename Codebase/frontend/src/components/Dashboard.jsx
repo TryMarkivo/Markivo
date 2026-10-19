@@ -14,13 +14,12 @@ import UpgradePane from './UpgradePane';
 import Sparkline from './Sparkline';
 import PlatformDetail from './PlatformDetail';
 import ThemeToggle from './ThemeToggle';
-import ConnectCard from './ConnectCard';
 import AutomationCalendar from './AutomationCalendar';
 import CreatePost from './CreatePost';
 import AIGenerationModal from './AIGenerationModal';
 import TemplatesModal from './TemplatesModal';
 import StylesModal from './StylesModal';
-import { metaFor, composerKeyFor } from '../lib/platforms';
+import { composerKeyFor } from '../lib/platforms';
 import { categoryLabel, locationLabel } from '../lib/businessVocab';
 import api from '../lib/api';
 import logoUrl from '../assets/markivo-logo.png';
@@ -117,11 +116,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // Bumped after a successful Create Post schedule to remount (and so refetch)
   // the Calendar tab's AutomationCalendar.
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
-  // Catalogue + per-platform connection status from the generic connector
-  // framework — used to power the stat cards' "Connect" hover button for
-  // platforms without a bespoke modal (e.g. Google Business).
-  const [connectCatalogue, setConnectCatalogue] = useState(null);
-  const [connectModalKey, setConnectModalKey] = useState(null);
   // The Business Profile and Upgrade panes are no longer their own sidebar
   // tabs — they open as a modal from clicking the profile card / usage meter.
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -130,13 +124,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // Drives the "!" on the profile card. null until the first fetch answers, so
   // the badge never flashes on and then off.
   const [pendingQuestions, setPendingQuestions] = useState(null);
-
-  const refreshConnectCatalogue = () => {
-    api.get('/api/connect/status')
-      .then(setConnectCatalogue)
-      .catch(() => setConnectCatalogue({ catalogue: [], status: {} }));
-  };
-  useEffect(refreshConnectCatalogue, [activeProfile]);
 
   const refreshTelegramStatus = () => {
     api.get('/api/telegram/status')
@@ -193,8 +180,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         // Fallback static data customized to category
         setStats({
           metrics: {
-            googleViews: { current: 3840, change: 10.2 },
-            googleCalls: { current: 112, change: 5.6 },
             instagramFollowers: { current: 1240, change: 12.8 },
             telegramSubscribers: { current: 890, change: 9.4 }
           },
@@ -453,10 +438,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                   <div className="badge badge-success mb-10" style={{ display: 'block', padding: 8 }} role="status">{igNotice}</div>
                 )}
                 <div className="channels-grid">
-                  <div className={`channel-pill ${activeProfile.platforms.googleBusiness ? 'connected' : 'inactive'}`}>
-                    <i className="fa-brands fa-google"></i> {t('dashboard.channels.google', 'Google Profile')}
-                    <span className="dot"></span>
-                  </div>
                   <div
                     className={`channel-pill ${igStatus?.connected ? 'connected' : 'inactive'}`}
                     onClick={igStatus?.comingSoon ? undefined : () => setIgModalOpen(true)}
@@ -507,24 +488,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
               </div>
 
               {/* CORE METRICS GRID */}
-              <div className="grid-3 stats-grid">
-                
-                {/* GOOGLE MAPS VIEWS */}
-                <StatCard
-                  id="btn_drill_google"
-                  label={t('dashboard.stats.googleViews', 'Google Maps Search Views')}
-                  platformName={t('dashboard.channels.google', 'Google Profile')}
-                  changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.googleViews.change })}
-                  value={stats.metrics.googleViews.current.toLocaleString()}
-                  subtitle={t('dashboard.stats.past30Days', 'past 30 days')}
-                  color="var(--accent-primary)"
-                  history={stats.metrics.googleViews.history}
-                  live={!!stats.metrics.googleViews.live}
-                  connectable
-                  connected={!!connectCatalogue?.status?.google_business?.connected}
-                  onConnect={() => setConnectModalKey('google_business')}
-                  onDrill={() => setDetailPlatform('google')}
-                />
+              <div className="grid-2 stats-grid">
 
                 {/* INSTAGRAM FOLLOWERS */}
                 <StatCard
@@ -718,18 +682,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           status={igStatus}
           onPosted={refreshInstagramStatus}
           onClose={() => setIgComposerOpen(false)}
-        />
-      )}
-
-      {/* --- GENERIC CONNECT MODAL (e.g. Google Business, from a stat card's
-           "Connect" hover button) --- */}
-      {connectModalKey && connectCatalogue?.catalogue?.find((c) => c.key === connectModalKey) && (
-        <ConnectCard
-          platform={connectCatalogue.catalogue.find((c) => c.key === connectModalKey)}
-          status={connectCatalogue.status[connectModalKey] || { connected: false }}
-          meta={metaFor(connectModalKey)}
-          onChanged={refreshConnectCatalogue}
-          onClose={() => setConnectModalKey(null)}
         />
       )}
 

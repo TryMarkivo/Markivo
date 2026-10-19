@@ -114,8 +114,8 @@
       "menuDashboard": "Dashbord",
       "menuContent": "Postlar",
       "menuCompetitors": "Raqobatchilar",
-      "statGoogle": "Google Maps ko'rishlari",
       "statInstagram": "Instagram o'sishi",
+      "statTelegram": "Telegram o'sishi",
       "agentName": "Markiv, AI marketologingiz",
       "agentStatus": "Yozildi va rejalashtirildi. Tasdig'ingizni kutmoqda.",
       "postText": "\"Issiq pishiriqlar, haqiqiy espresso va bemalol ishlash uchun tinch burchak. ☕ Soat 8:00 da ochilamiz. Ertaroq keling: deraza yonidagi joylar tez band bo'ladi.\"",
@@ -146,7 +146,7 @@
       "pathBTitle": "\"Menda hali hech narsa yo'q\"",
       "pathBStep1": "Nima bilan shug'ullanishingiz, qayerdaligingiz va mijozlaringiz kimligini aytasiz",
       "pathBStep2": "Biznesingiz uchun yaratilgan logotip va sloganni tanlaysiz",
-      "pathBStep3": "Markivo Google Business Profile va ijtimoiy tarmoqlardagi sahifalaringizni sozlaydi",
+      "pathBStep3": "Markivo ijtimoiy tarmoqlardagi sahifalaringizni sozlaydi",
       "pathBStep4": "Birinchi postlaringizni rejalashtirib, joylashni boshlaydi",
       "pathBCta": "Noldan boshlash",
       "outro": "Hammasi sozlangach, AI marketologingiz <1>Markiv</1> kundalik ishlarni o'z zimmasiga oladi: post yozadi, pochtangizni saralaydi, raqamlarni tahlil qiladi va keyingi qadamni maslahat beradi."
@@ -157,7 +157,7 @@
       "brandTitle": "Birinchi kundanoq brend",
       "brandText": "Logotip, slogan va muloqot ohangingiz bir necha soniyada tayyor. Birinchi postingizdan oldinoq to'liq brendga ega bo'lasiz.",
       "postingTitle": "Barcha sahifalaringiz bir joyda",
-      "postingText": "Instagram, Telegram, Facebook va Google. Postlar bitta ekrandan yoziladi, rejalashtiriladi va joylanadi.",
+      "postingText": "Instagram, Telegram va Facebook. Postlar bitta ekrandan yoziladi, rejalashtiriladi va joylanadi.",
       "contentTitle": "Foto va video",
       "contentText": "Markivo telefonda qanday suratga olishni o'rgatadi, foto va videolaringizni sayqallaydi hamda har bir platformaga moslangan AI video tayyorlaydi.",
       "inboxTitle": "Pochtangiz doim tartibda",
@@ -179,7 +179,6 @@
         "desc": "Onlaynga chiqish uchun kerak bo'lgan hamma narsa",
         "feat1": "Ikkala yo'lda ham to'liq sozlash",
         "feat2": "AI logotip va slogan",
-        "feat3": "Google Business sozlash",
         "feat4": "Ijtimoiy kanallarni ulash",
         "feat5": "Oyiga 25 ta AI generatsiya",
         "cta": "Bepul boshlash"
@@ -365,8 +364,6 @@
       "luxury": "Hashamatli va premium"
     },
     "channels": {
-      "googleTitle": "Google Business Profile",
-      "googleOauth": "Biznes profilingizni boshqarish uchun OAuth orqali ulaning",
       "instagramTitle": "Instagram Creator akkaunti",
       "instagramOauth": "Instagram akkauntingizni boshqarish uchun OAuth orqali ulaning",
       "telegramTitle": "Telegram biznes kanali",
@@ -395,7 +392,7 @@
       "ratingReviews_other": "{{rating}} · {{count}} ta sharh",
       "viewOnMaps": "Google Maps'da ko'rish",
       "googleNotFoundTitle": "Google Maps'da topilmadi",
-      "googleNotFoundText": "{{location}} hududida \"{{businessName}}\"ni topa olmadik. Nomi va manzilini tekshiring yoki Google Business Profile yarating — Markivo keyin qanday qilishni ko'rsatadi.",
+      "googleNotFoundText": "{{location}} hududida \"{{businessName}}\"ni topa olmadik. Nomi va shaharni tekshirib, qaytadan qidirib ko'ring.",
       "alternativesIntro": "Bu siz emasmi? Yana shularni topdik:",
       "alternativeItem": "· {{name}} — {{address}} (★ {{rating}})",
       "altSelectTitle": "Shu biznesni tanlash",
@@ -411,7 +408,7 @@
       "insightFoundCompetitors_one": ", yaqin atrofda esa {{count}} ta o'xshash raqobatchi bor",
       "insightFoundCompetitors_other": ", yaqin atrofda esa {{count}} ta o'xshash raqobatchi bor",
       "insightFoundTail": ". Kanallaringizni ulasangiz, Markiv raqobatchilarni kuzatib boradi, mahalliy qidiruvda yuqoriroq chiqishingizga yordam beradi va mijozlaringizga mos postlar tayyorlaydi.",
-      "insightNotFound": "Google Maps'da sahifangizni hali topa olmadik — holbuki yaqin atrofdagi mijozlar sizni eng ko'p aynan u yerdan qidiradi. Markivo birinchi kundanoq u yerda paydo bo'lishingizga va raqobatchilarni kuzatishga yordam beradi.",
+      "insightNotFound": "Sizni Google Maps'da hali topa olmadik. Baribir davom etishingiz mumkin: kanallaringizni ulang, Markivo esa birinchi kundanoq raqobatchilaringizni kuzatishni boshlaydi.",
       "confirmCta": "Kanallarni ulash va dashbordga kirish",
       "sampleData": "Bu namuna — haqiqiy tekshiruv uchun Maps API kalitini qo'shing"
     },
@@ -420,7 +417,6 @@
       "subtitle": "Bir oz kuting — Markivo profillaringizni yaratib, ro'yxatdan o'tkazyapti.",
       "logBrand": "Brendingiz ko'rinishi tayyorlanmoqda...",
       "logLogo": "Logotip SVG va PNG formatida, yuqori sifatda saqlanmoqda...",
-      "logGoogle": "Google Business Profile ulanishi sozlanmoqda...",
       "logInstagram": "Instagram biznes profili tayyorlanmoqda...",
       "logTelegram": "Telegram kanali uchun xavfsiz bot ulanmoqda...",
       "logCalendar": "Kalendarga ilk post qoralamalari qo'yilmoqda...",
@@ -481,14 +477,9 @@
       "competitors": "Raqobatchilar",
       "autopilot": "Avtopilot"
     },
-    "channels": {
-      "google": "Google profili"
-    },
     "stats": {
-      "googleViews": "Google Maps'da ko'rishlar",
       "instagramFollowers": "Instagram obunachilari",
       "telegramMembers": "Telegram kanal a'zolari",
-      "past30Days": "so'nggi 30 kun",
       "changePositive": "+{{change}}%",
       "drillDown": "{{platform}} bo'yicha batafsil statistikani ko'rsatish",
       "collecting": "Ma'lumotlar yig'ilmoqda…",
@@ -723,7 +714,8 @@
     },
     "library": {
       "title": "Medialaringiz",
-      "empty": "Hozircha bo'sh — brif yarating yoki rasm-video yuklang."
+      "empty": "Hozircha bo'sh — brif yarating yoki rasm-video yuklang.",
+      "open": "Brifni ochish"
     },
     "status": {
       "brief": "Brif",
@@ -899,7 +891,7 @@
     "fallback": {
       "instagramDraft": "«AI kontent» bo'limida siz uchun Instagram post qoralamasini tayyorlab qo'ydim. U \"{{tone}}\" ohangida yozilgan, mahalliy heshteglari ham bor — joylashga tayyor. Rejalashtirib qo'yaymi?",
       "competitorGap": "Yaqin atrofdagi raqobatchilarni tahlil qildim. Ular haftasiga o'rtacha 8–12 marta post joylaydi, siz esa hozir haftasiga 3 marta. Bu hafta kalendarga yana 3–4 ta post qo'shishni maslahat beraman — obunachilar faolligi oshadi.",
-      "generic": "Tushundim: \"{{query}}\". Men matn yozib berishim, raqobatchilar trendlarini ko'rib chiqishim yoki Google profilingiz kalit so'zlarini yaxshilashim mumkin. Tashqi o'zgarishlarga ruxsat berish uchun «Reklama kampaniyasini yarat» deb yozing yoki quyidagi takliflardan birini bosing."
+      "generic": "Tushundim: \"{{query}}\". Men matn yozib berishim yoki raqobatchilar trendlarini ko'rib chiqishim mumkin. Tashqi o'zgarishlarga ruxsat berish uchun «Reklama kampaniyasini yarat» deb yozing yoki quyidagi takliflardan birini bosing."
     },
     "prompts": {
       "draftAnnouncement": "Biznesimiz uchun qisqa e'lon yozib ber",
@@ -1289,19 +1281,6 @@
           "Markivo post joylaydigan Facebook sahifasini tanlang.",
           "Markivo postlarni tayyorlab, joylay olishi uchun barcha ruxsatlarni belgilang."
         ]
-      },
-      "google_business": {
-        "requirements": [
-          "Biznesingiz uchun Google Business Profile sahifasi",
-          "Google TASDIQLAGAN sahifa (pochta orqali xat, telefon yoki email bilan)",
-          "Kiradigan Google akkauntingizda ega yoki menejer huquqi"
-        ],
-        "steps": [
-          "Agar hali qilmagan bo'lsangiz, business.google.com saytida sahifangiz sizniki ekanini tasdiqlang.",
-          "Google tasdiqlashini yakunlang — tasdiqlanmagan sahifalarga post joylab bo'lmaydi.",
-          "«Ulash» tugmasini bosing va sahifa egasi bo'lgan Google akkaunti bilan kiring.",
-          "Business Profile ruxsatini bering, keyin post joylanadigan filialni tanlang."
-        ]
       }
     }
   },
@@ -1526,7 +1505,6 @@
     "skip": "O'tkazib yuborish — aytmayman",
     "save": "Javoblarni saqlash",
     "savedShort": "Saqlandi!",
-    "answeredToggle": "Javob berilgan ({{count}})",
     "fromMarkiv": "Buni Markivga chatda aytgansiz",
     "badgeAria": "Biznesingiz haqida {{count}} ta javobsiz savol",
     "badgeHint": "Yana {{count}} ta savolga javob bering",
@@ -1680,7 +1658,9 @@
         "hint": "Busiz postlar umumiy maqtovga aylanib qoladi.",
         "placeholder": "masalan, har kuni ertalab joyida qovuramiz"
       }
-    }
+    },
+    "answeredMark": "Javob berilgan",
+    "skippedNote": "O'tkazib yuborilgan. Istalgan payt shu yerda javob berishingiz mumkin."
   },
   "publish": {
     "title": "Rasm yoki videoni joylash",

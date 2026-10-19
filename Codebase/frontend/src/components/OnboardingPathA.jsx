@@ -29,9 +29,10 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
   // Index of the alternative slot whose competitor refresh is in flight (null = idle).
   const [altSwapIndex, setAltSwapIndex] = useState(null);
 
-  // Checked statuses for platforms to connect
+  // Checked statuses for platforms to connect. The Google Maps listing the
+  // scan finds is shown for reference only: it is public discovery data, not a
+  // channel Markivo connects to or posts on.
   const [connections, setConnections] = useState({
-    googleBusiness: true,
     instagram: true,
     telegram: true,
   });
@@ -72,7 +73,6 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
       setScanResults(data);
       // Pre-select only what the scan actually found — honesty over optimism.
       setConnections({
-        googleBusiness: !!data.googleBusiness?.found,
         instagram: !!data.instagram?.found,
         // A comingSoon telegram detection is informational only — the integration is still gated.
         telegram: !!data.telegram?.found && !data.telegram?.comingSoon,
@@ -261,9 +261,9 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
           )}
 
           <div className="results-grid">
-            {/* GOOGLE BUSINESS */}
+            {/* GOOGLE MAPS LISTING — found by the discovery scan, shown for reference */}
             {g?.found ? (
-              <div className={`result-item glass-card ${connections.googleBusiness ? 'active' : ''}`} onClick={() => handleConnectionToggle('googleBusiness')} id="btn_verify_google">
+              <div className="result-item glass-card active is-info" id="card_google_found">
                 <div className="result-status">
                   <span className="platform-icon google"><i className="fa-brands fa-google"></i></span>
                   <div>
@@ -278,18 +278,11 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                     )}
                     {g.address && <p className="result-meta">{g.address}</p>}
                     {g.mapsUrl && (
-                      <a href={g.mapsUrl} target="_blank" rel="noreferrer" className="link-text" onClick={(e) => e.stopPropagation()}>
+                      <a href={g.mapsUrl} target="_blank" rel="noreferrer" className="link-text">
                         {t('onboarding.results.viewOnMaps', 'View on Google Maps')} <i className="fa-solid fa-arrow-up-right-from-square"></i>
                       </a>
                     )}
                   </div>
-                </div>
-                <div className="checkbox-wrap">
-                  {connections.googleBusiness ? (
-                    <i className="fa-solid fa-circle-check checked-icon"></i>
-                  ) : (
-                    <i className="fa-regular fa-circle unchecked-icon"></i>
-                  )}
                 </div>
               </div>
             ) : (
@@ -298,7 +291,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                   <span className="platform-icon google"><i className="fa-brands fa-google"></i></span>
                   <div>
                     <h4>{t('onboarding.results.googleNotFoundTitle', 'Not found on Google Maps')}</h4>
-                    <p>{t('onboarding.results.googleNotFoundText', { defaultValue: 'We couldn\'t find "{{businessName}}" in {{location}}. Check the spelling and location, or create a Google Business Profile — Markivo will guide you later.', businessName, location })}</p>
+                    <p>{t('onboarding.results.googleNotFoundText', { defaultValue: 'We couldn\'t find "{{businessName}}" in {{location}}. Check the spelling and the city, then search again.', businessName, location })}</p>
                   </div>
                 </div>
               </div>
@@ -450,7 +443,7 @@ export default function OnboardingPathA({ onOnboardSuccess, onCancel }) {
                   + (g.rating != null ? t('onboarding.results.insightFoundRating', { defaultValue: ' with a {{rating}}★ rating across {{count}} reviews', rating: g.rating, count: g.reviewsCount }) : '')
                   + (scanResults.competitors?.length ? t('onboarding.results.insightFoundCompetitors', { defaultValue_one: ', and we spotted {{count}} similar business competing nearby', defaultValue_other: ', and we spotted {{count}} similar businesses competing nearby', count: scanResults.competitors.length }) : '')
                   + t('onboarding.results.insightFoundTail', '. Connecting your channels lets the Markivo agent track competitors, strengthen your local SEO, and draft content tuned to your audience.')
-                : t('onboarding.results.insightNotFound', "We couldn't confirm a Google Maps listing yet — that's the single highest-impact channel for local discovery. Markivo will help you establish your presence and start tracking competitors from day one.")}
+                : t('onboarding.results.insightNotFound', "We couldn't find you on Google Maps yet. You can still go ahead: connect your channels and Markivo will start watching your competitors from day one.")}
             </p>
           </div>
 

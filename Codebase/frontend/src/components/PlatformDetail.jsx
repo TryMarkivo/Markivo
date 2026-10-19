@@ -4,13 +4,12 @@ import api from '../lib/api';
 import Sparkline from './Sparkline';
 import './PlatformDetail.css';
 
-// Presentation for the four channels the dashboard charts. Kept local rather
+// Presentation for the channels the dashboard charts. Kept local rather
 // than reusing lib/platforms.js, which is keyed by CONNECTOR id
 // ('meta_instagram'); the dashboard metrics speak the plain platform name.
 const LOOK = {
   instagram: { label: 'Instagram', icon: 'fa-brands fa-instagram', color: '#E1306C' },
   telegram: { label: 'Telegram', icon: 'fa-brands fa-telegram', color: 'var(--tg-blue, #229ED9)' },
-  google: { label: 'Google Business', icon: 'fa-brands fa-google', color: '#4285F4' },
 };
 
 const num = (v, lang) => (v === null || v === undefined ? null : Number(v).toLocaleString(lang));

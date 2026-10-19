@@ -279,7 +279,7 @@ export default function App() {
           ...payload,
           targetAudience: payload.audience,
           brandTone: payload.tone,
-          platforms: { googleBusiness: true, instagram: true, telegram: true },
+          platforms: { instagram: true, telegram: true },
         });
         return;
       }

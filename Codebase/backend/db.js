@@ -1018,6 +1018,10 @@ module.exports = function createDb(dbPath) {
           'SELECT * FROM competitor_insights WHERE competitor_id = ? ORDER BY created_at DESC LIMIT 1'
         ).get(competitorId));
       },
+      // Rewrites the stored analysis — used to keep its translations with it.
+      setAnalysis(insightId, analysis) {
+        sqlite.prepare('UPDATE competitor_insights SET analysis = ? WHERE id = ?').run(JSON.stringify(analysis), insightId);
+      },
     },
 
     // Live reads of the business's OWN connected accounts (Autopilot's

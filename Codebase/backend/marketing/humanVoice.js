@@ -19,7 +19,7 @@ const VOICE =
   '- Never invent a detail that is not in the memory: no made-up times of day, moods, weather, customer ' +
   'habits or family stories. If the memory says "the owner\'s mother bakes it", do not turn it into "my mom".\n' +
   '- No machine scaffolding: no emoji bullet lists or emoji at the start of several lines, no label lines ' +
-  '("Price:", "Address:") outside Google Business, no markdown (**bold**, headings), at most one dash ' +
+  '("Price:", "Address:"), no markdown (**bold**, headings), at most one dash ' +
   'as punctuation, no "Not just X, it\'s Y", no "Whether you\'re… or…", no rhetorical-question opener, ' +
   'no three-adjective stacks, no sign-off like "We can\'t wait to see you!" or "Don\'t miss out!". On ' +
   'Telegram a single 📍 address line is fine when the post needs one.\n' +

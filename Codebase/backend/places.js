@@ -224,6 +224,11 @@ function mapTopMatch(businessName, places) {
  * Full discovery scan. Returns the complete response body for
  * POST /api/discovery/scan in both keyless (mock) and live modes:
  *   { live, googleBusiness, instagram, telegram, aiSearchPresence, competitors }
+ *
+ * `googleBusiness` is the business's PUBLIC Google Maps listing as Places
+ * returns it (name, rating, address, placeId). It is read-only discovery and
+ * has nothing to do with the Google Business Profile connector, which was
+ * removed on 2026-10-19; the field name is kept so the API shape stays stable.
  */
 async function scanBusiness({ businessName, location = 'Tashkent' }, { fetchImpl = fetch } = {}) {
   if (!isLive()) {

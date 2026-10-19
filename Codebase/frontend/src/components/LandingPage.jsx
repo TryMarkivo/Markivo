@@ -98,7 +98,6 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
             )}
           </div>
           <div className="hero-channels animate-fade-in">
-            <span><i className="fa-brands fa-google"></i> Google</span>
             <span><i className="fa-brands fa-instagram"></i> Instagram</span>
             <span><i className="fa-brands fa-telegram"></i> Telegram</span>
           </div>
@@ -122,14 +121,14 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
             <div className="preview-main">
               <div className="preview-row">
                 <div className="preview-stat-card">
-                  <span className="stat-label">{t('landing.preview.statGoogle', 'Google Maps views')}</span>
-                  <span className="stat-value text-accent">+12.4%</span>
-                  <div className="stat-chart-mini"><i className="fa-solid fa-chart-area"></i></div>
-                </div>
-                <div className="preview-stat-card">
                   <span className="stat-label">{t('landing.preview.statInstagram', 'Instagram growth')}</span>
                   <span className="stat-value text-purple">+15.6%</span>
                   <div className="stat-chart-mini"><i className="fa-solid fa-chart-line"></i></div>
+                </div>
+                <div className="preview-stat-card">
+                  <span className="stat-label">{t('landing.preview.statTelegram', 'Telegram growth')}</span>
+                  <span className="stat-value text-accent">+12.4%</span>
+                  <div className="stat-chart-mini"><i className="fa-solid fa-chart-area"></i></div>
                 </div>
               </div>
               <div className="preview-post-box glass-card">
@@ -201,7 +200,7 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
             <ol className="path-steps">
               <li>{t('landing.paths.pathBStep1', 'Tell Markivo what you do, where, and who your customers are')}</li>
               <li>{t('landing.paths.pathBStep2', 'Pick a logo and slogan made for your business')}</li>
-              <li>{t('landing.paths.pathBStep3', 'Markivo sets up your Google Business Profile and social pages')}</li>
+              <li>{t('landing.paths.pathBStep3', 'Markivo sets up your social pages')}</li>
               <li>{t('landing.paths.pathBStep4', 'It plans your first posts, then starts publishing')}</li>
             </ol>
             <button className="btn btn-primary w-full" onClick={() => onStartOnboarding('B')} id="btn_path_b">
@@ -228,7 +227,7 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
           <div className="feature-card glass-card">
             <div className="feature-icon icon-blue"><i className="fa-solid fa-paper-plane"></i></div>
             <h3>{t('landing.features.postingTitle', 'All your pages, one place')}</h3>
-            <p>{t('landing.features.postingText', 'Instagram, Telegram, Facebook and Google. Posts are written, scheduled and published from one screen.')}</p>
+            <p>{t('landing.features.postingText', 'Instagram, Telegram and Facebook. Posts are written, scheduled and published from one screen.')}</p>
           </div>
           <div className="feature-card glass-card">
             <div className="feature-icon icon-purple"><i className="fa-solid fa-camera"></i></div>
@@ -290,7 +289,6 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
             <ul className="plan-features">
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat1', 'Full setup on either path')}</li>
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat2', 'AI logo and slogan')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat3', 'Google Business setup')}</li>
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat4', 'Social channels connected')}</li>
               <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat5', '25 AI generations a month')}</li>
             </ul>

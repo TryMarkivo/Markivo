@@ -238,15 +238,17 @@ const config = {
   instagramScopes: 'instagram_business_basic,instagram_business_content_publish',
 
   // --- Platform connector framework (connectors/*) ---
-  // Meta (Facebook/Instagram) and Google (Google Business/YouTube) OAuth
-  // adapters. Each platform goes LIVE only when its client credentials are
-  // present; otherwise isLive() is false and the adapter runs in sandbox mode
-  // (simulated publishes) — so Autopilot and the agent work fully keyless.
+  // Meta (Facebook/Instagram) OAuth adapters. A platform goes LIVE only when
+  // its client credentials are present; otherwise isLive() is false and the
+  // adapter runs in sandbox mode (simulated publishes) — so Autopilot and the
+  // agent work fully keyless.
   // `redirectBase` is the public origin the /api/connect/* callbacks live under.
   // `enabled` flags are computed below from the credentials.
-  // NOTE: config.connectors.google also gates connectors/youtube.js, which is
-  // currently commented out (DISABLED: YouTube temporarily off — see
-  // 2026-08-15) — googleBusiness stays live off this same client either way.
+  // The Google OAuth client (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) was
+  // removed with Google Business Profile — see 2026-10-19. Its only live user
+  // was that adapter; connectors/youtube.js (DISABLED, see 2026-08-15) needs a
+  // `google: { clientId, clientSecret, enabled }` block added back here, plus
+  // its `enabled` line below, before it can be restored.
   connectors: {
     redirectBase:
       process.env.CONNECTORS_REDIRECT_BASE ||
@@ -257,18 +259,12 @@ const config = {
       clientSecret: process.env.META_CLIENT_SECRET || '',
       enabled: false,
     },
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      enabled: false,
-    },
   },
 };
 
 // A connector is live only when BOTH halves of its OAuth client are configured.
 // Until then the adapter stays in sandbox mode (simulated publishing).
 config.connectors.meta.enabled = !!(config.connectors.meta.clientId && config.connectors.meta.clientSecret);
-config.connectors.google.enabled = !!(config.connectors.google.clientId && config.connectors.google.clientSecret);
 
 config.geminiEnabled = !!config.geminiApiKey;
 // Image and video rendering ride the same Gemini key as the text engines —

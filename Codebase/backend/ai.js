@@ -493,7 +493,6 @@ function templateEditPlan({ instructions, media, profile, lang }) {
     exportSpec: {
       instagram: '1080x1350 (4:5) feed / 1080x1920 (9:16) reels & stories',
       telegram: '1280x1280 (1:1), under 10MB for instant preview',
-      googleBusiness: '1200x900 (4:3) photo posts',
     },
     engineStatus: 'awaiting_media_api',
   };
@@ -521,7 +520,6 @@ function templateEditPlanUz({ instructions, media, profile }) {
     exportSpec: {
       instagram: '1080x1350 (4:5) lenta / 1080x1920 (9:16) Reels va Stories',
       telegram: "1280x1280 (1:1), tezkor ko'rinish uchun 10MB dan kichik",
-      googleBusiness: '1200x900 (4:3) rasmli postlar',
     },
     engineStatus: 'awaiting_media_api',
   };
@@ -760,7 +758,7 @@ function templateCompetitorTrends(ctx) {
     // Nothing tracked at all yet.
     if (!trackedCompetitors.length) {
       return {
-        analysis: i18n.tr(lang, 'No competitors tracked yet for {{name}} — add one in Competitor Intel to start tracking trends.',
+        analysis: i18n.tr(lang, 'No competitors tracked yet for {{name}} — add one under Competitors to start tracking trends.',
           { name: businessName || i18n.tr(lang, 'your business') }),
         themes: [],
         recommendation: i18n.tr(lang, 'Add a competitor by pasting their Instagram, YouTube, or Facebook profile link.'),
@@ -1078,7 +1076,7 @@ async function agentAct(ctx) {
       input_schema: {
         type: 'object',
         properties: {
-          platform: { type: 'string', description: "Target platform, e.g. 'instagram', 'telegram', 'google_business'." },
+          platform: { type: 'string', description: "Target platform, e.g. 'instagram' or 'telegram'." },
           text: { type: 'string', description: 'The complete, final post text to schedule.' },
           scheduledTime: { type: 'string', description: 'ISO 8601 datetime to publish at, e.g. 2026-06-12T10:00:00Z.' },
         },
@@ -1117,7 +1115,7 @@ async function agentAct(ctx) {
       input_schema: {
         type: 'object',
         properties: {
-          platform: { type: 'string', description: "Target platform, e.g. 'instagram', 'telegram', 'google_business'." },
+          platform: { type: 'string', description: "Target platform, e.g. 'instagram' or 'telegram'." },
           topic: { type: 'string', description: 'What the post should be about.' },
         },
         required: ['topic'],
@@ -1527,9 +1525,8 @@ const EDIT_PLAN_SCHEMA = {
       properties: {
         instagram: { type: 'string' },
         telegram: { type: 'string' },
-        googleBusiness: { type: 'string' },
       },
-      required: ['instagram', 'telegram', 'googleBusiness'],
+      required: ['instagram', 'telegram'],
       additionalProperties: false,
     },
   },

@@ -30,7 +30,7 @@ before(async () => {
   token = reg.accessToken;
   await post('/api/onboarding/construct', {
     businessName: 'Yunusobod Arena', category: 'Local Restaurant / Food', tone: 'Energetic & Fast-paced',
-    platforms: { googleBusiness: true, instagram: true, telegram: true },
+    platforms: { instagram: true, telegram: true },
   }, token);
 });
 after(() => {
