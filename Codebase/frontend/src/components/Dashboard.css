@@ -689,9 +689,12 @@
 .stat-card.is-empty {
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   align-items: flex-start;
-  gap: 10px;
-  padding: 20px 24px;
+  gap: 8px;
+  min-height: 0;
+  height: auto;
+  padding: 18px 20px;
   cursor: default;
 }
 
@@ -706,4 +709,8 @@
 
 .trend-percentage.negative {
   color: var(--ui-danger);
+}
+
+.dash-notice {
+  margin-bottom: 16px;
 }

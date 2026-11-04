@@ -25,18 +25,22 @@ import InfoTip from './ui/InfoTip';
 // A metric card. Connected: the real number, its trend and a sparkline, and a
 // click opens the platform drill-down. Not connected: no number at all (never
 // an invented one), just what connecting would show and the button to do it.
-function StatCard({ id, label, platformName, change, value, subtitle, color, history, live, onConnect, onDrill }) {
+function StatCard({ id, label, platformName, change, value, subtitle, color, history, live, soon, connectLabel, onConnect, onDrill }) {
   const { t } = useTranslation();
   if (!live) {
     return (
       <div className="stat-card glass-card is-empty" id={id}>
         <span className="stat-label">{label}</span>
         <p className="stat-empty-text">
-          {t('dashboard.stats.connectToSee', { defaultValue: 'Connect {{platform}} to see this number here.', platform: platformName })}
+          {soon
+            ? t('dashboard.stats.soon', { defaultValue: '{{platform}} is coming soon. Its numbers will show here.', platform: platformName })
+            : t('dashboard.stats.connectToSee', { defaultValue: 'Connect {{platform}} to see this number here.', platform: platformName })}
         </p>
-        <button className="btn btn-primary btn-sm" onClick={onConnect} id={`${id}_connect`}>
-          {t('connections.setupTitle', { defaultValue: 'Connect {{label}}', label: platformName })}
-        </button>
+        {!soon && (
+          <button className="btn btn-primary btn-sm" onClick={onConnect} id={`${id}_connect`}>
+            {connectLabel || t('connections.setupTitle', { defaultValue: 'Connect {{label}}', label: platformName })}
+          </button>
+        )}
       </div>
     );
   }
@@ -412,61 +416,9 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                 </div>
               )}
 
-              {/* CONNECTED PLATFORMS */}
-              <div className="channels-status-row">
-                <h3>{t('dashboard.activeInfrastructure', 'Your Active Infrastructure')}</h3>
-                {igNotice && (
-                  <div className="badge badge-success mb-10" style={{ display: 'block', padding: 8 }} role="status">{igNotice}</div>
-                )}
-                <div className="channels-grid">
-                  <div
-                    className={`channel-pill ${igStatus?.connected ? 'connected' : 'inactive'}`}
-                    onClick={igStatus?.comingSoon ? undefined : () => setIgModalOpen(true)}
-                    style={{ cursor: igStatus?.comingSoon ? 'default' : 'pointer' }}
-                    title={
-                      igStatus?.comingSoon
-                        ? t('instagram.pillTitleSoon', 'Instagram connection is coming soon')
-                        : igStatus?.connected
-                          ? t('instagram.pillTitleConnected', { defaultValue: 'Connected as @{{username}}', username: igStatus.username || igStatus.accountName || '' })
-                          : t('instagram.pillTitleConnect', 'Click to connect Instagram')
-                    }
-                    id="btn_instagram_pill"
-                  >
-                    <i className="fa-brands fa-instagram"></i>{' '}
-                    {igStatus?.comingSoon
-                      ? t('instagram.pillSoon', 'Instagram · soon')
-                      : igStatus?.connected
-                        ? (igStatus.username
-                          ? t('instagram.pillConnected', { defaultValue: 'Instagram · @{{username}}', username: igStatus.username })
-                          : t('instagram.pillConnectedGeneric', 'Instagram · connected'))
-                        : t('instagram.pillConnect', 'Instagram · connect')}
-                    <span className="dot"></span>
-                  </div>
-                  <div
-                    className={`channel-pill ${tgStatus?.connected && tgStatus?.chat ? 'connected' : 'inactive'}`}
-                    onClick={tgStatus?.comingSoon ? undefined : () => setTgModalOpen(true)}
-                    style={{ cursor: tgStatus?.comingSoon ? 'default' : 'pointer' }}
-                    title={
-                      tgStatus?.comingSoon
-                        ? t('telegram.pillTitleSoon', 'Telegram integration is coming soon')
-                        : tgStatus?.connected
-                          ? t('telegram.pillTitleBot', { defaultValue: 'Bot @{{username}}', username: tgStatus.botUsername })
-                          : t('telegram.pillTitleConnect', 'Click to connect Telegram')
-                    }
-                    id="btn_telegram_pill"
-                  >
-                    <i className="fa-brands fa-telegram"></i>{' '}
-                    {tgStatus?.comingSoon
-                      ? t('telegram.pillSoon', 'Telegram · soon')
-                      : tgStatus?.connected && tgStatus?.chat
-                        ? t('telegram.pillChat', { defaultValue: 'Telegram · {{chatTitle}}', chatTitle: tgStatus.chat.chatTitle })
-                        : tgStatus?.connected
-                          ? t('telegram.pillFinishSetup', 'Telegram · finish setup')
-                          : t('telegram.pillConnect', 'Telegram · connect')}
-                    <span className="dot"></span>
-                  </div>
-                </div>
-              </div>
+              {igNotice && (
+                <div className="ui-alert is-ok dash-notice" role="status">{igNotice}</div>
+              )}
 
               {/* CORE METRICS GRID */}
               <div className="grid-2 stats-grid">
@@ -482,6 +434,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                   color="var(--accent-purple)"
                   history={stats.metrics.instagramFollowers.history}
                   live={!!stats.metrics.instagramFollowers.live}
+                  soon={!!igStatus?.comingSoon}
                   onConnect={() => setIgModalOpen(true)}
                   onDrill={() => setDetailPlatform('instagram')}
                 />
@@ -497,6 +450,8 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                   color="var(--accent-secondary)"
                   history={stats.metrics.telegramSubscribers.history}
                   live={!!stats.metrics.telegramSubscribers.live}
+                  soon={!!tgStatus?.comingSoon}
+                  connectLabel={tgStatus?.connected && !tgStatus?.chat ? t('dashboard.stats.finishTelegram', 'Finish Telegram setup') : undefined}
                   onConnect={() => setTgModalOpen(true)}
                   onDrill={() => setDetailPlatform('telegram')}
                 />

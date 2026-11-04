@@ -370,7 +370,7 @@
       "insightFoundTail": ". Kanallaringizni ulasangiz, Markiv raqobatchilarni kuzatib boradi, mahalliy qidiruvda yuqoriroq chiqishingizga yordam beradi va mijozlaringizga mos postlar tayyorlaydi.",
       "insightNotFound": "Sizni Google Maps'da hali topa olmadik. Baribir davom etishingiz mumkin: kanallaringizni ulang, Markivo esa birinchi kundanoq raqobatchilaringizni kuzatishni boshlaydi.",
       "confirmCta": "Kanallarni ulash va dashbordga kirish",
-      "sampleData": "Bu namuna — haqiqiy tekshiruv uchun Maps API kalitini qo'shing"
+      "sampleData": "Hozir internetdan qidirib bo'lmadi, shuning uchun bular namunalar. Ularni o'tkazib yuboring yoki keyinroq qayta urinib ko'ring."
     },
     "pipeline": {
       "title": "Sahifalaringizni tayyorlayapmiz",
@@ -444,7 +444,9 @@
       "drillDown": "{{platform}} bo'yicha batafsil statistikani ko'rsatish",
       "collecting": "Ma'lumotlar yig'ilmoqda…",
       "trendLabel": "Dinamika",
-      "connectToSee": "Bu raqamni ko'rish uchun {{platform}}ni ulang."
+      "connectToSee": "Bu raqamni ko'rish uchun {{platform}}ni ulang.",
+      "soon": "{{platform}} tez orada qo'shiladi. Uning raqamlari shu yerda ko'rinadi.",
+      "finishTelegram": "Telegram sozlashni yakunlash"
     },
     "aiSearch": {
       "title": "AI qidiruvda ko'rinishingiz",
@@ -1063,7 +1065,6 @@
     "analyzeCta": "Shablonga aylantirish ✦",
     "analyzing": "O'zgarib turadigan joylarini topyapmiz…",
     "startManual": "O'zgaruvchilarni o'zim belgilayman",
-    "engineGemini": "Gemini",
     "engineOffline": "Oflayn tahlil",
     "nameLabel": "Shablon nomi",
     "namePlaceholder": "masalan: Qolgan joylar",
@@ -1135,9 +1136,9 @@
     "howToCta": "Qanday ulanadi",
     "state": {
       "connected": "Ulangan",
-      "sandbox": "Ulangan · sinov rejimi",
+      "sandbox": "Ulangan · faqat sinov",
       "ready": "Ulashga tayyor",
-      "sandboxReady": "Sinov rejimi bor",
+      "sandboxReady": "Hozircha faqat sinov",
       "soon": "Tez orada"
     },
     "setupTitle": "{{label}}ni ulash",
@@ -1146,14 +1147,14 @@
     "howToTitle": "Qanday ulanadi",
     "officialDocs": "Rasmiy hujjatlar",
     "comingSoonNote": "{{label}} hali yoqilmagan — yoqilganda quyidagi qadamlarni bajarasiz.",
-    "sandboxNote": "Sinov rejimi — bu platforma uchun haqiqiy kalitlar hali sozlanmagan, shuning uchun ulanish faqat sinov tariqasida ishlaydi (hech qanday post chiqmaydi). Haqiqiy rejimga o'tish uchun platformaning API kalitlarini qo'shing.",
+    "sandboxNote": "Markivo hozircha bu platformaga haqiqatda joylay olmaydi. Sinab ko'rish uchun ulashingiz mumkin, hech narsa joylanmaydi.",
     "connecting": "Ulanmoqda…",
     "connectLiveCta": "{{label}}ni ulash →",
-    "connectSandboxCta": "{{label}}ni ulash (sinov)",
-    "sandboxConnected": "{{label}} sinov rejimida ulandi ✓",
+    "connectSandboxCta": "{{label}}ni sinov uchun ulash",
+    "sandboxConnected": "{{label}} sinov uchun ulandi. Haqiqatda hech narsa joylanmaydi.",
     "disconnected": "{{label}} uzildi",
     "statusConnected": "Ulangan",
-    "statusSandbox": "Ulangan (sinov rejimi)",
+    "statusSandbox": "Ulangan (faqat sinov)",
     "connectedHint": "Chat panelida Markivdan {{label}}ga post joylashni so'rang — siz tasdiqlaysiz, u joylaydi.",
     "disconnectCta": "Uzish",
     "working": "Bir zum…",
@@ -1341,7 +1342,6 @@
     "title": "Biznes profilingizni to'ldiring",
     "hint": "Ro'yxatdan o'tishni qisqa qildik. Bu tafsilotlar esa Markivo yozgan matnlarni umumiy emas, aynan sizniki qiladi — xohlaganingizga javob bering, qolganini o'tkazib yuboring.",
     "done": "Hamma savolga javob berdingiz. Pastdagilarni istalgan payt o'zgartirishingiz mumkin.",
-    "templateNote": "Bular sohangiz uchun umumiy savollar — sizga moslangan savollar uchun Gemini kaliti kerak.",
     "choose": "Birini tanlang…",
     "loading": "Savollaringiz yuklanmoqda…",
     "skip": "O'tkazib yuborish — aytmayman",

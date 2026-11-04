@@ -195,12 +195,6 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
             ? t('profileQuestions.hint', 'We kept signup short. These are the details that make what Markivo writes yours instead of generic — answer any, skip the rest.')
             : t('profileQuestions.done', 'Nothing left to answer. You can still edit anything below.')}
         </p>
-        {state.engine === 'template' && (
-          <p className="settings-hint completion-source">
-            <i className="fa-solid fa-circle-info"></i>{' '}
-            {t('profileQuestions.templateNote', 'These are standard questions for your category — the AI-personalised set needs a Gemini key.')}
-          </p>
-        )}
       </div>
 
       {/* One list in a fixed order. A question stays where it is once it is

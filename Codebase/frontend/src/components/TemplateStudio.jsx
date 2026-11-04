@@ -168,7 +168,6 @@ function InlineTemplate({ mode, text, values, meta, onSelect, onRemove, onEditVa
 export default function TemplateStudio({ platformKey, platformLabel, onUseTemplate }) {
   const { t } = useTranslation();
 
-  const [engine, setEngine] = useState(null);
   const [saved, setSaved] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
 
@@ -214,7 +213,6 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
     return () => { cancelled = true; };
   }, [platformKey, reloadToken]);
 
-  useEffect(() => { api.get('/api/templates/engine').then(setEngine).catch(() => setEngine(null)); }, []);
 
   const draftKeys = draft ? extractKeys(draft.templateText) : [];
   const metaFor = (key) => (draft && draft.varMeta[key]) || { label: humanize(key), example: '' };
@@ -386,9 +384,6 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
     setFilling({ id: tpl.id, values });
   };
 
-  const engineBadge = engine && engine.gemini
-    ? t('templates.engineGemini', 'Gemini')
-    : t('templates.engineOffline', 'Offline parser');
 
   return (
     <div className="template-studio glass-card">
@@ -433,7 +428,6 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
         <button className="btn btn-secondary" onClick={handleStartBlank} disabled={!sample.trim()}>
           {t('templates.startManual', 'Mark variables myself')}
         </button>
-        {engine && <span className="template-engine-badge">{engineBadge}</span>}
       </div>
 
       {/* --- STEP 2: the message, with its variables highlighted in place --- */}

@@ -370,7 +370,7 @@
       "insightFoundTail": ". Connect your channels and Markivo can keep an eye on those competitors, help people nearby find you in search, and write posts for your customers.",
       "insightNotFound": "We couldn't find you on Google Maps yet. You can still go ahead: connect your channels and Markivo will start watching your competitors from day one.",
       "confirmCta": "Connect and open my dashboard",
-      "sampleData": "This is sample data. Add a Google Maps API key to search for your real business."
+      "sampleData": "We couldn't search online just now, so these are examples. Skip them, or try again later."
     },
     "pipeline": {
       "title": "Setting up your business",
@@ -444,7 +444,9 @@
       "drillDown": "See {{platform}} details",
       "collecting": "Not enough data for a trend yet",
       "trendLabel": "Trend",
-      "connectToSee": "Connect {{platform}} to see this number here."
+      "connectToSee": "Connect {{platform}} to see this number here.",
+      "soon": "{{platform}} is coming soon. Its numbers will show here.",
+      "finishTelegram": "Finish Telegram setup"
     },
     "aiSearch": {
       "title": "AI search visibility",
@@ -1063,7 +1065,6 @@
     "analyzeCta": "Make a template",
     "analyzing": "Finding the parts that change…",
     "startManual": "Mark the blanks myself",
-    "engineGemini": "Gemini",
     "engineOffline": "Basic mode",
     "nameLabel": "Template name",
     "namePlaceholder": "e.g. Spots left update",
@@ -1135,9 +1136,9 @@
     "howToCta": "How to connect",
     "state": {
       "connected": "Connected",
-      "sandbox": "Connected · test mode",
+      "sandbox": "Connected · practice only",
       "ready": "Ready to connect",
-      "sandboxReady": "Test mode available",
+      "sandboxReady": "Practice only for now",
       "soon": "Coming soon"
     },
     "setupTitle": "Connect {{label}}",
@@ -1146,14 +1147,14 @@
     "howToTitle": "How to connect",
     "officialDocs": "Official guide",
     "comingSoonNote": "{{label}} isn't switched on yet. Here are the steps for when it is.",
-    "sandboxNote": "Test mode: this platform isn't fully set up yet, so connecting is only a practice run and no real posts go out. Add the platform's API keys to make it live.",
+    "sandboxNote": "Markivo can't post to this platform for real yet. You can connect it to try things out; nothing will be posted.",
     "connecting": "Connecting…",
     "connectLiveCta": "Connect {{label}} →",
-    "connectSandboxCta": "Connect {{label}} (test mode)",
-    "sandboxConnected": "{{label}} connected in test mode",
+    "connectSandboxCta": "Connect {{label}} to practise",
+    "sandboxConnected": "{{label}} connected for practice. Nothing will be posted for real.",
     "disconnected": "{{label}} disconnected",
     "statusConnected": "Connected",
-    "statusSandbox": "Connected (test mode)",
+    "statusSandbox": "Connected (practice only)",
     "connectedHint": "Ask Markiv in the chat panel to post to {{label}}. You approve it, and it goes out.",
     "disconnectCta": "Disconnect",
     "working": "Working…",
@@ -1341,7 +1342,6 @@
     "title": "Complete your business profile",
     "hint": "We kept signup short. These details are what make Markivo's posts sound like you and nobody else. Answer any, skip the rest.",
     "done": "Nothing left to answer. You can still edit anything below.",
-    "templateNote": "These are the standard questions for your type of business. Questions written just for you need a Gemini key.",
     "choose": "Choose one…",
     "loading": "Loading your questions…",
     "skip": "Skip, I'd rather not say",

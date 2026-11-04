@@ -87,7 +87,7 @@
 .ap-switch.on .ap-switch-knob { transform: translateX(22px); }
 
 /* Config block dims when Autopilot is off */
-.ap-config-muted { opacity: 0.55; }
+.ap-config-muted .ap-section { opacity: 0.55; }
 
 .ap-section {
   padding: 18px 20px;
@@ -390,4 +390,47 @@
 /* Settings-style page: a readable column, not the full screen width. */
 .autopilot-pane {
   max-width: 860px;
+}
+
+/* One card for all of Autopilot's settings: the on/off switch on top, then
+   each setting as a row divided by a hairline, then the buttons. */
+.ap-toggle-card {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ap-config {
+  border: 1px solid var(--ui-line);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--ui-surface);
+  padding: 0 20px 18px;
+}
+
+.ap-config .ap-section {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--ui-line);
+  border-radius: 0;
+  padding: 16px 0;
+  margin: 0;
+}
+
+.ap-config .ap-section:first-child {
+  border-top: 0;
+}
+
+.ap-config .ap-actions {
+  padding-top: 16px;
+  border-top: 1px solid var(--ui-line);
+  margin-top: 0;
+}
+
+.ap-config .ap-safety {
+  margin-top: 12px;
+}
+
+.ap-queue-pointer {
+  margin-top: 16px;
 }

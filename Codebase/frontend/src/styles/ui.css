@@ -392,20 +392,13 @@
   box-shadow: var(--ui-shadow);
   white-space: normal;
   text-align: left;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-2px);
-  transition: opacity 0.12s, transform 0.12s, visibility 0.12s;
   pointer-events: none;
+  /* Hidden tips take no space; a hidden-but-laid-out tip would push the
+     page wider than a phone screen. */
+  display: none;
 }
 
 .ui-info:hover .ui-info-tip,
 .ui-info-btn:focus + .ui-info-tip {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ui-info-tip { transition: none; }
+  display: block;
 }
