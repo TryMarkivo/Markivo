@@ -12,6 +12,14 @@
 // The binding to a Telegram user is what stops anyone linking someone else's
 // channel: a channel is only linked for the user who opened the link.
 //
+// The same bot also works for Autopilot once a channel is linked:
+//  - every new post in the channel (the bot is an admin there, so Telegram
+//    sends them) and every post the owner forwards to the bot is saved as the
+//    business's own content, so Autopilot learns the channel's style even for
+//    a private channel, whose history no public page shows;
+//  - Autopilot sends the owner the posts waiting for their OK, with Post and
+//    Skip buttons, and tells them when it needs answers (notifyOwner).
+//
 // Messages arrive by long polling (no public URL needed). handleUpdate() is
 // separate from the loop so tests can feed it updates directly.
 
@@ -70,6 +78,34 @@ const TEXT = {
     ru: 'Пока не могу публиковать в «{title}»: нужны права админа с «Публикацией сообщений». Исправьте это и выберите канал снова.',
     en: 'I can’t post to “{title}” yet: I need to be an admin with the “Post messages” right. Fix that, then pick the channel again.',
   },
+  learned: {
+    uz: 'Saqlandi. Autopilot shu postdan o‘rganadi (jami {count} ta post).',
+    ru: 'Сохранено. Autopilot будет учиться на этом посте (всего постов: {count}).',
+    en: 'Saved. Autopilot will learn from this post ({count} posts so far).',
+  },
+  learnNoLink: {
+    uz: 'Avval kanalingizni ulang: Markivoda Telegram kartasini oching. Keyin postlaringizni shu yerga uzatsangiz, Autopilot ulardan o‘rganadi.',
+    ru: 'Сначала подключите канал: откройте в Markivo карточку Telegram. Потом пересылайте сюда свои посты — Autopilot будет на них учиться.',
+    en: 'Connect your channel first: open the Telegram card in Markivo. Then forward your posts here and Autopilot will learn from them.',
+  },
+  approvalAsk: {
+    uz: 'Autopilot «{title}» uchun post yozdi{when}:\n\n{text}',
+    ru: 'Autopilot написал пост для «{title}»{when}:\n\n{text}',
+    en: 'Autopilot wrote a post for “{title}”{when}:\n\n{text}',
+  },
+  approvalWhen: { uz: ' — {time} da chiqadi', ru: ' — выйдет {time}', en: ' — it goes out {time}' },
+  approveBtn: { uz: '✅ Joylash', ru: '✅ Опубликовать', en: '✅ Post it' },
+  skipBtn: { uz: '⏭ O‘tkazib yuborish', ru: '⏭ Пропустить', en: '⏭ Skip' },
+  editBtn: { uz: '✏️ Markivoda tahrirlash', ru: '✏️ Изменить в Markivo', en: '✏️ Edit in Markivo' },
+  skipped: { uz: 'O‘tkazib yuborildi — joylanmaydi.', ru: 'Пропущено — публиковаться не будет.', en: 'Skipped — it won’t be posted.' },
+  already: { uz: 'Bu allaqachon hal qilingan.', ru: 'Это уже обработано.', en: 'This was already handled.' },
+  notYours: { uz: 'Buni faqat kanalni ulagan kishi tasdiqlay oladi.', ru: 'Подтвердить может только тот, кто подключил канал.', en: 'Only the person who connected the channel can approve this.' },
+  questions: {
+    uz: 'Autopilot to‘xtab turibdi: keyingi postdan oldin bir nechta qisqa savolga javob kerak — nima, qanday va qachon joylash haqida.',
+    ru: 'Autopilot на паузе: перед следующим постом ему нужно несколько коротких ответов — что, как и когда публиковать.',
+    en: 'Autopilot is paused: it needs a few quick answers before the next post — what, how and when to post.',
+  },
+  answerBtn: { uz: 'Markivoda javob berish', ru: 'Ответить в Markivo', en: 'Answer in Markivo' },
   notAdmin: {
     uz: '«{title}» ni faqat uning admini ulay oladi.',
     ru: 'Подключить «{title}» может только его админ.',
@@ -155,10 +191,65 @@ async function linkChat(ctx, link, chatId, user) {
 }
 
 /** Handle one update from the shared bot. ctx = { db, token, me, now?, log? } */
+// A channel post as an own-content row. The message id is the same id the
+// public t.me/s/ preview uses, so a later scrape adds views to the same row.
+function contentRow(m, externalId) {
+  const text = m.text || m.caption || '';
+  return {
+    externalId,
+    caption: text,
+    postedAt: new Date((m.date || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+    kind: m.photo ? 'photo' : (m.video || m.animation) ? 'video' : 'text',
+  };
+}
+
+// Where a forwarded message came from (Bot API 7+ forward_origin, or the
+// older forward_from_chat fields).
+function forwardOf(msg) {
+  const o = msg.forward_origin;
+  if (o) return { chatId: o.chat ? o.chat.id : null, messageId: o.message_id || null, date: o.date || msg.date };
+  if (msg.forward_from_chat || msg.forward_date) {
+    return { chatId: msg.forward_from_chat ? msg.forward_from_chat.id : null, messageId: msg.forward_from_message_id || null, date: msg.forward_date || msg.date };
+  }
+  return null;
+}
+
 async function handleUpdate(update, ctx) {
   const { db } = ctx;
   const nowIso = new Date(ctx.now ?? Date.now()).toISOString();
   const msg = update.message;
+
+  // A post in a linked channel (new or edited): Autopilot's own-content.
+  const cp = update.channel_post || update.edited_channel_post;
+  if (cp) {
+    const profiles = cp.chat ? db.telegram.sharedProfilesForChat(cp.chat.id) : [];
+    if (!profiles.length || !(cp.text || cp.caption)) return 'ignored';
+    for (const profileId of profiles) {
+      db.ownContent.mergePosts(profileId, 'telegram', [contentRow(cp, String(cp.message_id))], { source: 'bot' });
+    }
+    return 'learned';
+  }
+
+  // The owner pressed Post / Skip under a post Autopilot sent them.
+  const cq = update.callback_query;
+  if (cq) {
+    const m = /^apv:([0-9a-f-]{36}):(y|n)$/.exec(cq.data || '');
+    if (!m || !ctx.actions || !ctx.actions.decideApproval) {
+      await tg.call(ctx.token, 'answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
+      return 'ignored';
+    }
+    const result = await ctx.actions.decideApproval({ approvalId: m[1], approve: m[2] === 'y', tgUserId: cq.from.id });
+    const text = result.key ? say(result.key, cq.from) : String(result.text || '').slice(0, 190);
+    await tg.call(ctx.token, 'answerCallbackQuery', { callback_query_id: cq.id, text: text.slice(0, 190), show_alert: !result.ok }).catch(() => {});
+    if (cq.message && result.key !== 'notYours') {
+      // Buttons off, and the outcome under the post so the chat reads as a log.
+      await tg.call(ctx.token, 'editMessageReplyMarkup', {
+        chat_id: cq.message.chat.id, message_id: cq.message.message_id, reply_markup: { inline_keyboard: [] },
+      }).catch(() => {});
+      await tg.sendMessage(ctx.token, cq.message.chat.id, text, { reply_to_message_id: cq.message.message_id }).catch(() => {});
+    }
+    return result.ok ? (m[2] === 'y' ? 'approved' : 'skipped') : 'refused';
+  }
 
   if (msg?.migrate_to_chat_id) {
     db.telegram.moveChat(msg.chat.id, msg.migrate_to_chat_id);
@@ -179,6 +270,26 @@ async function handleUpdate(update, ctx) {
         return 'unlinked';
       }
       return (await linkChat(ctx, link, chatId, user)) ? 'linked' : 'refused';
+    }
+
+    // A post the owner forwarded: something Autopilot should learn from.
+    const fwd = forwardOf(msg);
+    if (fwd && (msg.text || msg.caption)) {
+      const profiles = db.telegram.sharedProfilesForOwner(user.id);
+      if (!profiles.length) {
+        await reply(ctx, user, 'learnNoLink');
+        return 'unlinked';
+      }
+      for (const profileId of profiles) {
+        const conn = db.telegram.findByProfile(profileId);
+        // From the linked channel itself: the channel's own message id, so it
+        // merges with what the bot or the public preview already saved.
+        const sameChat = conn && fwd.chatId != null && String(conn.chatId) === String(fwd.chatId) && fwd.messageId;
+        const externalId = sameChat ? String(fwd.messageId) : `fwd:${fwd.chatId || 'user'}:${fwd.messageId || msg.message_id}`;
+        db.ownContent.mergePosts(profileId, 'telegram', [contentRow({ ...msg, date: fwd.date }, externalId)], { source: 'forwarded' });
+      }
+      await reply(ctx, user, 'learned', { count: db.ownContent.countByProfile(profiles[0]) });
+      return 'learned';
     }
 
     const start = /^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]{8,64}))?\s*$/.exec(msg.text || '');
@@ -235,7 +346,7 @@ async function handleUpdate(update, ctx) {
  * handle with stop(). One process per token: Telegram answers 409 when two
  * pollers share a bot.
  */
-function startPolling({ db, token, log = console }) {
+function startPolling({ db, token, log = console, actions = null }) {
   let stopped = false;
   let offset = 0;
   let warned409 = false;
@@ -254,12 +365,12 @@ function startPolling({ db, token, log = console }) {
         const updates = await tg.call(token, 'getUpdates', {
           offset,
           timeout: 50,
-          allowed_updates: ['message', 'my_chat_member'],
+          allowed_updates: ['message', 'my_chat_member', 'channel_post', 'edited_channel_post', 'callback_query'],
         });
         for (const u of updates) {
           offset = u.update_id + 1;
           try {
-            await handleUpdate(u, { db, token, me, log });
+            await handleUpdate(u, { db, token, me, log, actions });
           } catch (err) {
             log.warn(`Markivo bot update ${u.update_id} failed: ${err.message}`);
           }
@@ -282,7 +393,48 @@ function startPolling({ db, token, log = console }) {
   return { stop() { stopped = true; } };
 }
 
+const LOCALES = { uz: 'uz-Latn-UZ', ru: 'ru-RU', en: 'en-GB' };
+function formatWhen(iso, lang, timeZone) {
+  try {
+    return new Intl.DateTimeFormat(LOCALES[lang] || 'en-GB', {
+      weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone,
+    }).format(new Date(iso));
+  } catch {
+    return new Date(iso).toISOString().slice(0, 16).replace('T', ' ');
+  }
+}
+
+/**
+ * A private message from the shared bot to the owner who linked the channel.
+ * kind 'approval': the post with Post / Skip buttons (and Edit when the app
+ * has a public https address). kind 'questions': Autopilot is waiting for
+ * answers. `lang` = the owner's Markivo language. Throws on Telegram errors;
+ * the caller decides whether that matters.
+ */
+async function notifyOwner({ token, tgUserId, lang = 'en', kind, approval, chatTitle, timezone, appUrl }) {
+  const user = { language_code: lang };
+  const appLink = /^https:\/\//.test(appUrl || '') ? `${appUrl.replace(/\/+$/, '')}/?tab=autopilot` : null;
+  if (kind === 'approval' && approval) {
+    const p = approval.action_payload || {};
+    const when = p.scheduledFor ? say('approvalWhen', user, { time: formatWhen(p.scheduledFor, lang, timezone) }) : '';
+    const text = say('approvalAsk', user, { title: chatTitle || p.target || 'Telegram', when, text: String(p.text || '').slice(0, 3500) });
+    const keyboard = [[
+      { text: say('approveBtn', user), callback_data: `apv:${approval.id}:y` },
+      { text: say('skipBtn', user), callback_data: `apv:${approval.id}:n` },
+    ]];
+    if (appLink) keyboard.push([{ text: say('editBtn', user), url: appLink }]);
+    return tg.sendMessage(token, tgUserId, text, { reply_markup: { inline_keyboard: keyboard } });
+  }
+  if (kind === 'questions') {
+    const extra = appLink ? { reply_markup: { inline_keyboard: [[{ text: say('answerBtn', user), url: appLink }]] } } : {};
+    return tg.sendMessage(token, tgUserId, say('questions', user), extra);
+  }
+  return null;
+}
+
 module.exports = {
+  notifyOwner,
+  formatWhen,
   LINK_TTL_MS,
   BOT_RIGHTS,
   getSharedBot,

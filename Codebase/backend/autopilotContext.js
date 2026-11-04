@@ -23,6 +23,7 @@
 
 const businessContextService = require('./businessContextService');
 const connectors = require('./connectors/registry');
+const autopilotBrief = require('./autopilotBrief');
 const i18n = require('./i18n');
 
 // An unanswered question must not wedge Autopilot forever. After this long the
@@ -118,9 +119,32 @@ async function assessContext({ db, gemini, profileId, platforms, signals, lang =
   return assessment || heuristicAssessment(sig, lang);
 }
 
+// Why Autopilot is asking, in the owner's words. Deterministic: it counted.
+function briefRationale(style, required, lang) {
+  const n = (style && style.sampleCount) || 0;
+  if (style && style.sufficient) {
+    return i18n.tr(lang, 'Autopilot learned how you write from your channel, but needs to know what to post about.');
+  }
+  if (!n) {
+    return i18n.tr(lang, 'Your channel has no posts Autopilot can learn from yet, so it needs a few quick answers before it starts: what to post, how it should sound and when.');
+  }
+  return i18n.tr(lang, n === 1
+    ? 'Autopilot found only {{count}} post to learn from. That is not enough to copy your style, so it needs a few quick answers before it starts.'
+    : 'Autopilot found only {{count}} posts to learn from. That is not enough to copy your style, so it needs a few quick answers before it starts.', { count: n });
+}
+
 // The gate itself. Returns { ok: true, context } to proceed, or
 // { ok: false, reason, request } to halt the run.
-async function ensureContext({ db, gemini, profileId, platforms, nowMs = Date.now(), lang = 'en' }) {
+//
+// Order: (1) a question already waiting; (2) the owner's brief — structured
+// questions about what, how and when, asked when the channel's own history
+// can't answer them; (3) the owner's latest free-text answer; (4) with a
+// learned channel or an explicit brief, proceed; (5) otherwise the model (or
+// the keyless heuristic) judges whether there is enough to say something.
+async function ensureContext({
+  db, gemini, profileId, platforms, nowMs = Date.now(), lang = 'en',
+  brief = null, style = null, scheduleChosen = true,
+}) {
   // 1. An outstanding question already put to the owner. Do NOT re-assess, do
   //    NOT create a second row, do NOT log again — on the 'test' cadence the
   //    worker ticks every 60s, which would flood the activity log and burn
@@ -136,6 +160,28 @@ async function ensureContext({ db, gemini, profileId, platforms, nowMs = Date.no
   }
 
   const signals = gatherChannelSignals({ db, profileId, platforms });
+  signals.briefText = autopilotBrief.briefDigest(brief, nowMs);
+  signals.styleText = style && style.sampleCount
+    ? `${style.sampleCount} own posts learned${style.voice ? `; voice: ${style.voice}` : ''}${(style.themes || []).length ? `; themes: ${style.themes.map((t) => t.name).join(', ')}` : ''}`
+    : '';
+
+  // 2. The brief: what the channel's history can't tell us, asked as quick
+  //    structured questions. Deterministic — it counted the posts.
+  const missing = autopilotBrief.missingQuestions({ brief, style, scheduleChosen });
+  if (missing.required.length) {
+    const questions = autopilotBrief.questionsFor([...missing.required, ...missing.optional]);
+    const rationale = briefRationale(style, missing.required, lang);
+    const request = db.autonomous.createContextRequest({
+      profileId, questions, rationale, adType: '', source: 'brief',
+    });
+    db.autonomous.logActivity({
+      profileId,
+      kind: 'context_needed',
+      summary: rationale,
+      payload: { requestId: request.id, questions: questions.map((q) => q.id) },
+    });
+    return { ok: false, reason: 'needs-context', request };
+  }
 
   // 3. The owner answered AFTER the most recent ask — respect it and proceed,
   //    without consulting the model. Otherwise an assessor that keeps returning
@@ -151,6 +197,22 @@ async function ensureContext({ db, gemini, profileId, platforms, nowMs = Date.no
         userContext: signals.userContext,
         adType: 'owner-directed post',
         rationale: 'Using the context the owner supplied.',
+      },
+    };
+  }
+
+  // 4. The channel taught us how and what this business posts, or the owner
+  //    told us directly: there is enough to write something specific.
+  const explicit = brief && ((Array.isArray(brief.themes) && brief.themes.length)
+    || (brief.goal && brief.goal !== autopilotBrief.AUTO));
+  if ((style && style.sufficient) || explicit) {
+    return {
+      ok: true,
+      context: {
+        businessContext: signals.businessContext,
+        userContext: signals.userContext,
+        adType: style && style.sufficient ? 'post in the channel\'s own style' : 'owner-directed post',
+        rationale: style && style.sufficient ? 'Learned from the channel.' : 'Using the owner\'s brief.',
       },
     };
   }
@@ -187,6 +249,7 @@ async function ensureContext({ db, gemini, profileId, platforms, nowMs = Date.no
 }
 
 module.exports = {
+  briefRationale,
   gatherChannelSignals,
   heuristicAssessment,
   assessContext,

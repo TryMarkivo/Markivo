@@ -23,6 +23,9 @@ const profileQuestions = require('./profileQuestions');
 const mediagen = require('./mediagen');
 const connectors = require('./connectors/registry');
 const autonomous = require('./autonomous');
+const autopilotSchedule = require('./autopilotSchedule');
+const autopilotStyle = require('./autopilotStyle');
+const autopilotBrief = require('./autopilotBrief');
 const metaDeletion = require('./metaDeletion');
 const competitorFetch = require('./competitorFetch');
 const competitorAnalytics = require('./competitorAnalytics');
@@ -2834,46 +2837,71 @@ app.delete('/api/agent/history', verifyToken, (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
-  const { approvalId } = req.body;
-  const approval = db.approvals.findById(approvalId);
-  if (!approval) return res.status(404).json({ error: 'Pending authorization request not found' });
-  if (approval.status !== 'pending') {
-    return res.status(400).json({ error: 'This request was already processed' });
-  }
-
-  const profile = db.profiles.findByUserId(req.user.id);
-  if (!profile || profile.id !== approval.profileId) {
-    return res.status(403).json({ error: 'This approval belongs to a different business' });
-  }
-
+// Carry out an approved request. Shared by the dashboard (/api/agent/approve)
+// and the Markivo bot's Approve button, so both behave the same. The caller
+// has already checked the approval is pending and belongs to `profile`.
+// Returns { status, body } for the caller to send.
+async function executeApproval(approval, profile, { editedText = null, lang = 'en' } = {}) {
+  const reply = (status, body) => ({ status, body });
   // The owner may tweak Mark's draft at the gate before approving — publish the
   // edit and record it as the stronger 'edited' taste signal.
-  const gateEdited = typeof req.body.editedText === 'string' && req.body.editedText.trim()
-    ? req.body.editedText.trim()
-    : null;
+  const gateEdited = typeof editedText === 'string' && editedText.trim() ? editedText.trim() : null;
+
+  // An Autopilot post written for a planned slot: approved before the slot,
+  // it waits on the Calendar and goes out at the slot; approved late, it goes
+  // out now (below).
+  const planned = approval.action_payload && approval.action_payload.scheduledFor;
+  if ((approval.action_type === 'telegram_post' || approval.action_type === 'platform_post')
+    && planned && Date.parse(planned) > Date.now() + 60 * 1000) {
+    const isTg = approval.action_type === 'telegram_post';
+    const platform = isTg ? 'telegram' : approval.action_payload.platform;
+    if (isTg && !config.telegramEnabled) {
+      return reply(503, { error: 'Telegram publishing is coming soon — it is not part of the current MVP.' });
+    }
+    if (!isTg && !connectors.get(platform)) {
+      db.approvals.updateStatus(approval.id, 'failed');
+      return reply(400, { error: `Publishing failed: Unknown platform "${platform}"` });
+    }
+    const text = gateEdited || approval.action_payload.text;
+    db.calendar.add({
+      profileId: profile.id, platform, postText: text, scheduledTime: planned, status: 'scheduled',
+      source: approval.action_payload.autonomous ? 'autopilot' : null,
+    });
+    db.approvals.updateStatus(approval.id, 'approved');
+    db.feedback.record({
+      profileId: profile.id, platform,
+      signal: feedbackSignal(gateEdited ? approval.action_payload.text : null, text),
+      draftText: gateEdited ? approval.action_payload.text : null, finalText: text,
+    });
+    return reply(200, {
+      success: true,
+      scheduled: true,
+      scheduledFor: planned,
+      message: i18n.tr(lang, 'Approved. It goes out at the planned time.'),
+    });
+  }
 
   // Approved Telegram posts are executed for real via the Bot API.
   if (approval.action_type === 'telegram_post') {
     if (!config.telegramEnabled) {
-      return res.status(503).json({ error: 'Telegram publishing is coming soon — it is not part of the current MVP.' });
+      return reply(503, { error: 'Telegram publishing is coming soon — it is not part of the current MVP.' });
     }
     try {
       const tgText = gateEdited || approval.action_payload.text;
       const result = await executeTelegramPost(profile, tgText);
-      db.approvals.updateStatus(approvalId, 'approved');
+      db.approvals.updateStatus(approval.id, 'approved');
       db.feedback.record({
         profileId: profile.id, platform: 'telegram',
         signal: feedbackSignal(gateEdited ? approval.action_payload.text : null, tgText),
         draftText: gateEdited ? approval.action_payload.text : null, finalText: tgText,
       });
-      return res.json({
+      return reply(200, {
         success: true,
-        message: i18n.tr(req.lang, 'Approved and posted to {{channel}}.', { channel: result.chatTitle }),
+        message: i18n.tr(lang, 'Approved and posted to {{channel}}.', { channel: result.chatTitle }),
       });
     } catch (err) {
-      db.approvals.updateStatus(approvalId, 'failed');
-      return res.status(400).json({ error: `Publishing failed: ${err.description || err.message}` });
+      db.approvals.updateStatus(approval.id, 'failed');
+      return reply(400, { error: `Publishing failed: ${err.description || err.message}` });
     }
   }
 
@@ -2887,30 +2915,47 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
     try {
       const ppText = gateEdited || approval.action_payload.text;
       const result = await executePlatformPost(profile, platform, ppText, approval.action_payload.mediaUrl);
-      db.approvals.updateStatus(approvalId, 'approved');
+      db.approvals.updateStatus(approval.id, 'approved');
       db.feedback.record({
         profileId: profile.id, platform,
         signal: feedbackSignal(gateEdited ? approval.action_payload.text : null, ppText),
         draftText: gateEdited ? approval.action_payload.text : null, finalText: ppText,
       });
-      return res.json({
+      return reply(200, {
         success: true,
         message: result.simulated
-          ? i18n.tr(req.lang, 'Approved. {{platform}} is in test mode, so nothing was posted for real; connect it in Settings to publish.', { platform: adapter ? adapter.label : platform })
-          : i18n.tr(req.lang, 'Approved and posted to {{platform}}.', { platform: adapter ? adapter.label : platform }),
+          ? i18n.tr(lang, 'Approved. {{platform}} is in test mode, so nothing was posted for real; connect it in Settings to publish.', { platform: adapter ? adapter.label : platform })
+          : i18n.tr(lang, 'Approved and posted to {{platform}}.', { platform: adapter ? adapter.label : platform }),
       });
     } catch (err) {
-      db.approvals.updateStatus(approvalId, 'failed');
-      return res.status(err.code || 400).json({ error: `Publishing failed: ${err.message}` });
+      db.approvals.updateStatus(approval.id, 'failed');
+      return reply(err.code || 400, { error: `Publishing failed: ${err.message}` });
     }
   }
 
   // Ad campaigns remain simulated until the Ads APIs land.
-  const updated = db.approvals.updateStatus(approvalId, 'approved');
-  res.json({
+  const updated = db.approvals.updateStatus(approval.id, 'approved');
+  return reply(200, {
     success: true,
-    message: i18n.tr(req.lang, 'Campaign authorized! Launched localized ad campaign costing {{cost}}. (Simulation — Meta Ads integration coming soon.)', { cost: updated.action_payload.cost }),
+    message: i18n.tr(lang, 'Campaign authorized! Launched localized ad campaign costing {{cost}}. (Simulation — Meta Ads integration coming soon.)', { cost: updated.action_payload.cost }),
   });
+}
+
+app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
+  const { approvalId } = req.body;
+  const approval = db.approvals.findById(approvalId);
+  if (!approval) return res.status(404).json({ error: 'Pending authorization request not found' });
+  if (approval.status !== 'pending') {
+    return res.status(400).json({ error: 'This request was already processed' });
+  }
+
+  const profile = db.profiles.findByUserId(req.user.id);
+  if (!profile || profile.id !== approval.profileId) {
+    return res.status(403).json({ error: 'This approval belongs to a different business' });
+  }
+
+  const result = await executeApproval(approval, profile, { editedText: req.body.editedText, lang: req.lang });
+  res.status(result.status).json(result.body);
 }));
 
 // Dismiss a pending approval without publishing it — the counterpart to
@@ -2956,15 +3001,91 @@ const autopilotPublishers = {
     const conn = db.telegram.findByProfile(profile.id);
     return !!(conn && conn.chatId);
   },
+  // Message the owner from the shared Markivo bot: a post waiting for their
+  // OK (with Post / Skip buttons) or questions Autopilot needs answered. Only
+  // for a channel linked through the shared bot — that is how we know which
+  // Telegram user is the owner. A no-op otherwise.
+  notifyOwner: async (kind, profile, payload = {}) => {
+    if (!config.telegramEnabled || !config.telegramBotToken) return;
+    const conn = db.telegram.findByProfile(profile.id);
+    if (!conn || conn.mode !== 'shared' || !conn.ownerTgUserId) return;
+    const user = db.users.findById(profile.userId);
+    await tgHub.notifyOwner({
+      token: config.telegramBotToken,
+      tgUserId: conn.ownerTgUserId,
+      lang: i18n.langOr(user && user.preferredLang),
+      kind,
+      approval: payload.approval,
+      chatTitle: conn.chatTitle,
+      timezone: payload.timezone,
+      appUrl: config.appUrl,
+    });
+  },
+};
+
+// What the shared bot can do on the owner's behalf: decide an Autopilot post
+// from the Post / Skip buttons. Only the Telegram user who linked the channel
+// may; everything else runs exactly as on the dashboard (executeApproval).
+const telegramBotActions = {
+  async decideApproval({ approvalId, approve, tgUserId }) {
+    const approval = db.approvals.findById(approvalId);
+    if (!approval) return { ok: false, key: 'already' };
+    const conn = db.telegram.findByProfile(approval.profileId);
+    if (!conn || conn.mode !== 'shared' || Number(conn.ownerTgUserId) !== Number(tgUserId)) return { ok: false, key: 'notYours' };
+    if (approval.status !== 'pending') return { ok: false, key: 'already' };
+    const profile = db.profiles.findById(approval.profileId);
+    if (!profile) return { ok: false, key: 'already' };
+    if (!approve) {
+      db.approvals.updateStatus(approval.id, 'rejected');
+      return { ok: true, key: 'skipped' };
+    }
+    const user = db.users.findById(profile.userId);
+    const lang = i18n.langOr(user && user.preferredLang);
+    const result = await executeApproval(approval, profile, { lang });
+    return result.status === 200
+      ? { ok: true, text: result.body.message }
+      : { ok: false, text: i18n.translate(result.body.error, lang) };
+  },
 };
 const runAutopilotTick = (opts = {}) =>
   autonomous.runAutonomousTick({ db, ai, connectors, config, publishers: autopilotPublishers, ownContentFetch, ...opts });
 
-// Current Autopilot config + recent activity for the signed-in business.
+// The posting plan as the owner sees it: the schedule in force, where its
+// times come from, and the next few slots with the topic each will be about
+// (the same deterministic rotation the worker uses, played forward).
+function autopilotPlanView(profile, cfg) {
+  const plan = autopilotSchedule.normalizeSchedule(cfg && cfg.schedule, cfg && cfg.frequency);
+  const style = db.autonomous.getStyle(profile.id);
+  const brief = db.autonomous.getBrief(profile.id);
+  const best = (style && style.timing) || autopilotSchedule.bestTimes({ category: profile.category, timezone: plan.timezone });
+  const slots = autopilotSchedule.upcomingSlots(plan, { fromMs: Date.now(), count: 5, best });
+  const pool = autopilotBrief.themePool({ brief, style });
+  const recent = autonomous.recentAutopilotMemory(db, profile.id).themes.slice();
+  const news = autopilotBrief.currentNews(brief);
+  const newsPending = news && !autonomous.recentAutopilotMemory(db, profile.id).newsUsed.has(news.at);
+  const upcoming = slots.map((sl, i) => {
+    const theme = i === 0 && newsPending ? { key: 'news', name: 'News from the owner' } : autopilotBrief.pickTheme(pool, recent);
+    if (theme) recent.unshift(theme.key);
+    return { at: sl.at, time: sl.time, weekday: sl.weekday, theme: theme ? { key: theme.key, name: theme.name } : null };
+  });
+  return {
+    schedule: plan,
+    chosen: !!(cfg && cfg.schedule),
+    demo: !!(cfg && cfg.frequency === 'test'),
+    best,
+    upcoming,
+    leadHours: Math.round(autopilotSchedule.leadFor(cfg ? cfg.autoPublish : true) / 3600000),
+  };
+}
+
+// Current Autopilot config + recent activity for the signed-in business,
+// plus everything the Autopilot tab shows: the plan, what Autopilot learned
+// from the channel, the owner's brief and the open question, if any.
 app.get('/api/autonomous/status', verifyToken, (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const cfg = db.autonomous.getConfig(profile.id);
+  const style = db.autonomous.getStyle(profile.id);
   res.json({
     enabled: config.autonomousEnabled,
     // A config saved before Google Business Profile was removed can still list
@@ -2972,26 +3093,65 @@ app.get('/api/autonomous/status', verifyToken, (req, res) => {
     config: cfg
       ? { ...cfg, platforms: (cfg.platforms || []).filter((p) => connectors.has(p)) }
       : { enabled: false, platforms: [], frequency: 'daily', autoPublish: true },
+    plan: autopilotPlanView(profile, cfg),
+    style: style && {
+      sufficient: !!style.sufficient,
+      sampleCount: style.sampleCount,
+      minPosts: autopilotStyle.MIN_POSTS,
+      stats: style.stats,
+      voice: style.voice,
+      formatting: style.formatting,
+      habits: style.habits || [],
+      avoid: style.avoid || [],
+      themes: style.themes || [],
+      timing: style.timing,
+      sources: style.sources || [],
+      source: style.source,
+      learnedAt: style.learnedAt,
+    },
+    styleMinPosts: autopilotStyle.MIN_POSTS,
+    brief: db.autonomous.getBrief(profile.id),
+    questions: autopilotBrief.QUESTIONS,
+    contextRequest: db.autonomous.pendingContextRequest(profile.id),
+    // Where the owner can teach Autopilot from Telegram (forwarding posts to
+    // the shared bot) and get approvals there.
+    telegramBot: (() => {
+      const tgc = config.telegramEnabled ? db.telegram.findByProfile(profile.id) : null;
+      return tgc && tgc.mode === 'shared' ? { username: tgc.botUsername, chatTitle: tgc.chatTitle } : null;
+    })(),
     activity: db.autonomous.listActivity(profile.id, 30),
   });
 });
 
-// Save Autopilot settings. Enabling makes the business eligible on the next tick.
+// Save Autopilot settings. Enabling makes the business eligible on the next
+// tick; so does a new schedule, so the plan is recomputed right away.
 app.put('/api/autonomous/config', verifyToken, autonomousGate, (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const { enabled, platforms, frequency, autoPublish } = req.body;
-  const validFreq = ['daily', 'weekly', 'test'].includes(frequency) ? frequency : 'daily';
+  const prev = db.autonomous.getConfig(profile.id);
+  // 'scheduled' = follow `schedule`; 'test' = the one-minute demo cadence;
+  // 'daily'/'weekly' are kept for older clients. Left out = keep what was saved.
+  const FREQS = ['scheduled', 'daily', 'weekly', 'test'];
+  const validFreq = FREQS.includes(frequency) ? frequency : (prev && FREQS.includes(prev.frequency) ? prev.frequency : 'daily');
   const validPlatforms = Array.isArray(platforms)
     ? [...new Set(platforms.map(String).filter((p) => connectors.has(p)))].slice(0, 8)
-    : [];
-  // Only (re)arm the timer on the disabled -> enabled transition. Saving other
-  // settings while already enabled must NOT reset the cadence or trigger an
-  // extra immediate run — preserve the existing next_run_at.
-  const prev = db.autonomous.getConfig(profile.id);
+    : (prev ? (prev.platforms || []).filter((p) => connectors.has(p)) : []);
+  let schedule;
+  if (req.body.schedule !== undefined) {
+    if (req.body.schedule && req.body.schedule.timezone && !autopilotSchedule.validTimezone(req.body.schedule.timezone)) {
+      return res.status(400).json({ error: 'Unknown timezone' });
+    }
+    schedule = req.body.schedule ? autopilotSchedule.normalizeSchedule(req.body.schedule, validFreq) : null;
+  }
+  const scheduleChanged = schedule !== undefined && JSON.stringify(schedule) !== JSON.stringify(prev && prev.schedule);
+  const modeChanged = prev && (prev.autoPublish !== (autoPublish !== false) || prev.frequency !== validFreq);
+  // Only (re)arm the timer on the disabled -> enabled transition, or when the
+  // plan itself changed. Saving other settings while already enabled must NOT
+  // reset the cadence or trigger an extra immediate run.
   const nextRunAt = !enabled
     ? null
-    : (prev && prev.enabled && prev.nextRunAt) ? prev.nextRunAt : new Date().toISOString();
+    : (prev && prev.enabled && prev.nextRunAt && !scheduleChanged && !modeChanged) ? prev.nextRunAt : new Date().toISOString();
   const cfg = db.autonomous.upsertConfig({
     profileId: profile.id,
     enabled: !!enabled,
@@ -2999,9 +3159,69 @@ app.put('/api/autonomous/config', verifyToken, autonomousGate, (req, res) => {
     frequency: validFreq,
     autoPublish: autoPublish !== false, // default true ("post by himself")
     nextRunAt,
+    schedule,
   });
-  res.json({ config: cfg });
+  res.json({ config: cfg, plan: autopilotPlanView(profile, cfg) });
 });
+
+// The owner's brief for Autopilot — read it, or change any answer at any time
+// (not only when Autopilot asks). A schedule answer is saved on the config.
+app.get('/api/autonomous/brief', verifyToken, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  res.json({ brief: db.autonomous.getBrief(profile.id), questions: autopilotBrief.QUESTIONS });
+});
+
+function saveBriefAnswers(profile, answers, asked = []) {
+  const prev = db.autonomous.getBrief(profile.id);
+  const { patch, schedule } = autopilotBrief.normalizeAnswers(answers, { asked, prev });
+  const brief = Object.keys(patch).length ? db.autonomous.saveBrief(profile.id, patch) : prev;
+  const cfg = db.autonomous.getConfig(profile.id);
+  if (schedule) {
+    db.autonomous.upsertConfig({
+      profileId: profile.id,
+      enabled: cfg ? cfg.enabled : false,
+      platforms: cfg ? cfg.platforms : [],
+      frequency: cfg && cfg.frequency === 'test' ? 'test' : 'scheduled',
+      autoPublish: cfg ? cfg.autoPublish : true,
+      nextRunAt: cfg && cfg.enabled ? new Date().toISOString() : null,
+      schedule: autopilotSchedule.normalizeSchedule(schedule, cfg && cfg.frequency),
+    });
+  }
+  return brief;
+}
+
+app.put('/api/autonomous/brief', verifyToken, autonomousGate, (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const answers = req.body && typeof req.body.answers === 'object' && !Array.isArray(req.body.answers) ? req.body.answers : null;
+  if (!answers) return res.status(400).json({ error: 'Answers are required.' });
+  const brief = saveBriefAnswers(profile, answers);
+  const cfg = db.autonomous.getConfig(profile.id);
+  res.json({ brief, plan: autopilotPlanView(profile, cfg) });
+});
+
+// Learn the channel again now (after the owner forwarded posts, or changed
+// channels). At most every ten minutes — it is a model call.
+app.post('/api/autonomous/style/relearn', verifyToken, autonomousGate, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  const prev = db.autonomous.getStyle(profile.id);
+  if (prev && Date.now() - Date.parse(prev.learnedAt || 0) < 10 * 60 * 1000 && req.body && !req.body.force) {
+    return res.status(429).json({ error: 'Autopilot learned your channel a moment ago. Try again in a few minutes.' });
+  }
+  const cfg = db.autonomous.getConfig(profile.id);
+  const plan = autopilotSchedule.normalizeSchedule(cfg && cfg.schedule, cfg && cfg.frequency);
+  // Read the channel first when it is readable (public Telegram, Meta, YouTube).
+  const tgConn = db.telegram.findByProfile(profile.id);
+  if (tgConn && tgConn.chatUsername) {
+    const result = await ownContentFetch.fetchOwnContent('telegram', null, tgConn);
+    if (result.posts && result.posts.length) db.ownContent.mergePosts(profile.id, 'telegram', result.posts);
+    db.ownContent.upsertSource({ profileId: profile.id, platform: 'telegram', status: result.error ? 'error' : (result.found ? 'ok' : 'empty'), error: result.error });
+  }
+  const style = await autopilotStyle.ensureStyle({ db, gemini, profile, lang: req.lang, timezone: plan.timezone, force: true });
+  res.json({ style, plan: autopilotPlanView(profile, cfg) });
+}));
 
 // Paginated Autopilot activity log.
 app.get('/api/autonomous/activity', verifyToken, (req, res) => {
@@ -3037,23 +3257,42 @@ app.get('/api/autonomous/context-request', verifyToken, (req, res) => {
 
 // Answer it. Clears the pause and re-arms the cadence so the next tick runs
 // with the new context instead of waiting out a whole cycle.
+//
+// Takes `answers` (the structured brief questions: { questionId: value }) and
+// /or `answer` (free text, for questions the model asked). Structured
+// questions left blank mean "you decide" — so { answers: {} } is a valid
+// "let Autopilot decide everything".
 app.post('/api/autonomous/context-request/answer', verifyToken, autonomousGate, (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
 
   const answer = typeof req.body.answer === 'string' ? req.body.answer.trim() : '';
-  if (!answer) return res.status(400).json({ error: 'An answer is required.' });
+  const answers = req.body.answers && typeof req.body.answers === 'object' && !Array.isArray(req.body.answers) ? req.body.answers : null;
   if (answer.length > 2000) return res.status(400).json({ error: 'Answer must be 2000 characters or fewer.' });
 
   const requestId = typeof req.body.requestId === 'string' ? req.body.requestId : null;
-  const updated = db.autonomous.answerContextRequest({ profileId: profile.id, requestId, answer });
+  const pending = db.autonomous.pendingContextRequest(profile.id);
+  const target = pending && (!requestId || pending.id === requestId) ? pending : null;
+  if (!target) {
+    if (!answer && !answers) return res.status(400).json({ error: 'An answer is required.' });
+    return res.status(404).json({ error: 'There is no open context request for this business.' });
+  }
+  const askedIds = (target.questions || []).filter((q) => q && typeof q === 'object' && q.id).map((q) => q.id);
+  const hasFreeText = (target.questions || []).some((q) => typeof q === 'string');
+  // Free-text questions need words; the structured ones can be left to Autopilot.
+  if (!answer && !(askedIds.length && (answers || !hasFreeText))) {
+    return res.status(400).json({ error: 'An answer is required.' });
+  }
+
+  if (askedIds.length) saveBriefAnswers(profile, answers || {}, askedIds);
+  const updated = db.autonomous.answerContextRequest({ profileId: profile.id, requestId: target.id, answer });
   if (!updated) return res.status(404).json({ error: 'There is no open context request for this business.' });
 
   db.autonomous.logActivity({
     profileId: profile.id,
     kind: 'context_answered',
-    summary: answer.slice(0, 140),
-    payload: { requestId: updated.id },
+    summary: (answer || i18n.tr(req.lang, 'Answered Autopilot’s questions.')).slice(0, 140),
+    payload: { requestId: updated.id, answered: askedIds },
   });
 
   const cfg = db.autonomous.getConfig(profile.id);
@@ -3061,7 +3300,7 @@ app.post('/api/autonomous/context-request/answer', verifyToken, autonomousGate, 
     db.autonomous.setRun(profile.id, { lastRunAt: cfg.lastRunAt, nextRunAt: new Date().toISOString() });
   }
 
-  res.json({ request: updated, config: db.autonomous.getConfig(profile.id) });
+  res.json({ request: updated, brief: db.autonomous.getBrief(profile.id), config: db.autonomous.getConfig(profile.id) });
 });
 
 // "Run now" — user-initiated, budget-checked. Runs one Autopilot cycle for this
@@ -3273,6 +3512,18 @@ function scheduleNextOccurrence(row) {
   });
 }
 
+// An Autopilot post the scheduled-post worker just sent (or failed to send):
+// say so in Autopilot's activity, which is where the owner looks for it.
+function noteAutopilotDelivery(row, err) {
+  if (row.source !== 'autopilot') return;
+  const profile = db.profiles.findById(row.profileId);
+  const user = profile && db.users.findById(profile.userId);
+  const lang = i18n.langOr(user && user.preferredLang);
+  db.autonomous.logActivity(err
+    ? { profileId: row.profileId, kind: 'error', summary: i18n.tr(lang, 'A planned post could not be published on {{platform}}: {{reason}}', { platform: row.platform, reason: err.description || err.message }), payload: { platform: row.platform, calendarId: row.id } }
+    : { profileId: row.profileId, kind: 'post_published', summary: String(row.post_text || '').slice(0, 140), payload: { platform: row.platform, calendarId: row.id, planned: true } });
+}
+
 async function runScheduledPostsTick() {
   const due = db.calendar.listDue(new Date().toISOString());
   let posted = 0;
@@ -3295,10 +3546,12 @@ async function runScheduledPostsTick() {
         // inserts a NEW calendar row; here the row exists and just flips status.
         await ig.publishMediaPost(conn, { ...media, caption: row.post_text });
         db.calendar.setStatus(row.id, 'posted');
+        noteAutopilotDelivery(row, null);
         scheduleNextOccurrence(row);
         posted += 1;
       } catch (err) {
         db.calendar.setStatus(row.id, 'failed');
+        noteAutopilotDelivery(row, err);
         console.warn(`Scheduled instagram post ${row.id} failed:`, err.message);
         failed += 1;
       }
@@ -3319,10 +3572,12 @@ async function runScheduledPostsTick() {
         const media = profile ? resolveTelegramMedia(profile, row.mediaId) : null;
         await tg.sendPost(conn.botToken, conn.chatId, row.post_text, media);
         db.calendar.setStatus(row.id, 'posted');
+        noteAutopilotDelivery(row, null);
         scheduleNextOccurrence(row);
         posted += 1;
       } catch (err) {
         db.calendar.setStatus(row.id, 'failed');
+        noteAutopilotDelivery(row, err);
         console.warn(`Scheduled telegram post ${row.id} failed:`, err.description || err.message);
         failed += 1;
       }
@@ -3346,10 +3601,12 @@ async function runScheduledPostsTick() {
       const media = row.mediaId ? resolvePublicMedia(profile, row.mediaId) : null;
       await adapter.publish({ db, profile, text: row.post_text, mediaUrl: media?.url });
       db.calendar.setStatus(row.id, 'posted');
+        noteAutopilotDelivery(row, null);
       scheduleNextOccurrence(row);
       posted += 1;
     } catch (err) {
       db.calendar.setStatus(row.id, 'failed');
+      noteAutopilotDelivery(row, err);
       console.warn(`Scheduled ${row.platform} post ${row.id} failed:`, err.message);
       failed += 1;
     }
@@ -3393,7 +3650,7 @@ if (require.main === module) {
     // Shared Markivo Telegram bot: read its messages so owners can link a
     // channel by pressing Start and picking it (telegramHub.js).
     if (config.telegramEnabled && config.telegramBotToken && process.env.TELEGRAM_POLLING !== 'false') {
-      tgHub.startPolling({ db, token: config.telegramBotToken });
+      tgHub.startPolling({ db, token: config.telegramBotToken, actions: telegramBotActions });
     }
 
     // Autopilot worker: scan for due autonomous businesses and run each. A
@@ -3420,4 +3677,7 @@ module.exports = {
   // Bound to the server's db/deps + publishers so tests can drive a cycle.
   runAutonomousTick: runAutopilotTick,
   runStaleRenderSweep,
+  // What the shared Telegram bot and Autopilot call back into (tests drive them).
+  telegramBotActions,
+  autopilotPublishers,
 };

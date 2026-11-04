@@ -61,6 +61,13 @@ before(async () => {
   }, access);
   profileId = (await onb.json()).profile.id;
   userId = db.profiles.findById(profileId).userId;
+  // A brand-new channel with no posts makes Autopilot ask the owner what,
+  // how and when first (autopilot-plan.test.js covers that); these tests are
+  // about what happens once it knows.
+  const brief = await put('/api/autonomous/brief', {
+    answers: { themes: ['products', 'offers'], goal: 'visits', tone: 'friendly', length: 'short', emoji: 'few' },
+  }, access);
+  assert.equal(brief.status, 200);
 });
 
 after(() => {
@@ -261,6 +268,7 @@ test('runProfileAutopilot reads own-connected-account content, persists it, and 
   const token = (await reg.json()).accessToken;
   const onb = await post('/api/onboarding/construct', { businessName: 'Fetch Cafe', category: 'Cafe' }, token);
   const pid = (await onb.json()).profile.id;
+  db.autonomous.saveBrief(pid, { themes: ['products'], goal: 'visits', tone: 'friendly', length: 'short', emoji: 'few' });
 
   await put('/api/autonomous/config', { enabled: true, platforms: ['meta_instagram'], frequency: 'test', autoPublish: false }, token);
   db.connections.upsert({
@@ -327,6 +335,7 @@ test('a config and connection left over from Google Business Profile do not brea
     businessName: 'Legacy Cafe', category: 'Cafe', description: 'A small cafe in Chilonzor.',
   }, token);
   const pid = (await onb.json()).profile.id;
+  db.autonomous.saveBrief(pid, { themes: ['products'], goal: 'visits', tone: 'friendly', length: 'short', emoji: 'few' });
 
   // Rows as they were saved before the removal, written straight to the db —
   // the config route's validator would drop the key today.

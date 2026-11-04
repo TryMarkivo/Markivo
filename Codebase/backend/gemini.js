@@ -940,7 +940,9 @@ async function assessAdContext(signals) {
         `Instagram linked: ${s.instagram && s.instagram.linked ? 'yes' : 'no'}\n` +
         `\nLAST ${(s.recentPosts || []).length} POSTS:\n${listOr((s.recentPosts || []).map((p) => `- ${String(p).slice(0, 200)}`), '(nothing posted yet)')}\n` +
         `\nTRACKED COMPETITORS: ${listOr(s.competitors, 'none tracked')}\n` +
-        `TARGET PLATFORMS FOR THIS RUN: ${listOr(s.targetPlatforms, 'none resolved')}\n\n` +
+        `TARGET PLATFORMS FOR THIS RUN: ${listOr(s.targetPlatforms, 'none resolved')}\n` +
+        (s.styleText ? `LEARNED FROM THE CHANNEL: ${s.styleText}\n` : '') +
+        (s.briefText ? `\n${s.briefText}\n` : '') + '\n' +
         'Assess whether there is enough context to post right now.',
       schema: AD_CONTEXT_SCHEMA,
     });
@@ -958,6 +960,87 @@ async function assessAdContext(signals) {
     };
   } catch (err) {
     console.error('Gemini assessAdContext failed, falling back:', err.message);
+    return null;
+  }
+}
+
+// ===========================================================================
+// AUTOPILOT — learn a channel's voice and themes from its own past posts
+// ===========================================================================
+//
+// Reads the business's real posts (numbered) and returns how they are written
+// and what they are about. Themes come back with the numbers of the posts that
+// belong to each, so autopilotStyle.js can measure — deterministically, from
+// real view counts — which themes actually do well. Null when keyless or on
+// any failure; the caller then keeps only the measured stats.
+const CHANNEL_STYLE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    voice: { type: 'STRING' },
+    formatting: { type: 'STRING' },
+    themes: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          description: { type: 'STRING' },
+          posts: { type: 'ARRAY', items: { type: 'INTEGER' } },
+        },
+        required: ['name', 'description', 'posts'],
+        propertyOrdering: ['name', 'description', 'posts'],
+      },
+    },
+    habits: { type: 'ARRAY', items: { type: 'STRING' } },
+    avoid: { type: 'ARRAY', items: { type: 'STRING' } },
+  },
+  required: ['voice', 'formatting', 'themes', 'habits', 'avoid'],
+  propertyOrdering: ['voice', 'formatting', 'themes', 'habits', 'avoid'],
+};
+
+async function learnChannelStyle({ posts = [], businessName, category, lang } = {}) {
+  if (!config.geminiEnabled || !posts.length) return null;
+  try {
+    const parsed = await callGemini({
+      maxTokens: 1400,
+      system:
+        "You study a small business's own channel so its marketing assistant can keep posting " +
+        'the way this business already does. From the numbered posts, describe: "voice" — how ' +
+        'they talk (2-3 sentences: personality, formality, how they address readers, sentence ' +
+        'rhythm); "formatting" — how posts are laid out (1-2 sentences: length, line breaks, ' +
+        'lists, emojis and where, hashtags, links, sign-offs); "themes" — 3 to 6 recurring ' +
+        'content themes, each with a short name, a one-line description and the numbers of the ' +
+        'posts that belong to it (every post in at most one theme); "habits" — up to 5 concrete ' +
+        'habits worth keeping (a recurring opener, a signature closing line, how prices are ' +
+        'shown); "avoid" — up to 3 things this channel never does. Describe only what the posts ' +
+        'show; never invent. Respond as JSON only.' +
+        ownerLangRule(lang, 'every text field (the owner reads them)'),
+      user:
+        `Business: ${businessName || 'a local business'}\nCategory: ${category || 'general'}\n\n` +
+        posts.map((p, i) => `#${i + 1}${Number.isFinite(p.views) ? ` (${p.views} views)` : ''}:\n${String(p.text).slice(0, 700)}`).join('\n\n'),
+      schema: CHANNEL_STYLE_SCHEMA,
+    });
+    const strs = (a, n, len) => (Array.isArray(a) ? a : []).map((x) => String(x || '').trim()).filter(Boolean).slice(0, n).map((x) => x.slice(0, len));
+    const themes = (Array.isArray(parsed.themes) ? parsed.themes : [])
+      .map((t) => ({
+        name: String(t.name || '').trim().slice(0, 60),
+        description: String(t.description || '').trim().slice(0, 200),
+        // 1-based in the prompt, 0-based here; out-of-range numbers dropped.
+        posts: [...new Set((Array.isArray(t.posts) ? t.posts : []).map((n) => parseInt(n, 10) - 1).filter((n) => n >= 0 && n < posts.length))],
+      }))
+      .filter((t) => t.name)
+      .slice(0, 6);
+    const voice = String(parsed.voice || '').trim();
+    if (!voice && !themes.length) return null;
+    return {
+      voice: voice.slice(0, 600),
+      formatting: String(parsed.formatting || '').trim().slice(0, 400),
+      themes,
+      habits: strs(parsed.habits, 5, 160),
+      avoid: strs(parsed.avoid, 3, 160),
+    };
+  } catch (err) {
+    console.error('Gemini learnChannelStyle failed, keeping measured stats only:', err.message);
     return null;
   }
 }
@@ -1386,6 +1469,7 @@ module.exports = {
   generateBusinessContext,
   generateSlogans,
   assessAdContext,
+  learnChannelStyle,
   // Deterministic helpers — used by the routes and exercised directly by tests.
   normalizeLanguages,
   langInstructionFor,

@@ -417,6 +417,27 @@ module.exports = function createDb(dbPath) {
       updated_at  TEXT
     );
 
+    -- Autopilot's brief: what the owner told Autopilot about WHAT to post,
+    -- HOW (tone, length, emojis), the goal, how customers reach them, what to
+    -- avoid and current news. One JSON blob per business; a value of 'auto'
+    -- means "you decide", which counts as answered.
+    CREATE TABLE IF NOT EXISTS autopilot_briefs (
+      profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+      data       TEXT,
+      updated_at TEXT
+    );
+
+    -- What Autopilot learned from the business's own past posts: measured
+    -- habits (length, emojis, hashtags, posting times), the voice and themes,
+    -- and a few real examples. Re-learned at most daily (autopilotStyle.js).
+    CREATE TABLE IF NOT EXISTS autopilot_styles (
+      profile_id   TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+      data         TEXT,
+      sample_count INTEGER DEFAULT 0,
+      source       TEXT,
+      learned_at   TEXT
+    );
+
     -- The per-business "memory cell". One row per profile (UNIQUE) holding the
     -- distilled context Gemini derives from the owner's profile at creation
     -- time. Gemini's API is stateless per call, so "memory" means: we store the
@@ -519,6 +540,16 @@ module.exports = function createDb(dbPath) {
   // NULL = a profile-wide "analyze all tracked competitors" insight; set = a
   // single-competitor "analyze this channel" insight.
   addColumn('competitor_insights', 'competitor_id TEXT');
+  // Autopilot posting plan (JSON: mode smart|fixed, postsPerWeek, days, times,
+  // timezone). NULL = never chosen; autopilotSchedule.normalizeSchedule then
+  // derives one from the legacy `frequency`.
+  addColumn('autonomous_config', 'schedule TEXT');
+  // Who put a calendar row there: NULL = the owner, 'autopilot' = Autopilot.
+  // Lets the scheduled-post worker report an Autopilot post going out.
+  addColumn('calendar', 'source TEXT');
+  // Where an own-content row came from: NULL = a fetch/scrape, 'bot' = a
+  // channel post the shared bot saw, 'forwarded' = a post the owner forwarded.
+  addColumn('own_content_posts', 'source TEXT');
   // Deferred onboarding. Signup asks only the essentials; the rest are asked in
   // the profile panel and by Markiv. profile_questions caches the 2-5
   // Gemini-written, business-specific questions (generated once, then stable so
@@ -615,7 +646,7 @@ module.exports = function createDb(dbPath) {
     id: r.id, profileId: r.profile_id, platform: r.platform, externalId: r.external_id,
     kind: r.kind, caption: r.caption, postedAt: r.posted_at,
     likeCount: r.like_count, commentCount: r.comment_count, viewCount: r.view_count,
-    fetched_at: r.fetched_at,
+    fetched_at: r.fetched_at, source: r.source || null,
   };
   const mapKeyword = (r) => r && {
     id: r.id, profileId: r.profile_id, keyword_phrase: r.keyword_phrase,
@@ -624,7 +655,7 @@ module.exports = function createDb(dbPath) {
   const mapCalendar = (r) => r && {
     id: r.id, profileId: r.profile_id, platform: r.platform, post_text: r.post_text,
     scheduled_time: r.scheduled_time, status: r.status, mediaId: r.media_id || null,
-    tag: r.tag || null, repeatRule: r.repeat_rule || null,
+    tag: r.tag || null, repeatRule: r.repeat_rule || null, source: r.source || null,
   };
   const mapMedia = (r) => r && {
     id: r.id, profileId: r.profile_id, kind: r.kind, mode: r.mode, topic: r.topic,
@@ -669,6 +700,7 @@ module.exports = function createDb(dbPath) {
     id: r.id, profileId: r.profile_id, enabled: !!r.enabled,
     platforms: r.platforms ? JSON.parse(r.platforms) : [],
     frequency: r.frequency, autoPublish: !!r.auto_publish,
+    schedule: r.schedule ? JSON.parse(r.schedule) : null,
     lastRunAt: r.last_run_at, nextRunAt: r.next_run_at,
     created_at: r.created_at, updated_at: r.updated_at,
   };
@@ -1096,10 +1128,59 @@ module.exports = function createDb(dbPath) {
         });
         tx(posts);
       },
+      // Add or refresh posts by external id, keeping everything already
+      // stored. Autopilot uses this instead of replacePosts: a public scrape
+      // only shows the latest ~20 posts, and posts the bot saw or the owner
+      // forwarded must not be wiped by the next scrape. Keeps the newest
+      // `keep` rows per (profile, platform).
+      mergePosts(profileId, platform, posts = [], { source = null, keep = 200 } = {}) {
+        const find = sqlite.prepare('SELECT id FROM own_content_posts WHERE profile_id = ? AND platform = ? AND external_id = ?');
+        const update = sqlite.prepare(
+          `UPDATE own_content_posts SET caption = COALESCE(@caption, caption), kind = COALESCE(@kind, kind),
+             posted_at = COALESCE(@posted_at, posted_at), view_count = COALESCE(@view_count, view_count),
+             like_count = COALESCE(@like_count, like_count), comment_count = COALESCE(@comment_count, comment_count),
+             fetched_at = @fetched_at WHERE id = @id`
+        );
+        const insert = sqlite.prepare(
+          `INSERT INTO own_content_posts (id, profile_id, platform, external_id, kind, caption, posted_at, like_count, comment_count, view_count, fetched_at, source)
+           VALUES (@id, @profile_id, @platform, @external_id, @kind, @caption, @posted_at, @like_count, @comment_count, @view_count, @fetched_at, @source)`
+        );
+        const trim = sqlite.prepare(
+          `DELETE FROM own_content_posts WHERE profile_id = ? AND platform = ? AND id NOT IN (
+             SELECT id FROM own_content_posts WHERE profile_id = ? AND platform = ? ORDER BY posted_at DESC LIMIT ?)`
+        );
+        let added = 0;
+        sqlite.transaction((rows) => {
+          const fetchedAt = now();
+          for (const p of rows) {
+            const vals = {
+              caption: p.caption ? String(p.caption).slice(0, 2000) : null,
+              kind: p.kind || null,
+              posted_at: p.postedAt || null,
+              like_count: Number.isFinite(p.likeCount) ? p.likeCount : null,
+              comment_count: Number.isFinite(p.commentCount) ? p.commentCount : null,
+              view_count: Number.isFinite(p.viewCount) ? p.viewCount : null,
+              fetched_at: fetchedAt,
+            };
+            const existing = p.externalId ? find.get(profileId, platform, String(p.externalId)) : null;
+            if (existing) {
+              update.run({ ...vals, id: existing.id });
+            } else {
+              insert.run({ ...vals, id: id(), profile_id: profileId, platform, external_id: p.externalId ? String(p.externalId) : null, source });
+              added += 1;
+            }
+          }
+          trim.run(profileId, platform, profileId, platform, keep);
+        })(posts);
+        return added;
+      },
       listByProfile(profileId, limit = 100) {
         return sqlite.prepare(
           'SELECT * FROM own_content_posts WHERE profile_id = ? ORDER BY posted_at DESC LIMIT ?'
         ).all(profileId, limit).map(mapOwnContentPost);
+      },
+      countByProfile(profileId) {
+        return sqlite.prepare('SELECT COUNT(*) AS n FROM own_content_posts WHERE profile_id = ?').get(profileId).n;
       },
     },
 
@@ -1131,10 +1212,11 @@ module.exports = function createDb(dbPath) {
           id: id(), profile_id: post.profileId, platform: post.platform,
           post_text: post.postText, scheduled_time: post.scheduledTime, status: post.status || 'scheduled',
           media_id: post.mediaId || null, tag: post.tag || null, repeat_rule: post.repeatRule || null,
+          source: post.source || null,
         };
         sqlite.prepare(
-          `INSERT INTO calendar (id, profile_id, platform, post_text, scheduled_time, status, media_id, tag, repeat_rule)
-           VALUES (@id, @profile_id, @platform, @post_text, @scheduled_time, @status, @media_id, @tag, @repeat_rule)`
+          `INSERT INTO calendar (id, profile_id, platform, post_text, scheduled_time, status, media_id, tag, repeat_rule, source)
+           VALUES (@id, @profile_id, @platform, @post_text, @scheduled_time, @status, @media_id, @tag, @repeat_rule, @source)`
         ).run(row);
         return mapCalendar(row);
       },
@@ -1437,6 +1519,12 @@ module.exports = function createDb(dbPath) {
       sharedProfilesForChat(chatId) {
         return sqlite.prepare("SELECT profile_id FROM telegram_connections WHERE mode = 'shared' AND chat_id = ?")
           .all(String(chatId)).map((r) => r.profile_id);
+      },
+      // Profiles a Telegram user linked through the shared bot — who may
+      // approve their posts from the bot chat or forward posts to learn from.
+      sharedProfilesForOwner(tgUserId) {
+        return sqlite.prepare("SELECT profile_id FROM telegram_connections WHERE mode = 'shared' AND owner_tg_user_id = ?")
+          .all(Number(tgUserId)).map((r) => r.profile_id);
       },
       // A group upgraded to a supergroup gets a new id; follow it.
       moveChat(fromChatId, toChatId) {
@@ -1780,9 +1868,11 @@ module.exports = function createDb(dbPath) {
       getConfig(profileId) {
         return mapAutoConfig(sqlite.prepare('SELECT * FROM autonomous_config WHERE profile_id = ?').get(profileId));
       },
-      upsertConfig({ profileId, enabled, platforms, frequency, autoPublish, nextRunAt }) {
-        const existing = sqlite.prepare('SELECT id FROM autonomous_config WHERE profile_id = ?').get(profileId);
+      upsertConfig({ profileId, enabled, platforms, frequency, autoPublish, nextRunAt, schedule }) {
+        const existing = sqlite.prepare('SELECT id, schedule FROM autonomous_config WHERE profile_id = ?').get(profileId);
         const p = {
+          // Left out = keep what was saved (an older client knows nothing of it).
+          schedule: schedule === undefined ? (existing ? existing.schedule : null) : (schedule ? JSON.stringify(schedule) : null),
           profile_id: profileId,
           enabled: enabled ? 1 : 0,
           platforms: JSON.stringify(Array.isArray(platforms) ? platforms : []),
@@ -1794,12 +1884,12 @@ module.exports = function createDb(dbPath) {
         if (existing) {
           sqlite.prepare(
             `UPDATE autonomous_config SET enabled=@enabled, platforms=@platforms, frequency=@frequency,
-             auto_publish=@auto_publish, next_run_at=@next_run_at, updated_at=@updated_at WHERE profile_id=@profile_id`
+             auto_publish=@auto_publish, next_run_at=@next_run_at, schedule=@schedule, updated_at=@updated_at WHERE profile_id=@profile_id`
           ).run(p);
         } else {
           sqlite.prepare(
-            `INSERT INTO autonomous_config (id, profile_id, enabled, platforms, frequency, auto_publish, next_run_at, created_at, updated_at)
-             VALUES (@id, @profile_id, @enabled, @platforms, @frequency, @auto_publish, @next_run_at, @created_at, @updated_at)`
+            `INSERT INTO autonomous_config (id, profile_id, enabled, platforms, frequency, auto_publish, next_run_at, schedule, created_at, updated_at)
+             VALUES (@id, @profile_id, @enabled, @platforms, @frequency, @auto_publish, @next_run_at, @schedule, @created_at, @updated_at)`
           ).run({ ...p, id: id(), created_at: now() });
         }
         return this.getConfig(profileId);
@@ -1901,6 +1991,44 @@ module.exports = function createDb(dbPath) {
       listContextRequests(profileId, limit = 10) {
         return sqlite.prepare('SELECT * FROM autopilot_context_requests WHERE profile_id = ? ORDER BY created_at DESC LIMIT ?')
           .all(profileId, limit).map(mapContextRequest);
+      },
+
+      // --- The owner's brief (autopilotBrief.js) ---
+      getBrief(profileId) {
+        const r = sqlite.prepare('SELECT * FROM autopilot_briefs WHERE profile_id = ?').get(profileId);
+        return r && r.data ? { ...JSON.parse(r.data), updatedAt: r.updated_at } : null;
+      },
+      // Merges `patch` into the stored brief; a key set to null is removed.
+      saveBrief(profileId, patch) {
+        const current = this.getBrief(profileId) || {};
+        delete current.updatedAt;
+        const next = { ...current };
+        for (const [k, v] of Object.entries(patch || {})) {
+          if (v === null || v === undefined) delete next[k];
+          else next[k] = v;
+        }
+        sqlite.prepare(
+          `INSERT INTO autopilot_briefs (profile_id, data, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(profile_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`
+        ).run(profileId, JSON.stringify(next), now());
+        return this.getBrief(profileId);
+      },
+
+      // --- What Autopilot learned from the channel (autopilotStyle.js) ---
+      getStyle(profileId) {
+        const r = sqlite.prepare('SELECT * FROM autopilot_styles WHERE profile_id = ?').get(profileId);
+        return r && r.data
+          ? { ...JSON.parse(r.data), sampleCount: r.sample_count || 0, source: r.source, learnedAt: r.learned_at }
+          : null;
+      },
+      saveStyle(profileId, style) {
+        const { sampleCount = 0, source = null, learnedAt, ...data } = style || {};
+        sqlite.prepare(
+          `INSERT INTO autopilot_styles (profile_id, data, sample_count, source, learned_at) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(profile_id) DO UPDATE SET data = excluded.data, sample_count = excluded.sample_count,
+             source = excluded.source, learned_at = excluded.learned_at`
+        ).run(profileId, JSON.stringify(data), sampleCount, source, learnedAt || now());
+        return this.getStyle(profileId);
       },
     },
 

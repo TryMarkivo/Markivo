@@ -1,11 +1,15 @@
 // ==========================================================================
 // Autopilot — the autonomous marketing agent worker.
 //
-// For each business that has enabled Autopilot and is due, it: analyzes the
-// profile + recent activity, generates platform-native ORGANIC promotional
-// posts, and then either publishes them right away through the platform
-// connectors (sandbox-simulated when keyless, live when connected) or queues
-// them as pending approvals for one-tap human sign-off — per the owner's
+// For each business that has enabled Autopilot, on the owner's posting plan
+// (autopilotSchedule.js — fixed days and times, or "you decide" from the
+// channel's best hours): it learns how the channel writes and what it posts
+// about (autopilotStyle.js), asks the owner what it can't learn
+// (autopilotBrief.js + autopilotContext.js), picks the next topic, writes
+// platform-native ORGANIC posts for that slot, and then either puts them on
+// the Calendar at the slot (the scheduled-post worker publishes them —
+// sandbox-simulated when keyless, live when connected) or queues them as
+// pending approvals for one-tap human sign-off — per the owner's
 // `autoPublish` setting.
 //
 // SAFETY INVARIANT (mirrors CLAUDE.md): Autopilot NEVER creates or runs paid ad
@@ -21,6 +25,9 @@
 // ==========================================================================
 
 const autopilotContext = require('./autopilotContext');
+const autopilotSchedule = require('./autopilotSchedule');
+const autopilotStyle = require('./autopilotStyle');
+const autopilotBrief = require('./autopilotBrief');
 const businessContextService = require('./businessContextService');
 const geminiDefault = require('./gemini');
 const i18n = require('./i18n');
@@ -30,6 +37,10 @@ const FREQ_MS = {
   daily: 24 * 60 * 60 * 1000,
   weekly: 7 * 24 * 60 * 60 * 1000,
 };
+
+// The posting plan in force: the owner's saved schedule, else one derived
+// from the legacy frequency. 'test' keeps the old one-minute demo cadence.
+const isLegacyCadence = (cfg) => cfg.frequency === 'test';
 
 function nextRunFrom(frequency, fromMs) {
   return new Date(fromMs + (FREQ_MS[frequency] || FREQ_MS.daily)).toISOString();
@@ -64,7 +75,7 @@ async function gatherExternalActivity({ db, ownContentFetch, config, profileId, 
     if (!stale) continue;
     const result = await ownContentFetch.fetchOwnContent(platform, conn, tgConn);
     db.ownContent.upsertSource({ profileId, platform, status: result.error ? 'error' : (result.found ? 'ok' : 'empty'), error: result.error });
-    if (result.posts && result.posts.length) db.ownContent.replacePosts(profileId, platform, result.posts);
+    if (result.posts && result.posts.length) db.ownContent.mergePosts(profileId, platform, result.posts);
   }
 
   const ownPosts = db.ownContent.listByProfile(profileId, 15);
@@ -83,9 +94,43 @@ async function gatherExternalActivity({ db, ownContentFetch, config, profileId, 
   return { ownExternalActivity, competitorHighlights, ownPostCount: ownPosts.length, competitorPostCount: competitorPosts.length };
 }
 
+// Theme keys of Autopilot's recent posts, newest first — what the rotation
+// balances against — and the news text dates already used in a post.
+function recentAutopilotMemory(db, profileId) {
+  const rows = db.autonomous.listActivity(profileId, 80).filter((a) => a.kind === 'analysis' && a.payload);
+  return {
+    themes: rows.map((a) => a.payload.theme).filter(Boolean),
+    newsUsed: new Set(rows.map((a) => a.payload.newsAt).filter(Boolean)),
+  };
+}
+
+// Tell the owner (best effort, never blocks a run) — the publishers decide
+// how: today a Telegram message from the shared bot, when they linked it.
+async function notify(publishers, kind, profile, payload, db) {
+  const fn = publishers && publishers.notifyOwner;
+  if (!fn) return;
+  try {
+    await fn(kind, profile, payload);
+  } catch (err) {
+    db.autonomous.logActivity({ profileId: profile.id, kind: 'error', summary: `notify: ${err.message}` });
+  }
+}
+
 // Run Autopilot once for a single profile. Returns a small summary object.
-// `force` (manual "Run now") bypasses the dueness claim; worker-initiated runs
-// must win an atomic claim so overlapping ticks can't double-run a profile.
+//
+// Three ways in:
+//   - the worker, on a schedule: writes the post for the next time slot once
+//     that slot's lead window opens (an hour ahead when it publishes on its
+//     own, twelve hours ahead when the owner approves first), and puts it on
+//     the Calendar AT the slot — the scheduled-post worker sends it on time.
+//     Between slots a run still refreshes what Autopilot knows (the channel,
+//     its style) and asks the owner what it is missing, but writes nothing;
+//   - the legacy 'test' cadence (every minute, demos): writes and publishes
+//     right away;
+//   - `force` (manual "Run now"): writes one post right away, outside the
+//     plan, and leaves the plan alone.
+// Worker-initiated runs must win an atomic claim so overlapping ticks can't
+// double-run a profile.
 async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}, ownContentFetch, gemini = geminiDefault, profileId, nowMs = Date.now(), force = false }) {
   const profile = db.profiles.findById(profileId);
   const cfg = db.autonomous.getConfig(profileId);
@@ -95,16 +140,34 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   // No request here — what the owner reads follows their saved UI language.
   const lang = i18n.langOr(user && user.preferredLang);
   const nowIso = new Date(nowMs).toISOString();
-  const nextRunAt = nextRunFrom(cfg.frequency, nowMs);
+  const legacy = isLegacyCadence(cfg);
+  const plan = autopilotSchedule.normalizeSchedule(cfg.schedule, cfg.frequency);
+  const known = db.autonomous.getStyle(profileId);
+  const best = (known && known.timing) || autopilotSchedule.bestTimes({ category: profile.category, timezone: plan.timezone });
 
-  // Claim this run up front (advance next_run_at BEFORE the first await). The
-  // worker path uses an atomic conditional claim: if another tick already took
-  // this profile — or it isn't due — claimDue returns false and we bail, so a
-  // profile is never run twice. Manual "Run now" (force) skips the dueness check.
+  // Which slot this run writes for (null = between slots, or immediate).
+  let slot = null;
+  let writing = true;
   if (force) {
+    // Run now: outside the plan. Keep the planned next run, or set one.
+    const nextRunAt = legacy
+      ? nextRunFrom(cfg.frequency, nowMs)
+      : (cfg.nextRunAt || autopilotSchedule.slotDecision(plan, { nowMs, autoPublish: cfg.autoPublish, best }).nextRunAt);
     db.autonomous.setRun(profileId, { lastRunAt: nowIso, nextRunAt });
-  } else if (!db.autonomous.claimDue(profileId, nowIso, nextRunAt)) {
-    return { skipped: 'not-due' };
+  } else {
+    // Claim this run up front (advance next_run_at BEFORE the first await):
+    // if another tick already took this profile — or it isn't due — claimDue
+    // returns false and we bail, so a profile is never run twice.
+    let nextRunAt;
+    if (legacy) {
+      nextRunAt = nextRunFrom(cfg.frequency, nowMs);
+    } else {
+      const decision = autopilotSchedule.slotDecision(plan, { nowMs, autoPublish: cfg.autoPublish, best });
+      slot = decision.due;
+      writing = !!slot;
+      nextRunAt = decision.nextRunAt;
+    }
+    if (!db.autonomous.claimDue(profileId, nowIso, nextRunAt)) return { skipped: 'not-due' };
   }
 
   // Respect the owner's weekly writing allowance — pause until it resets.
@@ -112,7 +175,7 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   // more posts than the owner can still afford, and publishing unbudgeted work
   // would let Autopilot quietly outspend everyone who writes by hand.
   const budget = user ? writingRemaining(db, config, user.id, user.tier) : Infinity;
-  if (budget <= 0) {
+  if (writing && budget <= 0) {
     db.autonomous.logActivity({ profileId, kind: 'skipped', summary: i18n.tr(lang, 'Weekly writing allowance reached — Autopilot paused until it resets on Monday.') });
     return { skipped: 'budget' };
   }
@@ -126,11 +189,11 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   // Telegram only counts where it is switched on for this deployment;
   // otherwise nothing could ever publish what Autopilot writes for it.
   const telegramOn = !config || config.telegramEnabled !== false;
-  const known = (p) => (p === 'telegram' ? telegramOn : !!connectors.get(p));
+  const knownPlatform = (p) => (p === 'telegram' ? telegramOn : !!connectors.get(p));
   const tgConn = db.telegram.findByProfile(profileId);
-  const connected = new Set(db.connections.listByProfile(profileId).map((c) => c.platform).filter(known));
+  const connected = new Set(db.connections.listByProfile(profileId).map((c) => c.platform).filter(knownPlatform));
   if (tgConn) connected.add('telegram');
-  const chosen = (cfg.platforms || []).filter(known);
+  const chosen = (cfg.platforms || []).filter(knownPlatform);
   let platforms = chosen.filter((p) => connected.size === 0 || connected.has(p));
   if (!platforms.length) platforms = chosen.length ? chosen : ['meta_instagram'];
 
@@ -155,21 +218,46 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     }
   }
 
+  // What the channel teaches: how this business writes, what it posts about,
+  // when its posts do best. Re-learned at most daily (autopilotStyle.js).
+  const style = await autopilotStyle.ensureStyle({ db, gemini, profile, lang, timezone: plan.timezone, nowMs });
+  const brief = db.autonomous.getBrief(profileId);
+
   // CONTEXT GATE — a distinct, testable step, not a line in the generation
   // prompt. Autopilot must not fire off a generic ad: before spending anything
-  // we check whether this channel actually gives us enough to say something
-  // worth saying. If it does not, the run HALTS here and the owner is asked.
+  // we check whether the channel and the owner's brief give us enough to say
+  // something worth saying. If not, the run HALTS here and the owner is asked.
   // Runs BEFORE db.usage.record below, so a paused run costs the owner nothing.
   // (The assessment itself is a cheap Flash call and is not metered, the same
   // way the onboarding brand brief isn't.)
-  const gate = await autopilotContext.ensureContext({ db, gemini, profileId, platforms, nowMs, lang });
+  const gate = await autopilotContext.ensureContext({
+    db, gemini, profileId, platforms, nowMs, lang, brief, style, scheduleChosen: !!cfg.schedule || legacy,
+  });
   if (!gate.ok) {
+    if (gate.reason === 'needs-context' && gate.request) await notify(publishers, 'questions', profile, { request: gate.request }, db);
     return { paused: 'needs-context', reason: gate.reason, requestId: gate.request ? gate.request.id : null };
   }
 
-  let plan;
+  // Between slots: everything is ready, nothing to write yet.
+  if (!writing) {
+    const next = autopilotSchedule.upcomingSlots(plan, { fromMs: nowMs, count: 1, best: style ? style.timing : best })[0];
+    return { waiting: 'next-slot', nextSlotAt: next ? next.at : null };
+  }
+
+  // WHAT this post is about: the owner's fresh news first, else the topic most
+  // behind its share in the rotation. WHEN: the slot (or now).
+  const memory = recentAutopilotMemory(db, profileId);
+  const news = autopilotBrief.currentNews(brief, nowMs);
+  const useNews = !!(news && !memory.newsUsed.has(news.at));
+  const theme = useNews
+    ? { key: 'news', name: 'News from the owner' }
+    : autopilotBrief.pickTheme(autopilotBrief.themePool({ brief, style }), memory.themes);
+  const momentMs = slot ? slot.ms : nowMs;
+  const occasions = autopilotSchedule.occasionsNear(momentMs, { timezone: plan.timezone });
+
+  let draft;
   try {
-    plan = await ai.analyzeAndPlan({
+    draft = await ai.analyzeAndPlan({
       lang,
       languages: profile.audienceLanguages,
       platforms,
@@ -191,13 +279,34 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
       memory: businessContextService.memoryDigest(db, profile),
       userContext: gate.context.userContext,
       adType: gate.context.adType,
+      // What Autopilot learned and was told.
+      styleGuide: autopilotStyle.styleDigest(style),
+      styleStats: style && style.sufficient ? style.stats : null,
+      briefGuide: autopilotBrief.briefDigest(brief, nowMs),
+      brief,
+      theme,
+      news: useNews ? news.text : null,
+      moment: autopilotSchedule.slotLabel(momentMs, plan.timezone),
+      occasions,
     });
   } catch (err) {
     db.autonomous.logActivity({ profileId, kind: 'error', summary: i18n.tr(lang, 'Analysis failed: {{reason}}', { reason: err.message }) });
     return { error: err.message };
   }
 
-  db.autonomous.logActivity({ profileId, kind: 'analysis', summary: plan.analysis, payload: { platforms } });
+  db.autonomous.logActivity({
+    profileId,
+    kind: 'analysis',
+    summary: draft.analysis,
+    payload: {
+      platforms,
+      theme: theme ? theme.key : null,
+      themeName: theme ? theme.name : null,
+      slotAt: slot ? slot.at : null,
+      newsAt: useNews ? news.at : null,
+      learnedFrom: style ? style.sampleCount : 0,
+    },
+  });
   if (externalActivityCounts.ownPostCount || externalActivityCounts.competitorPostCount) {
     db.autonomous.logActivity({
       profileId,
@@ -228,6 +337,10 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     return { deferred: true };
   };
 
+  // A slot's post goes on the Calendar at the slot (never in the past).
+  const slotTime = slot ? new Date(Math.max(slot.ms, nowMs + 60 * 1000)).toISOString() : null;
+  const themeInfo = theme ? { theme: theme.key, themeName: theme.name } : {};
+
   let published = 0;
   let scheduled = 0;
   let queued = 0;
@@ -235,8 +348,8 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   let spent = 0;
   let unaffordable = 0;
 
-  for (let i = 0; i < plan.posts.length; i += 1) {
-    const post = plan.posts[i];
+  for (let i = 0; i < draft.posts.length; i += 1) {
+    const post = draft.posts[i];
     const platform = String(post.platform || 'meta_instagram').toLowerCase();
 
     // Guard against a live model returning a platform key we can't act on (e.g.
@@ -265,9 +378,9 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     // real post, so it lands on the calendar as a draft instead: the owner
     // still sees it first, and can schedule it once the channel is linked.
     if (!cfg.autoPublish && platform === 'telegram' && !(publishers.telegramReady && publishers.telegramReady(profile))) {
-      const row = db.calendar.add({ profileId, platform, postText: post.text, scheduledTime: scheduledTimeFor(i, nowMs), status: 'draft' });
+      const row = db.calendar.add({ profileId, platform, postText: post.text, scheduledTime: slotTime || scheduledTimeFor(i, nowMs), status: 'draft', source: 'autopilot' });
       queued += 1;
-      db.autonomous.logActivity({ profileId, kind: 'post_scheduled', summary: post.text.slice(0, 140), payload: { platform, calendarId: row.id, scheduledTime: row.scheduled_time, draft: true } });
+      db.autonomous.logActivity({ profileId, kind: 'post_scheduled', summary: post.text.slice(0, 140), payload: { platform, calendarId: row.id, scheduledTime: row.scheduled_time, draft: true, ...themeInfo } });
       continue;
     }
     if (!cfg.autoPublish) {
@@ -284,23 +397,38 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
           text: post.text,
           platform: isTg ? undefined : (adapter ? adapter.key : platform),
           autonomous: true, // lets the UI badge it as Autopilot-generated
+          // Approved before this time -> it goes out at this time; after -> now.
+          scheduledFor: slotTime || undefined,
+          ...themeInfo,
         },
       });
       queued += 1;
-      db.autonomous.logActivity({ profileId, kind: 'approval_created', summary: post.text.slice(0, 140), payload: { platform, approvalId: approval.id } });
+      db.autonomous.logActivity({ profileId, kind: 'approval_created', summary: post.text.slice(0, 140), payload: { platform, approvalId: approval.id, scheduledFor: slotTime, ...themeInfo } });
+      await notify(publishers, 'approval', profile, { approval, timezone: plan.timezone }, db);
       continue;
     }
 
-    // Auto-publish mode: post it now (or schedule it if the channel isn't ready).
+    // Auto-publish, on a plan: put it on the Calendar at the slot. The
+    // scheduled-post worker sends it on time, and until then the owner can
+    // still read, edit or delete it there.
+    if (slotTime) {
+      const row = db.calendar.add({ profileId, platform, postText: post.text, scheduledTime: slotTime, status: 'scheduled', source: 'autopilot' });
+      scheduled += 1;
+      db.autonomous.logActivity({ profileId, kind: 'post_scheduled', summary: post.text.slice(0, 140), payload: { platform, calendarId: row.id, scheduledTime: row.scheduled_time, ...themeInfo } });
+      continue;
+    }
+
+    // Auto-publish, right now (Run now / demo cadence), or schedule it if the
+    // channel isn't ready.
     try {
       const result = await publishNow(platform, post.text);
       if (result.deferred) {
-        const row = db.calendar.add({ profileId, platform, postText: post.text, scheduledTime: scheduledTimeFor(i, nowMs), status: 'scheduled' });
+        const row = db.calendar.add({ profileId, platform, postText: post.text, scheduledTime: scheduledTimeFor(i, nowMs), status: 'scheduled', source: 'autopilot' });
         scheduled += 1;
-        db.autonomous.logActivity({ profileId, kind: 'post_scheduled', summary: post.text.slice(0, 140), payload: { platform, calendarId: row.id, scheduledTime: row.scheduled_time } });
+        db.autonomous.logActivity({ profileId, kind: 'post_scheduled', summary: post.text.slice(0, 140), payload: { platform, calendarId: row.id, scheduledTime: row.scheduled_time, ...themeInfo } });
       } else {
         published += 1;
-        db.autonomous.logActivity({ profileId, kind: 'post_published', summary: post.text.slice(0, 140), payload: { platform, simulated: result.simulated } });
+        db.autonomous.logActivity({ profileId, kind: 'post_published', summary: post.text.slice(0, 140), payload: { platform, simulated: result.simulated, ...themeInfo } });
       }
     } catch (err) {
       errors += 1;
@@ -314,13 +442,15 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     db.autonomous.logActivity({
       profileId,
       kind: 'skipped',
-      summary: i18n.tr(lang, 'Weekly writing allowance reached — {{skipped}} of {{total}} posts were not created. Resets Monday.', { skipped: unaffordable, total: plan.posts.length }),
+      summary: i18n.tr(lang, 'Weekly writing allowance reached — {{skipped}} of {{total}} posts were not created. Resets Monday.', { skipped: unaffordable, total: draft.posts.length }),
     });
   }
 
   return {
-    posts: plan.posts.length, published, scheduled, queued, errors, unaffordable,
+    posts: draft.posts.length, published, scheduled, queued, errors, unaffordable,
     autoPublish: cfg.autoPublish,
+    slotAt: slotTime,
+    theme: theme ? theme.key : null,
   };
 }
 
@@ -340,4 +470,4 @@ async function runAutonomousTick({ db, ai, connectors, config, publishers, ownCo
   return { due: due.length, results };
 }
 
-module.exports = { runAutonomousTick, runProfileAutopilot, nextRunFrom };
+module.exports = { runAutonomousTick, runProfileAutopilot, nextRunFrom, recentAutopilotMemory };

@@ -185,6 +185,18 @@ function recentAdsDigest(items) {
     : '';
 }
 
+// What the owner told Autopilot that every generator should know too: how
+// customers reach them and what is new right now (two weeks).
+function ownerNewsDigest(brief) {
+  if (!brief) return '';
+  const lines = [];
+  if (brief.cta) lines.push(`How customers reach or buy (as the owner wrote it): ${brief.cta}`);
+  if (brief.news && brief.newsAt && Date.now() - Date.parse(brief.newsAt) < 14 * 24 * 60 * 60 * 1000) {
+    lines.push(`What's new (${String(brief.newsAt).slice(0, 10)}): ${brief.news}`);
+  }
+  return lines.length ? `FROM THE OWNER, RECENTLY:\n${lines.join('\n')}` : '';
+}
+
 /**
  * Everything Markivo remembers about ONE business, as the single prompt block
  * every generator receives: the stored context cell, the brand brief with the
@@ -205,6 +217,7 @@ function memoryDigest(db, profile) {
     `BRAND BRIEF AND OWNER FACTS:\n${brand.briefDigest(profile.brandBrief, profile)}`,
     read(() => preferences.preferenceDigest(db.feedback.recentExamples(profile.id))),
     read(() => recentAdsDigest(db.media.listByProfile(profile.id))),
+    read(() => ownerNewsDigest(db.autonomous.getBrief(profile.id))),
   ].filter(Boolean).join('\n\n');
 }
 

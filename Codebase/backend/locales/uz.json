@@ -263,5 +263,15 @@
   "Approved and posted to {{channel}}.": "Tasdiqlandi va «{{channel}}» kanaliga joylandi.",
   "Pick your channel in Telegram instead.": "Kanalni Telegramning o'zida tanlang.",
   "The Markivo bot is not set up on this server. Connect your own bot instead.": "Bu serverda Markivo boti sozlanmagan. O'z botingizni ulang.",
-  "Could not reach Telegram. Please try again in a minute.": "Telegramga ulanib bo'lmadi. Bir daqiqadan so'ng qayta urinib ko'ring."
+  "Could not reach Telegram. Please try again in a minute.": "Telegramga ulanib bo'lmadi. Bir daqiqadan so'ng qayta urinib ko'ring.",
+  "Autopilot learned how you write from your channel, but needs to know what to post about.": "Autopilot kanalingizdan qanday yozishingizni o'rgandi, lekin nima haqida post joylashni bilishi kerak.",
+  "Your channel has no posts Autopilot can learn from yet, so it needs a few quick answers before it starts: what to post, how it should sound and when.": "Kanalingizda Autopilot o'rganadigan postlar hali yo'q, shuning uchun boshlashdan oldin bir nechta qisqa javob kerak: nima joylash, qanday ohangda va qachon.",
+  "Autopilot found only {{count}} post to learn from. That is not enough to copy your style, so it needs a few quick answers before it starts.": "Autopilot o'rganish uchun faqat {{count}} ta post topdi. Uslubingizni takrorlashga bu yetmaydi, shuning uchun boshlashdan oldin bir nechta qisqa javob kerak.",
+  "Autopilot found only {{count}} posts to learn from. That is not enough to copy your style, so it needs a few quick answers before it starts.": "Autopilot o'rganish uchun faqat {{count}} ta post topdi. Uslubingizni takrorlashga bu yetmaydi, shuning uchun boshlashdan oldin bir nechta qisqa javob kerak.",
+  "Approved. It goes out at the planned time.": "Tasdiqlandi. Post rejalashtirilgan vaqtda chiqadi.",
+  "Answered Autopilot’s questions.": "Autopilot savollariga javob berildi.",
+  "A planned post could not be published on {{platform}}: {{reason}}": "Rejalashtirilgan post {{platform}} da joylanmadi: {{reason}}",
+  "Unknown timezone": "Noma'lum vaqt mintaqasi",
+  "Answers are required.": "Javoblar kerak.",
+  "Autopilot learned your channel a moment ago. Try again in a few minutes.": "Autopilot kanalingizni hozirgina o'rgandi. Bir necha daqiqadan keyin qayta urinib ko'ring."
 }

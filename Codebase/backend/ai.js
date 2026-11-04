@@ -547,16 +547,41 @@ const CONTENT_SCHEMA = {
 
 // Autopilot: analyze a business + its recent activity, then draft one ready-to-
 // publish ORGANIC promotional post per target platform. Keyless -> templates.
+//
+// The keyless template still follows the topic Autopilot picked (an opening
+// line per topic, in the post's first language) and the owner's/channel's
+// emoji and hashtag habits, so a rotation of topics doesn't produce the same
+// post every time.
+const THEME_LINES = {
+  products: { en: 'Have you tried our best sellers yet?', uz: "Eng ko'p sevilgan mahsulotlarimizni sinab ko'rdingizmi?", ru: 'Вы уже попробовали наши хиты?' },
+  offers: { en: 'A little something for you this week.', uz: 'Shu hafta siz uchun kichik sovg‘a bor.', ru: 'На этой неделе у нас для вас кое-что приятное.' },
+  news: { en: 'We have news to share.', uz: 'Sizga yangilik bor.', ru: 'У нас есть новость.' },
+  tips: { en: 'A quick tip from us.', uz: 'Bizdan kichik maslahat.', ru: 'Небольшой совет от нас.' },
+  behind_scenes: { en: 'A peek behind the scenes.', uz: 'Parda ortidan bir nazar.', ru: 'Немного о том, что происходит за кулисами.' },
+  reviews: { en: 'What our customers tell us.', uz: 'Mijozlarimiz biz haqimizda nima deydi.', ru: 'Что говорят о нас наши гости.' },
+  team: { en: 'Meet the people behind it all.', uz: 'Bu ishning ortidagi insonlar bilan tanishing.', ru: 'Знакомьтесь с нашей командой.' },
+  events: { en: 'Something to look forward to.', uz: 'Oldinda kutadigan narsa bor.', ru: 'Скоро будет повод заглянуть к нам.' },
+  fun: { en: 'Just for a smile today.', uz: 'Bugun shunchaki kayfiyat uchun.', ru: 'Просто для хорошего настроения.' },
+};
+const EMOJI_ALL = /\p{Extended_Pictographic}️?|[\u{1F1E6}-\u{1F1FF}]/gu;
+
 function templateAutonomousPlan(ctx) {
-  const { platforms = ['instagram'], businessName, category, description } = ctx;
+  const { platforms = ['instagram'], businessName, category, description, theme, news, brief, styleStats } = ctx;
   const list = platforms.length ? platforms : ['instagram'];
+  const firstLang = gemini.normalizeLanguages(ctx.languages && ctx.languages.length ? ctx.languages : [ctx.lang || 'en'])[0] || 'en';
+  const lead = news || (theme && THEME_LINES[theme.key] ? THEME_LINES[theme.key][firstLang] || THEME_LINES[theme.key].en : '');
+  const emojiPref = brief && brief.emoji && brief.emoji !== 'auto' ? brief.emoji : (styleStats ? styleStats.emojiLevel : null);
+  const noTags = styleStats ? styleStats.hashtagShare < 20 : false;
   const posts = list.map((platform) => {
-    const c = templateContent({ platform, businessName, category, description });
-    const tags = (c.hashtags || []).join(' ');
+    const c = templateContent({ platform, businessName, category, description, languages: ctx.languages });
+    const tags = noTags ? '' : (c.hashtags || []).join(' ');
+    let text = `${lead ? `${lead}\n\n` : ''}${c.post}${tags ? `\n\n${tags}` : ''}`;
+    if (brief && brief.cta) text += `\n\n${brief.cta}`;
+    if (emojiPref === 'none') text = text.replace(EMOJI_ALL, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/^[ \t]+/gm, '').trim();
     return {
       platform: String(platform).toLowerCase(),
-      topic: '',
-      text: `${c.post}${tags ? `\n\n${tags}` : ''}`.slice(0, 4000),
+      topic: theme ? theme.name : '',
+      text: text.slice(0, 4000),
     };
   });
   // The analysis is the owner's to read (ctx.lang); the posts keep following
@@ -673,6 +698,7 @@ async function analyzeAndPlan(ctx) {
     platforms = ['instagram'], businessName, category, description,
     brandTone, audience, location, recentPosts = [], competitors = [],
     ownExternalActivity = [], competitorHighlights = [], memory, userContext, languages, lang,
+    styleGuide, briefGuide, theme, news, moment, occasions = [],
   } = ctx;
   const targets = platforms.length ? platforms : ['instagram'];
   // Posts follow the audience's languages; an owner who never set them gets
@@ -685,9 +711,13 @@ async function analyzeAndPlan(ctx) {
         "You are Markivo's autonomous marketing strategist for a small business. " +
         'Briefly analyze the business and its recent activity, then write platform-native ' +
         'promotional posts — exactly one per requested platform. Each post must match the brand ' +
-        'voice, be built from concrete details in the business memory (never invent prices, hours ' +
-        'or numbers), be ready to publish as-is, include a light call to action, and avoid ' +
-        'repeating the recent posts. Respond as JSON only.' +
+        'voice, be built from concrete details in the business memory (never invent prices, hours, ' +
+        'numbers, phone numbers, addresses or links), be ready to publish as-is, include a light ' +
+        'call to action, and avoid repeating the recent posts. When you are shown how this ' +
+        "business already writes, the new post must read like the next post on that channel: the " +
+        'same voice, length, layout, emoji and hashtag habits and way of addressing readers — ' +
+        "never a copy of an example. The owner's brief overrides habits from old posts. Write " +
+        'about the topic you are given, for the moment it goes out. Respond as JSON only.' +
         gemini.ownerLangRule(lang, 'the "analysis" (it explains the plan to the owner)') +
         `\n\nFor every post's text — ${humanVoice.VOICE}`,
       prompt:
@@ -705,10 +735,17 @@ async function analyzeAndPlan(ctx) {
         `Recently posted organically on your own channels, outside Markivo (do NOT repeat, but stay consistent with it): ${ownExternalActivity.slice(0, 5).join(' | ') || 'none found'}\n` +
         `Competitor signals: ${competitors.slice(0, 5).join(', ') || 'n/a'}\n` +
         `Real recent competitor posts (for inspiration, never copy): ${competitorHighlights.slice(0, 5).join(' | ') || 'none tracked with content yet'}\n` +
+        (styleGuide ? `\n${styleGuide}\n` : '') +
+        (briefGuide ? `\n${briefGuide}\n` : '') +
+        (theme ? `\nTOPIC OF THIS POST: ${theme.name}${theme.description ? ` — ${theme.description}` : ''}\n` : '') +
+        (news ? `Build this post around the owner's news: ${news}\n` : '') +
+        (moment ? `It goes out: ${moment} (local time) — fit the moment when it helps (morning, lunch, evening, weekend).\n` : '') +
+        (occasions.length ? `Coming up: ${occasions.map((o) => `${o.name}${o.inDays ? ` in ${o.inDays} day${o.inDays > 1 ? 's' : ''}` : ' today'}`).join(', ')} — mention it only if it fits this business naturally.\n` : '') +
         `Target platforms: ${targets.join(', ')}\n` +
         `Post language: ${gemini.langInstructionFor(postLangs)}\n\n` +
-        `Return a short "analysis" (2-3 sentences on what to post and why) and a "posts" array ` +
-        `with exactly one post per target platform ({platform, topic, text}).`,
+        `Return a short "analysis" (2-3 sentences for the owner: what this post is about and why ` +
+        `now, and which of their habits it follows) and a "posts" array with exactly one post per ` +
+        `target platform ({platform, topic, text}).`,
       schema: PLAN_SCHEMA,
       maxTokens: 2000,
     });
