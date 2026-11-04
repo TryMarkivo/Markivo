@@ -1,10 +1,12 @@
 // Telegram Bot API client (no SDK — plain HTTPS via global fetch).
 //
-// Design note: Telegram has NO API for creating bots — only @BotFather can do
-// that, manually. So Markivo's flow is: the owner creates a bot in BotFather
-// (~60 seconds, guided in the UI), pastes the token, and from that point on
-// everything is automated — Markivo brands the bot with the business details,
-// detects the channel/group the owner adds it to, and publishes posts to it.
+// Two ways a business connects (both end in the same send functions below):
+//  - shared (default when TELEGRAM_BOT_TOKEN is set): the one Markivo bot.
+//    The owner opens a link, presses Start and picks their channel — see
+//    telegramHub.js, which reads that bot's messages.
+//  - own: Telegram has NO API for creating bots, so the owner creates one in
+//    @BotFather, pastes the token, and Markivo brands it with the business
+//    details, detects the channel/group it is added to, and posts there.
 
 const fs = require('fs');
 const path = require('path');
@@ -169,8 +171,8 @@ async function verifyPostAccess(token, chatId, botUserId) {
   return { chatId: String(chat.id), chatTitle: chat.title || chat.username, chatType: chat.type, chatUsername: chat.username || null };
 }
 
-const sendMessage = (token, chatId, text) =>
-  call(token, 'sendMessage', { chat_id: chatId, text });
+const sendMessage = (token, chatId, text, extra = {}) =>
+  call(token, 'sendMessage', { chat_id: chatId, text, ...extra });
 
 // Media is either a public URL Telegram fetches itself, or { path } to a file
 // on this server, which is uploaded directly. The upload means photo posts
@@ -206,6 +208,7 @@ const getChatMemberCount = (token, chatId) =>
   call(token, 'getChatMemberCount', { chat_id: chatId });
 
 module.exports = {
+  call,
   TelegramError,
   isValidTokenFormat,
   getMe,

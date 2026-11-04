@@ -260,5 +260,8 @@
   "A strong photo post is a safe next move — most of your competitors are not out-posting you on video yet.": "Kuchli foto post — ishonchli keyingi qadam: raqobatchilaringizning aksariyati hali video bo'yicha sizdan o'zib ketmagan.",
   "Approved. {{platform}} is in test mode, so nothing was posted for real; connect it in Settings to publish.": "Tasdiqlandi. {{platform}} sinov rejimida, shuning uchun hech narsa haqiqatda joylanmadi. Joylash uchun uni Sozlamalarda ulang.",
   "Approved and posted to {{platform}}.": "Tasdiqlandi va {{platform}} sahifasiga joylandi.",
-  "Approved and posted to {{channel}}.": "Tasdiqlandi va «{{channel}}» kanaliga joylandi."
+  "Approved and posted to {{channel}}.": "Tasdiqlandi va «{{channel}}» kanaliga joylandi.",
+  "Pick your channel in Telegram instead.": "Kanalni Telegramning o'zida tanlang.",
+  "The Markivo bot is not set up on this server. Connect your own bot instead.": "Bu serverda Markivo boti sozlanmagan. O'z botingizni ulang.",
+  "Could not reach Telegram. Please try again in a minute.": "Telegramga ulanib bo'lmadi. Bir daqiqadan so'ng qayta urinib ko'ring."
 }

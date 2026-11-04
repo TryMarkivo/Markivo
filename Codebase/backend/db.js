@@ -230,6 +230,19 @@ module.exports = function createDb(dbPath) {
       updated_at   TEXT
     );
 
+    -- Pending "connect with the shared Markivo bot" links. The owner opens
+    -- t.me/<bot>?start=<code>; pressing Start tells us which Telegram user is
+    -- this profile's owner (tg_user_id), so only a channel THAT user adds the
+    -- bot to can be linked to this profile.
+    CREATE TABLE IF NOT EXISTS telegram_links (
+      profile_id  TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+      code        TEXT UNIQUE NOT NULL,
+      tg_user_id  INTEGER,
+      expires_at  TEXT NOT NULL,
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS instagram_connections (
       id               TEXT PRIMARY KEY,
       profile_id       TEXT UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -497,6 +510,12 @@ module.exports = function createDb(dbPath) {
   // the channel's own recent posts via the same public t.me/s/ preview used
   // for Telegram competitor tracking (private channels/groups have none).
   addColumn('telegram_connections', 'chat_username TEXT');
+  // 'own' (NULL on old rows) = the business's own BotFather bot, token stored
+  // encrypted in bot_token. 'shared' = the one Markivo bot from
+  // TELEGRAM_BOT_TOKEN; bot_token stays empty and owner_tg_user_id is the
+  // Telegram user who linked the channel.
+  addColumn('telegram_connections', 'mode TEXT');
+  addColumn('telegram_connections', 'owner_tg_user_id INTEGER');
   // NULL = a profile-wide "analyze all tracked competitors" insight; set = a
   // single-competitor "analyze this channel" insight.
   addColumn('competitor_insights', 'competitor_id TEXT');
@@ -1391,7 +1410,8 @@ module.exports = function createDb(dbPath) {
         if (existing) {
           sqlite.prepare(
             `UPDATE telegram_connections SET bot_token = ?, bot_user_id = ?, bot_username = ?, bot_name = ?,
-             chat_id = NULL, chat_title = NULL, chat_type = NULL, updated_at = ? WHERE id = ?`
+             mode = 'own', owner_tg_user_id = NULL,
+             chat_id = NULL, chat_title = NULL, chat_type = NULL, chat_username = NULL, updated_at = ? WHERE id = ?`
           ).run(enc, botUserId, botUsername, botName, now(), existing.id);
         } else {
           sqlite.prepare(
@@ -1400,6 +1420,61 @@ module.exports = function createDb(dbPath) {
           ).run(id(), profileId, enc, botUserId, botUsername, botName, now());
         }
         return this.findByProfile(profileId);
+      },
+      // Link a chat through the shared Markivo bot. Replaces whatever the
+      // profile had before (including an own-bot connection).
+      upsertShared({ profileId, botUserId, botUsername, ownerTgUserId, chat }) {
+        sqlite.prepare('DELETE FROM telegram_connections WHERE profile_id = ?').run(profileId);
+        sqlite.prepare(
+          `INSERT INTO telegram_connections (id, profile_id, bot_token, bot_user_id, bot_username, bot_name, mode,
+             owner_tg_user_id, chat_id, chat_title, chat_type, chat_username, created_at)
+           VALUES (?, ?, '', ?, ?, NULL, 'shared', ?, ?, ?, ?, ?, ?)`
+        ).run(id(), profileId, botUserId, botUsername, ownerTgUserId, chat.chatId, chat.chatTitle || null,
+          chat.chatType || null, chat.chatUsername || null, now());
+        return this.findByProfile(profileId);
+      },
+      // Profiles whose shared-bot connection points at this chat.
+      sharedProfilesForChat(chatId) {
+        return sqlite.prepare("SELECT profile_id FROM telegram_connections WHERE mode = 'shared' AND chat_id = ?")
+          .all(String(chatId)).map((r) => r.profile_id);
+      },
+      // A group upgraded to a supergroup gets a new id; follow it.
+      moveChat(fromChatId, toChatId) {
+        sqlite.prepare('UPDATE telegram_connections SET chat_id = ?, updated_at = ? WHERE chat_id = ?')
+          .run(String(toChatId), now(), String(fromChatId));
+      },
+      links: {
+        create(profileId, code, expiresAt) {
+          sqlite.prepare(
+            `INSERT INTO telegram_links (profile_id, code, tg_user_id, expires_at, created_at) VALUES (?, ?, NULL, ?, ?)
+             ON CONFLICT(profile_id) DO UPDATE SET code = excluded.code, tg_user_id = NULL,
+               expires_at = excluded.expires_at, created_at = excluded.created_at, updated_at = NULL`
+          ).run(profileId, code, expiresAt, now());
+          return this.findByProfile(profileId);
+        },
+        findByProfile(profileId) {
+          const r = sqlite.prepare('SELECT * FROM telegram_links WHERE profile_id = ?').get(profileId);
+          return r ? { profileId: r.profile_id, code: r.code, tgUserId: r.tg_user_id, expiresAt: r.expires_at } : null;
+        },
+        findByCode(code) {
+          const r = sqlite.prepare('SELECT * FROM telegram_links WHERE code = ?').get(String(code));
+          return r ? { profileId: r.profile_id, code: r.code, tgUserId: r.tg_user_id, expiresAt: r.expires_at } : null;
+        },
+        setUser(profileId, tgUserId) {
+          sqlite.prepare('UPDATE telegram_links SET tg_user_id = ?, updated_at = ? WHERE profile_id = ?')
+            .run(tgUserId, now(), profileId);
+        },
+        // The newest unexpired link this Telegram user opened (an owner with two
+        // businesses links the one they started most recently).
+        latestForUser(tgUserId, nowIso) {
+          const r = sqlite.prepare(
+            'SELECT * FROM telegram_links WHERE tg_user_id = ? AND expires_at > ? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 1'
+          ).get(tgUserId, nowIso);
+          return r ? { profileId: r.profile_id, code: r.code, tgUserId: r.tg_user_id, expiresAt: r.expires_at } : null;
+        },
+        remove(profileId) {
+          sqlite.prepare('DELETE FROM telegram_links WHERE profile_id = ?').run(profileId);
+        },
       },
       setChat(profileId, { chatId, chatTitle, chatType, chatUsername }) {
         sqlite.prepare(
@@ -1410,15 +1485,24 @@ module.exports = function createDb(dbPath) {
       findByProfile(profileId) {
         const r = sqlite.prepare('SELECT * FROM telegram_connections WHERE profile_id = ?').get(profileId);
         if (!r) return null;
+        const mode = r.mode === 'shared' ? 'shared' : 'own';
         let botToken = null;
-        try {
-          botToken = secrets.decrypt(r.bot_token);
-        } catch {
-          // Encryption key changed (JWT_SECRET rotated) — connection is unusable.
-          return null;
+        if (mode === 'shared') {
+          // The shared bot's token lives in the environment, never in the row.
+          // Without it the connection can't send, so report it as absent.
+          botToken = require('./config').telegramBotToken;
+          if (!botToken) return null;
+        } else {
+          try {
+            botToken = secrets.decrypt(r.bot_token);
+          } catch {
+            // Encryption key changed (JWT_SECRET rotated) — connection is unusable.
+            return null;
+          }
         }
         return {
-          id: r.id, profileId: r.profile_id, botToken, botUserId: r.bot_user_id,
+          id: r.id, profileId: r.profile_id, botToken, botUserId: r.bot_user_id, mode,
+          ownerTgUserId: r.owner_tg_user_id,
           botUsername: r.bot_username, botName: r.bot_name,
           chatId: r.chat_id, chatTitle: r.chat_title, chatType: r.chat_type, chatUsername: r.chat_username,
           created_at: r.created_at, updated_at: r.updated_at,

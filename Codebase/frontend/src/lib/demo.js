@@ -90,6 +90,8 @@ const demoWrite = (body) => {
   return `${topic[0].toUpperCase()}${topic.slice(1)}. Come by Noir Coffee this week and see for yourself. ☕\n\n#NoirCoffee #Tashkent`;
 };
 
+let tgLinked = true;
+
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 function handle(method, url, body) {
@@ -143,7 +145,15 @@ function handle(method, url, body) {
   }
 
   if (path === '/api/instagram/status') return json({ connected: true, username: 'noircoffee', accountName: 'Noir Coffee' });
-  if (path === '/api/telegram/status') return json({ connected: true, botUsername: 'noir_bot', chat: { chatId: '-100', chatTitle: 'Noir Coffee', chatType: 'channel' } });
+  // Telegram through the shared Markivo bot. Disconnecting shows the connect
+  // flow; its link points at a placeholder bot.
+  if (path === '/api/telegram/status') {
+    return json(tgLinked
+      ? { connected: true, mode: 'shared', sharedAvailable: true, linking: null, botUsername: 'markivo_bot', chat: { chatId: '-100', chatTitle: 'Noir Coffee', chatType: 'channel', chatUsername: 'noircoffee' } }
+      : { connected: false, sharedAvailable: true, linking: null });
+  }
+  if (path === '/api/telegram/link/start') return json({ url: 'https://t.me/markivo_bot?start=demo', botUsername: 'markivo_bot', expiresAt: new Date(Date.now() + 1800000).toISOString() });
+  if (path === '/api/connect/telegram/disconnect') { tgLinked = false; return json({ success: true }); }
   if (path === '/api/styles') return json(DEMO_STYLES);
   if (path === '/api/media') return json({ items: DEMO_MEDIA });
   if (path === '/api/templates') return json([]);

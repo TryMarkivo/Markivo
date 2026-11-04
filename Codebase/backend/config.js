@@ -180,6 +180,11 @@ const config = {
   // 503 "coming soon" and the dashboard shows a Coming-soon pill. Flip to
   // re-enable end-to-end — no code changes needed.
   telegramEnabled: process.env.TELEGRAM_ENABLED === 'true',
+  // One shared Markivo bot (created once in @BotFather by the Markivo team).
+  // When set, owners connect by opening a link and picking their channel —
+  // no BotFather, no token pasting. Blank = only the per-business own-bot
+  // flow is offered, exactly as before.
+  telegramBotToken: (process.env.TELEGRAM_BOT_TOKEN || '').trim(),
 
   // --- Autopilot (autonomous marketing agent) ---
   // Per-business opt-in agent that analyzes the profile and auto-generates +

@@ -49,10 +49,17 @@ export default function ConnectionsPanel({ activeProfile }) {
   }
 
   // Telegram status comes from its own endpoint; others from /api/connect/status.
+  // The card names the channel (the shared Markivo bot is the same for
+  // everyone), or the owner's own bot while its channel is not linked yet.
+  const tgHandle = () => {
+    const chat = tgStatus?.chat;
+    if (chat) return chat.chatUsername ? `@${chat.chatUsername}` : chat.chatTitle;
+    return tgStatus?.botUsername && tgStatus?.mode !== 'shared' ? `@${tgStatus.botUsername}` : null;
+  };
   const statusFor = (key) => key === 'telegram'
     ? (tgStatus?.comingSoon
         ? { comingSoon: true, live: true }
-        : { connected: !!(tgStatus?.connected && tgStatus?.chat), accountHandle: tgStatus?.botUsername ? `@${tgStatus.botUsername}` : null, live: true, sandbox: false })
+        : { connected: !!(tgStatus?.connected && tgStatus?.chat), accountHandle: tgHandle(), live: true, sandbox: false })
     : (data.status[key] || { connected: false });
 
   const openPlatform = openKey ? data.catalogue.find((c) => c.key === openKey) : null;

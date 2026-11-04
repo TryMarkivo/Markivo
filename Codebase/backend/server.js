@@ -16,6 +16,7 @@ const gemini = require('./gemini');
 const telegramExport = require('./telegramExport');
 const billing = require('./billing');
 const tg = require('./telegram');
+const tgHub = require('./telegramHub');
 const ig = require('./instagram');
 const places = require('./places');
 const profileQuestions = require('./profileQuestions');
@@ -1632,6 +1633,9 @@ app.post('/api/telegram/detect-chat', verifyToken, telegramGate, asyncRoute(asyn
   if (!profile) return;
   const conn = db.telegram.findByProfile(profile.id);
   if (!conn) return res.status(400).json({ error: 'Connect your bot first' });
+  // The shared bot's messages belong to the listener (telegramHub); reading
+  // them here would steal its updates. Its channel is picked in Telegram.
+  if (conn.mode === 'shared') return res.status(400).json({ error: 'Pick your channel in Telegram instead.' });
 
   try {
     const found = await tg.detectChat(conn.botToken, conn.botUserId);
@@ -1653,6 +1657,10 @@ app.post('/api/telegram/channel', verifyToken, telegramGate, asyncRoute(async (r
   if (!profile) return;
   const conn = db.telegram.findByProfile(profile.id);
   if (!conn) return res.status(400).json({ error: 'Connect your bot first' });
+  // The shared bot is admin in many businesses' channels, so a typed handle
+  // could name someone else's. Its channel is only linked from Telegram,
+  // where we know who is asking.
+  if (conn.mode === 'shared') return res.status(400).json({ error: 'Pick your channel in Telegram instead.' });
 
   let chat = String(req.body.chat || '').trim();
   if (!chat) return res.status(400).json({ error: 'Enter your channel handle (e.g. @mybusiness) or chat ID' });
@@ -1667,17 +1675,47 @@ app.post('/api/telegram/channel', verifyToken, telegramGate, asyncRoute(async (r
   }
 }));
 
+// Start connecting through the shared Markivo bot: a one-time t.me link. The
+// owner opens it, presses Start and picks a channel; telegramHub does the rest
+// and the dashboard watches /api/telegram/status until the channel appears.
+app.post('/api/telegram/link/start', verifyToken, telegramGate, asyncRoute(async (req, res) => {
+  const profile = requireProfile(req, res);
+  if (!profile) return;
+  if (!config.telegramBotToken) {
+    return res.status(400).json({ error: 'The Markivo bot is not set up on this server. Connect your own bot instead.' });
+  }
+  let me;
+  try {
+    me = await tgHub.getSharedBot(config.telegramBotToken);
+  } catch {
+    return res.status(502).json({ error: 'Could not reach Telegram. Please try again in a minute.' });
+  }
+  const code = tgHub.newLinkCode();
+  const expiresAt = tgHub.linkExpiry();
+  db.telegram.links.create(profile.id, code, expiresAt);
+  res.json({ url: tgHub.linkUrl(me.username, code), botUsername: me.username, expiresAt });
+}));
+
 app.get('/api/telegram/status', verifyToken, (req, res) => {
   if (!config.telegramEnabled) return res.json({ connected: false, comingSoon: true });
+  const sharedAvailable = !!config.telegramBotToken;
   const profile = db.profiles.findByUserId(req.user.id);
-  if (!profile) return res.json({ connected: false });
+  if (!profile) return res.json({ connected: false, sharedAvailable });
+  // A link in progress: `opened` once the owner pressed Start in Telegram.
+  const link = db.telegram.links.findByProfile(profile.id);
+  const linking = link && link.expiresAt > new Date().toISOString() ? { opened: !!link.tgUserId } : null;
   const conn = db.telegram.findByProfile(profile.id);
-  if (!conn) return res.json({ connected: false });
+  if (!conn) return res.json({ connected: false, sharedAvailable, linking });
   res.json({
     connected: true,
+    mode: conn.mode,
+    sharedAvailable,
+    linking,
     botUsername: conn.botUsername,
     botName: conn.botName,
-    chat: conn.chatId ? { chatId: conn.chatId, chatTitle: conn.chatTitle, chatType: conn.chatType } : null,
+    chat: conn.chatId
+      ? { chatId: conn.chatId, chatTitle: conn.chatTitle, chatType: conn.chatType, chatUsername: conn.chatUsername || null }
+      : null,
   });
 });
 
@@ -3351,6 +3389,12 @@ if (require.main === module) {
     // polling it. Without this the row shows a spinner forever and the unit
     // charged at submit is never refunded.
     setInterval(runStaleRenderSweep, 60000);
+
+    // Shared Markivo Telegram bot: read its messages so owners can link a
+    // channel by pressing Start and picking it (telegramHub.js).
+    if (config.telegramEnabled && config.telegramBotToken && process.env.TELEGRAM_POLLING !== 'false') {
+      tgHub.startPolling({ db, token: config.telegramBotToken });
+    }
 
     // Autopilot worker: scan for due autonomous businesses and run each. A
     // re-entrancy guard skips a tick while the previous one is still running, so

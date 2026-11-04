@@ -14,7 +14,7 @@ Asia, in Uzbek, Russian, and English.
 | Frontend | React 19 + Vite, `react-i18next` (English-first; uz/ru optional) |
 | Backend | Node.js + Express, JWT auth (access + refresh), SQLite (`better-sqlite3`) |
 | AI | Claude via `@anthropic-ai/sdk` — Haiku for content/slogans, Opus for the **Markiv** agent; smart-template fallback when no key is set |
-| Telegram | Real Bot API integration — guided BotFather setup, auto-branding, channel detection, publish-with-approval through Markiv, live subscriber metric (`TELEGRAM_ENABLED` flag for rollback) |
+| Telegram | Real Bot API integration — one shared Markivo bot (open link, press Start, pick channel; `TELEGRAM_BOT_TOKEN`) or the owner's own BotFather bot with auto-branding, channel detection, publish-with-approval through Markiv, live subscriber metric (`TELEGRAM_ENABLED` flag for rollback) |
 | Tests | Node's built-in `node:test` runner |
 | Deploy | Docker + docker-compose (backend container + nginx-served frontend) |
 

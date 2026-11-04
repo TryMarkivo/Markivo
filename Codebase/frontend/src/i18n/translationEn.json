@@ -930,7 +930,25 @@
     "pillSoon": "Telegram · soon",
     "pillChat": "Telegram · {{chatTitle}}",
     "pillFinishSetup": "Telegram · finish setup",
-    "pillConnect": "Telegram · connect"
+    "pillConnect": "Telegram · connect",
+    "doneShared": "{{chatType}} · posts go out under the channel’s name",
+    "doneOwn": "{{chatType}} · through your bot @{{username}}",
+    "doneHint2": "Scheduled Telegram posts in your calendar now go out to this channel.",
+    "disconnect": "Disconnect",
+    "disconnectConfirm": "Disconnect Telegram? Scheduled Telegram posts will wait until you connect again.",
+    "changeChannel": "Change channel",
+    "useOwnBot": "Use my own bot instead",
+    "useShared": "Use the Markivo bot instead",
+    "shared": {
+      "step1": "Open Telegram and press Start.",
+      "step2": "Choose your channel. Telegram adds the Markivo bot to it as an admin.",
+      "open": "Open Telegram",
+      "preparing": "Preparing your link…",
+      "waiting": "Waiting for you to press Start in Telegram…",
+      "pickNow": "Now choose your channel in Telegram.",
+      "newLink": "New link",
+      "botName": "Bot: @{{username}}"
+    }
   },
   "settings": {
     "title": "Settings",

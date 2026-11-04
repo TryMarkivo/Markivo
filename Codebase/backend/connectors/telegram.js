@@ -20,6 +20,8 @@ const adapter = {
   authType: 'token',
   docsUrl: 'https://core.telegram.org/bots#how-do-i-create-a-bot',
   requirements: ['A Telegram account', 'A channel or group where your bot is an admin'],
+  // Steps for the own-bot route. With TELEGRAM_BOT_TOKEN set, the Telegram
+  // card offers the shared Markivo bot first (open link → Start → pick channel).
   howToConnect: [
     'Open Telegram and start a chat with @BotFather.',
     'Send /newbot and follow the prompts to name your bot.',
@@ -43,8 +45,13 @@ const adapter = {
     if (!config.telegramEnabled) return notConnected(adapter, { comingSoon: true });
     const conn = db.telegram.findByProfile(profile.id);
     if (!conn) return notConnected(adapter);
+    // Shared bot: the business is known by its channel, not by the bot.
+    const handle = conn.mode === 'shared'
+      ? (conn.chatUsername ? `@${conn.chatUsername}` : conn.chatTitle)
+      : (conn.botUsername ? `@${conn.botUsername}` : null);
     return connected(adapter, {
-      accountHandle: conn.botUsername ? `@${conn.botUsername}` : null,
+      accountHandle: handle || null,
+      mode: conn.mode,
       botName: conn.botName,
       chat: conn.chatId ? { chatId: conn.chatId, chatTitle: conn.chatTitle, chatType: conn.chatType } : null,
       ready: !!conn.chatId,
@@ -63,8 +70,15 @@ const adapter = {
   },
 
   async disconnect({ db, profile }) {
+    const conn = db.telegram.findByProfile(profile.id);
     db.telegram.remove(profile.id);
+    db.telegram.links.remove(profile.id);
     db.platforms.setConnected(profile.id, 'telegram', null, false);
+    // The shared bot leaves the channel once no business posts there, so it
+    // doesn't linger as an admin the owner no longer needs.
+    if (conn?.mode === 'shared' && conn.chatId && !db.telegram.sharedProfilesForChat(conn.chatId).length) {
+      await tg.call(conn.botToken, 'leaveChat', { chat_id: conn.chatId }).catch(() => {});
+    }
   },
 
   async metrics({ db, profile }) {

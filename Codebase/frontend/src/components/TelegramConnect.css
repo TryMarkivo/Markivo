@@ -1,0 +1,201 @@
+/* Telegram setup window. Same surface and type as the post panel. */
+
+.auth-overlay.tg-scrim {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 16px;
+}
+
+.auth-overlay > .tg-dialog {
+  background: var(--ui-bg);
+}
+
+.tg-dialog {
+  width: min(460px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  color: var(--ui-ink);
+  text-align: left;
+}
+
+.tg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 14px 20px;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.tg-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+}
+
+.tg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tg-muted {
+  color: var(--ui-ink-3);
+  font-size: 13px;
+}
+
+.tg-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: tg-step;
+}
+
+.tg-steps li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  counter-increment: tg-step;
+}
+
+.tg-steps li::before {
+  content: counter(tg-step);
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui-ink-2);
+  background: var(--ui-surface-2);
+}
+
+.tg-steps code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  background: var(--ui-surface-2);
+}
+
+.tg-big {
+  height: 44px;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.tg-open {
+  width: 100%;
+}
+
+.tg-wait {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--ui-surface-2);
+  color: var(--ui-ink-2);
+  font-size: 13px;
+}
+
+.tg-row {
+  display: flex;
+  gap: 8px;
+}
+
+.tg-row .ui-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-push {
+  margin-left: auto;
+}
+
+.tg-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ui-line);
+  font-size: 13px;
+}
+
+.tg-done {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tg-done-mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--ui-ok);
+  background: var(--ui-ok-soft);
+}
+
+.tg-done-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tg-done-title + .tg-muted::first-letter {
+  text-transform: uppercase;
+}
+
+.tg-actions {
+  flex-wrap: wrap;
+}
+
+.tg-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--ui-danger-soft);
+}
+
+.tg-confirm .tg-row {
+  justify-content: flex-end;
+}
+
+@media (max-width: 480px) {
+  .tg-actions .ui-btn {
+    flex: 1;
+  }
+  .tg-push {
+    margin-left: 0;
+  }
+  .tg-foot .tg-push {
+    margin-left: auto;
+  }
+}
+
+.tg-link {
+  padding: 0;
+  font: inherit;
+  font-weight: 500;
+  color: var(--ui-accent-ink);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

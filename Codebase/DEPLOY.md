@@ -26,6 +26,7 @@
 | `ANTHROPIC_API_KEY` | no | blank = template fallback |
 | `GOOGLE_MAPS_API_KEY` | no | blank = mock discovery scan |
 | `TELEGRAM_ENABLED` | no | `true` for launch; `false` rolls back to coming-soon gate |
+| `TELEGRAM_BOT_TOKEN` | no | the one shared Markivo bot (from @BotFather). Owners then connect by pressing Start and picking their channel. Blank = only "use your own bot". Run ONE API process per token (it long-polls the bot) |
 | `MEDIA_API_KEY` | no | media rendering engine (coming soon) |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | no | blank = billing in SIMULATED mode (tier changes apply without payment) |
 | `TIER_PRICE_PRO` / `TIER_PRICE_ULTIMATE` | no | monthly USD prices (defaults 20 / 50) |

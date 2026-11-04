@@ -43,7 +43,7 @@ JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('he
 `JWT_SECRET` in prod): `CORS_ORIGIN`, `APP_URL`, `ANTHROPIC_API_KEY`,
 `AI_CONTENT_MODEL`, `AI_AGENT_MODEL`, `GOOGLE_MAPS_API_KEY`, `MEDIA_API_KEY`,
 `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TIER_PRICE_PRO`,
-`TIER_PRICE_ULTIMATE`, `TELEGRAM_ENABLED`, `INSTAGRAM_APP_ID`,
+`TIER_PRICE_ULTIMATE`, `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `INSTAGRAM_APP_ID`,
 `INSTAGRAM_APP_SECRET`, `INSTAGRAM_REDIRECT_URI`, `PUBLIC_BASE_URL`.
 
 ## Per-integration go-live
@@ -58,7 +58,7 @@ setup steps live in `CREDENTIALS.local.md`.
 | **Stripe** | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Upgrade opens real Checkout; webhook flips tier |
 | **fal.ai media** | `MEDIA_API_KEY` | Media render returns a PNG, not 501 |
 | **Instagram** | `INSTAGRAM_APP_ID/SECRET`, `INSTAGRAM_REDIRECT_URI`, `PUBLIC_BASE_URL` | "Connect Instagram" → Connected as @handle |
-| **Telegram** | `TELEGRAM_ENABLED=true` (already on) | Pill connects a bot (token entered in UI) |
+| **Telegram** | `TELEGRAM_ENABLED=true` (already on), `TELEGRAM_BOT_TOKEN` | Log shows "Markivo Telegram bot @… listening"; Connect Telegram → Start → pick channel links it |
 
 ### Stripe webhook
 Add a Dashboard endpoint at `https://<api-host>/api/billing/webhook` for
