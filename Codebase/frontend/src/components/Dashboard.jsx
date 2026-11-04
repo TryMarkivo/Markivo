@@ -7,7 +7,6 @@ import CompetitorIntel from './CompetitorIntel';
 // import AIAgentSidebar from './AIAgentSidebar';
 import TelegramConnect from './TelegramConnect';
 import InstagramConnect from './InstagramConnect';
-import InstagramComposer from './InstagramComposer';
 import SettingsPane from './SettingsPane';
 import BusinessProfilePane from './BusinessProfilePane';
 import UpgradePane from './UpgradePane';
@@ -23,12 +22,24 @@ import logoUrl from '../assets/markivo-logo.png';
 import './Dashboard.css';
 import InfoTip from './ui/InfoTip';
 
-// A metric card: number + trend + sparkline, dimmed when it is still sample
-// data rather than a real reading, and clickable anywhere to open the
-// platform drill-down. Unconnected platforms surface a real "Connect" button
-// on hover instead of silently showing a dead chart.
-function StatCard({ id, label, platformName, changeText, value, subtitle, color, history, live, connectable, connected, onConnect, onDrill }) {
+// A metric card. Connected: the real number, its trend and a sparkline, and a
+// click opens the platform drill-down. Not connected: no number at all (never
+// an invented one), just what connecting would show and the button to do it.
+function StatCard({ id, label, platformName, change, value, subtitle, color, history, live, onConnect, onDrill }) {
   const { t } = useTranslation();
+  if (!live) {
+    return (
+      <div className="stat-card glass-card is-empty" id={id}>
+        <span className="stat-label">{label}</span>
+        <p className="stat-empty-text">
+          {t('dashboard.stats.connectToSee', { defaultValue: 'Connect {{platform}} to see this number here.', platform: platformName })}
+        </p>
+        <button className="btn btn-primary btn-sm" onClick={onConnect} id={`${id}_connect`}>
+          {t('connections.setupTitle', { defaultValue: 'Connect {{label}}', label: platformName })}
+        </button>
+      </div>
+    );
+  }
   return (
     <div
       className="stat-card glass-card"
@@ -39,32 +50,23 @@ function StatCard({ id, label, platformName, changeText, value, subtitle, color,
       id={id}
       aria-label={t('dashboard.stats.drillDown', { defaultValue: 'Show detailed {{platform}} statistics', platform: label })}
     >
-      <div className={`stat-card-content ${live ? '' : 'is-demo'}`}>
+      <div className="stat-card-content">
         <div className="flex-between">
           <span className="stat-label">{label}</span>
-          <span className="trend-percentage positive">{changeText}</span>
+          {Number.isFinite(change) && change !== 0 && (
+            <span className={`trend-percentage ${change > 0 ? 'positive' : 'negative'}`}>
+              {change > 0 ? '+' : ''}{change}%
+            </span>
+          )}
         </div>
         <div className="stat-number-wrap">
           <h2>{value}</h2>
-          <span className="text-muted">{subtitle}</span>
+          {subtitle && <span className="text-muted">{subtitle}</span>}
         </div>
         <div className="stat-chart-svg">
           <Sparkline history={history} color={color} label={label} />
         </div>
       </div>
-      <span className="stat-chart-cue" aria-hidden="true"><i className="fa-solid fa-up-right-and-down-left-from-center"></i></span>
-      {connectable && !connected && (
-        <div className="stat-connect-overlay">
-          <button
-            className="btn btn-primary"
-            onClick={(e) => { e.stopPropagation(); onConnect(); }}
-            id={`${id}_connect`}
-          >
-            <i className="fa-solid fa-plug"></i>{' '}
-            {t('connections.setupTitle', { defaultValue: 'Connect {{label}}', label: platformName || label })}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -94,7 +96,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [igStatus, setIgStatus] = useState(null);
   const [igModalOpen, setIgModalOpen] = useState(false);
-  const [igComposerOpen, setIgComposerOpen] = useState(false);
   const [igNotice, setIgNotice] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const result = params.get('instagram');
@@ -182,28 +183,16 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       } catch {
         // Server unreachable — show clearly-flagged offline preset data.
         setStatsOffline(true);
-        // Fallback static data customized to category
+        // Nothing invented: the cards say they are not connected, and the
+        // banner above says the server could not be reached.
         setStats({
           metrics: {
-            instagramFollowers: { current: 1240, change: 12.8 },
-            telegramSubscribers: { current: 890, change: 9.4 }
+            instagramFollowers: { current: null, change: null, live: false, history: [] },
+            telegramSubscribers: { current: null, change: null, live: false, history: [] },
           },
-          competitors: [
-            { name: 'District Cafe & Bakery', platformCount: 3, postsPerWeek: 6, rating: 4.4, followers: 2300 },
-            { name: 'Coffee House Central', platformCount: 4, postsPerWeek: 10, rating: 4.6, followers: 4100 },
-            { name: 'Local Roasters', platformCount: 2, postsPerWeek: 4, rating: 4.2, followers: 980 }
-          ],
-          // DISABLED: SEO/Meta temporarily off — see 2026-08-13
-          // seoKeywords: [
-          //   { keyword_phrase: `best ${cat} in tashkent`, avg_position: 7, volume: 'High' },
-          //   { keyword_phrase: `${cat} workspace`, avg_position: 11, volume: 'Medium' },
-          //   { keyword_phrase: `${cat} near me`, avg_position: 15, volume: 'Very High' }
-          // ],
-          aiPresence: {
-            perplexityScore: 72,
-            chatgptRank: 'Top 10',
-            sourcesCitedCount: 3
-          }
+          competitors: [],
+          yourPostsPerWeek: 0,
+          yourChannelsConnected: 0,
         });
       }
       setLoading(false);
@@ -487,14 +476,12 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                   id="btn_drill_instagram"
                   label={t('dashboard.stats.instagramFollowers', 'Instagram Followers')}
                   platformName="Instagram"
-                  changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.instagramFollowers.change })}
-                  value={stats.metrics.instagramFollowers.current.toLocaleString()}
-                  subtitle={`@${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`}
+                  change={stats.metrics.instagramFollowers.change}
+                  value={stats.metrics.instagramFollowers.current?.toLocaleString()}
+                  subtitle={igStatus?.username ? `@${igStatus.username}` : ''}
                   color="var(--accent-purple)"
                   history={stats.metrics.instagramFollowers.history}
                   live={!!stats.metrics.instagramFollowers.live}
-                  connectable
-                  connected={!!igStatus?.connected}
                   onConnect={() => setIgModalOpen(true)}
                   onDrill={() => setDetailPlatform('instagram')}
                 />
@@ -504,14 +491,12 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
                   id="btn_drill_telegram"
                   label={t('dashboard.stats.telegramMembers', 'Telegram Channel Members')}
                   platformName="Telegram"
-                  changeText={t('dashboard.stats.changePositive', { defaultValue: '+{{change}}%', change: stats.metrics.telegramSubscribers.change })}
-                  value={stats.metrics.telegramSubscribers.current.toLocaleString()}
-                  subtitle={`t.me/${activeProfile.businessName.toLowerCase().replace(/ /g, '')}`}
+                  change={stats.metrics.telegramSubscribers.change}
+                  value={stats.metrics.telegramSubscribers.current?.toLocaleString()}
+                  subtitle={tgStatus?.chat?.chatTitle || ''}
                   color="var(--accent-secondary)"
                   history={stats.metrics.telegramSubscribers.history}
                   live={!!stats.metrics.telegramSubscribers.live}
-                  connectable
-                  connected={!!(tgStatus?.connected && tgStatus?.chat)}
                   onConnect={() => setTgModalOpen(true)}
                   onDrill={() => setDetailPlatform('telegram')}
                 />
@@ -587,7 +572,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
           {/* TAB 3: MEDIA STUDIO */}
           {activeTab === 'media' && (
-            <MediaStudio activeProfile={activeProfile} />
+            <MediaStudio activeProfile={activeProfile} onCompose={(initial) => setComposer({ initial })} />
           )}
 
           {/* TAB 4: COMPETITOR INTEL */}
@@ -623,18 +608,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           status={igStatus}
           onStatusChange={refreshInstagramStatus}
           onClose={() => setIgModalOpen(false)}
-          onCompose={() => { setIgModalOpen(false); setIgComposerOpen(true); }}
+          onCompose={() => { setIgModalOpen(false); setComposer({ initial: { channel: 'instagram' } }); }}
         />
       )}
 
       {/* --- INSTAGRAM COMPOSER MODAL --- */}
-      {igComposerOpen && (
-        <InstagramComposer
-          status={igStatus}
-          onPosted={refreshInstagramStatus}
-          onClose={() => setIgComposerOpen(false)}
-        />
-      )}
 
       {/* --- PLATFORM DRILL-DOWN --- */}
       {detailPlatform && (

@@ -147,9 +147,6 @@
   "I drafted this post for your Telegram channel — review and approve to publish.": "Telegram kanalingiz uchun post tayyorladim — ko'rib chiqing va joylash uchun tasdiqlang.",
   "I couldn't tell which platform to post to — could you name it (e.g. Instagram, Telegram)?": "Qaysi platformaga joylashni tushunmadim — nomini aytib bera olasizmi (masalan, Instagram, Telegram)?",
   "I drafted this post for your {{platform}} — review and approve to publish.": "{{platform}} uchun post tayyorladim — ko'rib chiqing va joylash uchun tasdiqlang.",
-  "✅ Published to {{channel}}! Your subscribers can see it now.": "✅ Post \"{{channel}}\" kanaliga joylandi! Obunachilaringiz uni hozir ko'ra oladi.",
-  "✅ Drafted & queued for {{platform}} (sandbox — connect live credentials to publish for real).": "✅ {{platform}} uchun tayyorlandi va navbatga qo'yildi (sinov rejimi — haqiqatda joylash uchun hisobingizni ulang).",
-  "✅ Published to {{platform}}!": "✅ Post {{platform}} sahifasiga joylandi!",
   "Campaign authorized! Launched localized ad campaign costing {{cost}}. (Simulation — Meta Ads integration coming soon.)": "Kampaniya tasdiqlandi! {{cost}} narxdagi mahalliy reklama kampaniyasi ishga tushirildi. (Sinov rejimi — Meta Ads integratsiyasi tez orada qo'shiladi.)",
   "Grounded this plan in {{own}} real post from your own connected accounts and {{competitor}} from tracked competitors.": "Bu reja ulangan hisoblaringizdagi {{own}} ta haqiqiy post va kuzatilayotgan raqobatchilarning {{competitor}} ta postiga asoslandi.",
   "Grounded this plan in {{own}} real posts from your own connected accounts and {{competitor}} from tracked competitors.": "Bu reja ulangan hisoblaringizdagi {{own}} ta haqiqiy post va kuzatilayotgan raqobatchilarning {{competitor}} ta postiga asoslandi.",
@@ -260,5 +257,8 @@
   "Short-form video is the dominant format among your competitors": "Raqobatchilaringiz orasida qisqa videolar asosiy format hisoblanadi",
   "A mix of photo and video content is common among your competitors": "Raqobatchilaringiz orasida foto va video aralash kontent keng tarqalgan",
   "Consider a short filmable video this week — your competitors are leaning heavily on video.": "Bu hafta qisqa video suratga olishni o'ylab ko'ring — raqobatchilaringiz asosan videoga tayanmoqda.",
-  "A strong photo post is a safe next move — most of your competitors are not out-posting you on video yet.": "Kuchli foto post — ishonchli keyingi qadam: raqobatchilaringizning aksariyati hali video bo'yicha sizdan o'zib ketmagan."
+  "A strong photo post is a safe next move — most of your competitors are not out-posting you on video yet.": "Kuchli foto post — ishonchli keyingi qadam: raqobatchilaringizning aksariyati hali video bo'yicha sizdan o'zib ketmagan.",
+  "Approved. {{platform}} is in test mode, so nothing was posted for real; connect it in Settings to publish.": "Tasdiqlandi. {{platform}} sinov rejimida, shuning uchun hech narsa haqiqatda joylanmadi. Joylash uchun uni Sozlamalarda ulang.",
+  "Approved and posted to {{platform}}.": "Tasdiqlandi va {{platform}} sahifasiga joylandi.",
+  "Approved and posted to {{channel}}.": "Tasdiqlandi va «{{channel}}» kanaliga joylandi."
 }

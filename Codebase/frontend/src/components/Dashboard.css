@@ -425,10 +425,6 @@
 /* Sample/demo data — not yet backed by a live reading from the platform.
    Dimmed rather than hidden, so the layout stays put and the number is
    still legible as a placeholder. */
-.stat-card-content.is-demo {
-  opacity: 0.5;
-}
-
 .stat-label {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -479,46 +475,10 @@
 /* The whole card is the handle for the platform drill-down. It has to look
    pressable without adding chrome that competes with the number above it, so
    the affordance is a corner cue that only surfaces on hover/focus. */
-.stat-chart-cue {
-  position: absolute;
-  top: 6px;
-  right: 10px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  opacity: 0;
-  transition: var(--transition-fast);
-  pointer-events: none;
-}
-
-.stat-card:hover .stat-chart-cue,
-.stat-card:focus-visible .stat-chart-cue {
-  opacity: 1;
-  color: var(--accent-primary);
-}
-
 /* Hover affordance for an unconnected platform: a real "Connect" button sits
    over the (dimmed) sample card, on top of a scrim so it reads clearly.
    Hidden and non-interactive until hover/focus so it never steals clicks
    that should open the drill-down. */
-.stat-connect-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(10, 9, 8, 0.55);
-  opacity: 0;
-  pointer-events: none;
-  transition: var(--transition-fast);
-  border-radius: inherit;
-}
-
-.stat-card:hover .stat-connect-overlay,
-.stat-card:focus-within .stat-connect-overlay {
-  opacity: 1;
-  pointer-events: auto;
-}
-
 .sparkline {
   width: 100%;
   height: 100%;
@@ -724,3 +684,26 @@
 }
 
 
+
+/* A channel that is not connected: no number, just the way to connect it. */
+.stat-card.is-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px 24px;
+  cursor: default;
+}
+
+.stat-card.is-empty:hover {
+  transform: none;
+}
+
+.stat-empty-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.trend-percentage.negative {
+  color: var(--ui-danger);
+}

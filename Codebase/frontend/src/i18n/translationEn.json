@@ -443,7 +443,8 @@
       "changePositive": "+{{change}}%",
       "drillDown": "See {{platform}} details",
       "collecting": "Not enough data for a trend yet",
-      "trendLabel": "Trend"
+      "trendLabel": "Trend",
+      "connectToSee": "Connect {{platform}} to see this number here."
     },
     "aiSearch": {
       "title": "AI search visibility",
@@ -1661,7 +1662,8 @@
     "postedNow": "Posted.",
     "savedDraft": "Saved as a draft.",
     "scheduledFor": "Scheduled for {{day}}, {{time}}.",
-    "deleted": "Post deleted."
+    "deleted": "Post deleted.",
+    "needMedia": "Instagram posts need a photo or video. Add one, or save this as a draft."
   },
   "sidebar": {
     "navLabel": "Sections",

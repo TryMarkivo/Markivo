@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import PublishModal from './PublishModal';
 import './MediaStudio.css';
 import InfoTip from './ui/InfoTip';
 
@@ -30,7 +29,7 @@ const CAMERA_FIELDS = [
   ['stabilisation', 'Stabilisation'],
 ];
 
-export default function MediaStudio({ activeProfile }) {
+export default function MediaStudio({ activeProfile, onCompose }) {
   const { t, i18n } = useTranslation();
 
   // Brief creation
@@ -72,7 +71,6 @@ export default function MediaStudio({ activeProfile }) {
   const [useTrends, setUseTrends] = useState(false);
 
   // Publish flow — opens once a photo/video is actually finished.
-  const [publishOpen, setPublishOpen] = useState(false);
 
   // AI photo enhancement before/after wiper. It lives with the shoot rather
   // than the copywriter, so it moved here from the AI content engine.
@@ -985,7 +983,7 @@ export default function MediaStudio({ activeProfile }) {
           <button
             type="button"
             className="btn btn-primary btn-lg"
-            onClick={() => setPublishOpen(true)}
+            onClick={() => onCompose?.({ media: postable, text: postCaption })}
             id="btn_media_post"
           >
             <i className="fa-solid fa-paper-plane"></i> {t('media.post.cta', 'Post')}
@@ -993,14 +991,6 @@ export default function MediaStudio({ activeProfile }) {
         </div>
       )}
 
-      {publishOpen && postable && (
-        <PublishModal
-          media={postable}
-          defaultCaption={postCaption}
-          onClose={() => setPublishOpen(false)}
-          onPosted={loadLibrary}
-        />
-      )}
     </div>
   );
 }

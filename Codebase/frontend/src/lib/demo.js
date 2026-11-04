@@ -25,10 +25,10 @@ const posts = [
   post(-1, 10, 0, 'instagram', 'posted', 'Rainy day? Hot chocolate is 20% off until we close.'),
   post(0, 9, 0, 'instagram', 'posted', 'Warm pastries, a proper espresso and a quiet corner to work in. We open at 8.'),
   post(0, 18, 0, 'telegram', 'scheduled', 'Every Wednesday after 4 pm, the second coffee is on us.', { repeatRule: 'weekly' }),
-  post(1, 12, 0, 'instagram', 'scheduled', 'Meet Aziz, our head barista. Ask him for his favourite pour-over this week.'),
-  post(2, 10, 0, 'instagram', 'draft', 'New on the menu: pistachio croissant. Baked this morning, gone by lunch.'),
+  post(1, 12, 0, 'instagram', 'scheduled', 'Meet Aziz, our head barista. Ask him for his favourite pour-over this week.', { mediaId: 'media_demo2' }),
+  post(2, 10, 0, 'instagram', 'draft', 'New on the menu: pistachio croissant. Baked this morning, gone by lunch.', { mediaId: 'media_demo1' }),
   post(2, 17, 0, 'telegram', 'scheduled', 'Weekend brunch is back: shakshuka, granola bowls and our own sourdough.'),
-  post(3, 11, 0, 'instagram', 'scheduled', 'Saturday tasting: three single-origin coffees, 15 minutes, free.'),
+  post(3, 11, 0, 'instagram', 'scheduled', 'Saturday tasting: three single-origin coffees, 15 minutes, free.', { mediaId: 'media_demo2' }),
   post(5, 9, 30, 'instagram', 'scheduled', 'New week, new seasonal drink: pumpkin spice latte with real pumpkin.'),
   post(9, 10, 0, 'instagram', 'scheduled', 'Thank you for 1,000 followers! Show this post for a free cookie.'),
   post(12, 19, 0, 'telegram', 'draft', 'Board game night every second Thursday. Bring friends.'),
@@ -59,6 +59,17 @@ const toEvent = (p) => ({
   end: { dateTime: new Date(new Date(p.time).getTime() + 30 * 60000).toISOString() },
   extendedProperties: { private: { source: 'scheduled_post', platform: p.platform, markivoStatus: p.status, mediaId: p.mediaId, tag: '', repeatRule: p.repeatRule } },
 });
+
+// Sample "photos" for the media library: flat drawings, so the preview has
+// something to attach without any real upload.
+const svgPhoto = (bg, fg, shape) => `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><rect width='600' height='600' fill='${bg}'/>${shape.replace(/FG/g, fg)}</svg>`,
+)}`;
+const DEMO_MEDIA = [
+  { id: 'media_demo1', kind: 'image', topic: 'Croissant', filePath: svgPhoto('#ead2bd', '#b07a45', "<ellipse cx='300' cy='320' rx='190' ry='110' fill='FG'/><ellipse cx='300' cy='300' rx='120' ry='70' fill='#c99363'/>") },
+  { id: 'media_demo2', kind: 'image', topic: 'Espresso', filePath: svgPhoto('#d9e3d4', '#4b3426', "<circle cx='300' cy='310' r='150' fill='#f4f1ea'/><circle cx='300' cy='310' r='105' fill='FG'/>") },
+  { id: 'media_demo3', kind: 'image', topic: 'Window seat', filePath: svgPhoto('#cfd8e3', '#8a6a4f', "<rect x='120' y='110' width='360' height='260' rx='12' fill='#eef2f6'/><rect x='150' y='400' width='300' height='40' rx='8' fill='FG'/>") },
+];
 
 const DEMO_STYLES = [
   { id: 'style_demo1', name: 'Short and friendly' },
@@ -110,7 +121,7 @@ function handle(method, url, body) {
     return json(toEvent(p));
   }
   if (path === '/api/content/schedule') {
-    const p = post(0, 0, 0, body.platform || 'instagram', body.status === 'draft' ? 'draft' : 'scheduled', body.postText || '', { time: body.scheduledTime, repeatRule: body.repeatRule || '' });
+    const p = post(0, 0, 0, body.platform || 'instagram', body.status === 'draft' ? 'draft' : 'scheduled', body.postText || '', { time: body.scheduledTime, repeatRule: body.repeatRule || '', mediaId: body.mediaId || '' });
     posts.push(p);
     return json(p);
   }
@@ -134,7 +145,7 @@ function handle(method, url, body) {
   if (path === '/api/instagram/status') return json({ connected: true, username: 'noircoffee', accountName: 'Noir Coffee' });
   if (path === '/api/telegram/status') return json({ connected: true, botUsername: 'noir_bot', chat: { chatId: '-100', chatTitle: 'Noir Coffee', chatType: 'channel' } });
   if (path === '/api/styles') return json(DEMO_STYLES);
-  if (path === '/api/media') return json({ items: [] });
+  if (path === '/api/media') return json({ items: DEMO_MEDIA });
   if (path === '/api/templates') return json([]);
   if (path === '/api/auth/refresh') return json({ accessToken: 'demo', refreshToken: 'demo' });
 

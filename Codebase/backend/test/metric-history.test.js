@@ -45,26 +45,28 @@ const post = (p, body, token) =>
   });
 const get = (p, token) => fetch(base + p, { headers: { Authorization: `Bearer ${token}` } });
 
-test('every dashboard metric carries a recorded history series', async () => {
+test('a channel that is not connected reports no number and records nothing', async () => {
   const res = await get('/api/dashboard/stats', access);
   assert.strictEqual(res.status, 200);
   const { metrics } = await res.json();
 
   for (const key of ['instagramFollowers', 'telegramSubscribers']) {
-    assert.ok(Array.isArray(metrics[key].history), `${key} should carry a history array`);
-    assert.strictEqual(metrics[key].history.length, 1, `${key} should have today's reading`);
-    assert.strictEqual(metrics[key].history[0].value, metrics[key].current);
-    assert.match(metrics[key].history[0].day, /^\d{4}-\d{2}-\d{2}$/);
+    assert.strictEqual(metrics[key].live, false, `${key} is not connected`);
+    assert.strictEqual(metrics[key].current, null, `${key} shows no invented number`);
+    assert.deepStrictEqual(metrics[key].history, [], `${key} keeps no invented history`);
   }
+  assert.deepStrictEqual(db.metricHistory.series(profileId, 'instagramFollowers', 30), []);
 });
 
-test('fetching the dashboard repeatedly does not stack duplicate days', async () => {
-  await get('/api/dashboard/stats', access);
-  await get('/api/dashboard/stats', access);
-  const { metrics } = await (await get('/api/dashboard/stats', access)).json();
+test('a recorded series keeps one point per day', async () => {
   // The dashboard is opened many times a day; only the latest reading for a
   // given day survives, so the series stays one point per day.
-  assert.strictEqual(metrics.instagramFollowers.history.length, 1);
+  db.metricHistory.record({ profileId, metric: 'instagramFollowers', day: '2026-07-02', value: 10 });
+  db.metricHistory.record({ profileId, metric: 'instagramFollowers', day: '2026-07-02', value: 12 });
+  const series = db.metricHistory.series(profileId, 'instagramFollowers', 3650);
+  const july2 = series.filter((p) => p.day === '2026-07-02');
+  assert.strictEqual(july2.length, 1);
+  assert.strictEqual(july2[0].value, 12);
 });
 
 test('the Google Maps views metric is gone, and leftover rows from it break nothing', async () => {

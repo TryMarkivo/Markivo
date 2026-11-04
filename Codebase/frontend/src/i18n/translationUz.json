@@ -443,7 +443,8 @@
       "changePositive": "+{{change}}%",
       "drillDown": "{{platform}} bo'yicha batafsil statistikani ko'rsatish",
       "collecting": "Ma'lumotlar yig'ilmoqda…",
-      "trendLabel": "Dinamika"
+      "trendLabel": "Dinamika",
+      "connectToSee": "Bu raqamni ko'rish uchun {{platform}}ni ulang."
     },
     "aiSearch": {
       "title": "AI qidiruvda ko'rinishingiz",
@@ -1661,7 +1662,8 @@
     "postedNow": "Joylandi.",
     "savedDraft": "Qoralama sifatida saqlandi.",
     "scheduledFor": "{{day}}, {{time}} ga rejalashtirildi.",
-    "deleted": "Post o'chirildi."
+    "deleted": "Post o'chirildi.",
+    "needMedia": "Instagram'ga faqat rasm yoki video bilan joylanadi. Qo'shing yoki qoralama sifatida saqlang."
   },
   "sidebar": {
     "navLabel": "Bo'limlar",

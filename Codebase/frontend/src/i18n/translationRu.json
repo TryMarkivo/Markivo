@@ -453,7 +453,8 @@
       "changePositive": "+{{change}}%",
       "drillDown": "Показать подробную статистику {{platform}}",
       "collecting": "Собираем данные…",
-      "trendLabel": "Динамика"
+      "trendLabel": "Динамика",
+      "connectToSee": "Подключите {{platform}}, чтобы видеть здесь эту цифру."
     },
     "aiSearch": {
       "title": "Видимость в ИИ-поиске",
@@ -1683,7 +1684,8 @@
     "postedNow": "Опубликовано.",
     "savedDraft": "Сохранено как черновик.",
     "scheduledFor": "Запланировано на {{day}}, {{time}}.",
-    "deleted": "Пост удалён."
+    "deleted": "Пост удалён.",
+    "needMedia": "В Instagram нельзя опубликовать пост без фото или видео. Добавьте их или сохраните черновик."
   },
   "sidebar": {
     "navLabel": "Разделы",

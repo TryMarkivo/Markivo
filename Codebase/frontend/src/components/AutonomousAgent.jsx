@@ -63,7 +63,9 @@ export default function AutonomousAgent({ activeProfile, onGoToCalendar }) {
         if (cancelled) return;
         setLoadError('');
         setFeatureEnabled(status.enabled !== false);
-        setCatalogue(connect.catalogue || []);
+        // Channels that are "coming soon" here can't publish, so Autopilot
+        // doesn't offer them.
+        setCatalogue((connect.catalogue || []).filter((p) => !connect.status?.[p.key]?.comingSoon));
         setActivity(status.activity || []);
         setContextRequest(ctx.request || null);
         setPendingApprovals(approvals.approvals || []);

@@ -139,7 +139,7 @@ test('Markiv drafts a telegram post behind the approval gate, approve publishes 
   const ap = await post('/api/agent/approve', { approvalId: action.approvalId }, access);
   assert.strictEqual(ap.status, 200);
   const result = await ap.json();
-  assert.match(result.message, /Published to Noir News/);
+  assert.match(result.message, /posted to Noir News/);
 
   const sends = tgCalls.filter((c) => c.method === 'sendMessage');
   assert.strictEqual(sends.length, 1);

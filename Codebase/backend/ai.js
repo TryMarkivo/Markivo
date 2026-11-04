@@ -226,7 +226,13 @@ function templateMediaBrief(ctx) {
   const name = profile?.businessName || 'your business';
   const category = (profile?.category || 'business').toLowerCase();
   const tone = profile?.brandTone || 'Cozy & Warm';
-  const subject = (topic && topic.trim()) || `your ${category}`;
+  // The idea is dropped mid-sentence ("Position a plate of samsa…"), so a
+  // leading article or possessive loses its capital and a closing full stop
+  // goes. Names ("Safia cakes") keep theirs.
+  const idea = (topic && topic.trim().replace(/[.!]+$/, '')) || '';
+  const subject = idea
+    ? idea.replace(/^(A|An|The|Our|My|Some|This|These)\b/, (w) => w.toLowerCase())
+    : `your ${category}`;
   const say = mediaAudienceLines(ctx, subject, name);
   const trendTip = trends ? [`Trend note: ${String(trends).slice(0, 160)}`] : [];
 

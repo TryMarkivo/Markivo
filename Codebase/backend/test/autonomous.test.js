@@ -113,7 +113,7 @@ test('manual "Run now" publishes immediately and returns activity', async () => 
 test('queue mode creates PENDING organic approvals, never auto-approved', async () => {
   // Re-save config (enabling resets next_run_at to now, so it is due again).
   await put('/api/autonomous/config', {
-    enabled: true, platforms: ['meta_facebook', 'telegram'], frequency: 'test', autoPublish: false,
+    enabled: true, platforms: ['meta_facebook', 'meta_instagram'], frequency: 'test', autoPublish: false,
   }, access);
 
   const before = db.approvals.listByProfile(profileId, 100).length;
@@ -128,6 +128,19 @@ test('queue mode creates PENDING organic approvals, never auto-approved', async 
   assert.ok(fresh.every((a) => a.action_type === 'telegram_post' || a.action_type === 'platform_post'));
   assert.ok(fresh.every((a) => a.action_payload && a.action_payload.autonomous === true));
   assert.ok(fresh.every((a) => a.action_payload.cost === 'Free — organic post'));
+});
+
+test('queue mode never queues a Telegram approval nothing could publish: it becomes a calendar draft', async () => {
+  // Telegram is off in this test env (TELEGRAM_ENABLED unset), so it is not
+  // even a target; with it on but no channel linked, the post would land on
+  // the calendar as a draft. Either way no unapprovable approval is created.
+  await put('/api/autonomous/config', {
+    enabled: true, platforms: ['telegram'], frequency: 'test', autoPublish: false,
+  }, access);
+  const tgBefore = db.approvals.listByProfile(profileId, 200).filter((a) => a.action_type === 'telegram_post').length;
+  await runAutonomousTick({ now: Date.now() + 10 * 60 * 1000 });
+  const tgAfter = db.approvals.listByProfile(profileId, 200).filter((a) => a.action_type === 'telegram_post').length;
+  assert.equal(tgAfter, tgBefore, 'no Telegram approval was queued');
 });
 
 test('GET /api/autonomous/approvals lists the pending queue; approve and reject both clear it', async () => {

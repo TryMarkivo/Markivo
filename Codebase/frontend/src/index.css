@@ -266,9 +266,13 @@ button, input, select, textarea {
 }
 
 /* Animations */
+/* No fill-mode: once the fade ends the element has no transform at all. A
+   held end frame (even an identity one) makes the element a containing
+   block, and every popup (position: fixed) inside it is then trapped in that
+   section instead of covering the screen. */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes spin-slow {
@@ -277,7 +281,11 @@ button, input, select, textarea {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in { animation: none; }
 }
 
 .logo-text {

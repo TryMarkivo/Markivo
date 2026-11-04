@@ -2024,23 +2024,23 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
     .filter((p) => p.status === 'posted' && p.scheduled_time >= weekAgoIso && !connectors.isRetired(p.platform)).length;
   const yourChannelsConnected = activeChannelRows(profile.id).filter((p) => p.isConnected).length;
 
-  // Telegram subscribers: REAL count when the integration is on and a chat is
-  // linked; the demo number otherwise (other metrics await their integrations).
-  let telegramSubscribers = { current: 980, change: 11.2 };
+  // Telegram subscribers: the REAL count when the integration is on and a chat
+  // is linked. Otherwise there is no number to show — never an invented one.
+  let telegramSubscribers = { current: null, change: null, live: false };
   if (config.telegramEnabled) {
     const conn = db.telegram.findByProfile(profile.id);
     if (conn && conn.chatId) {
       try {
         telegramSubscribers = { current: await tg.getChatMemberCount(conn.botToken, conn.chatId), change: 0, live: true };
       } catch (err) {
-        console.warn('getChatMemberCount failed, using demo number:', err.message);
+        console.warn('getChatMemberCount failed:', err.message);
       }
     }
   }
 
-  // Instagram followers: same pattern — REAL count once an account is
-  // connected, the demo number otherwise.
-  let instagramFollowers = { current: 1542, change: 15.6 };
+  // Instagram followers: same pattern — the REAL count once an account is
+  // connected, nothing otherwise.
+  let instagramFollowers = { current: null, change: null, live: false };
   if (config.instagramEnabled) {
     const conn = db.instagram.findByProfile(profile.id);
     if (conn && conn.accessToken) {
@@ -2050,7 +2050,7 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
           instagramFollowers = { current: acct.followers, change: 0, live: true };
         }
       } catch (err) {
-        console.warn('getAccountStats failed, using demo number:', err.message);
+        console.warn('getAccountStats failed:', err.message);
       }
     }
   }
@@ -2063,14 +2063,15 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
     telegramSubscribers,
   };
 
-  // Record today's reading, then hand back the recorded series so the dashboard
-  // sparklines plot REAL movement. Metrics whose integrations have not landed
-  // yet are still fixed demo numbers, so their series is honestly flat — the UI
-  // says "collecting data" rather than drawing an invented curve.
+  // Record today's REAL reading, then hand back the recorded series so the
+  // sparklines plot real movement. A channel that is not connected records
+  // nothing: there is no reading to keep.
   const day = new Date().toISOString().slice(0, 10);
   for (const [key, m] of Object.entries(metrics)) {
-    db.metricHistory.record({ profileId: profile.id, metric: key, day, value: m.current });
-    m.history = db.metricHistory.series(profile.id, key, 30);
+    if (m.live && Number.isFinite(m.current)) {
+      db.metricHistory.record({ profileId: profile.id, metric: key, day, value: m.current });
+    }
+    m.history = m.live ? db.metricHistory.series(profile.id, key, 30) : [];
   }
 
   res.json({
@@ -2092,7 +2093,6 @@ app.get('/api/dashboard/stats', verifyToken, asyncRoute(async (req, res) => {
     // seoKeywords: keywords.length ? keywords : [
     //   { keyword_phrase: `best ${cat} in tashkent`, avg_position: 8, volume: 'High' },
     // ],
-    aiPresence: { perplexityScore: 78, chatgptRank: 'Top 5', sourcesCitedCount: 4 },
   });
 }));
 
@@ -2816,7 +2816,7 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
       });
       return res.json({
         success: true,
-        message: i18n.tr(req.lang, '✅ Published to {{channel}}! Your subscribers can see it now.', { channel: result.chatTitle }),
+        message: i18n.tr(req.lang, 'Approved and posted to {{channel}}.', { channel: result.chatTitle }),
       });
     } catch (err) {
       db.approvals.updateStatus(approvalId, 'failed');
@@ -2843,8 +2843,8 @@ app.post('/api/agent/approve', verifyToken, asyncRoute(async (req, res) => {
       return res.json({
         success: true,
         message: result.simulated
-          ? i18n.tr(req.lang, '✅ Drafted & queued for {{platform}} (sandbox — connect live credentials to publish for real).', { platform: adapter ? adapter.label : platform })
-          : i18n.tr(req.lang, '✅ Published to {{platform}}!', { platform: adapter ? adapter.label : platform }),
+          ? i18n.tr(req.lang, 'Approved. {{platform}} is in test mode, so nothing was posted for real; connect it in Settings to publish.', { platform: adapter ? adapter.label : platform })
+          : i18n.tr(req.lang, 'Approved and posted to {{platform}}.', { platform: adapter ? adapter.label : platform }),
       });
     } catch (err) {
       db.approvals.updateStatus(approvalId, 'failed');

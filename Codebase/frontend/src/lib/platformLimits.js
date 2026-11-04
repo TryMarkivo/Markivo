@@ -1,6 +1,6 @@
 // Per-platform post-text character limits for the composer's live counter.
 // Mirrors backend/postLimits.js (kept in sync manually — same duplication the
-// codebase already accepts for CAPTION_MAX in PublishModal.jsx/InstagramComposer.jsx).
+// codebase already accepts elsewhere).
 // Commonly-documented caption limits as of writing; [UNVERIFIED] exact current
 // values — platforms change these without notice.
 export const PLATFORM_LIMITS = {

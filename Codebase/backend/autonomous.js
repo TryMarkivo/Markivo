@@ -123,7 +123,10 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
   // Keys with no adapter are dropped first: a config or connection saved before
   // a platform was removed (Google Business Profile) must not steer the plan
   // toward a channel nothing can publish to.
-  const known = (p) => p === 'telegram' || !!connectors.get(p);
+  // Telegram only counts where it is switched on for this deployment;
+  // otherwise nothing could ever publish what Autopilot writes for it.
+  const telegramOn = !config || config.telegramEnabled !== false;
+  const known = (p) => (p === 'telegram' ? telegramOn : !!connectors.get(p));
   const tgConn = db.telegram.findByProfile(profileId);
   const connected = new Set(db.connections.listByProfile(profileId).map((c) => c.platform).filter(known));
   if (tgConn) connected.add('telegram');
@@ -258,6 +261,15 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     spent += 1;
 
     // Queue mode: create a pending organic approval for one-tap human sign-off.
+    // A Telegram post with no linked channel could never be approved into a
+    // real post, so it lands on the calendar as a draft instead: the owner
+    // still sees it first, and can schedule it once the channel is linked.
+    if (!cfg.autoPublish && platform === 'telegram' && !(publishers.telegramReady && publishers.telegramReady(profile))) {
+      const row = db.calendar.add({ profileId, platform, postText: post.text, scheduledTime: scheduledTimeFor(i, nowMs), status: 'draft' });
+      queued += 1;
+      db.autonomous.logActivity({ profileId, kind: 'post_scheduled', summary: post.text.slice(0, 140), payload: { platform, calendarId: row.id, scheduledTime: row.scheduled_time, draft: true } });
+      continue;
+    }
     if (!cfg.autoPublish) {
       const isTg = platform === 'telegram';
       const adapter = isTg ? null : connectors.get(platform);

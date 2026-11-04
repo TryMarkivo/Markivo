@@ -118,7 +118,8 @@
   box-shadow: inset 0 0 0 1px var(--ui-accent-ink);
 }
 
-.pp-channel i {
+.pp-channel > svg,
+.pp-channel > i {
   grid-row: span 2;
 }
 

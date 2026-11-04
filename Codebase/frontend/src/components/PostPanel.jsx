@@ -122,6 +122,15 @@ export default function PostPanel({ activeProfile, event, initial = {}, onClose,
   const notConnected = channels.filter((k) => statuses && !isConnected(k));
   const whenDate = new Date(when);
 
+  // A message about what was wrong goes away as soon as the owner changes it.
+  const [prevInputs, setPrevInputs] = useState({ text, media, channels, when });
+  if (error && (prevInputs.text !== text || prevInputs.media !== media || prevInputs.channels !== channels || prevInputs.when !== when)) {
+    setError('');
+  }
+  if (prevInputs.text !== text || prevInputs.media !== media || prevInputs.channels !== channels || prevInputs.when !== when) {
+    setPrevInputs({ text, media, channels, when });
+  }
+
   const toggleChannel = (k) => {
     if (mode !== 'create') return;
     setChannels((list) => (list.includes(k) ? list.filter((x) => x !== k) : [...list, k]));
@@ -129,10 +138,16 @@ export default function PostPanel({ activeProfile, event, initial = {}, onClose,
 
   const fail = (err) => setError(err?.message || t('common.somethingWentWrong', 'Something went wrong'));
 
-  const validate = (needsTime) => {
+  const validate = (needsTime, needsMedia) => {
     if (!channels.length) { setError(t('postPanel.pickChannel', 'Pick where to post it.')); return false; }
     if (empty) { setError(t('postPanel.needText', 'Write something first.')); return false; }
     if (over) { setError(t('postPanel.tooLong', { defaultValue: 'That is {{n}} characters over the limit.', n: text.length - limit })); return false; }
+    // Instagram has no text-only post: anything that will actually go out
+    // there needs a photo or video. A draft can wait for one.
+    if (needsMedia && channels.includes('instagram') && !media) {
+      setError(t('postPanel.needMedia', 'Instagram posts need a photo or video. Add one, or save this as a draft.'));
+      return false;
+    }
     if (needsTime && isPast(whenDate)) { setError(t('postPanel.pastTime', 'Pick a time in the future.')); return false; }
     return true;
   };
@@ -141,7 +156,7 @@ export default function PostPanel({ activeProfile, event, initial = {}, onClose,
     // kind: 'schedule' | 'draft' | 'now'
     if (busy) return;
     setError('');
-    if (!validate(kind === 'schedule')) return;
+    if (!validate(kind === 'schedule', kind !== 'draft')) return;
     setBusy(kind);
     try {
       if (mode === 'edit') {
