@@ -1016,7 +1016,7 @@
   },
   "autopilot": {
     "title": "Avtopilot",
-    "subtitle": "Markiv biznesingizni o'rganib, kanallaringizga reklama postlarini o'zi joylab tursin.",
+    "subtitle": "Avtopilot kanalingiz qanday yozilishini o'rganadi va jadval bo'yicha siz uchun post joylaydi: biznesingiz haqida, sizning uslubingizda.",
     "disabledNotice": "Avtopilot bu serverda yoqilmagan.",
     "loadError": "Avtopilotni yuklab bo'lmadi.",
     "saveError": "Sozlamalarni saqlab bo'lmadi.",
@@ -1024,55 +1024,220 @@
     "saved": "Sozlamalar saqlandi.",
     "ranNow": "Avtopilot ishladi — natijasi pastda.",
     "enableLabel": "Avtopilotni yoqish",
-    "enableHint": "Yoqilsa, Markiv belgilangan vaqtda o'zi ishlaydi: tahlil qiladi, post yozadi va joylaydi.",
+    "enableHint": "Yoqilsa, Avtopilot jadvalingiz bo'yicha post joylaydi: mavzu tanlaydi, uslubingizda yozadi, keyin joylaydi yoki tasdig'ingizni so'raydi.",
     "platformsLabel": "Qayerga joylansin",
     "platformsHint": "Avtopilot siz tanlagan kanallarga joylaydi. Ulangan kanallarga post haqiqatan chiqadi, qolganlarida esa ular ulanmaguncha sinov tariqasida ishlaydi.",
-    "frequencyLabel": "Qanchalik tez-tez",
+    "frequencyLabel": "Qachon joylansin",
     "freq": {
       "daily": "Kuniga bir marta",
       "weekly": "Haftada bir marta",
       "test": "Har daqiqada (demo)"
     },
     "publishModeLabel": "Post tayyor bo'lganda",
-    "autoPublish": "O'zi joylasin",
-    "autoPublishHint": "Markiv so'ramasdan joylaydi.",
+    "autoPublish": "So'ramasdan joylasin",
+    "autoPublishHint": "Post o'z vaqtida chiqadi. Ungacha Kalendarda o'zgartirishingiz mumkin.",
     "queueMode": "Avval men tasdiqlayman",
     "queueModeHint": "Har bir postni chiqishidan oldin siz tasdiqlaysiz.",
     "save": "Sozlamalarni saqlash",
     "saving": "Saqlanmoqda…",
-    "runNow": "Hozir ishga tushirish",
+    "runNow": "Hozir bitta joylash",
     "running": "Ishlayapti…",
     "runNeedsSave": "Avval o'zgarishlarni saqlang",
     "activityTitle": "Faoliyat",
-    "noActivity": "Hozircha hech narsa yo'q. Avtopilotni yoqing yoki «Hozir ishga tushirish»ni bosing — u nima qilgani shu yerda chiqadi.",
+    "noActivity": "Hozircha hech narsa yo'q. Avtopilotni yoqing — u nima qilsa, shu yerda ko'rasiz.",
     "adSafetyNote": "Avtopilot faqat bepul, organik postlar yaratadi. Pullik reklamani esa doim faqat siz tasdiqlaysiz — Markiv pulingizni hech qachon o'zboshimchalik bilan sarflamaydi.",
     "kind": {
-      "analysis": "Biznesingiz tahlil qilindi",
+      "analysis": "Post rejalashtirildi",
       "post_published": "Post joylandi",
       "post_scheduled": "Post rejalashtirildi",
       "approval_created": "Tasdig'ingizga yuborildi",
       "skipped": "To'xtatildi",
       "error": "Xato",
-      "context_needed": "Ma'lumot yetishmayapti",
+      "context_needed": "Sizga bir nechta savol berdi",
       "context_answered": "Siz Avtopilotga javob berdingiz",
       "external_content": "Haqiqiy kontentga tayandi"
     },
     "context": {
-      "title": "Avtopilot to'xtab turibdi — unga biroz ko'proq ma'lumot kerak",
-      "blurb": "Markiv kanalingizni hali yaxshi bilmaydi, arzigulik post yoza olmaydi. Shuning uchun qolipdagi reklama joylash o'rniga to'xtab turibdi.",
-      "paused": "Post joylashdan oldin Avtopilotga biroz ko'proq ma'lumot kerak.",
+      "title": "Avtopilot boshlashidan oldin bir nechta qisqa savol",
+      "blurb": "Avtopilot kanalingiz haqida hali yetarli bilmaydi. Taxmin qilish o'rniga sizdan so'rayapti.",
+      "paused": "Post joylashdan oldin Avtopilotning sizga bir nechta savoli bor.",
       "answerLabel": "Javobingiz",
       "answerPh": "masalan: Ish kunlari ertalab mijoz kam. Soat 11:00 gacha kelganlarga chegirma haqida post kerak.",
       "send": "Avtopilotga yuborish",
       "sending": "Yuborilmoqda…",
-      "thanks": "Rahmat! Avtopilot buni keyingi safar hisobga oladi.",
-      "answerError": "Javobingizni saqlab bo'lmadi.",
-      "hint": "Avtopilot buni eslab qoladi — faqat bir marta javob berasiz."
+      "thanks": "Rahmat. Avtopilot buni keyingi postdan boshlab hisobga oladi.",
+      "answerError": "Javoblaringizni saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "hint": "Avtopilot buni eslab qoladi — faqat bir marta javob berasiz.",
+      "skipHint": "Xohlaganini o'tkazib yuboring — buni Avtopilot o'zi hal qiladi. Har bir javobni keyin o'zgartirish mumkin."
     },
     "queue": {
       "pointer_one": "Kalendarda {{count}} ta post tasdig'ingizni kutmoqda.",
       "pointer_other": "Kalendarda {{count}} ta post tasdig'ingizni kutmoqda.",
       "open": "Kalendarni ochish"
+    },
+    "queueModeHintTg": "Har bir postni avval siz tasdiqlaysiz: shu yerda yoki Telegramda bir bosishda (@{{bot}} sizga yuboradi).",
+    "runNowHint": "Rejadan tashqari hozir bitta post yozib joylash",
+    "status": {
+      "off": "Avtopilot o'chiq. Yoqsangiz, avval kanalingizni o'qib chiqadi.",
+      "asking": "To'xtab turibdi: pastdagi bir nechta savolga javob bering, Avtopilot ishga tushadi.",
+      "demo": "Demo rejimi: Avtopilot har daqiqada post joylaydi.",
+      "next": "Keyingi post: {{when}} · {{topic}}"
+    },
+    "plan": {
+      "title": "Navbatdagi postlar",
+      "autoHint": "Avtopilot har bir postni chiqishidan taxminan bir soat oldin yozadi. Post Kalendarda turadi — u yerda uni o'zgartirish yoki o'chirish mumkin.",
+      "approvalHint": "Avtopilot har bir postni {{hours}} soat oldin yozib, tasdig'ingizni so'raydi. Vaqtidan oldin tasdiqlasangiz, o'z vaqtida chiqadi."
+    },
+    "theme": {
+      "news": "Sizning yangiligingiz"
+    },
+    "activity": {
+      "for": "{{when}} uchun"
+    },
+    "learned": {
+      "title": "Avtopilot kanalingizdan nimani o'rgandi",
+      "relearn": "Qayta o'qish",
+      "done": "Avtopilot kanalingizni qayta o'qib chiqdi.",
+      "none": "Avtopilot kanalingizni hali o'qimagan. Yoqqaningizda o'qiydi.",
+      "count_one": "{{count}} ta postingizdan o'rgandi.",
+      "count_other": "{{count}} ta postingizdan o'rgandi.",
+      "thin": "Uslubingizni takrorlash uchun bu kam: Avtopilotga kamida {{min}} ta post kerak. Ungacha javoblaringizga amal qiladi.",
+      "voice": "Qanday yozasiz:",
+      "layout": "Postlar ko'rinishi:",
+      "hashtags": "Postlarning {{pct}}% ida heshteg bor",
+      "perWeek": "Haftasiga taxminan {{n}} ta post",
+      "bestTime": "Eng yaxshi vaqt: {{times}}",
+      "themes": "Nima haqida yozasiz",
+      "moreViews": "ko'proq ko'rilgan",
+      "fewerViews": "kamroq ko'rilgan",
+      "habits": "Avtopilot saqlab qoladigan odatlar",
+      "forwardTip": "Maslahat: eng yaxshi postlaringizdan bir nechtasini Telegramda @{{bot}} ga uzating. Avtopilot ulardan ham o'rganadi — hatto yopiq kanaldan ham.",
+      "connectTip": "Maslahat: Telegram kanalingizni Markivo boti orqali ulang (Sozlamalar → Telegram). Shunda Avtopilot har bir yangi postingizni o'qiydi.",
+      "length": {
+        "short": "Qisqa postlar",
+        "medium": "O'rtacha uzunlikdagi postlar",
+        "long": "Uzun postlar"
+      },
+      "emoji": {
+        "none": "Emojisiz",
+        "few": "Biroz emoji",
+        "many": "Ko'p emoji"
+      },
+      "zero": "Avtopilot hali o'rganish uchun postlaringizni topmadi."
+    },
+    "brief": {
+      "title": "Avtopilot uchun topshiriqingiz",
+      "edit": "Javoblarni o'zgartirish",
+      "close": "Yopish",
+      "save": "Javoblarni saqlash",
+      "saved": "Saqlandi. Avtopilot keyingi postdan boshlab shunga amal qiladi.",
+      "newsLabel": "Yangilik bormi? Avtopilot uni keyingi postga qo'shadi.",
+      "tell": "Avtopilotga aytish",
+      "currentNews": "Joriy yangilik: «{{news}}»",
+      "clearNews": "Tozalash",
+      "notSet": "belgilanmagan"
+    },
+    "sched": {
+      "modeLabel": "Vaqtni kim tanlaydi",
+      "smart": "Eng yaxshi vaqtni Avtopilot tanlasin",
+      "fixed": "Kun va vaqtni o'zim tanlayman",
+      "perWeek": "Haftasiga nechta post",
+      "perWeekOption": "Haftasiga {{count}} ta",
+      "bestHistory": "Postlaringiz taxminan {{times}} da eng ko'p ko'riladi, shuning uchun Avtopilot shu vaqtda joylaydi.",
+      "bestCategory": "Sizga o'xshash biznes uchun qulay vaqt: {{times}}. Kanalingizda postlar ko'paygach, Avtopilot postlaringiz eng yaxshi ko'riladigan vaqtga o'tadi.",
+      "days": "Kunlar",
+      "times": "Vaqtlar",
+      "timeN": "{{n}}-vaqt",
+      "removeTime": "Bu vaqtni olib tashlash",
+      "addTime": "Vaqt qo'shish",
+      "fixedCount_one": "Haftasiga {{count}} ta post.",
+      "fixedCount_other": "Haftasiga {{count}} ta post.",
+      "timezone": "Vaqt mintaqasi"
+    },
+    "q": {
+      "auto": "Avtopilot hal qilsin",
+      "optional": "ixtiyoriy",
+      "otherPh": "Boshqa mavzu? Vergul bilan ajratib yozing",
+      "otherLabel": "Boshqa mavzular",
+      "themes": {
+        "label": "Postlaringiz nima haqida bo'lsin?",
+        "short": "Mavzular",
+        "hint": "Bir nechtasini tanlang. Avtopilot ularni navbatma-navbat yozadi.",
+        "opt": {
+          "products": "Mahsulot va xizmatlar",
+          "offers": "Takliflar va chegirmalar",
+          "news": "Yangiliklar va e'lonlar",
+          "tips": "Foydali maslahatlar",
+          "behind_scenes": "Parda ortida",
+          "reviews": "Mijozlar fikrlari",
+          "team": "Jamoamiz",
+          "events": "Bayramlar va tadbirlar",
+          "fun": "Qiziqarli postlar"
+        }
+      },
+      "goal": {
+        "label": "Postlardan eng ko'p nimani xohlaysiz?",
+        "short": "Maqsad",
+        "opt": {
+          "visits": "Ko'proq odam kelsin",
+          "orders": "Ko'proq buyurtma va savdo",
+          "calls": "Ko'proq qo'ng'iroq va xabar",
+          "bookings": "Ko'proq bron",
+          "followers": "Ko'proq obunachi",
+          "awareness": "Bizni ko'proq odam bilsin"
+        }
+      },
+      "tone": {
+        "label": "Postlaringiz qanday ohangda bo'lsin?",
+        "short": "Ohang",
+        "opt": {
+          "friendly": "Samimiy va iliq",
+          "professional": "Professional",
+          "playful": "Quvnoq",
+          "premium": "Premium",
+          "informative": "Ekspert va ma'lumotli"
+        }
+      },
+      "length": {
+        "label": "Postlar qanchalik uzun bo'lsin?",
+        "short": "Uzunlik",
+        "opt": {
+          "short": "Qisqa: 1–3 qator",
+          "medium": "Bir abzats",
+          "long": "Uzun va batafsil"
+        }
+      },
+      "emoji": {
+        "label": "Emoji ishlatilsinmi?",
+        "short": "Emoji",
+        "opt": {
+          "none": "Yo'q",
+          "few": "Biroz",
+          "many": "Ko'p"
+        }
+      },
+      "schedule": {
+        "label": "Avtopilot qanchalik tez-tez va qachon joylasin?",
+        "short": "Qachon",
+        "hint": "Eng yaxshi vaqtni Avtopilot tanlasin yoki kun va vaqtni o'zingiz belgilang."
+      },
+      "cta": {
+        "label": "Mijozlar siz bilan qanday bog'lanadi yoki xarid qiladi?",
+        "short": "Aloqa",
+        "hint": "Telefon raqami, manzil, buyurtma havolasi yoki @username. Avtopilot ularni hech qachon o'ylab topmaydi.",
+        "ph": "masalan: +998 90 123 45 67, Amir Temur 15, @noircafe"
+      },
+      "avoid": {
+        "label": "Avtopilot nimani hech qachon yozmasin?",
+        "short": "Tilga olinmasin",
+        "ph": "masalan: narxlar, raqobatchilar, spirtli ichimliklar"
+      },
+      "news": {
+        "label": "Bu hafta yangilik bormi? Taklif, yangi mahsulot, tadbir?",
+        "short": "Yangilik",
+        "hint": "Avtopilot uni keyingi postga qo'shadi va ikki hafta yodda tutadi.",
+        "ph": "masalan: dushanbadan pista latte, soat 11:00 gacha 10% chegirma"
+      }
     }
   },
   "templates": {

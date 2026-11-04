@@ -84,7 +84,10 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [activeTab, setActiveTab] = useState(() => {
     if (DEMO) return 'calendar';
     const p = new URLSearchParams(window.location.search);
-    return (p.get('connected') || p.get('connect_error')) ? 'settings' : 'analytics';
+    if (p.get('connected') || p.get('connect_error')) return 'settings';
+    // Deep links, e.g. the Markivo bot's "Answer in Markivo" button.
+    const tab = p.get('tab');
+    return ['calendar', 'autopilot', 'media', 'competitors', 'settings'].includes(tab) ? tab : 'analytics';
   }); // 'analytics' | 'calendar' | 'autopilot' | 'markiv' | 'media' | 'competitors' | 'settings'
 
   const [stats, setStats] = useState(null);

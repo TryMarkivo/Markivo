@@ -41,3 +41,29 @@ export const weekRange = (a, b, lang) => {
 export const timeOf = (d, lang) => (isUz(lang)
   ? `${pad(d.getHours())}:${pad(d.getMinutes())}`
   : d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' }));
+
+// Calendar parts of an instant in a given time zone (numeric, locale-free).
+const partsIn = (iso, timeZone) => {
+  const out = {};
+  for (const p of new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric',
+  }).formatToParts(new Date(iso))) out[p.type] = p.value;
+  const WD = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return { weekday: WD[out.weekday], month: +out.month - 1, day: +out.day, h: +out.hour % 24, mi: +out.minute };
+};
+
+/** A post's time in the business's own time zone: "Fri, Nov 6, 12:00" / "Ju, 6-noyabr, 12:00" / "пт, 6 нояб., 12:00" */
+export const slotWhen = (iso, lang, timeZone = 'Asia/Tashkent') => {
+  try {
+    if (isUz(lang)) {
+      const p = partsIn(iso, timeZone);
+      return `${UZ_DAYS_SHORT[p.weekday]}, ${p.day}-${UZ_MONTHS[p.month]}, ${pad(p.h)}:${pad(p.mi)}`;
+    }
+    return new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone }).format(new Date(iso));
+  } catch {
+    return new Date(iso).toLocaleString();
+  }
+};
+
+/** Short weekday name by index (0 = Sunday): "Mon" / "Du" / "пн" */
+export const weekdayShortOf = (index, lang) => weekdayShort(new Date(2026, 10, 1 + index), lang);

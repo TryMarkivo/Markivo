@@ -55,6 +55,14 @@
   `i18n.localize`). Post copy, captions, scripts and on-image text follow the business's
   AUDIENCE languages; render prompts stay English. New owner-facing English needs an
   entry in `backend/locales/uz.json` — `test/owner-language.test.js` fails without one.
+- Autopilot is a planner: `autopilotSchedule.js` turns the owner's plan (fixed days/times,
+  or N a week at the channel's best hours) into slots in their timezone; the worker writes a
+  slot's post 1h ahead (12h when approval is on) and puts it on the Calendar AT the slot with
+  `source: 'autopilot'` — the scheduled-post worker publishes it. `autopilotStyle.js` learns
+  the channel (measured stats keyless, voice/themes via Gemini, ≥5 posts = "enough");
+  `autopilotBrief.js` holds the owner's answers and decides which questions to ask. Blank
+  answers become `'auto'`, so nothing is asked twice. Run now and the `'test'` cadence still
+  publish immediately. Tests for a fresh business must save a brief first or the gate pauses.
 - Tests are `node:test`; env vars must be set BEFORE requiring the app (config caches
   env at load; each test file gets its own process). Test files that make many
   generations must raise `AI_LIMIT_FREEMIUM_WRITING` or they run dry mid-file.

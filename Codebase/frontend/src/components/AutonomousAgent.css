@@ -429,3 +429,197 @@
 .ap-queue-pointer {
   margin-top: 16px;
 }
+
+/* ===== Autopilot: plan, learning, brief ===== */
+
+/* What Autopilot is doing right now, in one line. */
+.ap-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 0 0 14px;
+  border-radius: var(--radius-sm);
+  background: var(--ui-surface-2);
+  color: var(--ui-ink);
+  font-size: 0.92rem;
+}
+.ap-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ui-ink-3);
+  flex-shrink: 0;
+}
+.ap-status-on .ap-status-dot { background: var(--ui-ok); }
+.ap-status-warn { background: var(--ui-warn-soft); }
+.ap-status-warn .ap-status-dot { background: var(--ui-warn); }
+
+/* Questions: tap-to-answer chips. */
+.apq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 16px;
+}
+.apq {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.apq-label {
+  padding: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ui-ink);
+  margin-bottom: 4px;
+}
+.apq-optional {
+  margin-left: 8px;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--ui-ink-3);
+}
+.apq-hint {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: var(--ui-ink-2);
+}
+.apq-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.apq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--ui-line-strong);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.apq-chip:hover:not(:disabled) { border-color: var(--accent-primary); }
+.apq-chip.on {
+  border-color: var(--accent-primary);
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-ink);
+  font-weight: 500;
+}
+.apq-chip:disabled { cursor: default; opacity: 0.6; }
+.apq-auto { border-style: dashed; color: var(--ui-ink-2); }
+.apq-auto i { font-size: 0.8rem; }
+.apq-other { margin-top: 8px; max-width: 460px; }
+.apq-text { margin-top: 4px; }
+
+/* Schedule editor */
+.ap-sched {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.ap-sched .ui-seg { flex-wrap: wrap; height: auto; }
+.ap-sched .ui-seg button { height: auto; min-height: 30px; padding: 5px 12px; white-space: normal; text-align: left; }
+.ap-sched-row { display: flex; flex-direction: column; gap: 4px; }
+.ap-sched-select { max-width: 260px; }
+.ap-sched-hint { margin: 2px 0 0; font-size: 0.8rem; color: var(--ui-ink-2); }
+.ap-sched-times { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ap-sched-time { display: inline-flex; align-items: center; gap: 2px; }
+.ap-sched-time .ui-input { width: 120px; }
+.ap-demo-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 0.8rem; color: var(--ui-ink-3); }
+
+/* Cards under the settings */
+.ap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+.ap-card { padding: 18px 20px; min-width: 0; }
+.ap-card h3 { margin: 0 0 12px; font-size: 1.02rem; }
+.ap-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ap-card-head h3 { margin: 0; }
+.ap-card-hint { margin: 12px 0 0; font-size: 0.8rem; color: var(--ui-ink-2); line-height: 1.5; }
+
+.ap-upcoming {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ap-upcoming li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--ui-line);
+  font-size: 0.9rem;
+}
+.ap-upcoming li:first-child { border-top: 0; }
+.ap-upcoming time { font-variant-numeric: tabular-nums; }
+.ap-upcoming .ui-badge { white-space: normal; height: auto; min-height: 22px; text-align: right; }
+
+.ap-learn-count { margin: 0 0 8px; font-weight: 500; }
+.ap-learn-alert { margin-bottom: 10px; font-size: 0.85rem; }
+.ap-learn-voice { margin: 0 0 8px; font-size: 0.88rem; color: var(--ui-ink-2); line-height: 1.5; }
+.ap-learn-voice strong { color: var(--ui-ink); font-weight: 600; }
+.ap-learn-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.ap-learn-sub { margin: 14px 0 6px; font-size: 0.86rem; font-weight: 600; }
+.ap-learn-list { margin: 0; padding-left: 18px; font-size: 0.85rem; color: var(--ui-ink-2); }
+.ap-themes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ap-theme-top { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; }
+.ap-theme-name { flex: 1; min-width: 0; }
+.ap-theme-share { color: var(--ui-ink-2); font-variant-numeric: tabular-nums; }
+.ap-theme-bar { height: 5px; border-radius: 3px; background: var(--ui-surface-2); margin-top: 4px; overflow: hidden; }
+.ap-theme-bar span { display: block; height: 100%; background: var(--accent-primary); border-radius: 3px; }
+
+.ap-brief { margin-top: 14px; }
+.ap-news { margin-bottom: 14px; }
+.ap-news-row { display: flex; gap: 8px; }
+.ap-news-row .ui-input { flex: 1; min-width: 0; }
+.ap-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--ui-accent-ink);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ap-brief-summary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 20px;
+}
+.ap-brief-summary li { display: flex; flex-direction: column; gap: 2px; font-size: 0.86rem; min-width: 0; }
+.ap-brief-q { color: var(--ui-ink-3); font-size: 0.78rem; }
+.ap-brief-a { color: var(--ui-ink); overflow-wrap: anywhere; }
+
+.ap-activity-theme { margin-left: 8px; vertical-align: 1px; }
+.ap-activity-at { margin-left: 8px; font-weight: 400; font-size: 0.8rem; color: var(--ui-ink-3); }
+
+@media (max-width: 640px) {
+  .ap-news-row { flex-direction: column; }
+  .ap-grid { grid-template-columns: 1fr; }
+  .ap-context-banner { padding: 16px; }
+}

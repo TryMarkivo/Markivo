@@ -1016,7 +1016,7 @@
   },
   "autopilot": {
     "title": "Autopilot",
-    "subtitle": "Let Markiv look at your business and post promotions to your channels on its own.",
+    "subtitle": "Autopilot learns how your channel writes, then posts for you on a schedule: about your business, in your style.",
     "disabledNotice": "Autopilot isn't available here yet.",
     "loadError": "Couldn't load Autopilot. Refresh the page to try again.",
     "saveError": "Couldn't save your settings. Please try again.",
@@ -1024,55 +1024,220 @@
     "saved": "Settings saved.",
     "ranNow": "Autopilot just ran. See what it did below.",
     "enableLabel": "Turn on Autopilot",
-    "enableHint": "When it's on, Markiv works on a schedule: it looks at your business, writes posts and puts them out for you.",
+    "enableHint": "When it's on, Autopilot posts on your schedule. It picks a topic, writes in your style, then posts or asks for your OK.",
     "platformsLabel": "Channels to post to",
     "platformsHint": "Autopilot posts to the channels you pick. Connected channels get real posts; the rest are practice runs until you connect them.",
-    "frequencyLabel": "How often",
+    "frequencyLabel": "When to post",
     "freq": {
       "daily": "Once a day",
       "weekly": "Once a week",
       "test": "Every minute (demo)"
     },
     "publishModeLabel": "When a post is ready",
-    "autoPublish": "Post it right away",
-    "autoPublishHint": "Markiv posts without asking.",
+    "autoPublish": "Post without asking",
+    "autoPublishHint": "It goes out at its time. Until then you can change it on the Calendar.",
     "queueMode": "Wait for my OK",
     "queueModeHint": "You approve each post before it goes out.",
     "save": "Save settings",
     "saving": "Saving…",
-    "runNow": "Run now",
+    "runNow": "Post one now",
     "running": "Running…",
     "runNeedsSave": "Save your changes first",
     "activityTitle": "Activity",
-    "noActivity": "Nothing yet. Turn Autopilot on, or press “Run now”, and you'll see everything it does here.",
+    "noActivity": "Nothing yet. Turn Autopilot on and you'll see everything it does here.",
     "adSafetyNote": "Autopilot only makes free posts. Paid ads always need your OK first. Markiv never spends your money on its own.",
     "kind": {
-      "analysis": "Analyzed your business",
+      "analysis": "Planned a post",
       "post_published": "Published a post",
       "post_scheduled": "Scheduled a post",
       "approval_created": "Sent to you for approval",
       "skipped": "Paused",
       "error": "Error",
-      "context_needed": "Asked you a question",
+      "context_needed": "Asked you a few questions",
       "context_answered": "You answered Autopilot",
       "external_content": "Learned from real posts"
     },
     "context": {
-      "title": "Autopilot paused. It has a question for you.",
-      "blurb": "Markiv doesn't know enough about your channel yet to write something worth posting. Rather than put out a generic ad, it stopped to ask.",
-      "paused": "Autopilot has a question for you before it can post.",
+      "title": "Before Autopilot starts, a few quick questions",
+      "blurb": "Autopilot doesn't know enough about your channel yet to write something worth posting. Rather than guess, it's asking.",
+      "paused": "Autopilot has a few questions for you before it can post.",
       "answerLabel": "Your answer",
       "answerPh": "e.g. We want more weekday-morning customers. A discount post that gets people in before 11am.",
       "send": "Send to Autopilot",
       "sending": "Sending…",
-      "thanks": "Thanks. Autopilot will use that the next time it runs.",
-      "answerError": "Couldn't save your answer. Please try again.",
-      "hint": "Autopilot remembers this, so you only answer once."
+      "thanks": "Thanks. Autopilot will use that from the next post on.",
+      "answerError": "Couldn't save your answers. Please try again.",
+      "hint": "Autopilot remembers this, so you only answer once.",
+      "skipHint": "Skip anything you like and Autopilot decides it. You can change every answer later."
     },
     "queue": {
       "pointer_one": "{{count}} post is waiting for your OK on the Calendar.",
       "pointer_other": "{{count}} posts are waiting for your OK on the Calendar.",
       "open": "Open Calendar"
+    },
+    "queueModeHintTg": "You approve each post first, here or in Telegram with one tap (@{{bot}} sends it to you).",
+    "runNowHint": "Write and send one post right now, outside the plan",
+    "status": {
+      "off": "Autopilot is off. Turn it on and it starts by reading your channel.",
+      "asking": "Paused: answer a few questions below and Autopilot starts.",
+      "demo": "Demo mode: Autopilot posts every minute.",
+      "next": "Next post: {{when}} · {{topic}}"
+    },
+    "plan": {
+      "title": "Coming up",
+      "autoHint": "Autopilot writes each post about an hour before it goes out. It waits on the Calendar, where you can still change or delete it.",
+      "approvalHint": "Autopilot writes each post {{hours}} hours ahead and asks for your OK. Approve it before its time and it goes out on time."
+    },
+    "theme": {
+      "news": "Your news"
+    },
+    "activity": {
+      "for": "for {{when}}"
+    },
+    "learned": {
+      "title": "What Autopilot learned from your channel",
+      "relearn": "Read again",
+      "done": "Autopilot read your channel again.",
+      "none": "Autopilot hasn't read your channel yet. It does when you turn it on.",
+      "count_one": "Learned from {{count}} of your posts.",
+      "count_other": "Learned from {{count}} of your posts.",
+      "thin": "That's not enough to copy your style: Autopilot needs at least {{min}}. Until then it follows your answers.",
+      "voice": "How you write:",
+      "layout": "How posts look:",
+      "hashtags": "Hashtags in {{pct}}% of posts",
+      "perWeek": "About {{n}} posts a week",
+      "bestTime": "Best time: {{times}}",
+      "themes": "What you post about",
+      "moreViews": "more views",
+      "fewerViews": "fewer views",
+      "habits": "Habits Autopilot keeps",
+      "forwardTip": "Tip: forward a few of your best posts to @{{bot}} in Telegram. Autopilot learns from them too, even from a private channel.",
+      "connectTip": "Tip: connect your Telegram channel through the Markivo bot (Settings → Telegram). Then Autopilot reads every new post you make.",
+      "length": {
+        "short": "Short posts",
+        "medium": "Medium-length posts",
+        "long": "Long posts"
+      },
+      "emoji": {
+        "none": "No emojis",
+        "few": "A few emojis",
+        "many": "Lots of emojis"
+      },
+      "zero": "Autopilot found no posts of yours to learn from yet."
+    },
+    "brief": {
+      "title": "Your brief for Autopilot",
+      "edit": "Change answers",
+      "close": "Close",
+      "save": "Save answers",
+      "saved": "Saved. Autopilot follows it from the next post.",
+      "newsLabel": "Anything new? Autopilot puts it in the next post.",
+      "tell": "Tell Autopilot",
+      "currentNews": "Current news: “{{news}}”",
+      "clearNews": "Clear",
+      "notSet": "not set"
+    },
+    "sched": {
+      "modeLabel": "Who picks the times",
+      "smart": "Autopilot picks the best times",
+      "fixed": "I choose days and times",
+      "perWeek": "Posts a week",
+      "perWeekOption": "{{count}} a week",
+      "bestHistory": "Your posts get the most views around {{times}}, so Autopilot posts then.",
+      "bestCategory": "Good times for a business like yours: {{times}}. Once your channel has more posts, Autopilot switches to the times your posts do best.",
+      "days": "Days",
+      "times": "Times",
+      "timeN": "Time {{n}}",
+      "removeTime": "Remove this time",
+      "addTime": "Add a time",
+      "fixedCount_one": "{{count}} post a week.",
+      "fixedCount_other": "{{count}} posts a week.",
+      "timezone": "Time zone"
+    },
+    "q": {
+      "auto": "Let Autopilot decide",
+      "optional": "optional",
+      "otherPh": "Something else? Type it, separated by commas",
+      "otherLabel": "Other topics",
+      "themes": {
+        "label": "What should your posts be about?",
+        "short": "Topics",
+        "hint": "Pick a few. Autopilot takes turns between them.",
+        "opt": {
+          "products": "Products and services",
+          "offers": "Offers and discounts",
+          "news": "News and announcements",
+          "tips": "Useful tips",
+          "behind_scenes": "Behind the scenes",
+          "reviews": "Customer reviews",
+          "team": "Our team",
+          "events": "Holidays and events",
+          "fun": "Fun posts"
+        }
+      },
+      "goal": {
+        "label": "What do you want most from your posts?",
+        "short": "Goal",
+        "opt": {
+          "visits": "More people coming in",
+          "orders": "More orders and sales",
+          "calls": "More calls and messages",
+          "bookings": "More bookings",
+          "followers": "More followers",
+          "awareness": "More people knowing us"
+        }
+      },
+      "tone": {
+        "label": "How should your posts sound?",
+        "short": "Tone",
+        "opt": {
+          "friendly": "Friendly and warm",
+          "professional": "Professional",
+          "playful": "Playful",
+          "premium": "Premium",
+          "informative": "Expert and informative"
+        }
+      },
+      "length": {
+        "label": "How long should posts be?",
+        "short": "Length",
+        "opt": {
+          "short": "Short: 1–3 lines",
+          "medium": "A paragraph",
+          "long": "Long and detailed"
+        }
+      },
+      "emoji": {
+        "label": "Emojis?",
+        "short": "Emojis",
+        "opt": {
+          "none": "None",
+          "few": "A few",
+          "many": "Lots"
+        }
+      },
+      "schedule": {
+        "label": "How often and when should Autopilot post?",
+        "short": "When",
+        "hint": "Let Autopilot pick the best times, or choose days and times yourself."
+      },
+      "cta": {
+        "label": "How do customers reach you or buy?",
+        "short": "Contacts",
+        "hint": "A phone number, address, order link or @username. Autopilot never makes these up.",
+        "ph": "e.g. +998 90 123 45 67, Amir Temur 15, @noircafe"
+      },
+      "avoid": {
+        "label": "Anything Autopilot should never say or post?",
+        "short": "Never mention",
+        "ph": "e.g. prices, competitors, alcohol"
+      },
+      "news": {
+        "label": "Anything new this week? An offer, a new product, an event?",
+        "short": "News",
+        "hint": "Autopilot puts it in the next post and keeps it in mind for two weeks.",
+        "ph": "e.g. From Monday: pistachio latte, and 10% off before 11:00"
+      }
     }
   },
   "templates": {

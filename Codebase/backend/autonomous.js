@@ -131,14 +131,15 @@ async function notify(publishers, kind, profile, payload, db) {
 //     plan, and leaves the plan alone.
 // Worker-initiated runs must win an atomic claim so overlapping ticks can't
 // double-run a profile.
-async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}, ownContentFetch, gemini = geminiDefault, profileId, nowMs = Date.now(), force = false }) {
+async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}, ownContentFetch, gemini = geminiDefault, profileId, nowMs = Date.now(), force = false, lang: requestLang = null }) {
   const profile = db.profiles.findById(profileId);
   const cfg = db.autonomous.getConfig(profileId);
   if (!profile || !cfg || !cfg.enabled) return { skipped: 'not-enabled' };
 
   const user = db.users.findById(profile.userId);
-  // No request here — what the owner reads follows their saved UI language.
-  const lang = i18n.langOr(user && user.preferredLang);
+  // What the owner reads follows the page they have open when they started
+  // this run, else their saved UI language (the worker has no request).
+  const lang = i18n.langOr(requestLang || (user && user.preferredLang));
   const nowIso = new Date(nowMs).toISOString();
   const legacy = isLegacyCadence(cfg);
   const plan = autopilotSchedule.normalizeSchedule(cfg.schedule, cfg.frequency);

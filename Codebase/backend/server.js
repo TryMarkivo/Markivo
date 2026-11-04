@@ -3125,7 +3125,7 @@ app.get('/api/autonomous/status', verifyToken, (req, res) => {
 
 // Save Autopilot settings. Enabling makes the business eligible on the next
 // tick; so does a new schedule, so the plan is recomputed right away.
-app.put('/api/autonomous/config', verifyToken, autonomousGate, (req, res) => {
+app.put('/api/autonomous/config', verifyToken, autonomousGate, asyncRoute(async (req, res) => {
   const profile = requireProfile(req, res);
   if (!profile) return;
   const { enabled, platforms, frequency, autoPublish } = req.body;
@@ -3161,8 +3161,21 @@ app.put('/api/autonomous/config', verifyToken, autonomousGate, (req, res) => {
     nextRunAt,
     schedule,
   });
-  res.json({ config: cfg, plan: autopilotPlanView(profile, cfg) });
-});
+  // Just switched on, or the plan changed: do the first pass now rather than
+  // on the next worker tick (up to ten minutes away) — read the channel, and
+  // ask the owner what is missing while they are still on the page. Waits a
+  // few seconds at most; a slower pass finishes in the background. The
+  // worker's own claim keeps this from double-running with a tick. Skipped
+  // in tests, which drive the worker themselves.
+  if (enabled && nextRunAt !== (prev && prev.nextRunAt) && process.env.NODE_ENV !== 'test') {
+    const pass = autonomous.runProfileAutopilot({
+      db, ai, connectors, config, publishers: autopilotPublishers, ownContentFetch, profileId: profile.id, nowMs: Date.now(), lang: req.lang,
+    }).catch((err) => console.warn('Autopilot first pass failed:', err.message));
+    await Promise.race([pass, new Promise((r) => setTimeout(r, 8000))]);
+  }
+  const fresh = db.autonomous.getConfig(profile.id);
+  res.json({ config: fresh, plan: autopilotPlanView(profile, fresh) });
+}));
 
 // The owner's brief for Autopilot — read it, or change any answer at any time
 // (not only when Autopilot asks). A schedule answer is saved on the config.
@@ -3310,7 +3323,7 @@ app.post('/api/autonomous/run', verifyToken, autonomousGate, checkBudget('writin
   if (!profile) return;
   const cfg = db.autonomous.getConfig(profile.id);
   if (!cfg || !cfg.enabled) return res.status(400).json({ error: 'Enable Autopilot first, then run it.' });
-  const result = await autonomous.runProfileAutopilot({ db, ai, connectors, config, publishers: autopilotPublishers, ownContentFetch, profileId: profile.id, nowMs: Date.now(), force: true });
+  const result = await autonomous.runProfileAutopilot({ db, ai, connectors, config, publishers: autopilotPublishers, ownContentFetch, profileId: profile.id, nowMs: Date.now(), force: true, lang: req.lang });
   res.json({ result, activity: db.autonomous.listActivity(profile.id, 30) });
 }));
 
