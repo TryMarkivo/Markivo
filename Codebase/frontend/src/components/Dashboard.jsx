@@ -21,6 +21,7 @@ import api from '../lib/api';
 import { DEMO } from '../lib/demo';
 import logoUrl from '../assets/markivo-logo.png';
 import './Dashboard.css';
+import InfoTip from './ui/InfoTip';
 
 // A metric card: number + trend + sparkline, dimmed when it is still sample
 // data rather than a real reading, and clickable anywhere to open the
@@ -412,8 +413,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <div className="tab-analytics animate-fade-in">
               <header className="page-head">
                 <div>
-                  <h1>{t('dashboard.nav.metrics', 'Dashboard')}</h1>
-                  <p>{t('dashboard.pageSubtitle', 'How your channels are doing.')}</p>
+                  <h1>{t('dashboard.nav.metrics', 'Dashboard')}<InfoTip text={t('dashboard.pageSubtitle', 'How your channels are doing.')} /></h1>
                 </div>
               </header>
 
@@ -532,8 +532,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
                     [/* SEO LOCAL KEYWORDS *!/]
                     <div className="seo-panel glass-card">
-                    <h3>{t('dashboard.seo.title', 'Local SEO Rankings')}</h3>
-                    <p className="panel-subtitle">{t('dashboard.seo.subtitle', 'How your business ranks in Tashkent search results')}</p>
+                    <h3>{t('dashboard.seo.title', 'Local SEO Rankings')}<InfoTip text={t('dashboard.seo.subtitle', 'How your business ranks in Tashkent search results')} /></h3>
 
                     <div className="keywords-list">
                     <div className="kw-header">

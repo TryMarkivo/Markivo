@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import MediaAttach from './MediaAttach';
 import './TemplateStudio.css';
+import InfoTip from './ui/InfoTip';
 
 // Mirrors the backend placeholder format (backend/gemini.js) so the inline view
 // and the chips update as you type, with no round trip.
@@ -394,13 +395,10 @@ export default function TemplateStudio({ platformKey, platformLabel, onUseTempla
       <div className="panel-title-wrap">
         <i className="fa-solid fa-shapes text-accent icon-header"></i>
         <div>
-          <h3>{t('templates.title', 'Message Templates')}</h3>
-          <p className="text-muted">
-            {t('templates.subtitle', {
+          <h3>{t('templates.title', 'Message Templates')}<InfoTip text={t('templates.subtitle', {
               defaultValue: 'Paste a message you already send on {{platform}} — we turn the changing parts into variables you can refill in seconds.',
               platform: platformLabel,
-            })}
-          </p>
+            })} /></h3>
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import ConnectCard from './ConnectCard';
 import TelegramConnect from './TelegramConnect';
 import { metaFor } from '../lib/platforms';
 import './Connections.css';
+import InfoTip from './ui/InfoTip';
 
 /**
  * Dashboard "Connections" tab. Lists EVERY platform the connector framework
@@ -58,8 +59,7 @@ export default function ConnectionsPanel({ activeProfile }) {
 
   return (
     <div className="connections-panel animate-fade-in">
-      <h3>{t('connections.title', 'Platform Connections')}</h3>
-      <p className="panel-subtitle">{t('connections.subtitle', 'Connect the platforms Markiv can publish to on your behalf — through each platform’s official API, behind your approval.')}</p>
+      <h3>{t('connections.title', 'Platform Connections')}<InfoTip text={t('connections.subtitle', 'Connect the platforms Markiv can publish to on your behalf — through each platform’s official API, behind your approval.')} /></h3>
 
       {toast && <div className="badge badge-success mb-20" style={{ display: 'block', padding: 10 }} role="status">{toast}</div>}
 

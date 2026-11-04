@@ -341,3 +341,71 @@
   font-size: 14px;
   color: var(--ui-ink-2);
 }
+
+/* Info tip: an "i" beside a heading; the explanation appears on hover,
+   focus or tap. Plain-weight body text whatever heading it sits in. */
+.ui-info {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+  font-family: var(--ui-font);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.ui-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  color: var(--ui-ink-3);
+  cursor: help;
+}
+
+.ui-info-btn:hover,
+.ui-info-btn:focus-visible {
+  color: var(--ui-ink);
+}
+
+.ui-info-btn:focus-visible {
+  outline: 2px solid var(--ui-accent-ink);
+  outline-offset: 1px;
+}
+
+.ui-info-tip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: -6px;
+  z-index: 60;
+  width: max-content;
+  max-width: min(300px, calc(100vw - 48px));
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ui-ink);
+  color: var(--ui-bg);
+  box-shadow: var(--ui-shadow);
+  white-space: normal;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-2px);
+  transition: opacity 0.12s, transform 0.12s, visibility 0.12s;
+  pointer-events: none;
+}
+
+.ui-info:hover .ui-info-tip,
+.ui-info-btn:focus + .ui-info-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-info-tip { transition: none; }
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import './TemplateStudio.css';
+import InfoTip from './ui/InfoTip';
 
 const PREVIEW_MAX_CHARS = 220;
 const previewOf = (text) => {
@@ -143,10 +144,7 @@ export default function StyleStudio({ onSaved, hideSavedList, title, subtitle } 
       <div className="panel-title-wrap">
         <i className="fa-solid fa-signature text-accent icon-header"></i>
         <div>
-          <h3>{title || t('styles.title', 'Writing Styles')}</h3>
-          <p className="text-muted">
-            {subtitle || t('styles.subtitle', "Paste a post — your own, or copied from a competitor — and learn its voice, so you can write new posts that sound like it.")}
-          </p>
+          <h3>{title || t('styles.title', 'Writing Styles')}<InfoTip text={subtitle || t('styles.subtitle', "Paste a post — your own, or copied from a competitor — and learn its voice, so you can write new posts that sound like it.")} /></h3>
         </div>
       </div>
 

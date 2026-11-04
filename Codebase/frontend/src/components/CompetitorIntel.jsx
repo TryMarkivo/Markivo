@@ -5,6 +5,7 @@ import { PLATFORM_META } from '../lib/platforms';
 import AddCompetitorModal from './AddCompetitorModal';
 import CompetitorPostDetailModal from './CompetitorPostDetailModal';
 import './CompetitorIntel.css';
+import InfoTip from './ui/InfoTip';
 
 // competitor_sources platform keys -> the icon/colour catalogue already used
 // for connected channels (which keys 'instagram'/'facebook' as
@@ -147,16 +148,14 @@ export default function CompetitorIntel({ stats, activeProfile, onGenerateToComp
     <div className="competitor-intel-container animate-fade-in">
       <header className="page-head">
         <div>
-          <h1>{t('dashboard.nav.competitors', 'Competitors')}</h1>
-          <p>{t('competitors.pageSubtitle', 'See what similar businesses post and how often.')}</p>
+          <h1>{t('dashboard.nav.competitors', 'Competitors')}<InfoTip text={t('competitors.pageSubtitle', 'See what similar businesses post and how often.')} /></h1>
         </div>
       </header>
       <div className="grid-2 main-intel-grids">
 
         {/* COMPETING BENCHMARK TABLE */}
         <div className="benchmark-table-box glass-card">
-          <h3>{t('competitors.benchmark.title', 'Local Competitor Benchmark')}</h3>
-          <p className="panel-subtitle">{t('competitors.benchmark.subtitle', 'How your channel infrastructure compares to nearby local brands')}</p>
+          <h3>{t('competitors.benchmark.title', 'Local Competitor Benchmark')}<InfoTip text={t('competitors.benchmark.subtitle', 'How your channel infrastructure compares to nearby local brands')} /></h3>
 
           <div className="competitor-list mt-20">
             <div className="comp-header">
@@ -191,8 +190,7 @@ export default function CompetitorIntel({ stats, activeProfile, onGenerateToComp
 
         {/* POST FREQUENCY CHART — real fetched cadence, or an honest empty state */}
         <div className="frequency-chart-box glass-card">
-          <h3>{t('competitors.frequency.title', 'Weekly Posting Frequency')}</h3>
-          <p className="panel-subtitle">{t('competitors.frequency.subtitle', 'Benchmark of content frequency across competing channels')}</p>
+          <h3>{t('competitors.frequency.title', 'Weekly Posting Frequency')}<InfoTip text={t('competitors.frequency.subtitle', 'Benchmark of content frequency across competing channels')} /></h3>
 
           {chartCompetitors.length === 0 ? (
             <div className="empty-state mt-20">
@@ -236,8 +234,7 @@ export default function CompetitorIntel({ stats, activeProfile, onGenerateToComp
       <div className="tracked-competitors-row mt-30">
         <div className="flex-between mb-10">
           <div>
-            <h3>{t('competitors.tracked.title', 'Tracked Competitors')}</h3>
-            <p className="panel-subtitle">{t('competitors.tracked.subtitle', "Paste a competitor's profile link to pull their real content and posting habits")}</p>
+            <h3>{t('competitors.tracked.title', 'Tracked Competitors')}<InfoTip text={t('competitors.tracked.subtitle', "Paste a competitor's profile link to pull their real content and posting habits")} /></h3>
           </div>
           <button className="btn btn-primary" onClick={() => setAddOpen(true)} id="btn_add_competitor">
             <i className="fa-solid fa-plus"></i> {t('competitors.tracked.addCta', 'Add competitor')}
@@ -386,8 +383,7 @@ export default function CompetitorIntel({ stats, activeProfile, onGenerateToComp
       <div className="trends-row mt-30">
         <div className="flex-between mb-10">
           <div>
-            <h3>{t('competitors.trends.title', 'Competitor Trends')}</h3>
-            <p className="panel-subtitle">{t('competitors.trends.subtitle', "What's working for the businesses you're tracking")}</p>
+            <h3>{t('competitors.trends.title', 'Competitor Trends')}<InfoTip text={t('competitors.trends.subtitle', "What's working for the businesses you're tracking")} /></h3>
           </div>
           <button
             className="btn btn-secondary"

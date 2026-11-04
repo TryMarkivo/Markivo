@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import './AutonomousAgent.css';
+import InfoTip from './ui/InfoTip';
 
 // Icon + label per activity kind logged by the Autopilot worker.
 const KIND_META = {
@@ -188,8 +189,7 @@ export default function AutonomousAgent({ activeProfile, onGoToCalendar }) {
     <div className="autopilot-pane animate-fade-in">
       <header className="page-head">
         <div>
-          <h1>{t('autopilot.title', 'Autopilot')}</h1>
-          <p>{t('autopilot.subtitle', 'Let Markiv analyze your business and post promotional content to your channels on its own.')}</p>
+          <h1>{t('autopilot.title', 'Autopilot')}<InfoTip text={t('autopilot.subtitle', 'Let Markiv analyze your business and post promotional content to your channels on its own.')} /></h1>
         </div>
       </header>
 
@@ -245,8 +245,7 @@ export default function AutonomousAgent({ activeProfile, onGoToCalendar }) {
       {/* MASTER ENABLE */}
       <div className="glass-card ap-toggle-card">
         <div>
-          <h4>{t('autopilot.enableLabel', 'Enable Autopilot')}</h4>
-          <p className="text-muted">{t('autopilot.enableHint', 'When on, Markiv runs on a schedule — analyzing, generating, and posting for you.')}</p>
+          <h4>{t('autopilot.enableLabel', 'Enable Autopilot')}<InfoTip text={t('autopilot.enableHint', 'When on, Markiv runs on a schedule — analyzing, generating, and posting for you.')} /></h4>
         </div>
         <button
           type="button"
@@ -264,8 +263,10 @@ export default function AutonomousAgent({ activeProfile, onGoToCalendar }) {
       {/* CONFIG */}
       <div className={`ap-config ${form.enabled ? '' : 'ap-config-muted'}`}>
         <div className="glass-card ap-section">
-          <label className="form-label">{t('autopilot.platformsLabel', 'Channels to post to')}</label>
-          <p className="text-muted ap-hint">{t('autopilot.platformsHint', 'Autopilot posts to the channels you pick (connected channels post for real; others are simulated until connected).')}</p>
+          <span className="form-label">
+            {t('autopilot.platformsLabel', 'Channels to post to')}
+            <InfoTip text={t('autopilot.platformsHint', 'Autopilot posts to the channels you pick (connected channels post for real; others are simulated until connected).')} />
+          </span>
           <div className="ap-platform-grid">
             {catalogue.map((p) => (
               <button

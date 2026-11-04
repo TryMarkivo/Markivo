@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import PublishModal from './PublishModal';
 import './MediaStudio.css';
+import InfoTip from './ui/InfoTip';
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB client-side cap
 // Video generation runs for minutes. Google's own guidance is to poll every
@@ -442,13 +443,10 @@ export default function MediaStudio({ activeProfile }) {
       {/* HEADER */}
       <header className="page-head">
         <div>
-          <h1>{t('media.title', 'Media Studio')}</h1>
-          <p>
-            {t('media.subtitle', {
+          <h1>{t('media.title', 'Media Studio')}<InfoTip text={t('media.subtitle', {
               defaultValue: 'Plan, shoot and edit scroll-stopping content for {{businessName}}',
               businessName: activeProfile.businessName,
-            })}
-          </p>
+            })} /></h1>
         </div>
       </header>
 
@@ -488,10 +486,7 @@ export default function MediaStudio({ activeProfile }) {
           choice, and the box. Nothing else — the AI does the rest. */}
       {mode === 'full' && (
         <div className="media-brief-panel glass-card">
-          <h3>{t('media.full.title', 'Describe what you want')}</h3>
-          <p className="media-panel-subtitle">
-            {t('media.full.explainer', 'Write it like you would describe it to a designer: the subject, the feeling, and where it will be posted. One or two sentences is enough — the AI fills in the rest.')}
-          </p>
+          <h3>{t('media.full.title', 'Describe what you want')}<InfoTip text={t('media.full.explainer', 'Write it like you would describe it to a designer: the subject, the feeling, and where it will be posted. One or two sentences is enough — the AI fills in the rest.')} /></h3>
 
           <form onSubmit={handleBrief}>
             <div className="form-group">
@@ -620,10 +615,7 @@ export default function MediaStudio({ activeProfile }) {
       {mode === 'guided' && (
         <>
           <div className="media-brief-panel glass-card">
-            <h3>{t('media.guided.title', 'What do you want to shoot?')}</h3>
-            <p className="media-panel-subtitle">
-              {t('media.guided.explainer', 'Tell us what you are filming or photographing and press send. You get back the full production plan — how to set the scene, exact camera setup, and every shot to take.')}
-            </p>
+            <h3>{t('media.guided.title', 'What do you want to shoot?')}<InfoTip text={t('media.guided.explainer', 'Tell us what you are filming or photographing and press send. You get back the full production plan — how to set the scene, exact camera setup, and every shot to take.')} /></h3>
 
             <div className="form-group">
               <label className="form-label">{t('media.brief.kindLabel', 'Media type')}</label>
@@ -751,8 +743,7 @@ export default function MediaStudio({ activeProfile }) {
           {/* UPLOAD + EDIT PLAN — only relevant once you have actually filmed. */}
           <div className="media-work-grid">
             <div className="media-upload-panel glass-card">
-              <h3>{t('media.upload.title', 'Upload your footage')}</h3>
-              <p className="media-panel-subtitle">{t('media.upload.subtitle', 'Drop in the photo or video you filmed')}</p>
+              <h3>{t('media.upload.title', 'Upload your footage')}<InfoTip text={t('media.upload.subtitle', 'Drop in the photo or video you filmed')} /></h3>
 
               <input
                 ref={fileInputRef}
@@ -803,8 +794,7 @@ export default function MediaStudio({ activeProfile }) {
 
             {uploaded ? (
               <div className="media-edit-panel glass-card">
-                <h3>{t('media.edit.title', 'AI edit plan')}</h3>
-                <p className="media-panel-subtitle">{t('media.edit.subtitle', 'Describe how the AI should edit this media')}</p>
+                <h3>{t('media.edit.title', 'AI edit plan')}<InfoTip text={t('media.edit.subtitle', 'Describe how the AI should edit this media')} /></h3>
 
                 <form onSubmit={handleEditPlan}>
                   <div className="form-group">
@@ -880,10 +870,7 @@ export default function MediaStudio({ activeProfile }) {
 
           {/* AI PHOTO ENHANCEMENT — what the footage looks like after the AI pass. */}
           <div className="enhancer-box glass-card">
-            <h3>{t('content.enhancer.title', 'AI Photo Enhancement')}</h3>
-            <p className="media-panel-subtitle">
-              {t('content.enhancer.subtitle', 'Upload smartphone photos and let our AI optimize brightness, textures & contrast')}
-            </p>
+            <h3>{t('content.enhancer.title', 'AI Photo Enhancement')}<InfoTip text={t('content.enhancer.subtitle', 'Upload smartphone photos and let our AI optimize brightness, textures & contrast')} /></h3>
 
             <div
               className="before-after-container"
