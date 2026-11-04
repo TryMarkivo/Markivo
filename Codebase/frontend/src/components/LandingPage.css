@@ -1,7 +1,7 @@
 /* ==========================================================================
    Landing page. Self-contained: its own tokens under .lp so the redesign
    can move screen by screen without disturbing the app's older styles.
-   One typeface, one accent (the logo blue), flat surfaces, hairline rules.
+   One typeface, one accent (the brand gold), flat surfaces, hairline rules.
    ========================================================================== */
 
 .lp {
@@ -12,9 +12,10 @@
   --lp-ink-3: #85878f;
   --lp-line: #e2e0da;
   --lp-line-strong: #cfccc4;
-  --lp-accent: #1d57f0;
-  --lp-accent-hover: #1647cc;
-  --lp-on-accent: #ffffff;
+  --lp-accent: #d4a373;
+  --lp-accent-hover: #c8955f;
+  --lp-accent-ink: #94642f;
+  --lp-on-accent: #16171b;
   --lp-ok: #1b7f47;
   --lp-wait: #a35a00;
   --lp-wait-bg: #fdf1df;
@@ -41,8 +42,9 @@
   --lp-ink-3: #75767d;
   --lp-line: #2a2a2f;
   --lp-line-strong: #3a3a40;
-  --lp-accent: #3d6dff;
-  --lp-accent-hover: #5580ff;
+  --lp-accent: #d4a373;
+  --lp-accent-hover: #e0b588;
+  --lp-accent-ink: #dcb185;
   --lp-ok: #5cc98a;
   --lp-wait: #f0b357;
   --lp-wait-bg: #2e2416;
@@ -89,7 +91,7 @@
 .lp-btn:focus-visible,
 .lp-icon-btn:focus-visible,
 .lp a:focus-visible {
-  outline: 2px solid var(--lp-accent);
+  outline: 2px solid var(--lp-accent-ink);
   outline-offset: 2px;
 }
 
@@ -217,7 +219,7 @@
 }
 
 .lp .lang-select:focus-visible {
-  outline: 2px solid var(--lp-accent);
+  outline: 2px solid var(--lp-accent-ink);
   outline-offset: 2px;
 }
 
@@ -476,8 +478,8 @@
 }
 
 .lp-plan.is-featured {
-  border-color: var(--lp-accent);
-  box-shadow: inset 0 0 0 1px var(--lp-accent);
+  border-color: var(--lp-accent-ink);
+  box-shadow: inset 0 0 0 1px var(--lp-accent-ink);
 }
 
 .lp-plan h3 {
@@ -528,7 +530,7 @@
 
 .lp-plan li svg {
   flex: none;
-  color: var(--lp-accent);
+  color: var(--lp-accent-ink);
 }
 
 .lp-plan li.is-off {
