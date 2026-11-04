@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { toneLabel } from '../lib/businessVocab';
+import InfoTip from './ui/InfoTip';
 
 /**
  * The other half of onboarding.
@@ -189,12 +190,10 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
         <h3 className="completion-title">
           {t('profileQuestions.title', 'Complete your business profile')}
           {state.pendingCount > 0 && <span className="completion-count">{state.pendingCount}</span>}
-        </h3>
-        <p className="settings-hint">
-          {state.pendingCount > 0
+          <InfoTip text={state.pendingCount > 0
             ? t('profileQuestions.hint', 'We kept signup short. These are the details that make what Markivo writes yours instead of generic — answer any, skip the rest.')
-            : t('profileQuestions.done', 'Nothing left to answer. You can still edit anything below.')}
-        </p>
+            : t('profileQuestions.done', 'Nothing left to answer. You can still edit anything below.')} />
+        </h3>
       </div>
 
       {/* One list in a fixed order. A question stays where it is once it is
@@ -202,37 +201,40 @@ export default function ProfileCompletion({ onCountChange, onProfileUpdate }) {
           moving out of sight, so the owner sees what they told Markivo. */}
       {state.questions.map((q) => (
         <div className={`form-group completion-question ${q.answered && !q.skipped ? 'is-answered' : ''}`} key={q.key}>
-          <label className="form-label" htmlFor={`pq_${q.key}`}>
-            {label(q)}
-            {q.answered && !q.skipped && (
-              <span className="completion-done" title={t('profileQuestions.answeredMark', 'Answered')}>
-                <i className="fa-solid fa-circle-check"></i>
+          {/* Title row: question, its "i" explanation, state, and Skip on the right. */}
+          <div className="completion-label-row">
+            <label className="form-label" htmlFor={`pq_${q.key}`}>
+              {label(q)}
+              {q.answered && !q.skipped && (
+                <span className="completion-done" title={t('profileQuestions.answeredMark', 'Answered')}>
+                  <i className="fa-solid fa-circle-check"></i>
+                </span>
+              )}
+              {q.answeredBy === 'markiv' && (
+                <span className="completion-badge-src" title={t('profileQuestions.fromMarkiv', 'You told Markiv this in chat')}>
+                  <i className="fa-solid fa-comment-dots"></i>
+                </span>
+              )}
+            </label>
+            {q.hint && <InfoTip text={hint(q)} />}
+            {q.skipped && (
+              <span className="ui-badge completion-skipped" title={t('profileQuestions.skippedNote', 'Skipped. You can still answer it here any time.')}>
+                {t('profileQuestions.skippedShort', 'Skipped')}
               </span>
             )}
-            {q.answeredBy === 'markiv' && (
-              <span className="completion-badge-src" title={t('profileQuestions.fromMarkiv', 'You told Markiv this in chat')}>
-                <i className="fa-solid fa-comment-dots"></i>
-              </span>
+            {!q.answered && (
+              <button
+                type="button"
+                className="btn-link completion-skip"
+                onClick={() => submit({ [q.key]: '' })}
+                disabled={busy}
+                id={`btn_skip_${q.key}`}
+              >
+                {t('profileQuestions.skipShort', 'Skip')}
+              </button>
             )}
-          </label>
-          {q.hint && <small className="completion-hint">{hint(q)}</small>}
+          </div>
           {renderInput(q)}
-          {!q.answered && (
-            <button
-              type="button"
-              className="btn-link completion-skip"
-              onClick={() => submit({ [q.key]: '' })}
-              disabled={busy}
-              id={`btn_skip_${q.key}`}
-            >
-              {t('profileQuestions.skip', "Skip — I'd rather not say")}
-            </button>
-          )}
-          {q.skipped && (
-            <small className="completion-hint completion-skipped">
-              {t('profileQuestions.skippedNote', 'Skipped. You can still answer it here any time.')}
-            </small>
-          )}
         </div>
       ))}
 

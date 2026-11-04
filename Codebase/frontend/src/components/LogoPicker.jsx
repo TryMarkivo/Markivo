@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import InfoTip from './ui/InfoTip';
 // The upload dropzone, variant grid and preview canvas are the onboarding
 // designer's, moved here wholesale — so are its styles.
 import './Onboarding.css';
@@ -136,10 +137,10 @@ export default function LogoPicker({ activeProfile, onProfileUpdate }) {
 
   return (
     <section className="settings-section glass-card logo-picker" id="logo_picker">
-      <h3 className="completion-title">{t('settings.logoTitle', 'Your logo')}</h3>
-      <p className="settings-hint">
-        {t('settings.logoHint', 'Optional. Upload the mark you already use, or have one designed from your name and tone.')}
-      </p>
+      <h3 className="completion-title">
+        {t('settings.logoTitle', 'Your logo')}
+        <InfoTip text={t('settings.logoHint', 'Optional. Upload the mark you already use, or have one designed from your name and tone.')} />
+      </h3>
 
       <div className="grid-2 logo-designer-grid">
         <div className="logo-controls">

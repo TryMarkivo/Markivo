@@ -1011,7 +1011,8 @@
     "voice": {
       "title": "Brend ohangi",
       "subtitle": "Ohangi sizga yoqqan postni joylang: o'zingiznikini yoki boshqa birovnikini. Markivo uning qanday yozilganini o'rganadi, AI bilan post yozayotganda shu ohangni tanlashingiz mumkin."
-    }
+    },
+    "businessDetails": "Biznes ma'lumotlari"
   },
   "autopilot": {
     "title": "Avtopilot",
@@ -1520,7 +1521,9 @@
       }
     },
     "answeredMark": "Javob berilgan",
-    "skippedNote": "O'tkazib yuborilgan. Istalgan payt shu yerda javob berishingiz mumkin."
+    "skippedNote": "O'tkazib yuborilgan. Istalgan payt shu yerda javob berishingiz mumkin.",
+    "skipShort": "O'tkazish",
+    "skippedShort": "O'tkazildi"
   },
   "publish": {
     "title": "Rasm yoki videoni joylash",

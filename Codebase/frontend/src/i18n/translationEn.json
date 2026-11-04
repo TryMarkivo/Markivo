@@ -1011,7 +1011,8 @@
     "voice": {
       "title": "Brand voice",
       "subtitle": "Paste a post whose voice you like, yours or anyone else’s. Markivo learns how it sounds, and you can pick that voice when writing a post with AI."
-    }
+    },
+    "businessDetails": "Business details"
   },
   "autopilot": {
     "title": "Autopilot",
@@ -1520,7 +1521,9 @@
       }
     },
     "answeredMark": "Answered",
-    "skippedNote": "Skipped. You can still answer it here any time."
+    "skippedNote": "Skipped. You can still answer it here any time.",
+    "skipShort": "Skip",
+    "skippedShort": "Skipped"
   },
   "publish": {
     "title": "Post this to your channels",

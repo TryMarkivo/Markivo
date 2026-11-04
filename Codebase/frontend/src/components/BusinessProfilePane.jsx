@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import ProfileCompletion from './ProfileCompletion';
 import LogoPicker from './LogoPicker';
+import InfoTip from './ui/InfoTip';
 import './SettingsPane.css';
 
 /**
@@ -65,9 +66,10 @@ export default function BusinessProfilePane({ activeProfile, onProfileUpdate, on
       <LogoPicker activeProfile={activeProfile} onProfileUpdate={onProfileUpdate} />
 
       <section className="settings-section glass-card">
-        <p className="settings-hint">
-          {t('settings.businessHint', 'Markivo personalizes content, insights, and the Markiv agent from these details.')}
-        </p>
+        <h3 className="completion-title">
+          {t('settings.businessDetails', 'Business details')}
+          <InfoTip text={t('settings.businessHint', 'Markivo personalizes content, insights, and the Markiv agent from these details.')} />
+        </h3>
 
         <div className="grid-2 settings-grid">
           <div className="form-group">

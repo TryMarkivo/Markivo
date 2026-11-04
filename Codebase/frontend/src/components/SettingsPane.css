@@ -256,9 +256,17 @@
   border-top: 1px solid var(--glass-border);
 }
 
-.completion-question.is-answered {
-  border-left: 2px solid var(--accent-success);
-  padding-left: 12px;
+/* Answered questions keep only the check mark: no extra side bar. */
+
+.completion-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.completion-label-row .form-label {
+  margin-bottom: 0;
 }
 
 .completion-done {
@@ -267,7 +275,8 @@
 }
 
 .completion-skipped {
-  margin: 6px 0 0;
+  height: 20px;
+  font-size: 11px;
 }
 
 .completion-hint {
@@ -299,7 +308,10 @@
 }
 
 .completion-skip {
-  margin-top: 6px;
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
+  text-decoration: none;
 }
 
 .completion-toggle {

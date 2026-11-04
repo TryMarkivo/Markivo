@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import InfoTip from './ui/InfoTip';
 import './SettingsPane.css';
 
 const TIER_ORDER = ['freemium', 'pro', 'ultimate'];
@@ -55,7 +56,10 @@ export default function UpgradePane({ onBillingChanged }) {
 
   return (
     <div className="settings-pane animate-fade-in">
-      <h2 className="settings-title">{t('settings.plan.title', 'Plan & billing')}</h2>
+      <h2 className="settings-title">
+        {t('settings.plan.title', 'Plan & billing')}
+        <InfoTip text={t('settings.plan.hint', 'Your plan sets your weekly AI allowance and unlocks advanced features.')} />
+      </h2>
 
       {notice && (
         <div className={`settings-notice ${notice.kind}`} id="settings_notice">
@@ -64,9 +68,6 @@ export default function UpgradePane({ onBillingChanged }) {
       )}
 
       <section className="settings-section glass-card" id="settings_plan">
-        <p className="settings-hint">
-          {t('settings.plan.hint', 'Your plan sets your monthly AI generation limit and unlocks advanced features.')}
-        </p>
 
         {billing?.simulated && (
           <div className="plan-test-note" id="plan_test_mode">
