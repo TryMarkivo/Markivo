@@ -18,6 +18,9 @@ const PATHS = {
   trash: 'M4 6h12M8 6V4.5h4V6M6 6l.7 10h6.6L14 6',
   spinner: 'M10 3a7 7 0 107 7',
   send: 'M3.5 10l13-6-4.5 13-2.5-5.5L3.5 10z',
+  sun: 'M10 6.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7zM10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4',
+  moon: 'M16.5 12.3A7 7 0 017.7 3.5a7 7 0 108.8 8.8z',
+  menu: 'M3.5 6h13M3.5 10h13M3.5 14h13',
   robot: 'M6 8h8a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4a2 2 0 012-2zM10 8V5M8 12h.01M12 12h.01',
 };
 
@@ -42,9 +45,27 @@ export default function Icon({ name, size = 16, className = '' }) {
   );
 }
 
-// Platform marks stay as Font Awesome brand glyphs (loaded app-wide) so they
-// match the logos people know; coloured from the UI tokens.
+// Platform marks, drawn inline so they never depend on an icon font.
+const MARKS = {
+  instagram: (
+    <>
+      <rect x="3" y="3" width="14" height="14" rx="4" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="10" cy="10" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="14.2" cy="5.8" r="1" fill="currentColor" />
+    </>
+  ),
+  telegram: (
+    <path d="M17.6 3.2L2.9 8.9c-.8.3-.8 1.2 0 1.5l3.6 1.2 1.4 4.4c.2.6.9.8 1.4.4l2-1.7 3.8 2.8c.6.4 1.4.1 1.5-.6l2.3-12.5c.1-.8-.6-1.4-1.3-1.2zM8.2 11.4l6.3-4.6-5 5.3-.3 2.4-1-3.1z" fill="currentColor" />
+  ),
+};
+
 export function ChannelMark({ channel, size = 14 }) {
   const c = channelInfo(channel);
-  return <i className={c.icon} style={{ color: c.color, fontSize: size, width: size, textAlign: 'center' }} aria-hidden="true"></i>;
+  const mark = MARKS[channel];
+  if (!mark) return <i className={c.icon} style={{ color: c.color, fontSize: size, width: size, textAlign: 'center' }} aria-hidden="true"></i>;
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" style={{ color: c.color, flex: 'none' }} aria-hidden="true">
+      {mark}
+    </svg>
+  );
 }

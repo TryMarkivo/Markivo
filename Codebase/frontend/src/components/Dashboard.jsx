@@ -13,10 +13,10 @@ import BusinessProfilePane from './BusinessProfilePane';
 import UpgradePane from './UpgradePane';
 import Sparkline from './Sparkline';
 import PlatformDetail from './PlatformDetail';
-import ThemeToggle from './ThemeToggle';
+import Icon from './ui/Icon';
 import PostsCalendar from './PostsCalendar';
 import PostPanel from './PostPanel';
-import { categoryLabel, locationLabel } from '../lib/businessVocab';
+import { categoryLabel } from '../lib/businessVocab';
 import api from '../lib/api';
 import { DEMO } from '../lib/demo';
 import logoUrl from '../assets/markivo-logo.png';
@@ -247,6 +247,9 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // would scroll away with the page.
   return (
     <div className="dashboard-shell">
+      {/* Tap outside the open sidebar to close it (narrow screens only, see CSS). */}
+      {sidebarOpen && <div className="sidebar-scrim" onClick={() => setSidebarOpen(false)} aria-hidden="true" />}
+
       {/* --- SIDEBAR --- */}
       <aside className={`dashboard-sidebar glass-card ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
@@ -254,6 +257,16 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <img src={logoUrl} alt="Markivo" className="logo-img" />
             Markivo
           </div>
+          <button
+            type="button"
+            className="sidebar-theme"
+            onClick={onToggleTheme}
+            id="btn_theme_toggle"
+            aria-label={theme === 'dark' ? t('common.themeToLight', 'Switch to light theme') : t('common.themeToDark', 'Switch to dark theme')}
+            title={theme === 'dark' ? t('common.themeToLight', 'Switch to light theme') : t('common.themeToDark', 'Switch to dark theme')}
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+          </button>
         </div>
 
         {/* LOGO BRIEF BLOCK — opens the Business Profile editor */}
@@ -404,23 +417,21 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       {/* --- MAIN MAIN WRAPPER --- */}
       <main className="dashboard-main-content">
         {/* TOP BAR */}
-        <header className="main-header glass-card">
+        {/* Phones only: the sidebar is hidden, so this is how to open it. */}
+        <div className="mobile-bar">
           <button
+            type="button"
             className="sidebar-toggle"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => setSidebarOpen(true)}
             aria-label={t('dashboard.toggleSidebar', 'Show or hide the sidebar')}
             aria-expanded={sidebarOpen}
+            id="btn_sidebar_open"
           >
-            <i className="fa-solid fa-bars"></i>
+            <Icon name="menu" size={20} />
           </button>
-          <div className="header-location">
-            <i className="fa-solid fa-location-dot text-accent"></i> <span>{locationLabel(t, activeProfile.location) || t('dashboard.defaultLocation', 'Tashkent, Uzbekistan')}</span>
-          </div>
-          <div className="header-badge-wrap">
-            <span className="badge badge-success"><i className="fa-solid fa-circle-check"></i> {t('dashboard.systemOperational', 'System Operational')}</span>
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-          </div>
-        </header>
+          <img src={logoUrl} alt="" className="mobile-bar-logo" />
+          <span className="mobile-bar-name">Markivo</span>
+        </div>
 
         {/* TABS CONTAINER */}
         <div className="tab-pane-container">

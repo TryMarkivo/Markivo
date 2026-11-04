@@ -133,38 +133,66 @@
   min-width: 0; /* Enable shrinking */
 }
 
-/* Header */
-.main-header {
+/* Sidebar top: logo and the theme switch */
+.sidebar-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  margin-bottom: 30px;
-  border-radius: var(--radius-sm);
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.sidebar-toggle {
-  display: none;
-  font-size: 1.2rem;
+.sidebar-theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
-.header-location {
-  display: flex;
+.sidebar-theme:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
+
+.sidebar-theme:focus-visible,
+.sidebar-toggle:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+/* Phones: a slim bar with the menu button; hidden on wide screens. */
+.mobile-bar {
+  display: none;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  margin: -8px 0 16px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
-.header-badge-wrap {
-  display: flex;
-  gap: 8px;
+.mobile-bar-logo {
+  width: 26px;
+  height: 26px;
 }
 
-.header-badge-wrap .badge {
-  margin-bottom: 0;
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin-left: -8px;
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.sidebar-scrim {
+  display: none;
 }
 
 /* Loading panel */
@@ -530,8 +558,15 @@
     margin-left: 0;
     padding: 20px;
   }
-  .sidebar-toggle {
+  .mobile-bar {
+    display: flex;
+  }
+  .sidebar-scrim {
     display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+    background: var(--overlay-bg);
   }
 }
 
