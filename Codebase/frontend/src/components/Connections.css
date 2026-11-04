@@ -122,3 +122,9 @@
 .connect-docs-link:hover {
   text-decoration: underline;
 }
+
+/* Buttons sit on the card's bottom edge, so they line up across the row
+   whether or not a card shows an account name above. */
+.connection-card > .btn {
+  margin-top: auto;
+}
