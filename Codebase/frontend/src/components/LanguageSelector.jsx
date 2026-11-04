@@ -35,7 +35,6 @@ const LanguageSelector = ({ onChange, variant = 'pills', className = 'lang-selec
         value={current}
         onChange={(e) => changeLanguage(e.target.value)}
         aria-label={t('common.language', 'Language')}
-        id="select_language"
       >
         {languageOptions.map((lang) => (
           <option key={lang.code} value={lang.code}>{long ? lang.name : lang.label}</option>

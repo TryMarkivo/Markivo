@@ -714,3 +714,42 @@
 .dash-notice {
   margin-bottom: 16px;
 }
+
+/* Quick switches beside the logo: language and theme. */
+.sb-quick {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sb-lang {
+  height: 32px;
+  padding: 0 22px 0 8px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ui-ink-2);
+  cursor: pointer;
+  appearance: none;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2385878f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 7px center;
+}
+
+.sb-lang:hover {
+  color: var(--ui-ink);
+  background-color: var(--ui-surface-2);
+}
+
+.sb-lang:focus-visible {
+  outline: 2px solid var(--ui-accent-ink);
+  outline-offset: 1px;
+}
+
+.sb-lang option {
+  color: var(--ui-ink);
+  background: var(--ui-surface);
+}
+
+.mobile-bar-lang {
+  margin-left: auto;
+}

@@ -13,6 +13,7 @@ import UpgradePane from './UpgradePane';
 import Sparkline from './Sparkline';
 import PlatformDetail from './PlatformDetail';
 import Icon from './ui/Icon';
+import LanguageSelector from './LanguageSelector';
 import PostsCalendar from './PostsCalendar';
 import PostPanel from './PostPanel';
 import { categoryLabel } from '../lib/businessVocab';
@@ -240,6 +241,8 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
             <img src={logoUrl} alt="" />
             <span>Markivo</span>
           </div>
+          <div className="sb-quick">
+          <LanguageSelector variant="select" className="sb-lang" onChange={onLanguageChange} />
           <button
             type="button"
             className="sidebar-theme"
@@ -250,6 +253,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           >
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
           </button>
+          </div>
         </div>
 
         {/* The business — opens the Business Profile editor */}
@@ -396,6 +400,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           </button>
           <img src={logoUrl} alt="" className="mobile-bar-logo" />
           <span className="mobile-bar-name">Markivo</span>
+          <LanguageSelector variant="select" className="sb-lang mobile-bar-lang" onChange={onLanguageChange} />
         </div>
 
         {/* TABS CONTAINER */}
