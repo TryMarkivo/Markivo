@@ -675,15 +675,9 @@ app.post('/api/onboarding/construct', verifyToken, asyncRoute(async (req, res) =
   //   { keywordPhrase: `${audiencePhrase} ${location || 'tashkent'}`, avgPosition: 4, volume: 'Medium' },
   // ].forEach((k) => db.keywords.add({ profileId: profile.id, ...k }));
 
-  // Seed an inaugural scheduled post — a generic welcome from the business
-  // name + category (uz/ru flavour kept, no business-type assumptions).
-  db.calendar.add({
-    profileId: profile.id,
-    platform: 'instagram',
-    postText: `🇺🇿 O'zbekcha: #${businessName} endi shu yerda! ${safeCategory} bo'yicha eng yaxshi taklif va yangiliklarni shu sahifada kuzatib boring. ✨\n🇷🇺 Русский: Добро пожаловать в #${businessName}! Следите за нашими новостями и лучшими предложениями здесь.`,
-    scheduledTime: new Date(Date.now() + 86400000).toISOString(),
-    status: 'scheduled',
-  });
+  // No starter post is seeded here. The old canned bilingual welcome was
+  // scheduled to publish 24h later on its own, so an owner who connected
+  // Instagram that day saw a post go out they never wrote or approved.
 
   // Brand Identity Brief — the foundation every AI generator reads from so
   // output is specific to THIS business. Keyless: an instant template brief;

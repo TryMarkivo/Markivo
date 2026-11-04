@@ -390,3 +390,7 @@
   opacity: 0.55;
   text-decoration: line-through;
 }
+
+.settings-voice {
+  margin-bottom: 22px;
+}

@@ -24,7 +24,7 @@ const previewOf = (text) => {
  * shows saved styles as chips, so embedding this without it avoids showing
  * the same list twice.
  */
-export default function StyleStudio({ onSaved, hideSavedList } = {}) {
+export default function StyleStudio({ onSaved, hideSavedList, title, subtitle } = {}) {
   const { t } = useTranslation();
 
   const [saved, setSaved] = useState([]);
@@ -143,9 +143,9 @@ export default function StyleStudio({ onSaved, hideSavedList } = {}) {
       <div className="panel-title-wrap">
         <i className="fa-solid fa-signature text-accent icon-header"></i>
         <div>
-          <h3>{t('styles.title', 'Writing Styles')}</h3>
+          <h3>{title || t('styles.title', 'Writing Styles')}</h3>
           <p className="text-muted">
-            {t('styles.subtitle', "Paste a post — your own, or copied from a competitor — and learn its voice, so you can write new posts that sound like it.")}
+            {subtitle || t('styles.subtitle', "Paste a post — your own, or copied from a competitor — and learn its voice, so you can write new posts that sound like it.")}
           </p>
         </div>
       </div>

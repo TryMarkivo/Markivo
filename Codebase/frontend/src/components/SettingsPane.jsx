@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
 import ThemeToggle from './ThemeToggle';
 import ConnectionsPanel from './ConnectionsPanel';
+import StyleStudio from './StyleStudio';
 import api from '../lib/api';
 import './SettingsPane.css';
 
@@ -77,6 +78,14 @@ export default function SettingsPane({ activeProfile, theme, onToggleTheme, onLa
 
       {/* PLATFORM CONNECTIONS */}
       <ConnectionsPanel activeProfile={activeProfile} />
+
+      {/* BRAND VOICE — saved writing styles, picked when writing with AI in a post */}
+      <section className="settings-voice" id="settings_brand_voice">
+        <StyleStudio
+          title={t('settings.voice.title', 'Brand voice')}
+          subtitle={t('settings.voice.subtitle', 'Paste a post whose voice you like, yours or anyone else’s. Markivo learns how it sounds, and you can pick that voice when writing a post with AI.')}
+        />
+      </section>
 
       {/* DANGER ZONE */}
       <section className="settings-section glass-card settings-danger">

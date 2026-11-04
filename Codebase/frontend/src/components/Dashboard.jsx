@@ -14,14 +14,11 @@ import UpgradePane from './UpgradePane';
 import Sparkline from './Sparkline';
 import PlatformDetail from './PlatformDetail';
 import ThemeToggle from './ThemeToggle';
-import AutomationCalendar from './AutomationCalendar';
-import CreatePost from './CreatePost';
-import AIGenerationModal from './AIGenerationModal';
-import TemplatesModal from './TemplatesModal';
-import StylesModal from './StylesModal';
-import { composerKeyFor } from '../lib/platforms';
+import PostsCalendar from './PostsCalendar';
+import PostPanel from './PostPanel';
 import { categoryLabel, locationLabel } from '../lib/businessVocab';
 import api from '../lib/api';
+import { DEMO } from '../lib/demo';
 import logoUrl from '../assets/markivo-logo.png';
 import './Dashboard.css';
 
@@ -77,13 +74,21 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   // ?connect_error=Label) open the Connections tab so the owner sees the result
   // — computed lazily from the URL to avoid a setState-in-effect cascade.
   const [activeTab, setActiveTab] = useState(() => {
+    if (DEMO) return 'calendar';
     const p = new URLSearchParams(window.location.search);
     return (p.get('connected') || p.get('connect_error')) ? 'settings' : 'analytics';
   }); // 'analytics' | 'calendar' | 'autopilot' | 'markiv' | 'media' | 'competitors' | 'settings'
 
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // The sidebar overlays the page below 992px (see Dashboard.css), so it
+  // starts closed there and closes again once a tab is picked.
+  const isNarrow = () => window.matchMedia?.('(max-width: 992px)').matches;
+  const [sidebarOpen, setSidebarOpen] = useState(() => !isNarrow());
+  const pickTab = (tab) => {
+    setActiveTab(tab);
+    if (isNarrow()) setSidebarOpen(false);
+  };
   const [tgStatus, setTgStatus] = useState(null);
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [igStatus, setIgStatus] = useState(null);
@@ -101,21 +106,20 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
   const [statsOffline, setStatsOffline] = useState(false);
   // Which platform's drill-down is open, opened by clicking a metric's chart.
   const [detailPlatform, setDetailPlatform] = useState(null);
-  // The Create Post / Edit Post composer: null when closed, otherwise one of
-  // { when } — a fresh post, optionally prefilled from a clicked calendar slot
-  // { editEvent } — an existing post opened from the calendar
-  // { text, platform, media } — a draft approved from AI Generation, or a
-  //   template sent over from Edit Templates
+  // The post panel: null when closed, otherwise
+  // { event } — an existing post opened from the calendar
+  // { initial: { when, text, media, channel } } — a new post, optionally
+  //   prefilled (a clicked day, or text sent over from Competitors)
   const [composer, setComposer] = useState(null);
-  // Calendar's "AI Generation" and "Edit Templates" popups — the AI Content
-  // Engine tab's functionality lives on here, feeding whatever it produces
-  // into the Create Post composer above instead of posting on its own.
-  const [aiGenerationOpen, setAiGenerationOpen] = useState(false);
-  const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
-  const [stylesModalOpen, setStylesModalOpen] = useState(false);
-  // Bumped after a successful Create Post schedule to remount (and so refetch)
-  // the Calendar tab's AutomationCalendar.
+  // Bumped after the post panel saves, to remount (and so refetch) the calendar.
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  // One short confirmation line ("Scheduled for Friday, 10:00.").
+  const [toast, setToast] = useState('');
+  useEffect(() => {
+    if (!toast) return undefined;
+    const id = setTimeout(() => setToast(''), 4000);
+    return () => clearTimeout(id);
+  }, [toast]);
   // The Business Profile and Upgrade panes are no longer their own sidebar
   // tabs — they open as a modal from clicking the profile card / usage meter.
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -301,21 +305,21 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         <nav className="sidebar-nav">
           <button 
             className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
+            onClick={() => pickTab('analytics')}
             id="btn_tab_analytics"
           >
             <i className="fa-solid fa-chart-pie"></i> {t('dashboard.nav.metrics', 'Dashboard')}
           </button>
           <button
             className={`nav-item ${activeTab === 'calendar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('calendar')}
+            onClick={() => pickTab('calendar')}
             id="btn_tab_calendar"
           >
             <i className="fa-solid fa-calendar-days"></i> {t('dashboard.nav.calendar', 'Calendar')}
           </button>
           <button
             className={`nav-item ${activeTab === 'autopilot' ? 'active' : ''}`}
-            onClick={() => setActiveTab('autopilot')}
+            onClick={() => pickTab('autopilot')}
             id="btn_tab_autopilot"
           >
             <i className="fa-solid fa-robot"></i> {t('dashboard.nav.autopilot', 'Autopilot')}
@@ -323,7 +327,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           {/* DISABLED: Markiv temporarily off — see 2026-08-15
           <button
             className={`nav-item ${activeTab === 'markiv' ? 'active' : ''}`}
-            onClick={() => setActiveTab('markiv')}
+            onClick={() => pickTab('markiv')}
             id="btn_tab_markiv"
           >
             <i className="fa-solid fa-comment-dots"></i> Markiv
@@ -331,21 +335,21 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           */}
           <button
             className={`nav-item ${activeTab === 'media' ? 'active' : ''}`}
-            onClick={() => setActiveTab('media')}
+            onClick={() => pickTab('media')}
             id="btn_tab_media"
           >
             <i className="fa-solid fa-clapperboard"></i> {t('dashboard.nav.media', 'Media Studio')}
           </button>
           <button
             className={`nav-item ${activeTab === 'competitors' ? 'active' : ''}`}
-            onClick={() => setActiveTab('competitors')}
+            onClick={() => pickTab('competitors')}
             id="btn_tab_competitors"
           >
             <i className="fa-solid fa-users-viewfinder"></i> {t('dashboard.nav.competitors', 'Competitor Intel')}
           </button>
           <button
             className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
+            onClick={() => pickTab('settings')}
             id="btn_tab_settings"
           >
             <i className="fa-solid fa-gear"></i> {t('dashboard.settingsTab', 'Settings')}
@@ -611,19 +615,17 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
           {/* TAB: CALENDAR — scheduling home, with the Create Post entry point */}
           {activeTab === 'calendar' && (
-            <AutomationCalendar
+            <PostsCalendar
               key={calendarRefreshKey}
               activeProfile={activeProfile}
-              onCreatePost={(when) => setComposer({ when: when || null })}
-              onEditEvent={(editEvent) => setComposer({ editEvent })}
-              onOpenAiGeneration={() => setAiGenerationOpen(true)}
-              onOpenTemplates={() => setTemplatesModalOpen(true)}
-              onOpenStyles={() => setStylesModalOpen(true)}
+              onNewPost={(when) => setComposer({ initial: { when } })}
+              onOpenPost={(event) => setComposer({ event })}
+              onNotice={setToast}
             />
           )}
 
           {activeTab === 'autopilot' && (
-            <AutonomousAgent activeProfile={activeProfile} />
+            <AutonomousAgent activeProfile={activeProfile} onGoToCalendar={() => setActiveTab('calendar')} />
           )}
 
           {/* DISABLED: Markiv temporarily off — see 2026-08-15. TAB: MARKIV —
@@ -641,7 +643,7 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
           {/* TAB 4: COMPETITOR INTEL */}
           {activeTab === 'competitors' && (
-            <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} onGenerateToComposer={(text) => setComposer({ text })} />
+            <CompetitorIntel token={token} stats={stats} activeProfile={activeProfile} onGenerateToComposer={(text) => setComposer({ initial: { text } })} />
           )}
 
           {/* TAB 5: SETTINGS (appearance + connections) */}
@@ -695,45 +697,20 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
         />
       )}
 
-      {/* --- CREATE POST / EDIT POST COMPOSER --- */}
+      {/* --- POST PANEL: new post, edit, or view one that went out --- */}
       {composer && (
-        <CreatePost
+        <PostPanel
           activeProfile={activeProfile}
-          initialWhen={composer.when}
-          initialText={composer.text}
-          initialPlatform={composer.platform}
-          initialMedia={composer.media}
-          editEvent={composer.editEvent}
+          event={composer.event || null}
+          initial={composer.initial}
           onClose={() => setComposer(null)}
-          onScheduled={() => setCalendarRefreshKey((k) => k + 1)}
+          onSaved={(message) => { setComposer(null); setCalendarRefreshKey((k) => k + 1); setToast(message); }}
           onGoToConnections={() => { setComposer(null); setActiveTab('settings'); }}
         />
       )}
 
-      {/* --- AI GENERATION (Calendar) — generates text only; approving hands it
-           to the Create Post composer above. --- */}
-      {aiGenerationOpen && (
-        <AIGenerationModal
-          activeProfile={activeProfile}
-          onClose={() => setAiGenerationOpen(false)}
-          onApprove={(text, platform) => { setAiGenerationOpen(false); setComposer({ text, platform: composerKeyFor(platform) }); }}
-        />
-      )}
-
-      {/* --- EDIT TEMPLATES (Calendar) — TemplateStudio itself, unchanged;
-           using a template hands it to Create Post the same way. --- */}
-      {templatesModalOpen && (
-        <TemplatesModal
-          activeProfile={activeProfile}
-          onClose={() => setTemplatesModalOpen(false)}
-          onUseTemplate={(text, media, platform) => { setTemplatesModalOpen(false); setComposer({ text, media, platform: composerKeyFor(platform) }); }}
-        />
-      )}
-
-      {/* --- EDIT STYLES (Calendar) — StyleStudio itself; styles are picked at
-           generation time in AI Generation, not inserted directly here. --- */}
-      {stylesModalOpen && (
-        <StylesModal onClose={() => setStylesModalOpen(false)} />
+      {toast && (
+        <div className="ui ui-toast" role="status" id="toast">{toast}</div>
       )}
 
       {/* --- BUSINESS PROFILE MODAL (opened from the sidebar's profile card) --- */}

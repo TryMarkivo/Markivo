@@ -108,8 +108,7 @@ test('events are scoped to the owning profile', async () => {
     businessName: 'Other Spot', category: 'Cafe / Coffee Shop', tone: 'Cozy & Warm', platforms: { instagram: true },
   }, reg.accessToken);
 
-  // Onboarding seeds each new profile with its own starter posts, so the check
-  // is that NONE of this business's events belong to the other one.
+  // The check is that NONE of this business's events belong to the other one.
   const theirs = await (await get('/api/calendar/events', reg.accessToken)).json();
   assert.ok(theirs.summary.includes('Other Spot'));
   assert.ok(!theirs.items.some((e) => e.id === eventId));

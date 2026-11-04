@@ -368,3 +368,17 @@
 @media (max-width: 640px) {
   .ap-radio-row { grid-template-columns: 1fr; }
 }
+
+/* Pointer to the Calendar, where Autopilot's posts wait for approval. */
+.ap-queue-pointer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+}

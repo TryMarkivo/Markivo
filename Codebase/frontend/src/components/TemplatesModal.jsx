@@ -1,16 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import TemplateStudio from './TemplateStudio';
-import './CreatePost.css';
+import './TemplatesModal.css';
 
 // Templates aren't split per channel — one shared library, usable on
 // whichever platform(s) the post ends up going out to.
 const SHARED_PLATFORM_KEY = 'general';
 
 /**
- * Calendar's "Edit Templates" popup — TemplateStudio itself is untouched;
- * this just gives it a home outside the Create Post composer. Using a saved
- * template hands its text/media to the caller, which opens it in Create Post
- * exactly like an approved AI Generation draft does.
+ * Templates popup, opened from the post panel. Using a saved template hands
+ * its text (and media, if any) back to the post being written.
  */
 export default function TemplatesModal({ onClose, onUseTemplate }) {
   const { t } = useTranslation();

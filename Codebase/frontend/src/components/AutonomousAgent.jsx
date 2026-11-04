@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import AutomationCalendar from './AutomationCalendar';
 import './AutonomousAgent.css';
 
 // Icon + label per activity kind logged by the Autopilot worker.
@@ -19,7 +18,7 @@ const KIND_META = {
 
 const FREQUENCIES = ['daily', 'weekly', 'test'];
 
-export default function AutonomousAgent({ activeProfile }) {
+export default function AutonomousAgent({ activeProfile, onGoToCalendar }) {
   const { t, i18n } = useTranslation();
 
   const [featureEnabled, setFeatureEnabled] = useState(true);
@@ -43,8 +42,8 @@ export default function AutonomousAgent({ activeProfile }) {
 
   // Posts Autopilot queued for one-tap sign-off (autoPublish: false / "Queue
   // for my approval" mode).
+  // Only the count: the posts themselves are approved on the Calendar.
   const [pendingApprovals, setPendingApprovals] = useState([]);
-  const [approvalBusyId, setApprovalBusyId] = useState(null);
 
   const loadApprovals = () =>
     api.get('/api/autonomous/approvals').then((data) => setPendingApprovals(data.approvals || [])).catch(() => {});
@@ -162,42 +161,6 @@ export default function AutonomousAgent({ activeProfile }) {
       setNoticeError(true);
     } finally {
       setAnswering(false);
-    }
-  };
-
-  const platformLabel = (key) => catalogue.find((p) => p.key === key)?.label || (key ? key[0].toUpperCase() + key.slice(1) : '');
-
-  const handleApproveQueued = async (approvalId) => {
-    setApprovalBusyId(approvalId);
-    setNotice('');
-    setNoticeError(false);
-    try {
-      const res = await api.post('/api/agent/approve', { approvalId });
-      setPendingApprovals((list) => list.filter((a) => a.id !== approvalId));
-      setNotice(res.message || t('autopilot.queue.approved', 'Approved and published.'));
-      const fresh = await api.get('/api/autonomous/activity').catch(() => null);
-      if (fresh?.activity) setActivity(fresh.activity);
-    } catch (err) {
-      setNotice(err.message || t('autopilot.queue.approveError', "Couldn't approve that post."));
-      setNoticeError(true);
-    } finally {
-      setApprovalBusyId(null);
-    }
-  };
-
-  const handleRejectQueued = async (approvalId) => {
-    setApprovalBusyId(approvalId);
-    setNotice('');
-    setNoticeError(false);
-    try {
-      await api.post('/api/agent/reject', { approvalId });
-      setPendingApprovals((list) => list.filter((a) => a.id !== approvalId));
-      setNotice(t('autopilot.queue.rejected', 'Rejected — it will not be published.'));
-    } catch (err) {
-      setNotice(err.message || t('autopilot.queue.rejectError', "Couldn't reject that post."));
-      setNoticeError(true);
-    } finally {
-      setApprovalBusyId(null);
     }
   };
 
@@ -386,54 +349,22 @@ export default function AutonomousAgent({ activeProfile }) {
         </p>
       </div>
 
-      {/* PENDING APPROVAL QUEUE — posts Autopilot queued in "Queue for my
-          approval" mode, waiting on a one-tap decision. */}
+      {/* Posts waiting for the owner live on the Calendar, with every other post. */}
       {pendingApprovals.length > 0 && (
-        <div className="ap-queue">
-          <h3>{t('autopilot.queue.title', 'Pending approval')}</h3>
-          <p className="text-muted ap-hint">{t('autopilot.queue.subtitle', 'Autopilot drafted these and is waiting on you before anything goes out.')}</p>
-          <ul className="ap-queue-list">
-            {pendingApprovals.map((a) => {
-              const payload = a.action_payload || {};
-              const busy = approvalBusyId === a.id;
-              return (
-                <li key={a.id} className="ap-queue-item glass-card">
-                  <div className="ap-queue-body">
-                    <span className="ap-queue-platform">
-                      <i className="fa-solid fa-tower-broadcast"></i> {platformLabel(payload.platform) || payload.target || t('autopilot.queue.autopilotFallback', 'Autopilot')}
-                    </span>
-                    <p className="ap-queue-text">{payload.text || payload.creative}</p>
-                    {payload.cost && <span className="ap-queue-cost">{payload.cost}</span>}
-                  </div>
-                  <div className="ap-queue-actions">
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleApproveQueued(a.id)}
-                      disabled={busy}
-                      id={`btn_ap_approve_${a.id}`}
-                    >
-                      {busy ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>} {t('autopilot.queue.approve', 'Approve')}
-                    </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleRejectQueued(a.id)}
-                      disabled={busy}
-                      id={`btn_ap_reject_${a.id}`}
-                    >
-                      <i className="fa-solid fa-xmark"></i> {t('autopilot.queue.reject', 'Reject')}
-                    </button>
-                  </div>
-                </li>
-              );
+        <div className="ap-queue-pointer">
+          <span>
+            {t('autopilot.queue.pointer', {
+              defaultValue: '{{count}} posts are waiting for your OK on the Calendar.',
+              count: pendingApprovals.length,
             })}
-          </ul>
+          </span>
+          {onGoToCalendar && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onGoToCalendar} id="btn_ap_go_calendar">
+              {t('autopilot.queue.open', 'Open Calendar')}
+            </button>
+          )}
         </div>
       )}
-
-      {/* SCHEDULE — everything queued or already done, on one timeline */}
-      <div className="glass-card ap-section">
-        <AutomationCalendar activeProfile={activeProfile} />
-      </div>
 
       {/* ACTIVITY LOG */}
       <div className="ap-activity">

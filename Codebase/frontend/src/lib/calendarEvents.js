@@ -1,57 +1,16 @@
-// Shared helpers for reading the Google-Calendar-shaped /api/calendar/events
-// feed, used by the Month grid, the Week/Day hourly grid, and the List view —
-// one place to decode `extendedProperties.private` so the three views can
-// never drift out of sync on what a chip means.
-import { metaFor } from './platforms';
+// Helpers for reading the Google-Calendar-shaped /api/calendar/events feed —
+// one place to decode `extendedProperties.private`, so the calendar and the
+// post panel never disagree on what an event is.
 
 export const sourceOf = (ev) => (ev.extendedProperties?.private?.source) || 'scheduled_post';
 export const isReadOnly = (ev) => ev.extendedProperties?.private?.readOnly === 'true';
-export const isAutopilot = (ev) => sourceOf(ev) === 'autopilot';
 
-// Autopilot history has no markivoStatus (it already happened); treat it as
-// published so the List view's Published tab includes it.
-export const statusOf = (ev) => ev.extendedProperties?.private?.markivoStatus || (isAutopilot(ev) ? 'posted' : 'scheduled');
+// Autopilot history has no markivoStatus (it already happened), so it reads
+// as posted.
+export const statusOf = (ev) => ev.extendedProperties?.private?.markivoStatus
+  || (sourceOf(ev) === 'autopilot' ? 'posted' : 'scheduled');
 
-export const tagOf = (ev) => ev.extendedProperties?.private?.tag || '';
-
-// The feed's summary for Autopilot history is "Autopilot · <activity kind>"
-// with the raw kind code — rebuild it in the interface language instead.
-export const summaryOf = (ev, t) => {
-  if (!isAutopilot(ev)) return ev.summary;
-  const kind = ev.extendedProperties?.private?.activityKind;
-  const title = t('autopilot.title', 'Autopilot');
-  return kind ? `${title} · ${t(`autopilot.kind.${kind}`, kind)}` : title;
-};
 export const repeatOf = (ev) => ev.extendedProperties?.private?.repeatRule || '';
 
-// A calendar chip can be opened in the Edit Post composer only if it is a real
-// post (not Autopilot history) still awaiting its moment — draft or scheduled.
+// A post can still be changed while it is a draft or waiting for its moment.
 export const isEditable = (ev) => !isReadOnly(ev) && (statusOf(ev) === 'scheduled' || statusOf(ev) === 'draft');
-
-// Normalises a calendar event into the plain shape CreatePost's edit mode
-// consumes, so it never has to know about Google Calendar's event/
-// extendedProperties envelope.
-export const toEditable = (ev) => ({
-  id: ev.id,
-  platform: ev.extendedProperties?.private?.platform || '',
-  text: ev.description || '',
-  mediaId: ev.extendedProperties?.private?.mediaId || null,
-  scheduledTime: ev.start.dateTime,
-  tag: tagOf(ev),
-  repeatRule: repeatOf(ev),
-  status: statusOf(ev),
-});
-
-// Chip icon/colour for a day cell — Autopilot history gets a fixed robot
-// glyph; scheduled/posted rows resolve their real platform icon.
-//
-// DISABLED: SEO/Meta temporarily off — see 2026-08-13
-// 'instagram' (the bespoke connection's key) used to be aliased to
-// meta_instagram's visuals. With the Meta adapters gone there is nothing to
-// alias to, so any legacy instagram row falls through to the generic
-// share-icon fallback instead.
-export const chipMetaFor = (ev) => {
-  if (isAutopilot(ev)) return { icon: 'fa-solid fa-robot', color: 'var(--accent-purple, #8338ec)' };
-  const platform = ev.extendedProperties?.private?.platform || '';
-  return metaFor(platform === 'instagram' ? 'meta_instagram' : platform);
-};

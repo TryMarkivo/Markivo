@@ -146,7 +146,7 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
     ['media', 'Photos and video', 'Turn a phone photo into a finished post, or make a short video sized for Reels.'],
     ['calendar', 'One calendar', 'Every planned post in one place. Move one to another day by dragging it.'],
     ['competitors', 'Competitors', 'See what similar businesses post and how fast they grow, with a note on how to answer.'],
-    ['assistant', 'Markiv, your assistant', 'Ask about your marketing in plain words. Markiv knows your business and can draft the post for you.'],
+    ['autopilot', 'Autopilot', 'Let Markivo plan and write posts on its own. It can ask for your OK first, or post by itself.'],
   ];
 
   return (

@@ -1,0 +1,318 @@
+/* ==========================================================================
+   Markivo UI tokens and base controls for redesigned screens.
+
+   One typeface, one accent (brand gold), flat surfaces, hairline borders.
+   Screens move onto these one at a time; older screens keep index.css until
+   they are redesigned. Everything here is prefixed --ui- / .ui- so the two
+   systems never collide.
+   ========================================================================== */
+
+:root,
+[data-theme='dark'] {
+  --ui-bg: #121214;
+  --ui-surface: #1a1a1d;
+  --ui-surface-2: #222226;
+  --ui-ink: #efefee;
+  --ui-ink-2: #a6a7ad;
+  --ui-ink-3: #75767d;
+  --ui-line: #2a2a2f;
+  --ui-line-strong: #3a3a40;
+  --ui-accent: #d4a373;
+  --ui-accent-hover: #e0b588;
+  --ui-accent-ink: #dcb185;
+  --ui-accent-soft: #2c241b;
+  --ui-on-accent: #16171b;
+  --ui-ok: #5cc98a;
+  --ui-ok-soft: #17301f;
+  --ui-warn: #f0b357;
+  --ui-warn-soft: #2e2416;
+  --ui-danger: #ff7b72;
+  --ui-danger-soft: #3a1d1b;
+  --ui-on-danger: #1a1a1d;
+  --ui-instagram: #e4588a;
+  --ui-telegram: #3aa9e0;
+  --ui-scrim: rgba(0, 0, 0, 0.55);
+  --ui-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.6);
+  --ui-font: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ui-radius: 10px;
+  --ui-radius-sm: 6px;
+}
+
+[data-theme='light'] {
+  --ui-bg: #f6f5f1;
+  --ui-surface: #ffffff;
+  --ui-surface-2: #efede8;
+  --ui-ink: #16171b;
+  --ui-ink-2: #53555d;
+  --ui-ink-3: #85878f;
+  --ui-line: #e2e0da;
+  --ui-line-strong: #cfccc4;
+  --ui-accent: #d4a373;
+  --ui-accent-hover: #c8955f;
+  --ui-accent-ink: #94642f;
+  --ui-accent-soft: #f6ead9;
+  --ui-ok: #1b7f47;
+  --ui-ok-soft: #e3f3e9;
+  --ui-warn: #a35a00;
+  --ui-warn-soft: #fdf1df;
+  --ui-danger: #c0362c;
+  --ui-danger-soft: #fbe7e5;
+  --ui-on-danger: #ffffff;
+  --ui-instagram: #c13584;
+  --ui-telegram: #1f8fcf;
+  --ui-scrim: rgba(22, 23, 27, 0.35);
+  --ui-shadow: 0 16px 48px -16px rgba(22, 23, 27, 0.25);
+}
+
+.ui {
+  font-family: var(--ui-font);
+  color: var(--ui-ink);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.ui h1,
+.ui h2,
+.ui h3,
+.ui h4 {
+  font-family: inherit;
+  color: var(--ui-ink);
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+/* --- Buttons ------------------------------------------------------------ */
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--ui-ink);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ui-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-btn:focus-visible,
+.ui-icon-btn:focus-visible,
+.ui-seg button:focus-visible,
+.ui-input:focus-visible,
+.ui-select:focus-visible,
+.ui-textarea:focus-visible {
+  outline: 2px solid var(--ui-accent-ink);
+  outline-offset: 1px;
+}
+
+.ui-btn-primary {
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+}
+
+.ui-btn-primary:hover:not(:disabled) {
+  background: var(--ui-accent-hover);
+}
+
+.ui-btn-outline {
+  background: var(--ui-surface);
+  border-color: var(--ui-line-strong);
+}
+
+.ui-btn-outline:hover:not(:disabled) {
+  border-color: var(--ui-ink-3);
+}
+
+.ui-btn-quiet:hover:not(:disabled) {
+  background: var(--ui-surface-2);
+}
+
+.ui-btn-danger {
+  color: var(--ui-danger);
+}
+
+.ui-btn-danger:hover:not(:disabled) {
+  background: var(--ui-danger-soft);
+}
+
+.ui-btn-danger-solid {
+  background: var(--ui-danger);
+  color: var(--ui-on-danger);
+}
+
+.ui-btn-sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.ui-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--ui-ink-2);
+  background: transparent;
+  cursor: pointer;
+}
+
+.ui-icon-btn:hover {
+  color: var(--ui-ink);
+  background: var(--ui-surface-2);
+}
+
+/* Segmented control */
+.ui-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 9px;
+  background: var(--ui-surface-2);
+}
+
+.ui-seg button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ui-ink-2);
+  cursor: pointer;
+}
+
+.ui-seg button[aria-pressed='true'] {
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Form fields -------------------------------------------------------- */
+.ui-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ui-ink-2);
+  margin-bottom: 6px;
+}
+
+.ui-input,
+.ui-select,
+.ui-textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ui-ink);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.ui-input,
+.ui-select {
+  height: 38px;
+}
+
+.ui-textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.ui-input::placeholder,
+.ui-textarea::placeholder {
+  color: var(--ui-ink-3);
+}
+
+.ui-select {
+  appearance: none;
+  padding-right: 32px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2385878f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.ui-select option {
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+}
+
+/* --- Small pieces ------------------------------------------------------- */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--ui-surface-2);
+  color: var(--ui-ink-2);
+}
+
+.ui-badge.is-ok { background: var(--ui-ok-soft); color: var(--ui-ok); }
+.ui-badge.is-warn { background: var(--ui-warn-soft); color: var(--ui-warn); }
+.ui-badge.is-danger { background: var(--ui-danger-soft); color: var(--ui-danger); }
+.ui-badge.is-accent { background: var(--ui-accent-soft); color: var(--ui-accent-ink); }
+
+.ui-alert {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--ui-danger-soft);
+  color: var(--ui-danger);
+}
+
+.ui-alert.is-ok {
+  background: var(--ui-ok-soft);
+  color: var(--ui-ok);
+}
+
+.ui-alert.is-info {
+  background: var(--ui-surface-2);
+  color: var(--ui-ink-2);
+}
+
+.ui-spin {
+  animation: ui-spin 0.8s linear infinite;
+}
+
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-spin { animation: none; }
+}
+
+/* Confirmation line after an action ("Scheduled for Friday, 10:00.") */
+.ui-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 1100;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--ui-ink);
+  color: var(--ui-bg);
+  box-shadow: var(--ui-shadow);
+}

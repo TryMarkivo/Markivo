@@ -24,7 +24,4 @@ export function weekGrid(date) {
   return Array.from({ length: 7 }, (_, i) => new Date(start.getTime() + i * DAY_MS));
 }
 
-/** Hour-of-day labels (0..23), used by the week/day hourly grid. */
-export const HOURS = Array.from({ length: 24 }, (_, i) => i);
-
 export const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());

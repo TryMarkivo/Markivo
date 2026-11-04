@@ -74,8 +74,8 @@ after(() => {
 
 test('keyless: a profile with any real signal is judged sufficient', () => {
   const signals = autopilotContext.gatherChannelSignals({ db, profileId, platforms: ['meta_facebook'] });
-  // Onboarding gives this profile a description AND seeds a welcome post, so
-  // there is genuinely something to work from.
+  // Onboarding gives this profile a description, so there is genuinely
+  // something to work from.
   assert.ok(signals.recentPosts.length > 0 || signals.profile.description);
   const assessment = autopilotContext.heuristicAssessment(signals);
   assert.equal(assessment.sufficient, true);

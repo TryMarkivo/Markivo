@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DAY_MS, monthGrid, ymd } from '../lib/calendar';
-import './AutomationCalendar.css';
+import './CalendarGrid.css';
 
 /**
  * The month calendar, shared by the Automations timeline and the "schedule this
