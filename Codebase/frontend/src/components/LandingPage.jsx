@@ -1,18 +1,104 @@
-import { useState } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import LanguageSelector from './LanguageSelector';
 import './LandingPage.css';
 import logoUrl from '../assets/markivo-logo.png';
 
-export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn }) {
-  const { t } = useTranslation();
-  const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' | 'yearly'
+// Prices and weekly allowances shown on the page. They mirror the defaults in
+// backend/config.js (`tierPrices` and the WEEKLY `aiLimits` buckets) — keep the
+// two in step when pricing changes.
+const PLANS = [
+  { tier: 'freemium', price: 0, writing: 5, image: 2, video: 0 },
+  { tier: 'pro', price: 20, writing: 15, image: 10, video: 4 },
+  { tier: 'ultimate', price: 50, writing: 40, image: 25, video: 12 },
+];
 
-  const pricing = {
-    freemium: { monthly: 0, yearly: 0 },
-    pro: { monthly: 20, yearly: 16 },
-    ultimate: { monthly: 50, yearly: 40 }
+/* Small inline icons, drawn on a 20px grid so they sit on the text baseline. */
+const Icon = {
+  arrow: (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 8h9.5M8.5 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  check: (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  sun: (
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
+  moon: (
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M16.5 12.3A7 7 0 017.7 3.5a7 7 0 108.8 8.8z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
+/* The product in one picture: a week of posts, each with its status. Built
+   from markup (not a screenshot) so it follows the language and theme. */
+function WeekPreview() {
+  const { t } = useTranslation();
+  const rows = [
+    {
+      day: t('landing.preview.mon', 'Mon'), time: '09:00', tone: 'a',
+      text: t('landing.preview.post1', 'Warm pastries, a proper espresso and a quiet corner to work in. We open at 8.'),
+      status: 'posted',
+    },
+    {
+      day: t('landing.preview.wed', 'Wed'), time: '18:30', tone: 'b',
+      text: t('landing.preview.post2', 'Every Wednesday after 4 pm, the second coffee is on us.'),
+      status: 'approved',
+    },
+    {
+      day: t('landing.preview.fri', 'Fri'), time: '10:00', tone: 'c',
+      text: t('landing.preview.post3', 'New on the menu: pistachio croissant. Baked this morning, gone by lunch.'),
+      status: 'waiting',
+    },
+  ];
+  const statusLabel = {
+    posted: t('landing.preview.posted', 'Posted'),
+    approved: t('landing.preview.approved', 'Approved'),
+    waiting: t('landing.preview.waiting', 'Needs your OK'),
   };
+
+  return (
+    <div className="lp-week" aria-label={t('landing.preview.label', 'Example: a week of posts for a cafe')}>
+      <div className="lp-week-head">
+        <span className="lp-week-title">{t('landing.preview.title', 'This week')}</span>
+        <span className="lp-week-meta">{t('landing.preview.business', 'Noir Coffee · Instagram')}</span>
+      </div>
+      <ul className="lp-week-list">
+        {rows.map((r) => (
+          <li key={r.time} className={`lp-week-row is-${r.status}`}>
+            <div className="lp-week-when">
+              <span>{r.day}</span>
+              <span>{r.time}</span>
+            </div>
+            <div className={`lp-week-thumb tone-${r.tone}`} aria-hidden="true" />
+            <div className="lp-week-body">
+              <p>{r.text}</p>
+              {r.status === 'waiting' ? (
+                <div className="lp-week-actions">
+                  <span className="lp-chip lp-chip-solid">{t('landing.preview.approve', 'Approve')}</span>
+                  <span className="lp-chip">{t('landing.preview.edit', 'Edit')}</span>
+                </div>
+              ) : (
+                <span className={`lp-status is-${r.status}`}>{statusLabel[r.status]}</span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn, theme, onToggleTheme, onLanguageChange }) {
+  const { t } = useTranslation();
 
   // Pricing CTA: logged-out users go through the register flow; logged-in
   // users hit billing checkout (Stripe redirect or instant simulated upgrade).
@@ -37,350 +123,217 @@ export default function LandingPage({ onStartOnboarding, onOpenLogin, isLoggedIn
     onStartOnboarding('dashboard');
   };
 
-  return (
-    <div className="landing-container animate-fade-in">
-      {/* --- HEADER --- */}
-      <header className="landing-header glass-card">
-        <div className="logo-text">
-          <img src={logoUrl} alt={t('common.brandName', 'Markivo')} className="logo-img" />
-          Markivo
-        </div>
-        <nav className="header-nav">
-          <a href="#how">{t('landing.nav.how', 'How it works')}</a>
-          <a href="#features">{t('landing.nav.features', 'Features')}</a>
-          <a href="#pricing">{t('landing.nav.pricing', 'Pricing')}</a>
-        </nav>
-        <div className="header-actions">
-          {isLoggedIn ? (
-            <button className="btn btn-primary" onClick={() => onStartOnboarding('dashboard')} id="btn_goto_dash">
-              {t('landing.header.goToDashboard', 'Open dashboard')} <i className="fa-solid fa-gauge"></i>
-            </button>
-          ) : (
-            <>
-              <button className="btn btn-secondary" onClick={onOpenLogin} id="btn_login_showcase">
-                {t('auth.login', 'Sign in')}
-              </button>
-              <button className="btn btn-primary" onClick={() => onStartOnboarding('B')} id="btn_get_started_header">
-                {t('landing.header.getStarted', 'Start free')}
-              </button>
-            </>
-          )}
-        </div>
-      </header>
+  const start = () => onStartOnboarding(isLoggedIn ? 'dashboard' : 'B');
 
-      {/* --- HERO SECTION --- */}
-      <section className="hero-section">
-        <div className="hero-content">
-          <div className="badge animate-fade-in">{t('landing.hero.badge', 'For cafes, salons and shops')}</div>
-          {/* Two short lines: the owner's job, then ours. The break keeps them
-              reading as a pair instead of one run-on sentence. */}
-          <h1 className="hero-title animate-fade-in">
-            {t('landing.hero.titlePre', 'You run the business.')}<br />
-            <span className="gradient-text">{t('landing.hero.titleHighlight', 'Markivo runs the marketing.')}</span> {t('landing.hero.titlePost', '')}
-          </h1>
-          <p className="hero-subtitle animate-fade-in">
-            {t('landing.hero.subtitle', 'Markivo writes your posts, plans your week, watches your competitors and makes your ads, in Uzbek, Russian or English. Approve each post with one tap, or let it publish on its own.')}
-          </p>
-          <div className="hero-actions animate-fade-in">
+  const steps = [
+    {
+      title: t('landing.how.step1Title', 'Tell Markivo about your business'),
+      text: t('landing.how.step1Text', "What you sell, where you are and who your customers are. It takes a few minutes. Already online? Markivo finds your pages and reviews instead."),
+    },
+    {
+      title: t('landing.how.step2Title', 'Get a week of posts'),
+      text: t('landing.how.step2Text', "Text, photos and short videos in your customers' language, each set for a good time to post."),
+    },
+    {
+      title: t('landing.how.step3Title', 'Approve, or let it post'),
+      text: t('landing.how.step3Text', 'Approve each post with one tap, or turn on Autopilot and Markivo publishes for you. It never spends money on ads without asking.'),
+    },
+  ];
+
+  const features = [
+    ['brand', 'Logo and slogan', "Starting from nothing? Pick a logo and slogan made for your business before your first post."],
+    ['language', 'Uzbek, Russian, English', 'Posts are written the way your customers talk, in the language they read.'],
+    ['media', 'Photos and video', 'Turn a phone photo into a finished post, or make a short video sized for Reels.'],
+    ['calendar', 'One calendar', 'Every planned post in one place. Move one to another day by dragging it.'],
+    ['competitors', 'Competitors', 'See what similar businesses post and how fast they grow, with a note on how to answer.'],
+    ['assistant', 'Markiv, your assistant', 'Ask about your marketing in plain words. Markiv knows your business and can draft the post for you.'],
+  ];
+
+  return (
+    <div className="lp">
+      <header className="lp-header">
+        <div className="lp-wrap lp-header-inner">
+          <a className="lp-brand" href="#top" aria-label="Markivo">
+            <img src={logoUrl} alt="" width="28" height="28" />
+            <span>Markivo</span>
+          </a>
+          <nav className="lp-nav" aria-label={t('landing.nav.label', 'Sections')}>
+            <a href="#how">{t('landing.nav.how', 'How it works')}</a>
+            <a href="#features">{t('landing.nav.features', 'Features')}</a>
+            <a href="#pricing">{t('landing.nav.pricing', 'Pricing')}</a>
+          </nav>
+          <div className="lp-header-actions">
+            <LanguageSelector variant="select" onChange={onLanguageChange} />
+            <button
+              type="button"
+              className="lp-icon-btn"
+              onClick={onToggleTheme}
+              id="btn_theme_toggle"
+              aria-label={theme === 'dark' ? t('common.themeToLight', 'Switch to light theme') : t('common.themeToDark', 'Switch to dark theme')}
+              title={theme === 'dark' ? t('common.themeToLight', 'Switch to light theme') : t('common.themeToDark', 'Switch to dark theme')}
+            >
+              {theme === 'dark' ? Icon.sun : Icon.moon}
+            </button>
             {isLoggedIn ? (
-              <button className="btn btn-primary btn-lg" onClick={() => onStartOnboarding('dashboard')} id="btn_hero_cta">
-                {t('landing.hero.ctaDashboard', 'Open my dashboard')} <i className="fa-solid fa-arrow-right"></i>
+              <button className="lp-btn lp-btn-primary" onClick={() => onStartOnboarding('dashboard')} id="btn_goto_dash">
+                {t('landing.header.goToDashboard', 'Open dashboard')}
               </button>
             ) : (
               <>
-                <button className="btn btn-primary btn-lg" onClick={() => onStartOnboarding('B')} id="btn_hero_cta">
-                  {t('landing.hero.ctaBuild', 'Get my business online')} <i className="fa-solid fa-arrow-right"></i>
+                <button className="lp-btn lp-btn-quiet" onClick={onOpenLogin} id="btn_login_showcase">
+                  {t('auth.login', 'Sign in')}
                 </button>
-                <button className="btn btn-secondary btn-lg" onClick={() => onStartOnboarding('A')} id="btn_hero_discover">
-                  {t('landing.hero.ctaScan', 'Scan what I already have')} <i className="fa-solid fa-magnifying-glass"></i>
+                <button className="lp-btn lp-btn-primary lp-hide-xs" onClick={() => onStartOnboarding('B')} id="btn_get_started_header">
+                  {t('landing.header.getStarted', 'Start free')}
                 </button>
               </>
             )}
           </div>
-          <div className="hero-channels animate-fade-in">
-            <span><i className="fa-brands fa-instagram"></i> Instagram</span>
-            <span><i className="fa-brands fa-telegram"></i> Telegram</span>
-          </div>
         </div>
+      </header>
 
-        {/* --- DYNAMIC PREVIEW GRID --- */}
-        <div className="hero-preview glass-card animate-fade-in">
-          <div className="preview-header">
-            <div className="preview-dot dot-red"></div>
-            <div className="preview-dot dot-yellow"></div>
-            <div className="preview-dot dot-green"></div>
-            <span className="preview-url">app.markivo.io/dashboard</span>
-          </div>
-          <div className="preview-body">
-            <div className="preview-sidebar">
-              <div className="preview-logo">{t('landing.preview.demoBrand', '☕ Cafe Noir')}</div>
-              <div className="preview-menu-item active"><i className="fa-solid fa-chart-line"></i> {t('landing.preview.menuDashboard', 'Dashboard')}</div>
-              <div className="preview-menu-item"><i className="fa-solid fa-pen-nib"></i> {t('landing.preview.menuContent', 'Posts')}</div>
-              <div className="preview-menu-item"><i className="fa-solid fa-users"></i> {t('landing.preview.menuCompetitors', 'Competitors')}</div>
+      <main id="top">
+        <section className="lp-wrap lp-hero">
+          <div className="lp-hero-copy">
+            <h1>
+              {t('landing.hero.line1', 'You run the business.')}
+              <span>{t('landing.hero.line2', 'Markivo runs the marketing.')}</span>
+            </h1>
+            <p className="lp-lead">
+              {t('landing.hero.lead', 'Markivo writes your Instagram posts, makes the photos and short videos, and plans them across the week. Approve each one with a tap, or let it post on its own.')}
+            </p>
+            <div className="lp-hero-actions">
+              {isLoggedIn ? (
+                <button className="lp-btn lp-btn-primary lp-btn-lg" onClick={() => onStartOnboarding('dashboard')} id="btn_hero_cta">
+                  {t('landing.hero.ctaDashboard', 'Open my dashboard')} {Icon.arrow}
+                </button>
+              ) : (
+                <>
+                  <button className="lp-btn lp-btn-primary lp-btn-lg" onClick={() => onStartOnboarding('B')} id="btn_hero_cta">
+                    {t('landing.hero.cta', 'Start free')} {Icon.arrow}
+                  </button>
+                  <button className="lp-btn lp-btn-outline lp-btn-lg" onClick={() => onStartOnboarding('A')} id="btn_hero_discover">
+                    {t('landing.hero.ctaScan', "I'm already online")}
+                  </button>
+                </>
+              )}
             </div>
-            <div className="preview-main">
-              <div className="preview-row">
-                <div className="preview-stat-card">
-                  <span className="stat-label">{t('landing.preview.statInstagram', 'Instagram growth')}</span>
-                  <span className="stat-value text-purple">+15.6%</span>
-                  <div className="stat-chart-mini"><i className="fa-solid fa-chart-line"></i></div>
+            {!isLoggedIn && (
+              <p className="lp-fine">{t('landing.hero.note', 'Free plan, no card needed.')}</p>
+            )}
+          </div>
+          <WeekPreview />
+        </section>
+
+        <section className="lp-section" id="how">
+          <div className="lp-wrap">
+            <h2>{t('landing.how.title', 'How it works')}</h2>
+            <ol className="lp-steps">
+              {steps.map((s, i) => (
+                <li key={s.title}>
+                  <span className="lp-step-num">{i + 1}</span>
+                  <h3>{s.title}</h3>
+                  <p>{s.text}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="lp-section" id="features">
+          <div className="lp-wrap">
+            <h2>{t('landing.features.title', 'What you get')}</h2>
+            <div className="lp-features">
+              {features.map(([key, title, text]) => (
+                <div key={key} className="lp-feature">
+                  <h3>{t(`landing.features.${key}Title`, title)}</h3>
+                  <p>{t(`landing.features.${key}Text`, text)}</p>
                 </div>
-                <div className="preview-stat-card">
-                  <span className="stat-label">{t('landing.preview.statTelegram', 'Telegram growth')}</span>
-                  <span className="stat-value text-accent">+12.4%</span>
-                  <div className="stat-chart-mini"><i className="fa-solid fa-chart-area"></i></div>
-                </div>
-              </div>
-              <div className="preview-post-box glass-card">
-                <div className="post-header">
-                  <span className="post-avatar">🤖</span>
-                  <div>
-                    <h4>{t('landing.preview.agentName', 'Markiv, your AI marketer')}</h4>
-                    <small>{t('landing.preview.agentStatus', 'Written and scheduled. Waiting for your OK.')}</small>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="lp-section" id="pricing">
+          <div className="lp-wrap">
+            <h2>{t('landing.pricing.title', 'Pricing')}</h2>
+            <p className="lp-section-note">
+              {t('landing.pricing.note', 'Every plan has the full app. Plans differ in how much Markivo makes for you each week. Limits reset every Monday.')}
+            </p>
+            <div className="lp-plans">
+              {PLANS.map((plan) => {
+                const featured = plan.tier === 'pro';
+                return (
+                  <div key={plan.tier} className={`lp-plan${featured ? ' is-featured' : ''}`}>
+                    <h3>{t(`landing.pricing.${plan.tier}.name`, { freemium: 'Free', pro: 'Pro', ultimate: 'Ultimate' }[plan.tier])}</h3>
+                    <p className="lp-plan-for">
+                      {t(`landing.pricing.${plan.tier}.for`, {
+                        freemium: 'To try it out',
+                        pro: 'For posting a few times a week',
+                        ultimate: 'For posting every day',
+                      }[plan.tier])}
+                    </p>
+                    <p className="lp-price">
+                      <span className="lp-price-num">${plan.price}</span>
+                      <span className="lp-price-per">{t('landing.pricing.perMonth', 'per month')}</span>
+                    </p>
+                    <ul>
+                      <li>{Icon.check}{t('landing.pricing.writing', { count: plan.writing, defaultValue: '{{count}} AI texts a week' })}</li>
+                      <li>{Icon.check}{t('landing.pricing.image', { count: plan.image, defaultValue: '{{count}} AI images a week' })}</li>
+                      <li className={plan.video ? '' : 'is-off'}>
+                        {plan.video ? Icon.check : <span className="lp-dash" aria-hidden="true" />}
+                        {plan.video
+                          ? t('landing.pricing.video', { count: plan.video, defaultValue: '{{count}} AI videos a week' })
+                          : t('landing.pricing.noVideo', 'No AI video')}
+                      </li>
+                    </ul>
+                    <button
+                      className={`lp-btn ${featured ? 'lp-btn-primary' : 'lp-btn-outline'} lp-btn-block`}
+                      onClick={() => handlePlanClick(plan.tier)}
+                      id={`btn_plan_${plan.tier === 'freemium' ? 'free' : plan.tier}`}
+                    >
+                      {t(`landing.pricing.${plan.tier}.cta`, { freemium: 'Start free', pro: 'Choose Pro', ultimate: 'Choose Ultimate' }[plan.tier])}
+                    </button>
                   </div>
-                </div>
-                <p className="post-text">{t('landing.preview.postText', '"Warm pastries, a proper espresso and a quiet booth to get some work done. ☕ We open at 8. Come early: the window seats go first."')}</p>
-                <div className="post-footer">
-                  <span className="badge badge-success"><i className="fa-solid fa-check"></i> {t('landing.preview.approved', 'Approved')}</span>
-                  <span className="badge badge-primary">{t('landing.preview.uzRuReady', 'In Uzbek and Russian')}</span>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* --- PROBLEM SECTION --- */}
-      <section className="problem-section">
-        <h2 className="section-title">{t('landing.problem.title', 'You opened a business, not a marketing agency.')}</h2>
-        <div className="grid-3">
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-gold"><i className="fa-solid fa-user-clock"></i></div>
-            <h3>{t('landing.problem.card1Title', 'It all lands on you')}</h3>
-            <p>{t('landing.problem.card1Text', "You open up, serve customers, chase suppliers and close the till. There's no time left to post, so your page goes quiet for weeks.")}</p>
-          </div>
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-blue"><i className="fa-solid fa-puzzle-piece"></i></div>
-            <h3>{t('landing.problem.card2Title', 'The tools expect a marketer')}</h3>
-            <p>{t('landing.problem.card2Text', 'HubSpot, Hootsuite and the rest assume you already have followers, a budget and someone who knows marketing.')}</p>
-          </div>
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-purple"><i className="fa-solid fa-earth-asia"></i></div>
-            <h3>{t('landing.problem.card3Title', 'Not in your language')}</h3>
-            <p>{t('landing.problem.card3Text', 'Your customers in Uzbekistan read Uzbek and Russian. The big marketing tools were made for other markets.')}</p>
-          </div>
-        </div>
-        <p className="problem-gap">
-          <Trans i18nKey="landing.problem.gap">Other tools help you <em>manage</em> your marketing. Markivo <strong className="gradient-text">does it for you.</strong></Trans>
-        </p>
-      </section>
-
-      {/* --- HOW IT WORKS: TWO PATHS --- */}
-      <section className="paths-section" id="how">
-        <h2 className="section-title">{t('landing.paths.title', 'Start from where you are.')}</h2>
-        <p className="section-subtitle">{t('landing.paths.subtitle', "If you're already online, Markivo finds what you have. If you're starting from nothing, it builds it with you. Either way, it keeps things running after that.")}</p>
-
-        <div className="grid-2 paths-grid">
-          <div className="path-card glass-card">
-            <div className="path-label">{t('landing.paths.pathALabel', 'PATH A')}</div>
-            <h3>{t('landing.paths.pathATitle', '"I already have something"')}</h3>
-            <ol className="path-steps">
-              <li>{t('landing.paths.pathAStep1', 'Markivo searches the web for your Maps listing, social pages and reviews')}</li>
-              <li>{t('landing.paths.pathAStep2', "You tick what's yours and skip what isn't")}</li>
-              <li>{t('landing.paths.pathAStep3', 'Connect your accounts securely')}</li>
-              <li>{t('landing.paths.pathAStep4', 'Your dashboard fills with your real numbers')}</li>
-            </ol>
-            <button className="btn btn-secondary w-full" onClick={() => onStartOnboarding('A')} id="btn_path_a">
-              {t('landing.paths.pathACta', 'Scan my business')}
-            </button>
-          </div>
-          <div className="path-card glass-card glass-card-glow">
-            <div className="path-label">{t('landing.paths.pathBLabel', 'PATH B')}</div>
-            <h3>{t('landing.paths.pathBTitle', '"I have nothing yet"')}</h3>
-            <ol className="path-steps">
-              <li>{t('landing.paths.pathBStep1', 'Tell Markivo what you do, where, and who your customers are')}</li>
-              <li>{t('landing.paths.pathBStep2', 'Pick a logo and slogan made for your business')}</li>
-              <li>{t('landing.paths.pathBStep3', 'Markivo sets up your social pages')}</li>
-              <li>{t('landing.paths.pathBStep4', 'It plans your first posts, then starts publishing')}</li>
-            </ol>
-            <button className="btn btn-primary w-full" onClick={() => onStartOnboarding('B')} id="btn_path_b">
-              {t('landing.paths.pathBCta', 'Start from scratch')}
-            </button>
-          </div>
-        </div>
-        <p className="paths-outro">
-          <Trans i18nKey="landing.paths.outro">Once you're set up, <strong>Markiv</strong>, your AI marketer, takes over the daily work: writing posts, sorting your inbox, reading the numbers and suggesting your next move.</Trans>
-        </p>
-      </section>
-
-      {/* --- FEATURES GRID --- */}
-      <section className="features-section" id="features">
-        <h2 className="section-title">{t('landing.features.title', "A marketing team's work, without hiring one.")}</h2>
-        <p className="section-subtitle">{t('landing.features.subtitle', 'Everything it takes to bring customers in, from your neighborhood and beyond.')}</p>
-
-        <div className="grid-3">
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-gold"><i className="fa-solid fa-wand-magic-sparkles"></i></div>
-            <h3>{t('landing.features.brandTitle', 'A brand from day one')}</h3>
-            <p>{t('landing.features.brandText', 'Your logo, slogan and tone of voice, made in seconds. You have a complete brand before your first post.')}</p>
-          </div>
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-blue"><i className="fa-solid fa-paper-plane"></i></div>
-            <h3>{t('landing.features.postingTitle', 'All your pages, one place')}</h3>
-            <p>{t('landing.features.postingText', 'Instagram, Telegram and Facebook. Posts are written, scheduled and published from one screen.')}</p>
-          </div>
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-purple"><i className="fa-solid fa-camera"></i></div>
-            <h3>{t('landing.features.contentTitle', 'Photos and video')}</h3>
-            <p>{t('landing.features.contentText', 'Markivo shows you how to shoot on your phone, touches up your photos and video, and makes AI video sized for each platform.')}</p>
-          </div>
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-blue"><i className="fa-solid fa-inbox"></i></div>
-            <h3>{t('landing.features.inboxTitle', 'Your inbox, handled')}</h3>
-            <p>{t('landing.features.inboxText', 'Markiv sums up your Gmail, sorts it and answers for you. It learns how you reply as it goes.')}</p>
-          </div>
-          {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13
-              The SEO + AI search feature card.
-
-              <div className="feature-card glass-card">
-              <div className="feature-icon icon-gold"><i className="fa-solid fa-magnifying-glass-chart"></i></div>
-              <h3>{t('landing.features.seoTitle', 'Found on Google and in AI search')}</h3>
-              <p>{t('landing.features.seoText', 'Show up higher on Google, and in ChatGPT and Perplexity, where more of your customers now search.')}</p>
-              </div>
-          */}
-          <div className="feature-card glass-card">
-            <div className="feature-icon icon-purple"><i className="fa-solid fa-users-viewfinder"></i></div>
-            <h3>{t('landing.features.intelTitle', 'Eyes on your competitors')}</h3>
-            <p>{t('landing.features.intelText', 'Markivo tracks what rivals post, how fast they grow and where they fall short, then tells you how to answer.')}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* --- PRICING SECTION --- */}
-      <section className="pricing-section" id="pricing">
-        <h2 className="section-title">{t('landing.pricing.title', 'Start free. Upgrade when you need more.')}</h2>
-        <p className="section-subtitle">{t('landing.pricing.subtitle', 'Getting online costs nothing. When you want Markiv and AI video working for you every week, choose Pro or Ultimate.')}</p>
-
-        <div className="billing-selector">
-          <button
-            className={`billing-btn ${billingPeriod === 'monthly' ? 'active' : ''}`}
-            onClick={() => setBillingPeriod('monthly')}
-          >
-            {t('landing.pricing.monthly', 'Monthly')}
-          </button>
-          <button
-            className={`billing-btn ${billingPeriod === 'yearly' ? 'active' : ''}`}
-            onClick={() => setBillingPeriod('yearly')}
-          >
-            {t('landing.pricing.yearly', 'Yearly')} <span className="discount-badge">{t('landing.pricing.save20', 'Save 20%')}</span>
-          </button>
-        </div>
-
-        <div className="grid-3 pricing-grid">
-          {/* FREE */}
-          <div className="pricing-card glass-card">
-            <h3>{t('landing.pricing.free.name', 'Free')}</h3>
-            <p className="plan-description">{t('landing.pricing.free.desc', 'Everything you need to get online')}</p>
-            <div className="plan-price">
-              <span className="price-symbol">$</span>
-              <span className="price-number">0</span>
-              <span className="price-duration">{t('landing.pricing.perMonth', '/mo')}</span>
-            </div>
-            <ul className="plan-features">
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat1', 'Full setup on either path')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat2', 'AI logo and slogan')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat4', 'Social channels connected')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.free.feat5', '25 AI generations a month')}</li>
-            </ul>
-            <button className="btn btn-secondary w-full mt-auto" onClick={() => handlePlanClick('freemium')} id="btn_plan_free">
-              {t('landing.pricing.free.cta', 'Start free')}
-            </button>
-          </div>
-
-          {/* PRO */}
-          <div className="pricing-card glass-card pro-card glass-card-glow">
-            <div className="popular-badge">{t('landing.pricing.pro.badge', 'BEST VALUE')}</div>
-            <h3>{t('landing.pricing.pro.name', 'Pro')}</h3>
-            <p className="plan-description">{t('landing.pricing.pro.desc', 'For businesses ready to grow')}</p>
-            <div className="plan-price">
-              <span className="price-symbol">$</span>
-              <span className="price-number">{pricing.pro[billingPeriod]}</span>
-              <span className="price-duration">{t('landing.pricing.perMonth', '/mo')}</span>
-            </div>
-            <ul className="plan-features">
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.pro.feat1', 'Everything in Free')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.pro.feat2', 'AI photo touch-ups and editor')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.pro.feat3', '3 AI videos a week')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.pro.feat4', 'Gmail summaries and sorting')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.pro.feat5', 'Markiv, with 100 generations a month')}</li>
-            </ul>
-            <button className="btn btn-primary w-full mt-auto" onClick={() => handlePlanClick('pro')} id="btn_plan_pro">
-              {t('landing.pricing.pro.cta', 'Choose Pro')}
-            </button>
-          </div>
-
-          {/* ULTIMATE */}
-          <div className="pricing-card glass-card">
-            <h3>{t('landing.pricing.ultimate.name', 'Ultimate')}</h3>
-            <p className="plan-description">{t('landing.pricing.ultimate.desc', 'Your whole marketing team, on autopilot')}</p>
-            <div className="plan-price">
-              <span className="price-symbol">$</span>
-              <span className="price-number">{pricing.ultimate[billingPeriod]}</span>
-              <span className="price-duration">{t('landing.pricing.perMonth', '/mo')}</span>
-            </div>
-            <ul className="plan-features">
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.ultimate.feat1', 'Everything in Pro')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.ultimate.feat2', '7 AI videos a week')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.ultimate.feat3', 'Gmail auto-replies in your voice')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.ultimate.feat4', 'AI-built website')}</li>
-              <li><i className="fa-solid fa-circle-check text-accent"></i> {t('landing.pricing.ultimate.feat5', 'Markiv, with 250 generations a month')}</li>
-            </ul>
-            <button className="btn btn-secondary w-full mt-auto" onClick={() => handlePlanClick('ultimate')} id="btn_plan_ultimate">
-              {t('landing.pricing.ultimate.cta', 'Choose Ultimate')}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* --- FOUNDER SECTION --- */}
-      <section className="founder-section" id="about">
-        <h2 className="section-title">{t('landing.founder.title', 'Made by someone who has done this job himself.')}</h2>
-        <div className="founder-card glass-card">
-          <div className="founder-head">
-            <div className="avatar avatar-lg">E</div>
+        <section className="lp-section" id="about">
+          <div className="lp-wrap lp-founder">
+            <div className="lp-founder-avatar" aria-hidden="true">E</div>
             <div>
-              <h3>{t('landing.founder.name', 'Elshod, founder and builder')}</h3>
-              <small>{t('landing.founder.meta', 'CS and business · builds Markivo solo · UZ / RU / EN')}</small>
+              <p className="lp-founder-text">
+                {t('landing.founder.text', "I once ran all the marketing for a local business on my own, on top of everything else. It was too much for one person, and the tools out there weren't made for owners here or in our languages. Markivo is what I wish I'd had.")}
+              </p>
+              <p className="lp-founder-sign">{t('landing.founder.sign', 'Elshod, founder')}</p>
             </div>
           </div>
-          <div className="grid-2 founder-points">
-            <p><strong>{t('landing.founder.point1Title', 'He builds it himself.')}</strong> {t('landing.founder.point1Text', 'With a computer science background, he designs the AI, the automations and the data behind Markivo, and ships the product on his own.')}</p>
-            <p><strong>{t('landing.founder.point2Title', 'He starts with your problem.')}</strong> {t('landing.founder.point2Text', "His business studies keep every feature tied to a real owner's problem. No tech for the sake of tech.")}</p>
-            <p><strong>{t('landing.founder.point3Title', 'He knows this market.')}</strong> {t('landing.founder.point3Text', "He knows Uzbekistan from the inside: owners here want to grow online, and the right tools simply weren't there.")}</p>
-            <p><strong>{t('landing.founder.point4Title', "He's been there.")}</strong> {t('landing.founder.point4Text', "He once ran all the marketing for a local business on his own. It was too much for one person. That's why Markivo exists.")}</p>
+        </section>
+
+        <section className="lp-section lp-final">
+          <div className="lp-wrap lp-final-inner">
+            <h2>{t('landing.cta.title', 'See what Markivo writes for you.')}</h2>
+            <button className="lp-btn lp-btn-primary lp-btn-lg" onClick={start} id="btn_cta_bottom">
+              {isLoggedIn ? t('landing.hero.ctaDashboard', 'Open my dashboard') : t('landing.hero.cta', 'Start free')} {Icon.arrow}
+            </button>
           </div>
+        </section>
+      </main>
+
+      <footer className="lp-footer">
+        <div className="lp-wrap lp-footer-inner">
+          <span>{t('landing.footer.copyright', { defaultValue: '© {{year}} Markivo', year: new Date().getFullYear() })}</span>
+          {/* Static pages in public/ — plain anchors, not SPA navigation, so the
+              policy URLs stay directly reachable for platform app review. */}
+          <nav aria-label={t('landing.footer.label', 'Legal')}>
+            <a href="/privacy.html">{t('landing.footer.privacy', 'Privacy Policy')}</a>
+            <a href="/terms.html">{t('landing.footer.terms', 'Terms of Service')}</a>
+            <a href="/data-deletion.html">{t('landing.footer.dataDeletion', 'Data Deletion')}</a>
+          </nav>
         </div>
-      </section>
-
-      {/* --- CLOSING CTA --- */}
-      <section className="cta-banner glass-card glass-card-glow">
-        <h2>{t('landing.cta.titlePre', 'Get back to your customers.')} <span className="gradient-text">{t('landing.cta.titleHighlight', 'Markivo takes it from here.')}</span></h2>
-        <p>{t('landing.cta.subtitle', 'From zero to a business people can find online, in Uzbek, Russian and English. Start on the free plan and see what Markivo writes for you.')}</p>
-        <button className="btn btn-primary btn-lg" onClick={() => onStartOnboarding(isLoggedIn ? 'dashboard' : 'B')} id="btn_cta_bottom">
-          {t('landing.cta.button', 'Start free today')} <i className="fa-solid fa-arrow-right"></i>
-        </button>
-      </section>
-
-      {/* --- FOOTER --- */}
-      <footer className="landing-footer">
-        <p>{t('landing.footer.copyright', { defaultValue: '© {{year}} Markivo. From zero to fully running. All rights reserved.', year: new Date().getFullYear() })}</p>
-        {/* Static pages in public/ — plain anchors, not SPA navigation, so the
-            policy URLs stay directly reachable for platform app review. */}
-        <nav className="landing-footer-links">
-          <a href="/privacy.html">{t('landing.footer.privacy', { defaultValue: 'Privacy Policy' })}</a>
-          <a href="/terms.html">{t('landing.footer.terms', { defaultValue: 'Terms of Service' })}</a>
-          <a href="/data-deletion.html">{t('landing.footer.dataDeletion', { defaultValue: 'Data Deletion' })}</a>
-        </nav>
       </footer>
     </div>
   );

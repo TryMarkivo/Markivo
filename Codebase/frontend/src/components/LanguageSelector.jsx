@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /* Compact pill switcher: 🇺🇿 UZ · 🇷🇺 RU · 🇬🇧 EN */
-const LanguageSelector = ({ onChange }) => {
+const LanguageSelector = ({ onChange, variant = 'pills' }) => {
   const { t, i18n } = useTranslation();
 
   const changeLanguage = (lng) => {
@@ -24,6 +24,25 @@ const LanguageSelector = ({ onChange }) => {
     { code: 'ru', label: 'RU', name: 'Русский', flag: '🇷🇺' },
     { code: 'en', label: 'EN', name: 'English', flag: '🇬🇧' },
   ];
+
+  // Compact native select (landing header): one control, keyboard and screen
+  // reader friendly, no flag emoji.
+  if (variant === 'select') {
+    const current = languageOptions.find((l) => i18n.language?.startsWith(l.code))?.code || 'en';
+    return (
+      <select
+        className="lang-select"
+        value={current}
+        onChange={(e) => changeLanguage(e.target.value)}
+        aria-label={t('common.language', 'Language')}
+        id="select_language"
+      >
+        {languageOptions.map((lang) => (
+          <option key={lang.code} value={lang.code}>{lang.label}</option>
+        ))}
+      </select>
+    );
+  }
 
   return (
     <div className="language-selector" role="group" aria-label={t('common.language', 'Language')}>

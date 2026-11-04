@@ -91,141 +91,101 @@
   },
   "landing": {
     "nav": {
-      "how": "Bu qanday ishlaydi",
+      "label": "Bo'limlar",
+      "how": "Qanday ishlaydi",
       "features": "Imkoniyatlar",
       "pricing": "Tariflar"
     },
     "header": {
       "goToDashboard": "Dashbordga o'tish",
-      "getStarted": "Boshlash"
+      "getStarted": "Bepul boshlash"
     },
     "hero": {
-      "badge": "Kafe, salon va do'konlar uchun",
-      "titlePre": "Biznes — sizdan.",
-      "titleHighlight": "Marketing — Markivo'dan.",
-      "titlePost": "",
-      "subtitle": "Markivo postlaringizni yozadi, haftalik rejangizni tuzadi, raqobatchilarni kuzatadi va reklamangizni tayyorlaydi. O'zbek, rus yoki ingliz tilida. Har bir postni bir bosishda tasdiqlang yoki Markivo'ning o'zi joylab boraversin.",
+      "line1": "Biznes — sizdan.",
+      "line2": "Marketing — Markivo'dan.",
+      "lead": "Markivo Instagram uchun postlaringizni yozadi, rasm va qisqa videolarni tayyorlaydi hamda ularni hafta bo'yicha rejalashtiradi. Har birini bir bosishda tasdiqlang yoki Markivo'ning o'zi joylab borsin.",
+      "cta": "Bepul boshlash",
+      "ctaScan": "Mening sahifalarim bor",
       "ctaDashboard": "Dashbordimni ochish",
-      "ctaBuild": "Biznesimni onlaynga olib chiqish",
-      "ctaScan": "Bor sahifalarimni tekshirish"
+      "note": "Bepul tarif, karta shart emas."
     },
     "preview": {
-      "demoBrand": "☕ Cafe Noir",
-      "menuDashboard": "Dashbord",
-      "menuContent": "Postlar",
-      "menuCompetitors": "Raqobatchilar",
-      "statInstagram": "Instagram o'sishi",
-      "statTelegram": "Telegram o'sishi",
-      "agentName": "Markiv, AI marketologingiz",
-      "agentStatus": "Yozildi va rejalashtirildi. Tasdig'ingizni kutmoqda.",
-      "postText": "\"Issiq pishiriqlar, haqiqiy espresso va bemalol ishlash uchun tinch burchak. ☕ Soat 8:00 da ochilamiz. Ertaroq keling: deraza yonidagi joylar tez band bo'ladi.\"",
+      "label": "Namuna: kafe uchun bir haftalik postlar",
+      "title": "Shu hafta",
+      "business": "Noir Coffee · Instagram",
+      "mon": "Du",
+      "wed": "Chor",
+      "fri": "Ju",
+      "post1": "Issiq pishiriqlar, haqiqiy espresso va bemalol ishlash uchun tinch burchak. Soat 8:00 da ochilamiz.",
+      "post2": "Har chorshanba soat 16:00 dan keyin ikkinchi kofe bizdan.",
+      "post3": "Menyuda yangilik: pistali kruassan. Ertalab pishdi, tushlikkacha tugaydi.",
+      "posted": "Joylandi",
       "approved": "Tasdiqlandi",
-      "uzRuReady": "O'zbek va rus tilida"
+      "waiting": "Tasdig'ingiz kerak",
+      "approve": "Tasdiqlash",
+      "edit": "Tahrirlash"
     },
-    "problem": {
-      "title": "Siz marketing agentligi emas, biznes ochgansiz.",
-      "card1Title": "Hamma ish sizning zimmangizda",
-      "card1Text": "Ertalab eshikni ochasiz, mijozlarga xizmat qilasiz, yetkazib beruvchilar bilan gaplashasiz, kechqurun kassani yopasiz. Post yozishga vaqt qolmaydi, sahifangiz esa haftalab jim turadi.",
-      "card2Title": "Vositalar marketolog uchun yaratilgan",
-      "card2Text": "HubSpot, Hootsuite va boshqalar sizda allaqachon obunachilar, byudjet va marketingni tushunadigan odam bor deb hisoblaydi.",
-      "card3Title": "Sizning tilingizda emas",
-      "card3Text": "O'zbekistondagi mijozlaringiz o'zbek va rus tilida o'qiydi. Katta marketing vositalari esa boshqa bozorlar uchun yaratilgan.",
-      "gap": "Boshqa vositalar marketingni <1>boshqarishga</1> yordam beradi. Markivo esa <3>buni siz uchun bajaradi.</3>"
-    },
-    "paths": {
-      "title": "Qayerda bo'lsangiz, o'sha yerdan boshlaymiz.",
-      "subtitle": "Agar allaqachon onlayn bo'lsangiz, Markivo bor narsangizni topadi. Hali hech narsa bo'lmasa, siz bilan birga noldan quradi. Keyin esa hammasini o'zi yuritib boradi.",
-      "pathALabel": "A YO'LI",
-      "pathATitle": "\"Menda allaqachon nimadir bor\"",
-      "pathAStep1": "Markivo internetdan Google Maps'dagi joyingiz, sahifalaringiz va sharhlarni qidiradi",
-      "pathAStep2": "Sizniki bo'lganini belgilaysiz, qolganini o'tkazib yuborasiz",
-      "pathAStep3": "Akkauntlaringizni xavfsiz ulaysiz",
-      "pathAStep4": "Dashbordingiz haqiqiy raqamlaringiz bilan to'ladi",
-      "pathACta": "Biznesimni skanerlash",
-      "pathBLabel": "B YO'LI",
-      "pathBTitle": "\"Menda hali hech narsa yo'q\"",
-      "pathBStep1": "Nima bilan shug'ullanishingiz, qayerdaligingiz va mijozlaringiz kimligini aytasiz",
-      "pathBStep2": "Biznesingiz uchun yaratilgan logotip va sloganni tanlaysiz",
-      "pathBStep3": "Markivo ijtimoiy tarmoqlardagi sahifalaringizni sozlaydi",
-      "pathBStep4": "Birinchi postlaringizni rejalashtirib, joylashni boshlaydi",
-      "pathBCta": "Noldan boshlash",
-      "outro": "Hammasi sozlangach, AI marketologingiz <1>Markiv</1> kundalik ishlarni o'z zimmasiga oladi: post yozadi, pochtangizni saralaydi, raqamlarni tahlil qiladi va keyingi qadamni maslahat beradi."
+    "how": {
+      "title": "Qanday ishlaydi",
+      "step1Title": "Biznesingiz haqida aytib bering",
+      "step1Text": "Nima sotasiz, qayerdasiz, mijozlaringiz kim. Bir necha daqiqa oladi. Allaqachon onlayn bo'lsangiz, Markivo sahifalaringiz va sharhlaringizni o'zi topadi.",
+      "step2Title": "Bir haftalik postlarni oling",
+      "step2Text": "Mijozlaringiz tilida matn, rasm va qisqa videolar. Har biri joylash uchun qulay vaqtga qo'yiladi.",
+      "step3Title": "Tasdiqlang yoki o'zi joylasin",
+      "step3Text": "Har bir postni bir bosishda tasdiqlang yoki Avtopilotni yoqing, Markivo o'zi joylaydi. Reklamaga esa sizdan so'ramay bir so'm ham sarflamaydi."
     },
     "features": {
-      "title": "Butun bir marketing jamoasining ishi, hech kimni yollamasdan.",
-      "subtitle": "Mijozlarni mahallangizdan ham, uzoqroqdan ham olib kelish uchun kerak bo'lgan hamma narsa.",
-      "brandTitle": "Birinchi kundanoq brend",
-      "brandText": "Logotip, slogan va muloqot ohangingiz bir necha soniyada tayyor. Birinchi postingizdan oldinoq to'liq brendga ega bo'lasiz.",
-      "postingTitle": "Barcha sahifalaringiz bir joyda",
-      "postingText": "Instagram, Telegram va Facebook. Postlar bitta ekrandan yoziladi, rejalashtiriladi va joylanadi.",
-      "contentTitle": "Foto va video",
-      "contentText": "Markivo telefonda qanday suratga olishni o'rgatadi, foto va videolaringizni sayqallaydi hamda har bir platformaga moslangan AI video tayyorlaydi.",
-      "inboxTitle": "Pochtangiz doim tartibda",
-      "inboxText": "Markiv Gmail'dagi xatlaringizni qisqacha aytib beradi, saralaydi va siz uchun javob yozadi. Qanday javob berishingizni ham asta-sekin o'rganib boradi.",
-      "intelTitle": "Raqobatchilar ko'z oldingizda",
-      "intelText": "Markivo raqobatchilar nima joylayotgani, qanchalik tez o'sayotgani va qayerda oqsayotganini kuzatadi, so'ng ularga qanday javob berishni aytadi.",
-      "_DISABLED_seoTitle": "Google'da va AI qidiruvda ko'rining",
-      "_DISABLED_seoText": "Google'da yuqoriroq chiqing, ChatGPT va Perplexity'da ham ko'rining: mijozlaringiz endi u yerda ham qidiradi."
+      "title": "Nimalarga ega bo'lasiz",
+      "brandTitle": "Logotip va slogan",
+      "brandText": "Noldan boshlayapsizmi? Birinchi postdan oldin biznesingiz uchun yaratilgan logotip va sloganni tanlang.",
+      "languageTitle": "O'zbek, rus, ingliz",
+      "languageText": "Postlar mijozlaringiz o'qiydigan tilda, ular gapiradigan ohangda yoziladi.",
+      "mediaTitle": "Rasm va video",
+      "mediaText": "Telefonda olingan rasmni tayyor postga aylantiring yoki Reels uchun qisqa video yarating.",
+      "calendarTitle": "Yagona kalendar",
+      "calendarText": "Rejalashtirilgan barcha postlar bir joyda. Postni boshqa kunga sudrab o'tkazish kifoya.",
+      "competitorsTitle": "Raqobatchilar",
+      "competitorsText": "O'xshash bizneslar nima joylayotgani va qanchalik tez o'sayotganini ko'ring, qanday javob berish bo'yicha maslahat bilan.",
+      "assistantTitle": "Markiv — yordamchingiz",
+      "assistantText": "Marketing haqida oddiy so'zlar bilan so'rang. Markiv biznesingizni biladi va postni siz uchun yozib bera oladi."
     },
     "pricing": {
-      "title": "Bepul boshlang. Kerak bo'lganda tarifni oshiring.",
-      "subtitle": "Onlaynga chiqish bepul. Markiv va AI video har hafta siz uchun ishlashini istasangiz, Pro yoki Ultimate'ni tanlang.",
-      "monthly": "Oylik",
-      "yearly": "Yillik",
-      "save20": "20% tejang",
-      "perMonth": "/oy",
-      "free": {
+      "title": "Tariflar",
+      "note": "Har bir tarifda ilovaning barcha imkoniyatlari bor. Farqi — Markivo har hafta siz uchun qancha narsa tayyorlashida. Limitlar har dushanba yangilanadi.",
+      "perMonth": "oyiga",
+      "writing_one": "Haftasiga {{count}} ta AI matn",
+      "writing_other": "Haftasiga {{count}} ta AI matn",
+      "image_one": "Haftasiga {{count}} ta AI rasm",
+      "image_other": "Haftasiga {{count}} ta AI rasm",
+      "video_one": "Haftasiga {{count}} ta AI video",
+      "video_other": "Haftasiga {{count}} ta AI video",
+      "noVideo": "AI video yo'q",
+      "freemium": {
         "name": "Bepul",
-        "desc": "Onlaynga chiqish uchun kerak bo'lgan hamma narsa",
-        "feat1": "Ikkala yo'lda ham to'liq sozlash",
-        "feat2": "AI logotip va slogan",
-        "feat4": "Ijtimoiy kanallarni ulash",
-        "feat5": "Oyiga 25 ta AI generatsiya",
+        "for": "Sinab ko'rish uchun",
         "cta": "Bepul boshlash"
       },
       "pro": {
-        "badge": "ENG FOYDALI",
         "name": "Pro",
-        "desc": "O'sishga tayyor bizneslar uchun",
-        "feat1": "Bepul tarifdagi hammasi",
-        "feat2": "AI rasm yaxshilash va muharrir",
-        "feat3": "Haftasiga 3 ta AI video",
-        "feat4": "Gmail xulosalari va saralash",
-        "feat5": "Markiv agenti · oyiga 100 generatsiya",
-        "cta": "Pro'ga o'tish"
+        "for": "Haftasiga bir necha marta joylash uchun",
+        "cta": "Pro'ni tanlash"
       },
       "ultimate": {
         "name": "Ultimate",
-        "desc": "Avtopilotdagi butun marketing jamoasi",
-        "feat1": "Pro tarifdagi hammasi",
-        "feat2": "Haftasiga 7 ta AI video",
-        "feat3": "Gmail'da sizning uslubingizda avtojavob",
-        "feat4": "AI veb-sayt yaratish",
-        "feat5": "Markiv agenti · oyiga 250 generatsiya",
-        "cta": "Ultimate'ga o'tish"
+        "for": "Har kuni joylash uchun",
+        "cta": "Ultimate'ni tanlash"
       }
     },
     "founder": {
-      "title": "Bu ishni o'zi qilib ko'rgan inson yaratgan.",
-      "name": "Elshod — asoschi va dasturchi",
-      "meta": "CS va biznes · Markivo'ni yakka o'zi quradi · UZ / RU / EN",
-      "point1Title": "Hammasini o'zi quradi.",
-      "point1Text": "Kompyuter fanlari bo'yicha bilimga ega: Markivo ortidagi AI, avtomatlashtirish va ma'lumotlar tizimini o'zi loyihalaydi, mahsulotni ham yakka o'zi chiqaradi.",
-      "point2Title": "Muammodan boshlaydi.",
-      "point2Text": "Biznes ta'limi tufayli har bir funksiya biznes egalarining haqiqiy muammosini hal qiladi. Texnologiya uchun texnologiya emas.",
-      "point3Title": "Bozorni yaxshi biladi.",
-      "point3Text": "O'zbekistonni ichidan biladi: bu yerda biznes egalari onlaynda o'sishni xohlaydi, ammo ular uchun mos vositalar shunchaki yo'q edi.",
-      "point4Title": "Buni boshidan o'tkazgan.",
-      "point4Text": "Bir mahalliy biznesning butun marketingini yakka o'zi yuritgan. Bir kishi uchun bu juda og'ir ish edi. Markivo aynan shuning uchun paydo bo'ldi."
+      "text": "Bir paytlar mahalliy bir biznesning butun marketingini boshqa ishlar qatorida yakka o'zim yuritganman. Bir kishi uchun bu juda og'ir edi, mavjud vositalar esa bu yerdagi biznes egalari uchun ham, bizning tillarimizda ham yaratilmagan edi. Markivo — o'shanda menga yetishmagan vosita.",
+      "sign": "Elshod, asoschi"
     },
     "cta": {
-      "titlePre": "Siz mijozlaringiz bilan bo'ling.",
-      "titleHighlight": "Qolganini Markivo uddalaydi.",
-      "subtitle": "Noldan boshlab mijozlar sizni onlayn topa oladigan darajagacha: o'zbek, rus va ingliz tilida. Bepul tarifdan boshlang va Markivo siz uchun nima yozishini ko'ring.",
-      "button": "Bugun bepul boshlang"
+      "title": "Markivo siz uchun nima yozishini ko'ring."
     },
     "footer": {
-      "copyright": "© {{year}} Markivo. Noldan to'liq ishlashgacha. Barcha huquqlar himoyalangan.",
+      "label": "Huquqiy",
+      "copyright": "© {{year}} Markivo",
       "privacy": "Maxfiylik siyosati",
       "terms": "Foydalanish shartlari",
       "dataDeletion": "Ma'lumotlarni o'chirish"

@@ -585,3 +585,90 @@ button, input, select, textarea {
   align-items: center;
   gap: 10px;
 }
+
+/* --- Legacy utilities -------------------------------------------------------
+   These used to live in LandingPage.css, which was loaded globally, and the
+   dashboard screens still rely on them. Kept verbatim until those screens are
+   redesigned; the new landing page uses its own .lp-* classes. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(212, 163, 115, 0.1);
+  color: var(--accent-primary);
+  border: 1px solid rgba(212, 163, 115, 0.2);
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+
+.btn-lg {
+  padding: 16px 36px;
+  font-size: 1.05rem;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 4px 0;
+  font-family: var(--font-heading);
+}
+
+.text-accent { color: var(--accent-primary); }
+
+.text-purple { color: var(--accent-purple); }
+
+.badge-success {
+  background: rgba(6, 214, 160, 0.1);
+  color: var(--accent-success);
+  border-color: rgba(6, 214, 160, 0.2);
+}
+
+.badge-primary {
+  background: rgba(58, 134, 240, 0.1);
+  color: var(--accent-secondary);
+  border-color: rgba(58, 134, 240, 0.2);
+}
+
+.section-title {
+  font-size: 2.25rem;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.mt-auto {
+  margin-top: auto;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-purple) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.logo-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+}

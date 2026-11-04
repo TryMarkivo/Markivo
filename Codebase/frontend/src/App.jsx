@@ -43,7 +43,9 @@ export default function App() {
   const { t } = useTranslation();
   const [view, setView] = useState(initialView); // 'landing' | 'login' | 'onboarding_A' | 'onboarding_B' | 'dashboard'
   const [activeProfile, setActiveProfile] = useState(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('markivo_theme') || 'dark');
+  // No saved choice yet: follow the device's light/dark setting.
+  const [theme, setTheme] = useState(() => localStorage.getItem('markivo_theme')
+    || (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -305,26 +307,25 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Decorative moving backdrop blur blobs */}
-      <div className="bg-blobs">
-        <div className="blob blob-1"></div>
-        <div className="blob blob-2"></div>
-        <div className="blob blob-3"></div>
-      </div>
+      {/* Decorative moving backdrop blur blobs (not on the redesigned landing) */}
+      {view !== 'landing' && (
+        <div className="bg-blobs">
+          <div className="blob blob-1"></div>
+          <div className="blob blob-2"></div>
+          <div className="blob blob-3"></div>
+        </div>
+      )}
 
       {/* CONDITIONAL RENDER WORKSPACES */}
       {view === 'landing' && (
-        <>
-          <div className="floating-controls">
-            <LanguageSelector onChange={handleLanguageChange} />
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          </div>
-          <LandingPage
-            onStartOnboarding={handleStartOnboarding}
-            onOpenLogin={openLogin}
-            isLoggedIn={!!token}
-          />
-        </>
+        <LandingPage
+          onStartOnboarding={handleStartOnboarding}
+          onOpenLogin={openLogin}
+          isLoggedIn={!!token}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLanguageChange={handleLanguageChange}
+        />
       )}
 
       {/* Dedicated auth page — login.markivo.io */}
