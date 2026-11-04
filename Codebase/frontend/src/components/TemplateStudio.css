@@ -1,5 +1,5 @@
 .template-studio {
-  padding: 24px;
+  padding: 20px 24px;
   text-align: left;
 }
 
@@ -272,7 +272,6 @@
    and never reflowing under the text column. */
 .tpl-card-actions {
   display: flex;
-  flex-direction: column;
   gap: 6px;
   flex-shrink: 0;
 }
@@ -314,4 +313,23 @@
   .template-draft-head {
     align-items: stretch;
   }
+}
+
+/* Studio header (Brand voice, Templates): same scale as other sections. */
+.template-studio .panel-title-wrap {
+  margin-bottom: 16px;
+}
+
+.template-studio .panel-title-wrap .icon-header {
+  display: none;
+}
+
+.template-studio .panel-title-wrap h3 {
+  font-size: 16px;
+}
+
+.template-studio .panel-title-wrap p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
 }

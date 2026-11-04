@@ -309,3 +309,29 @@
   margin-right: 4px;
   color: var(--accent-primary);
 }
+
+/* Narrow screens: the comparison table scrolls sideways instead of
+   squeezing its columns into each other. */
+.competitor-list {
+  overflow-x: auto;
+}
+
+.comp-header,
+.comp-row {
+  min-width: 440px;
+  column-gap: 12px;
+}
+
+.active-brand {
+  margin: 4px 0;
+}
+
+/* Section heading + its button: the button drops below on phones. */
+.competitor-intel-container .flex-between {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.main-intel-grids > * {
+  min-width: 0;
+}

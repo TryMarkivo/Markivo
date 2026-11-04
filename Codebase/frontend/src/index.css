@@ -1,92 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
-/* --- 1. DESIGN SYSTEM VARIABLES --- */
+/* --- 1. DESIGN SYSTEM VARIABLES ---
+   The older screens are written against these names. They now resolve to the
+   new palette in styles/ui.css (which switches with the theme), so every
+   screen shares one font, one set of colours and the same surfaces. */
 :root {
-  --font-heading: 'Outfit', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-heading: var(--ui-font);
+  --font-body: var(--ui-font);
 
-  /* Colors */
-  --bg-primary: #0a080c;
-  --bg-secondary: #131016;
-  --bg-tertiary: #1b1720;
-  
-  --accent-primary: #d4a373;   /* Rich warm gold */
-  --accent-secondary: #3a86f0; /* Electric blue */
-  --accent-purple: #8338ec;    /* Deep violet */
-  --accent-success: #06d6a0;   /* Mint green */
-  --accent-danger: #ff5a5f;    /* Vibrant red */
-  --tg-blue: #2aabee;          /* Telegram brand blue (legible on both themes) */
+  --bg-primary: var(--ui-bg);
+  --bg-secondary: var(--ui-surface);
+  --bg-tertiary: var(--ui-surface-2);
 
-  --text-primary: #f8f9fa;
-  --text-secondary: #a9abb3;
-  --text-muted: #6b6d76;
+  --accent-primary: var(--ui-accent);
+  --accent-secondary: var(--ui-telegram);
+  --accent-purple: var(--ui-accent-ink);
+  --accent-success: var(--ui-ok);
+  --accent-danger: var(--ui-danger);
+  --tg-blue: var(--ui-telegram);
 
-  /* Glassmorphism & borders */
-  --glass-bg: rgba(255, 255, 255, 0.02);
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --glass-glow: rgba(212, 163, 115, 0.15);
+  --text-primary: var(--ui-ink);
+  --text-secondary: var(--ui-ink-2);
+  --text-muted: var(--ui-ink-3);
 
-  /* Theme-adaptive structural tokens (overridden by [data-theme="light"]) */
-  --surface-1: rgba(255, 255, 255, 0.04);
-  --surface-2: rgba(255, 255, 255, 0.08);
-  --surface-3: rgba(255, 255, 255, 0.14);
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --input-bg: rgba(0, 0, 0, 0.3);
-  --input-bg-focus: rgba(0, 0, 0, 0.5);
-  --overlay-bg: rgba(0, 0, 0, 0.7);
-  --modal-bg: rgb(19, 16, 22);
-  --text-on-accent: #08060a;
-  --heading-gradient-from: #ffffff;
-  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --glass-bg: var(--ui-surface);
+  --glass-border: var(--ui-line);
+  --glass-glow: transparent;
+
+  --surface-1: var(--ui-surface-2);
+  --surface-2: var(--ui-surface-2);
+  --surface-3: var(--ui-line);
+  --border-subtle: var(--ui-line);
+  --border-strong: var(--ui-line-strong);
+  --input-bg: var(--ui-surface);
+  --input-bg-focus: var(--ui-surface);
+  --overlay-bg: var(--ui-scrim);
+  --modal-bg: var(--ui-bg);
+  --text-on-accent: var(--ui-on-accent);
+  --heading-gradient-from: var(--ui-ink);
+  --scrollbar-thumb: var(--ui-line-strong);
   --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-  
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
-  
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
 
-/* --- LIGHT THEME (warm paper, same brand accents) --- */
-[data-theme="light"] {
-  --bg-primary: #f5f3ef;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #ece8e1;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: var(--ui-shadow);
 
-  --text-primary: #181511;
-  --text-secondary: #4d5057;
-  --text-muted: #82858d;
-
-  --glass-bg: rgba(255, 255, 255, 0.66);
-  --glass-border: rgba(24, 18, 12, 0.08);
-  --glass-glow: rgba(212, 163, 115, 0.3);
-
-  --surface-1: rgba(24, 18, 12, 0.035);
-  --surface-2: rgba(24, 18, 12, 0.07);
-  --surface-3: rgba(24, 18, 12, 0.12);
-  --border-subtle: rgba(24, 18, 12, 0.09);
-  --border-strong: rgba(24, 18, 12, 0.18);
-  --input-bg: rgba(24, 18, 12, 0.045);
-  --input-bg-focus: #ffffff;
-  --overlay-bg: rgba(30, 24, 18, 0.45);
-  --modal-bg: rgb(255, 255, 255);
-  --heading-gradient-from: #181511;
-  --scrollbar-thumb: rgba(24, 18, 12, 0.16);
-
-  --shadow-sm: 0 4px 12px rgba(30, 24, 18, 0.06);
-  --shadow-md: 0 8px 24px rgba(30, 24, 18, 0.08);
-  --shadow-lg: 0 16px 48px rgba(30, 24, 18, 0.12);
-}
-
-[data-theme="light"] .blob {
-  mix-blend-mode: multiply;
-  opacity: 0.07;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
 }
 
 /* --- Offline / demo-data indicators (shown only in server-offline fallbacks) --- */
@@ -127,18 +90,18 @@
 
 body {
   background-color: var(--bg-primary);
-  transition: background-color var(--transition-normal), color var(--transition-normal);
   color: var(--text-primary);
   font-family: var(--font-body);
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.5;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--text-primary);
   line-height: 1.2;
 }
@@ -158,154 +121,92 @@ button, input, select, textarea {
   outline: none;
 }
 
-/* --- 3. PREMIUM DECORATIVE BACKDROP EFFECTS --- */
-.bg-blobs {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.12;
-  mix-blend-mode: screen;
-}
-
-.blob-1 {
-  top: -10%;
-  right: 10%;
-  width: 500px;
-  height: 500px;
-  background: var(--accent-primary);
-  animation: floatBlob 20s infinite alternate;
-}
-
-.blob-2 {
-  bottom: -10%;
-  left: 5%;
-  width: 600px;
-  height: 600px;
-  background: var(--accent-purple);
-  animation: floatBlob 25s infinite alternate-reverse;
-}
-
-.blob-3 {
-  top: 40%;
-  right: -5%;
-  width: 400px;
-  height: 400px;
-  background: var(--accent-secondary);
-  animation: floatBlob 18s infinite alternate 2s;
-}
-
-@keyframes floatBlob {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(50px, -50px) scale(1.1); }
-  100% { transform: translate(-30px, 30px) scale(0.9); }
-}
-
 /* --- 4. UTILITIES --- */
-.gradient-text {
-  background: linear-gradient(135deg, var(--heading-gradient-from) 0%, var(--accent-primary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
+.gradient-text,
 .gradient-text-accent {
-  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-purple) 50%, var(--accent-primary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: inherit;
 }
 
+/* Cards: flat surface, hairline border. */
 .glass-card {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  transition: var(--transition-normal);
-}
-
-.glass-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-lg), 0 0 25px rgba(255, 255, 255, 0.02);
 }
 
 .glass-card-glow {
-  border-color: rgba(212, 163, 115, 0.2);
-  box-shadow: 0 8px 32px var(--glass-glow);
+  border-color: var(--ui-line);
 }
 
-.glass-card-glow:hover {
-  border-color: rgba(212, 163, 115, 0.35);
-  box-shadow: 0 16px 48px rgba(212, 163, 115, 0.25);
-}
-
-/* Custom buttons */
+/* Buttons: three heights (32 / 38 / 44), flat fills, no lift on hover. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 12px 28px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-  transition: var(--transition-fast);
-  font-family: var(--font-heading);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ui-accent-ink);
+  outline-offset: 1px;
+}
+
+.btn-sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.btn-lg {
+  height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, #bd8c5c 100%);
-  color: var(--text-on-accent);
-  box-shadow: 0 4px 15px rgba(212, 163, 115, 0.3);
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(212, 163, 115, 0.5);
+.btn-primary:hover:not(:disabled) {
+  background: var(--ui-accent-hover);
 }
 
-.btn-secondary {
-  background: var(--surface-1);
-  color: var(--text-primary);
-  border: 1px solid var(--glass-border);
-}
-
-.btn-secondary:hover {
-  background: var(--surface-2);
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
-}
-
+.btn-secondary,
 .btn-accent {
-  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-purple) 100%);
-  color: #fff;
-  box-shadow: 0 4px 15px rgba(131, 56, 236, 0.3);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  border-color: var(--ui-line-strong);
+}
+
+.btn-secondary:hover:not(:disabled),
+.btn-accent:hover:not(:disabled) {
+  border-color: var(--ui-ink-3);
 }
 
 .btn-danger {
-  background: var(--accent-danger);
-  color: #fff;
-  box-shadow: 0 4px 15px rgba(255, 90, 95, 0.3);
+  background: var(--ui-danger);
+  color: var(--ui-on-danger);
 }
 
-.btn-danger:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 90, 95, 0.5);
-}
-
-.btn-accent:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(131, 56, 236, 0.5);
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(1.05);
 }
 
 /* Custom fields */
@@ -316,49 +217,47 @@ button, input, select, textarea {
 
 .form-label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  margin-bottom: 6px;
 }
 
 .input-field {
   width: 100%;
-  padding: 14px 16px;
+  font-size: 15px;
+  padding: 9px 12px;
   border-radius: var(--radius-sm);
   background: var(--input-bg);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--border-strong);
   color: var(--text-primary);
   transition: var(--transition-fast);
 }
 
 .input-field:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 10px rgba(212, 163, 115, 0.2);
-  background: var(--input-bg-focus);
+  border-color: var(--ui-accent-ink);
 }
 
 .select-field {
   width: 100%;
-  padding: 14px 16px;
+  height: 40px;
+  font-size: 15px;
+  padding: 0 36px 0 12px;
   border-radius: var(--radius-sm);
   background: var(--input-bg);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--border-strong);
   color: var(--text-primary);
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d4a373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2385878f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 16px center;
-  background-size: 16px;
+  background-position: right 12px center;
+  background-size: 14px;
   transition: var(--transition-fast);
 }
 
 .select-field:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 10px rgba(212, 163, 115, 0.2);
+  border-color: var(--ui-accent-ink);
 }
 
 .select-field option {
@@ -593,16 +492,14 @@ button, input, select, textarea {
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
-  background: rgba(212, 163, 115, 0.1);
-  color: var(--accent-primary);
-  border: 1px solid rgba(212, 163, 115, 0.2);
-  border-radius: 50px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  margin-bottom: 20px;
-  text-transform: uppercase;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-ink);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .btn-lg {
@@ -628,15 +525,13 @@ button, input, select, textarea {
 .text-purple { color: var(--accent-purple); }
 
 .badge-success {
-  background: rgba(6, 214, 160, 0.1);
-  color: var(--accent-success);
-  border-color: rgba(6, 214, 160, 0.2);
+  background: var(--ui-ok-soft);
+  color: var(--ui-ok);
 }
 
 .badge-primary {
-  background: rgba(58, 134, 240, 0.1);
-  color: var(--accent-secondary);
-  border-color: rgba(58, 134, 240, 0.2);
+  background: var(--ui-surface-2);
+  color: var(--ui-ink-2);
 }
 
 .section-title {

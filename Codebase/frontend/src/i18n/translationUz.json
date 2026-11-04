@@ -469,7 +469,8 @@
       }
     },
     "toggleSidebar": "Yon panelni ochish yoki yopish",
-    "onlineLocation": "Onlayn / masofaviy"
+    "onlineLocation": "Onlayn / masofaviy",
+    "pageSubtitle": "Sahifalaringiz qanday ketyapti."
   },
   "contentEngine": {
     "title": "AI kontent",
@@ -836,7 +837,8 @@
       "comments_other": "{{count}} ta izoh",
       "views_one": "{{count}} marta ko'rilgan",
       "views_other": "{{count}} marta ko'rilgan"
-    }
+    },
+    "pageSubtitle": "O'xshash bizneslar nima va qanchalik tez-tez joylayotganini ko'ring."
   },
   "agent": {
     "title": "AI yordamchi",
@@ -1660,5 +1662,12 @@
     "savedDraft": "Qoralama sifatida saqlandi.",
     "scheduledFor": "{{day}}, {{time}} ga rejalashtirildi.",
     "deleted": "Post o'chirildi."
+  },
+  "sidebar": {
+    "navLabel": "Bo'limlar",
+    "upgrade": "Tarifni oshirish",
+    "logout": "Chiqish",
+    "questionsLeft_one": "Yana {{count}} ta savol",
+    "questionsLeft_other": "Yana {{count}} ta savol"
   }
 }

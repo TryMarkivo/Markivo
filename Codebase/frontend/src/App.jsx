@@ -307,14 +307,6 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Decorative moving backdrop blur blobs (not on the redesigned landing) */}
-      {view !== 'landing' && (
-        <div className="bg-blobs">
-          <div className="blob blob-1"></div>
-          <div className="blob blob-2"></div>
-          <div className="blob blob-3"></div>
-        </div>
-      )}
 
       {/* CONDITIONAL RENDER WORKSPACES */}
       {view === 'landing' && (

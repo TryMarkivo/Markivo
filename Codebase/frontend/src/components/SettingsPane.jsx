@@ -58,7 +58,11 @@ export default function SettingsPane({ activeProfile, theme, onToggleTheme, onLa
 
   return (
     <div className="settings-pane animate-fade-in">
-      <h2 className="settings-title">{t('settings.title', 'Settings')}</h2>
+      <header className="page-head">
+        <div>
+          <h1>{t('settings.title', 'Settings')}</h1>
+        </div>
+      </header>
 
       {/* APPEARANCE */}
       <section className="settings-section glass-card">
@@ -72,7 +76,7 @@ export default function SettingsPane({ activeProfile, theme, onToggleTheme, onLa
         </div>
         <div className="settings-row">
           <span>{t('settings.language', 'Language')}</span>
-          <LanguageSelector onChange={onLanguageChange} />
+          <LanguageSelector variant="select" className="ui-select settings-lang" long onChange={onLanguageChange} />
         </div>
       </section>
 

@@ -145,6 +145,12 @@ export default function CompetitorIntel({ stats, activeProfile, onGenerateToComp
 
   return (
     <div className="competitor-intel-container animate-fade-in">
+      <header className="page-head">
+        <div>
+          <h1>{t('dashboard.nav.competitors', 'Competitors')}</h1>
+          <p>{t('competitors.pageSubtitle', 'See what similar businesses post and how often.')}</p>
+        </div>
+      </header>
       <div className="grid-2 main-intel-grids">
 
         {/* COMPETING BENCHMARK TABLE */}

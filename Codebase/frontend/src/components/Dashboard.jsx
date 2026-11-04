@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import AutonomousAgent from './AutonomousAgent';
 import MediaStudio from './MediaStudio';
 import CompetitorIntel from './CompetitorIntel';
@@ -219,17 +219,6 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
     );
   }
 
-  // Helper to render logo symbol
-  // Signup no longer asks for a logo, so most profiles arrive without one. The
-  // placeholder is the business's own initial rather than a coffee cup, which
-  // was only ever right for a cafe.
-  const logoStyle = activeProfile.logo || {
-    text: activeProfile.businessName,
-    color: '#D4A373',
-    bgColor: '#1A1816',
-    shape: 'circle',
-    icon: (activeProfile.businessName || '?').trim().charAt(0).toUpperCase(),
-  };
 
   // Label maps for raw API/mock data values (fall back to raw value for unknown codes)
   // DISABLED: SEO/Meta temporarily off — see 2026-08-13
@@ -251,11 +240,11 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
       {sidebarOpen && <div className="sidebar-scrim" onClick={() => setSidebarOpen(false)} aria-hidden="true" />}
 
       {/* --- SIDEBAR --- */}
-      <aside className={`dashboard-sidebar glass-card ${sidebarOpen ? 'open' : 'closed'}`}>
+      <aside className={`dashboard-sidebar ui ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
-          <div className="logo-text">
-            <img src={logoUrl} alt="Markivo" className="logo-img" />
-            Markivo
+          <div className="sb-brand">
+            <img src={logoUrl} alt="" />
+            <span>Markivo</span>
           </div>
           <button
             type="button"
@@ -269,147 +258,129 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           </button>
         </div>
 
-        {/* LOGO BRIEF BLOCK — opens the Business Profile editor */}
-        <div
-          className="active-profile-card is-clickable"
+        {/* The business — opens the Business Profile editor */}
+        <button
+          type="button"
+          className="sb-business"
           onClick={() => setProfileModalOpen(true)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setProfileModalOpen(true); } }}
           id="btn_open_profile"
           title={t('settings.business', 'Business profile')}
         >
-          <div className="sidebar-logo-icon" style={{ backgroundColor: logoStyle.bgColor, borderColor: logoStyle.color, color: logoStyle.color }}>
+          <span className="sb-avatar" aria-hidden="true">
             {activeProfile.logo?.image ? (
-              <img
-                src={activeProfile.logo.image}
-                alt={activeProfile.businessName}
-                style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'contain' }}
-              />
+              <img src={activeProfile.logo.image} alt="" />
             ) : activeProfile.logo?.svg ? (
-              <img
-                src={'data:image/svg+xml;utf8,' + encodeURIComponent(activeProfile.logo.svg)}
-                alt={activeProfile.businessName}
-                style={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
-              />
+              <img src={'data:image/svg+xml;utf8,' + encodeURIComponent(activeProfile.logo.svg)} alt="" />
             ) : (
-              logoStyle.icon || (activeProfile.businessName || '?').trim().charAt(0).toUpperCase()
+              (activeProfile.businessName || '?').trim().charAt(0).toUpperCase()
             )}
-            {pendingQuestions > 0 && (
-              <span
-                className="profile-alert-badge"
-                aria-label={t('profileQuestions.badgeAria', '{{count}} unanswered questions about your business', { count: pendingQuestions })}
-              >
-                !
+          </span>
+          <span className="sb-business-text">
+            <span className="sb-business-name">{activeProfile.businessName}</span>
+            {pendingQuestions > 0 ? (
+              <span className="sb-business-sub is-todo">
+                {t('sidebar.questionsLeft', { defaultValue: '{{count}} questions left', count: pendingQuestions })}
               </span>
+            ) : (
+              <span className="sb-business-sub">{categoryLabel(t, activeProfile.category)}</span>
             )}
-          </div>
-          <div className="active-profile-info">
-            <h4>{activeProfile.businessName}</h4>
-            <small>
-              {pendingQuestions > 0
-                ? t('profileQuestions.badgeHint', 'Tell us {{count}} more things about your business', { count: pendingQuestions })
-                : categoryLabel(t, activeProfile.category)}
-            </small>
-          </div>
-          <i className="fa-solid fa-chevron-right active-profile-cue" aria-hidden="true"></i>
-        </div>
+          </span>
+        </button>
 
-        <nav className="sidebar-nav">
-          <button 
-            className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => pickTab('analytics')}
-            id="btn_tab_analytics"
-          >
-            <i className="fa-solid fa-chart-pie"></i> {t('dashboard.nav.metrics', 'Dashboard')}
-          </button>
-          <button
-            className={`nav-item ${activeTab === 'calendar' ? 'active' : ''}`}
-            onClick={() => pickTab('calendar')}
-            id="btn_tab_calendar"
-          >
-            <i className="fa-solid fa-calendar-days"></i> {t('dashboard.nav.calendar', 'Calendar')}
-          </button>
-          <button
-            className={`nav-item ${activeTab === 'autopilot' ? 'active' : ''}`}
-            onClick={() => pickTab('autopilot')}
-            id="btn_tab_autopilot"
-          >
-            <i className="fa-solid fa-robot"></i> {t('dashboard.nav.autopilot', 'Autopilot')}
-          </button>
-          {/* DISABLED: Markiv temporarily off — see 2026-08-15
-          <button
-            className={`nav-item ${activeTab === 'markiv' ? 'active' : ''}`}
-            onClick={() => pickTab('markiv')}
-            id="btn_tab_markiv"
-          >
-            <i className="fa-solid fa-comment-dots"></i> Markiv
-          </button>
-          */}
-          <button
-            className={`nav-item ${activeTab === 'media' ? 'active' : ''}`}
-            onClick={() => pickTab('media')}
-            id="btn_tab_media"
-          >
-            <i className="fa-solid fa-clapperboard"></i> {t('dashboard.nav.media', 'Media Studio')}
-          </button>
-          <button
-            className={`nav-item ${activeTab === 'competitors' ? 'active' : ''}`}
-            onClick={() => pickTab('competitors')}
-            id="btn_tab_competitors"
-          >
-            <i className="fa-solid fa-users-viewfinder"></i> {t('dashboard.nav.competitors', 'Competitor Intel')}
-          </button>
-          <button
-            className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => pickTab('settings')}
-            id="btn_tab_settings"
-          >
-            <i className="fa-solid fa-gear"></i> {t('dashboard.settingsTab', 'Settings')}
-          </button>
+        <nav className="sb-nav" aria-label={t('sidebar.navLabel', 'Sections')}>
+            <button
+              type="button"
+              className={`sb-nav-item${activeTab === 'analytics' ? ' is-active' : ''}`}
+              aria-current={activeTab === 'analytics' ? 'page' : undefined}
+              onClick={() => pickTab('analytics')}
+              id="btn_tab_analytics"
+            >
+              <Icon name="chart" size={18} /> <span>{t('dashboard.nav.metrics', 'Dashboard')}</span>
+            </button>
+            <button
+              type="button"
+              className={`sb-nav-item${activeTab === 'calendar' ? ' is-active' : ''}`}
+              aria-current={activeTab === 'calendar' ? 'page' : undefined}
+              onClick={() => pickTab('calendar')}
+              id="btn_tab_calendar"
+            >
+              <Icon name="calendar" size={18} /> <span>{t('dashboard.nav.calendar', 'Calendar')}</span>
+            </button>
+            <button
+              type="button"
+              className={`sb-nav-item${activeTab === 'autopilot' ? ' is-active' : ''}`}
+              aria-current={activeTab === 'autopilot' ? 'page' : undefined}
+              onClick={() => pickTab('autopilot')}
+              id="btn_tab_autopilot"
+            >
+              <Icon name="robot" size={18} /> <span>{t('dashboard.nav.autopilot', 'Autopilot')}</span>
+            </button>
+            <button
+              type="button"
+              className={`sb-nav-item${activeTab === 'media' ? ' is-active' : ''}`}
+              aria-current={activeTab === 'media' ? 'page' : undefined}
+              onClick={() => pickTab('media')}
+              id="btn_tab_media"
+            >
+              <Icon name="image" size={18} /> <span>{t('dashboard.nav.media', 'Media Studio')}</span>
+            </button>
+            <button
+              type="button"
+              className={`sb-nav-item${activeTab === 'competitors' ? ' is-active' : ''}`}
+              aria-current={activeTab === 'competitors' ? 'page' : undefined}
+              onClick={() => pickTab('competitors')}
+              id="btn_tab_competitors"
+            >
+              <Icon name="users" size={18} /> <span>{t('dashboard.nav.competitors', 'Competitor Intel')}</span>
+            </button>
+            <button
+              type="button"
+              className={`sb-nav-item${activeTab === 'settings' ? ' is-active' : ''}`}
+              aria-current={activeTab === 'settings' ? 'page' : undefined}
+              onClick={() => pickTab('settings')}
+              id="btn_tab_settings"
+            >
+              <Icon name="sliders" size={18} /> <span>{t('dashboard.settingsTab', 'Settings')}</span>
+            </button>
         </nav>
 
-        <div className="sidebar-footer">
+        <div className="sb-footer">
           {usage && usage.buckets && (
-            <div
-              className="usage-meter is-clickable"
+            <button
+              type="button"
+              className="sb-usage"
               id="usage_meter"
               onClick={() => setUpgradeModalOpen(true)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setUpgradeModalOpen(true); } }}
               title={t('usage.resetsTitle', { defaultValue: 'Resets {{date}}', date: usage.resetsAt?.slice(0, 10) })}
             >
-              {/* One bar per allowance. They are separate pools — a spent video
-                  budget says nothing about how much writing is left — so a
-                  single combined bar would misreport all three. */}
+              <span className="sb-usage-head">
+                <span>{t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}</span>
+                <span className="sb-usage-link">{t('sidebar.upgrade', 'Upgrade')}</span>
+              </span>
+              {/* One bar per allowance: they are separate weekly pools. */}
               {Object.entries(usage.buckets).map(([name, b]) => (
-                <div className="usage-meter-row" key={name}>
-                  <div className="usage-meter-label">
+                <span className="sb-usage-row" key={name}>
+                  <span className="sb-usage-label">
                     <span>{t(`usage.buckets.${name}`, name)}</span>
                     <span>
                       {b.limit === 0
-                        ? t('usage.locked', 'Upgrade')
+                        ? '—'
                         : t('usage.count', { defaultValue: '{{used}} / {{limit}}', used: b.used, limit: b.limit })}
                     </span>
-                  </div>
-                  <div className="usage-meter-track">
-                    <div
-                      className={`usage-meter-fill ${b.remaining <= 0 ? 'full' : ''}`}
-                      style={{ width: `${b.limit ? Math.min(100, Math.round((b.used / b.limit) * 100)) : 100}%` }}
-                    ></div>
-                  </div>
-                </div>
+                  </span>
+                  <span className="sb-usage-track">
+                    <span
+                      className={`sb-usage-fill${b.limit && b.remaining <= 0 ? ' is-full' : ''}`}
+                      style={{ width: `${b.limit ? Math.min(100, Math.round((b.used / b.limit) * 100)) : 0}%` }}
+                    />
+                  </span>
+                </span>
               ))}
-              <small className="usage-meter-tier">
-                {t('usage.tierPlan', { defaultValue: '{{tier}} plan', tier: t(`usage.tiers.${usage.tier}`, usage.tier) })}
-                {' · '}
-                {t('usage.resetsWeekly', 'resets Monday')}
-              </small>
-            </div>
+              <span className="sb-usage-reset">{t('usage.resetsWeekly', 'resets Monday')}</span>
+            </button>
           )}
-          <button className="btn btn-danger w-full" onClick={onLogout} id="btn_logout">
-            <i className="fa-solid fa-arrow-right-from-bracket"></i> {t('dashboard.exit', 'Exit Dashboard')}
+          <button type="button" className="sb-logout" onClick={onLogout} id="btn_logout">
+            <Icon name="logout" size={18} /> <span>{t('sidebar.logout', 'Log out')}</span>
           </button>
         </div>
       </aside>
@@ -439,6 +410,12 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
           {/* TAB 1: METRICS & SEARCH */}
           {activeTab === 'analytics' && (
             <div className="tab-analytics animate-fade-in">
+              <header className="page-head">
+                <div>
+                  <h1>{t('dashboard.nav.metrics', 'Dashboard')}</h1>
+                  <p>{t('dashboard.pageSubtitle', 'How your channels are doing.')}</p>
+                </div>
+              </header>
 
               {statsOffline && (
                 <div className="demo-offline-banner" role="status">
@@ -579,46 +556,8 @@ export default function Dashboard({ token, activeProfile, onLogout, onProfileUpd
 
                 */}
 
-                {/* AI SEARCH PRESENCE INDEX */}
-                <div className="ai-search-panel glass-card">
-                  <h3>{t('dashboard.aiSearch.title', 'AI Search Visibility')}</h3>
-                  <p className="panel-subtitle">{t('dashboard.aiSearch.subtitle', 'How models recommend you in natural chat queries')}</p>
-
-                  <div className="ai-score-ring-wrap">
-                    <div className="ai-ring-container">
-                      <svg width="80" height="80" viewBox="0 0 36 36" className="circular-chart">
-                        <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#222" strokeWidth="2.5" />
-                        <path className="circle-fill" strokeDasharray={`${stats.aiPresence.perplexityScore}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--accent-primary)" strokeWidth="2.5" />
-                      </svg>
-                      <div className="ai-score-inside">
-                        <span>{stats.aiPresence.perplexityScore}</span>
-                        <small>{t('dashboard.aiSearch.indexLabel', 'index')}</small>
-                      </div>
-                    </div>
-                    <div className="ai-score-info">
-                      <h4>{t('dashboard.aiSearch.optimised', 'Highly Search Optimised')}</h4>
-                      <p>
-                        <Trans
-                          i18nKey="dashboard.aiSearch.citedIn"
-                          defaults="Cited in <1>{{count}} distinct</1> search models this week."
-                          values={{ count: stats.aiPresence.sourcesCitedCount }}
-                          components={{ 1: <strong /> }}
-                        />
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="ai-mentions-breakdown border-top-onboard pt-20">
-                    <div className="mention-item">
-                      <span><i className="fa-solid fa-message text-success"></i> {t('dashboard.aiSearch.chatgptRank', 'ChatGPT recommendation rank')}</span>
-                      <strong className="text-success">{stats.aiPresence.chatgptRank === 'Top 10' ? t('dashboard.aiSearch.rankTop10', 'Top 10') : stats.aiPresence.chatgptRank}</strong>
-                    </div>
-                    <div className="mention-item mt-10">
-                      <span><i className="fa-solid fa-lightbulb text-accent"></i> {t('dashboard.aiSearch.perplexityCitations', 'Perplexity Citations')}</span>
-                      <strong>{t('dashboard.aiSearch.active', 'Active')}</strong>
-                    </div>
-                  </div>
-                </div>
+                {/* DISABLED: SEO/Meta temporarily off — see 2026-08-13. The AI search
+                    visibility card showed sample scores for a feature that is off. */}
               </div>
 
             </div>

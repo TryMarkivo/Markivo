@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /* Compact pill switcher: 🇺🇿 UZ · 🇷🇺 RU · 🇬🇧 EN */
-const LanguageSelector = ({ onChange, variant = 'pills' }) => {
+const LanguageSelector = ({ onChange, variant = 'pills', className = 'lang-select', long = false }) => {
   const { t, i18n } = useTranslation();
 
   const changeLanguage = (lng) => {
@@ -31,14 +31,14 @@ const LanguageSelector = ({ onChange, variant = 'pills' }) => {
     const current = languageOptions.find((l) => i18n.language?.startsWith(l.code))?.code || 'en';
     return (
       <select
-        className="lang-select"
+        className={className}
         value={current}
         onChange={(e) => changeLanguage(e.target.value)}
         aria-label={t('common.language', 'Language')}
         id="select_language"
       >
         {languageOptions.map((lang) => (
-          <option key={lang.code} value={lang.code}>{lang.label}</option>
+          <option key={lang.code} value={lang.code}>{long ? lang.name : lang.label}</option>
         ))}
       </select>
     );

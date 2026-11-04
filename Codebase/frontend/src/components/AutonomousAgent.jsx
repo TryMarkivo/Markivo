@@ -186,12 +186,12 @@ export default function AutonomousAgent({ activeProfile, onGoToCalendar }) {
 
   return (
     <div className="autopilot-pane animate-fade-in">
-      <div className="ap-header">
+      <header className="page-head">
         <div>
-          <h2><i className="fa-solid fa-robot"></i> {t('autopilot.title', 'Autopilot')}</h2>
-          <p className="subtitle">{t('autopilot.subtitle', 'Let Markiv analyze your business and post promotional content to your channels on its own.')}</p>
+          <h1>{t('autopilot.title', 'Autopilot')}</h1>
+          <p>{t('autopilot.subtitle', 'Let Markiv analyze your business and post promotional content to your channels on its own.')}</p>
         </div>
-      </div>
+      </header>
 
       {loadError && <div className="ap-error">{loadError}</div>}
 

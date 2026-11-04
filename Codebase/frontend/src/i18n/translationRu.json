@@ -479,7 +479,8 @@
       }
     },
     "toggleSidebar": "Показать или скрыть боковую панель",
-    "onlineLocation": "Онлайн / удалённо"
+    "onlineLocation": "Онлайн / удалённо",
+    "pageSubtitle": "Как идут дела на ваших страницах."
   },
   "contentEngine": {
     "title": "Контент-движок",
@@ -854,7 +855,8 @@
       "comments_other": "{{count}} комментария",
       "views_one": "{{count}} просмотр",
       "views_other": "{{count}} просмотра"
-    }
+    },
+    "pageSubtitle": "Смотрите, что и как часто публикуют похожие бизнесы."
   },
   "agent": {
     "title": "ИИ-агент",
@@ -1682,5 +1684,14 @@
     "savedDraft": "Сохранено как черновик.",
     "scheduledFor": "Запланировано на {{day}}, {{time}}.",
     "deleted": "Пост удалён."
+  },
+  "sidebar": {
+    "navLabel": "Разделы",
+    "upgrade": "Улучшить",
+    "logout": "Выйти",
+    "questionsLeft_one": "Остался {{count}} вопрос",
+    "questionsLeft_few": "Осталось {{count}} вопроса",
+    "questionsLeft_many": "Осталось {{count}} вопросов",
+    "questionsLeft_other": "Осталось {{count}} вопроса"
   }
 }

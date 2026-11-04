@@ -440,15 +440,17 @@ export default function MediaStudio({ activeProfile }) {
     <div className="media-studio animate-fade-in">
 
       {/* HEADER */}
-      <div className="media-studio-header">
-        <h2>{t('media.title', 'Media Studio')}</h2>
-        <p className="text-muted">
-          {t('media.subtitle', {
-            defaultValue: 'Plan, shoot and edit scroll-stopping content for {{businessName}}',
-            businessName: activeProfile.businessName,
-          })}
-        </p>
-      </div>
+      <header className="page-head">
+        <div>
+          <h1>{t('media.title', 'Media Studio')}</h1>
+          <p>
+            {t('media.subtitle', {
+              defaultValue: 'Plan, shoot and edit scroll-stopping content for {{businessName}}',
+              businessName: activeProfile.businessName,
+            })}
+          </p>
+        </div>
+      </header>
 
       {error && <div className="auth-error-box">{error}</div>}
 

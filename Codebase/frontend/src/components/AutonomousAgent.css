@@ -45,8 +45,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 20px 24px;
-  margin: 18px 0;
+  padding: 18px 20px;
+  margin: 0 0 12px;
 }
 
 .ap-toggle-card h4 { margin: 0 0 4px; }
@@ -90,8 +90,12 @@
 .ap-config-muted { opacity: 0.55; }
 
 .ap-section {
-  padding: 18px 22px;
-  margin-bottom: 14px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+}
+
+.ap-section .select-field {
+  max-width: 320px;
 }
 
 .ap-hint {
@@ -381,4 +385,9 @@
   border-radius: var(--radius-sm);
   background: var(--surface-1);
   border: 1px solid var(--border-subtle);
+}
+
+/* Settings-style page: a readable column, not the full screen width. */
+.autopilot-pane {
+  max-width: 860px;
 }

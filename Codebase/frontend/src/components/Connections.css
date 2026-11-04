@@ -2,21 +2,27 @@
    (--surface-*, --border-*, --text-*) so it inherits light/dark theming. */
 
 .connections-panel {
-  max-width: 1000px;
+  margin: 24px 0;
+}
+
+.connections-panel h3 {
+  font-size: 16px;
 }
 
 .connections-panel .panel-subtitle {
-  margin-bottom: 24px;
+  margin: 4px 0 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
 .connections-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .connection-card {
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -32,7 +38,7 @@
    to 25% so the connected ones stand out, and back to full strength on hover
    or keyboard focus so they never become unreadable. */
 .connection-card.not-connected {
-  opacity: 0.25;
+  opacity: 1;
 }
 
 .connection-card.not-connected:hover,

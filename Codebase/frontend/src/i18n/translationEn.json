@@ -469,7 +469,8 @@
       }
     },
     "toggleSidebar": "Show or hide the sidebar",
-    "onlineLocation": "Online only"
+    "onlineLocation": "Online only",
+    "pageSubtitle": "How your channels are doing."
   },
   "contentEngine": {
     "title": "Post writer",
@@ -836,7 +837,8 @@
       "comments_other": "{{count}} comments",
       "views_one": "{{count}} view",
       "views_other": "{{count}} views"
-    }
+    },
+    "pageSubtitle": "See what similar businesses post and how often."
   },
   "agent": {
     "title": "Markiv",
@@ -1660,5 +1662,12 @@
     "savedDraft": "Saved as a draft.",
     "scheduledFor": "Scheduled for {{day}}, {{time}}.",
     "deleted": "Post deleted."
+  },
+  "sidebar": {
+    "navLabel": "Sections",
+    "upgrade": "Upgrade",
+    "logout": "Log out",
+    "questionsLeft_one": "{{count}} question left",
+    "questionsLeft_other": "{{count}} questions left"
   }
 }
