@@ -1690,13 +1690,28 @@ function resolvePublicMedia(profile, mediaId) {
   return { url: `${config.publicBaseUrl}/${m.filePath.replace(/^\/+/, '')}`, kind: m.kind };
 }
 
+// Media for a Telegram post: the public URL when the server has one, otherwise
+// the file itself, which telegram.js uploads directly. Telegram — unlike
+// Instagram — accepts uploads, so a photo never silently drops off a post just
+// because PUBLIC_BASE_URL is unset.
+function resolveTelegramMedia(profile, mediaId) {
+  const pub = resolvePublicMedia(profile, mediaId);
+  if (pub) return pub;
+  if (!mediaId) return null;
+  const m = db.media.findById(String(mediaId));
+  if (!m || m.profileId !== profile.id || !m.filePath) return null;
+  const local = path.join(__dirname, m.filePath.replace(/^\/+/, ''));
+  if (!local.startsWith(UPLOADS_DIR + path.sep) || !fs.existsSync(local)) return null;
+  return { path: local, kind: m.kind };
+}
+
 // Shared executor — used by the direct post route AND the agent approval gate.
 // Media is optional: Telegram, unlike Instagram, publishes text on its own.
 async function executeTelegramPost(profile, text, mediaId) {
   const conn = db.telegram.findByProfile(profile.id);
   if (!conn) throw new Error('Telegram is not connected');
   if (!conn.chatId) throw new Error('No channel or group linked yet — finish the Telegram setup on your dashboard');
-  const media = resolvePublicMedia(profile, mediaId);
+  const media = resolveTelegramMedia(profile, mediaId);
   const sent = await tg.sendPost(conn.botToken, conn.chatId, text, media);
   db.calendar.add({
     profileId: profile.id,
@@ -3263,7 +3278,7 @@ async function runScheduledPostsTick() {
       // row for ad-hoc posts; here the row already exists and just flips status).
       try {
         const profile = row.mediaId ? db.profiles.findById(row.profileId) : null;
-        const media = profile ? resolvePublicMedia(profile, row.mediaId) : null;
+        const media = profile ? resolveTelegramMedia(profile, row.mediaId) : null;
         await tg.sendPost(conn.botToken, conn.chatId, row.post_text, media);
         db.calendar.setStatus(row.id, 'posted');
         scheduleNextOccurrence(row);

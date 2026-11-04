@@ -13,7 +13,15 @@ beforeEach(() => {
   global.fetch = async (url, opts) => {
     if (String(url).includes('api.telegram.org')) {
       const method = String(url).split('/').pop();
-      const params = opts?.body ? JSON.parse(opts.body) : {};
+      let params = {};
+      if (opts?.body instanceof FormData) {
+        // A file upload: record the fields, and each file as { file: name, size }.
+        for (const [k, v] of opts.body.entries()) {
+          params[k] = typeof v === 'string' ? v : { file: v.name, size: v.size };
+        }
+      } else if (opts?.body) {
+        params = JSON.parse(opts.body);
+      }
       calls.push({ method, params });
       const body = responder(method, params);
       return { status: body.ok ? 200 : 400, json: async () => body };
@@ -109,4 +117,31 @@ test('sendMessage posts to the chat', async () => {
   const sent = await tg.sendMessage('1:token', '-100123', 'Hello channel');
   assert.strictEqual(sent.message_id, 7);
   assert.deepStrictEqual(calls[0].params, { chat_id: '-100123', text: 'Hello channel' });
+});
+
+test('a photo stored only on this server is uploaded to Telegram directly', async () => {
+  // No public URL to hand Telegram, so the file itself goes up as multipart.
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const file = path.join(os.tmpdir(), `tg-upload-${process.pid}.png`);
+  fs.writeFileSync(file, Buffer.from('89504e470d0a1a0a', 'hex'));
+  try {
+    responder = () => ({ ok: true, result: { message_id: 9 } });
+    const sent = await tg.sendPost('1:token', '-100123', 'Fresh samsa', { path: file, kind: 'image' });
+    assert.strictEqual(sent.message_id, 9);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].method, 'sendPhoto');
+    assert.strictEqual(calls[0].params.chat_id, '-100123');
+    assert.strictEqual(calls[0].params.caption, 'Fresh samsa');
+    assert.deepStrictEqual(calls[0].params.photo, { file: path.basename(file), size: 8 });
+  } finally {
+    fs.unlinkSync(file);
+  }
+});
+
+test('a public photo URL is still passed by link, not uploaded', async () => {
+  responder = () => ({ ok: true, result: { message_id: 10 } });
+  await tg.sendPost('1:token', '-100123', 'Hi', { url: 'https://cdn.example.com/a.jpg', kind: 'image' });
+  assert.strictEqual(calls[0].params.photo, 'https://cdn.example.com/a.jpg');
 });

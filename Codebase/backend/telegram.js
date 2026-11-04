@@ -6,6 +6,9 @@
 // everything is automated — Markivo brands the bot with the business details,
 // detects the channel/group the owner adds it to, and publishes posts to it.
 
+const fs = require('fs');
+const path = require('path');
+
 const API_BASE = 'https://api.telegram.org';
 
 class TelegramError extends Error {
@@ -25,6 +28,33 @@ async function call(token, method, params = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
+  } catch (err) {
+    throw new TelegramError(method, `network error (${err.message})`, 0);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!data.ok) {
+    throw new TelegramError(method, data.description || `HTTP ${res.status}`, data.error_code || res.status);
+  }
+  return data.result;
+}
+
+// Same as call(), but uploads one file as multipart form data. Used when the
+// photo/video lives only on this server (no public URL Telegram could fetch).
+async function callWithFile(token, method, params, field, filePath) {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null) form.append(k, String(v));
+  }
+  let bytes;
+  try {
+    bytes = fs.readFileSync(filePath);
+  } catch (err) {
+    throw new TelegramError(method, `media file unreadable (${err.message})`, 0);
+  }
+  form.append(field, new Blob([bytes]), path.basename(filePath));
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/bot${token}/${method}`, { method: 'POST', body: form });
   } catch (err) {
     throw new TelegramError(method, `network error (${err.message})`, 0);
   }
@@ -142,13 +172,16 @@ async function verifyPostAccess(token, chatId, botUserId) {
 const sendMessage = (token, chatId, text) =>
   call(token, 'sendMessage', { chat_id: chatId, text });
 
-// Telegram fetches media from a public URL, exactly like Instagram does, so
-// these take a URL rather than bytes.
-const sendPhoto = (token, chatId, photoUrl, caption) =>
-  call(token, 'sendPhoto', { chat_id: chatId, photo: photoUrl, caption });
-
-const sendVideo = (token, chatId, videoUrl, caption) =>
-  call(token, 'sendVideo', { chat_id: chatId, video: videoUrl, caption });
+// Media is either a public URL Telegram fetches itself, or { path } to a file
+// on this server, which is uploaded directly. The upload means photo posts
+// work even where the server has no public address.
+const sendMedia = (method, field) => (token, chatId, media, caption) => (
+  media && typeof media === 'object' && media.path
+    ? callWithFile(token, method, { chat_id: chatId, caption }, field, media.path)
+    : call(token, method, { chat_id: chatId, [field]: media, caption })
+);
+const sendPhoto = sendMedia('sendPhoto', 'photo');
+const sendVideo = sendMedia('sendVideo', 'video');
 
 // Captions are capped at 1024 characters while a plain message allows 4096.
 // Rather than truncate the owner's copy, a long post is sent as media first and
@@ -160,10 +193,11 @@ const CAPTION_MAX = 1024;
  * carries the text, so callers keep a single message id to record.
  */
 async function sendPost(token, chatId, text, media) {
-  if (!media || !media.url) return sendMessage(token, chatId, text);
+  if (!media || (!media.url && !media.path)) return sendMessage(token, chatId, text);
   const send = media.kind === 'video' ? sendVideo : sendPhoto;
-  if (text.length <= CAPTION_MAX) return send(token, chatId, media.url, text);
-  await send(token, chatId, media.url, '');
+  const source = media.url || { path: media.path };
+  if (text.length <= CAPTION_MAX) return send(token, chatId, source, text);
+  await send(token, chatId, source, '');
   return sendMessage(token, chatId, text);
 }
 

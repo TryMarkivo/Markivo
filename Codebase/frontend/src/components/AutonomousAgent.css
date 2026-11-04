@@ -387,11 +387,6 @@
   border: 1px solid var(--border-subtle);
 }
 
-/* Settings-style page: a readable column, not the full screen width. */
-.autopilot-pane {
-  max-width: 860px;
-}
-
 /* One card for all of Autopilot's settings: the on/off switch on top, then
    each setting as a row divided by a hairline, then the buttons. */
 .ap-toggle-card {
