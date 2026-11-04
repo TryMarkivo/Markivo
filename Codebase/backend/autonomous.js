@@ -68,7 +68,11 @@ function writingRemaining(db, config, userId, tier) {
 // fetch failure just means that platform contributes nothing this round.
 async function gatherExternalActivity({ db, ownContentFetch, config, profileId, connectedPlatforms, tgConn, nowMs }) {
   const cooldownMs = config.ownContentFetchCooldownMs;
-  for (const platform of connectedPlatforms) {
+  // Learning from forwarded posts only (config.autopilotLearnFrom): the
+  // channels themselves are not read, and only what the owner forwarded is
+  // shown to the copywriter as their own posts.
+  const forwardedOnly = config.autopilotLearnFrom === 'forwarded';
+  for (const platform of (forwardedOnly ? [] : connectedPlatforms)) {
     const conn = platform === 'telegram' ? null : db.connections.findByProfile(profileId, platform);
     const source = db.ownContent.sourceFor(profileId, platform);
     const stale = !source || !source.lastFetchedAt || (nowMs - new Date(source.lastFetchedAt).getTime()) > cooldownMs;
@@ -78,7 +82,9 @@ async function gatherExternalActivity({ db, ownContentFetch, config, profileId, 
     if (result.posts && result.posts.length) db.ownContent.mergePosts(profileId, platform, result.posts);
   }
 
-  const ownPosts = db.ownContent.listByProfile(profileId, 15);
+  const ownPosts = forwardedOnly
+    ? db.ownContent.listByProfile(profileId, 200).filter((p) => p.source === 'forwarded').slice(0, 15)
+    : db.ownContent.listByProfile(profileId, 15);
   const ownExternalActivity = ownPosts
     .filter((p) => p.caption)
     .slice(0, 8)
@@ -91,7 +97,7 @@ async function gatherExternalActivity({ db, ownContentFetch, config, profileId, 
     .slice(0, 8)
     .map((p) => `${nameById[p.competitorId] || 'A competitor'}: "${String(p.caption).slice(0, 100)}"`);
 
-  return { ownExternalActivity, competitorHighlights, ownPostCount: ownPosts.length, competitorPostCount: competitorPosts.length };
+  return { ownExternalActivity, competitorHighlights, ownPostCount: ownPosts.length, competitorPostCount: competitorPosts.length, forwardedOnly };
 }
 
 // Theme keys of Autopilot's recent posts, newest first — what the rotation
@@ -312,9 +318,13 @@ async function runProfileAutopilot({ db, ai, connectors, config, publishers = {}
     db.autonomous.logActivity({
       profileId,
       kind: 'external_content',
-      summary: i18n.tr(lang, externalActivityCounts.ownPostCount === 1
-        ? 'Grounded this plan in {{own}} real post from your own connected accounts and {{competitor}} from tracked competitors.'
-        : 'Grounded this plan in {{own}} real posts from your own connected accounts and {{competitor}} from tracked competitors.',
+      summary: i18n.tr(lang, externalActivityCounts.forwardedOnly
+        ? (externalActivityCounts.ownPostCount === 1
+          ? 'Grounded this plan in {{own}} post you forwarded to the bot and {{competitor}} from tracked competitors.'
+          : 'Grounded this plan in {{own}} posts you forwarded to the bot and {{competitor}} from tracked competitors.')
+        : (externalActivityCounts.ownPostCount === 1
+          ? 'Grounded this plan in {{own}} real post from your own connected accounts and {{competitor}} from tracked competitors.'
+          : 'Grounded this plan in {{own}} real posts from your own connected accounts and {{competitor}} from tracked competitors.'),
       { own: externalActivityCounts.ownPostCount, competitor: externalActivityCounts.competitorPostCount }),
       // The actual snippets that fed the prompt — otherwise they're used once
       // and thrown away, leaving the owner with only a count in the summary.

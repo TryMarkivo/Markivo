@@ -1139,7 +1139,11 @@ module.exports = function createDb(dbPath) {
           `UPDATE own_content_posts SET caption = COALESCE(@caption, caption), kind = COALESCE(@kind, kind),
              posted_at = COALESCE(@posted_at, posted_at), view_count = COALESCE(@view_count, view_count),
              like_count = COALESCE(@like_count, like_count), comment_count = COALESCE(@comment_count, comment_count),
-             fetched_at = @fetched_at WHERE id = @id`
+             fetched_at = @fetched_at,
+             -- A post the owner forwarded stays 'forwarded' (Autopilot may learn
+             -- only from those); a forward of a post already saved marks it so.
+             source = CASE WHEN source = 'forwarded' THEN source ELSE COALESCE(@source, source) END
+           WHERE id = @id`
         );
         const insert = sqlite.prepare(
           `INSERT INTO own_content_posts (id, profile_id, platform, external_id, kind, caption, posted_at, like_count, comment_count, view_count, fetched_at, source)
@@ -1164,7 +1168,7 @@ module.exports = function createDb(dbPath) {
             };
             const existing = p.externalId ? find.get(profileId, platform, String(p.externalId)) : null;
             if (existing) {
-              update.run({ ...vals, id: existing.id });
+              update.run({ ...vals, id: existing.id, source });
             } else {
               insert.run({ ...vals, id: id(), profile_id: profileId, platform, external_id: p.externalId ? String(p.externalId) : null, source });
               added += 1;
@@ -1179,7 +1183,10 @@ module.exports = function createDb(dbPath) {
           'SELECT * FROM own_content_posts WHERE profile_id = ? ORDER BY posted_at DESC LIMIT ?'
         ).all(profileId, limit).map(mapOwnContentPost);
       },
-      countByProfile(profileId) {
+      countByProfile(profileId, { source = null } = {}) {
+        if (source) {
+          return sqlite.prepare('SELECT COUNT(*) AS n FROM own_content_posts WHERE profile_id = ? AND source = ?').get(profileId, source).n;
+        }
         return sqlite.prepare('SELECT COUNT(*) AS n FROM own_content_posts WHERE profile_id = ?').get(profileId).n;
       },
     },

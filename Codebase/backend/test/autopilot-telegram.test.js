@@ -17,6 +17,8 @@ process.env.NODE_ENV = 'test';
 process.env.AUTONOMOUS_ENABLED = 'true';
 process.env.TELEGRAM_ENABLED = 'true';
 process.env.APP_URL = 'https://app.markivo.test';
+// These tests cover learning from every source (the channel too).
+process.env.AUTOPILOT_LEARN_FROM = 'all';
 const SHARED_TOKEN = '5000000000:SharedMarkivoBotTokenAAAAAAAAAAAAAAAA';
 process.env.TELEGRAM_BOT_TOKEN = SHARED_TOKEN;
 

@@ -3225,9 +3225,10 @@ app.post('/api/autonomous/style/relearn', verifyToken, autonomousGate, asyncRout
   }
   const cfg = db.autonomous.getConfig(profile.id);
   const plan = autopilotSchedule.normalizeSchedule(cfg && cfg.schedule, cfg && cfg.frequency);
-  // Read the channel first when it is readable (public Telegram, Meta, YouTube).
+  // Read the channel first when it is readable (public Telegram) — unless
+  // Autopilot learns only from the posts the owner forwarded.
   const tgConn = db.telegram.findByProfile(profile.id);
-  if (tgConn && tgConn.chatUsername) {
+  if (tgConn && tgConn.chatUsername && config.autopilotLearnFrom !== 'forwarded') {
     const result = await ownContentFetch.fetchOwnContent('telegram', null, tgConn);
     if (result.posts && result.posts.length) db.ownContent.mergePosts(profile.id, 'telegram', result.posts);
     db.ownContent.upsertSource({ profileId: profile.id, platform: 'telegram', status: result.error ? 'error' : (result.found ? 'ok' : 'empty'), error: result.error });

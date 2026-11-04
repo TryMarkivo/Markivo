@@ -149,6 +149,8 @@
   "I drafted this post for your {{platform}} — review and approve to publish.": "{{platform}} uchun post tayyorladim — ko'rib chiqing va joylash uchun tasdiqlang.",
   "Campaign authorized! Launched localized ad campaign costing {{cost}}. (Simulation — Meta Ads integration coming soon.)": "Kampaniya tasdiqlandi! {{cost}} narxdagi mahalliy reklama kampaniyasi ishga tushirildi. (Sinov rejimi — Meta Ads integratsiyasi tez orada qo'shiladi.)",
   "Grounded this plan in {{own}} real post from your own connected accounts and {{competitor}} from tracked competitors.": "Bu reja ulangan hisoblaringizdagi {{own}} ta haqiqiy post va kuzatilayotgan raqobatchilarning {{competitor}} ta postiga asoslandi.",
+  "Grounded this plan in {{own}} post you forwarded to the bot and {{competitor}} from tracked competitors.": "Bu reja botga uzatgan {{own}} ta postingiz va kuzatilayotgan raqobatchilarning {{competitor}} ta postiga asoslandi.",
+  "Grounded this plan in {{own}} posts you forwarded to the bot and {{competitor}} from tracked competitors.": "Bu reja botga uzatgan {{own}} ta postingiz va kuzatilayotgan raqobatchilarning {{competitor}} ta postiga asoslandi.",
   "Grounded this plan in {{own}} real posts from your own connected accounts and {{competitor}} from tracked competitors.": "Bu reja ulangan hisoblaringizdagi {{own}} ta haqiqiy post va kuzatilayotgan raqobatchilarning {{competitor}} ta postiga asoslandi.",
   "very short, punchy sentences (avg ~{{n}} words)": "juda qisqa, keskin gaplar (o'rtacha ~{{n}} so'z)",
   "short-to-medium sentences (avg ~{{n}} words)": "qisqa va o'rtacha uzunlikdagi gaplar (o'rtacha ~{{n}} so'z)",

@@ -5,6 +5,8 @@
 // connected channels (public t.me/s preview, Meta, YouTube), every channel
 // post the shared Markivo bot has seen since it joined, posts the owner
 // forwarded to the bot, and what Markivo already published for them.
+// For now only the forwarded posts are used (config.autopilotLearnFrom =
+// 'forwarded'); AUTOPILOT_LEARN_FROM=all brings the rest back.
 //
 // Two layers:
 //   - measured (always, keyless): typical length, emojis, hashtags, line
@@ -24,6 +26,7 @@
 // ==========================================================================
 
 const schedule = require('./autopilotSchedule');
+const config = require('./config');
 
 const MIN_POSTS = 5;
 const MAX_SAMPLES = 40;
@@ -37,12 +40,16 @@ const LINK_RE = /(https?:\/\/|t\.me\/|@[A-Za-z0-9_]{4,})/i;
 
 const norm = (t) => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 120);
 
-// Every real post we can learn from, newest first, de-duplicated.
-function collectSamples(db, profileId) {
+// Every real post we can learn from, newest first, de-duplicated. With
+// learnFrom 'forwarded' (config.autopilotLearnFrom) only the posts the owner
+// forwarded to the bot count — not the channel's own posts, nor Markivo's.
+function collectSamples(db, profileId, { learnFrom = config.autopilotLearnFrom } = {}) {
+  const forwardedOnly = learnFrom === 'forwarded';
   const own = db.ownContent.listByProfile(profileId, 200)
     .filter((p) => p.caption && p.caption.trim().length >= 15)
+    .filter((p) => !forwardedOnly || p.source === 'forwarded')
     .map((p) => ({ text: p.caption.trim(), postedAt: p.postedAt, views: Number.isFinite(p.viewCount) ? p.viewCount : null, source: p.source || 'channel' }));
-  const viaMarkivo = db.calendar.listByProfile(profileId)
+  const viaMarkivo = forwardedOnly ? [] : db.calendar.listByProfile(profileId)
     .filter((p) => p.status === 'posted' && p.post_text && p.post_text.trim().length >= 15)
     .map((p) => ({ text: p.post_text.trim(), postedAt: p.scheduled_time, views: null, source: 'markivo' }));
   const seen = new Set();

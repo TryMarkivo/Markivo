@@ -18,6 +18,8 @@ process.env.ANTHROPIC_API_KEY = '';
 process.env.META_CLIENT_ID = '';
 process.env.META_CLIENT_SECRET = '';
 process.env.AI_LIMIT_FREEMIUM_WRITING = '40';
+// These tests cover learning from every source (the channel too).
+process.env.AUTOPILOT_LEARN_FROM = 'all';
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');

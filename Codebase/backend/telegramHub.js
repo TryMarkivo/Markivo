@@ -25,6 +25,7 @@
 
 const crypto = require('crypto');
 const tg = require('./telegram');
+const config = require('./config');
 
 const LINK_TTL_MS = 30 * 60 * 1000;
 const LINKABLE = ['channel', 'group', 'supergroup'];
@@ -190,7 +191,7 @@ async function linkChat(ctx, link, chatId, user) {
   return true;
 }
 
-/** Handle one update from the shared bot. ctx = { db, token, me, now?, log? } */
+/** Handle one update from the shared bot. ctx = { db, token, me, now?, log?, learnFrom? } */
 // A channel post as an own-content row. The message id is the same id the
 // public t.me/s/ preview uses, so a later scrape adds views to the same row.
 function contentRow(m, externalId) {
@@ -219,9 +220,14 @@ async function handleUpdate(update, ctx) {
   const nowIso = new Date(ctx.now ?? Date.now()).toISOString();
   const msg = update.message;
 
+  // Where Autopilot learns from (config.autopilotLearnFrom): 'forwarded'
+  // means only the posts the owner forwards, so channel posts are not kept.
+  const forwardedOnly = (ctx.learnFrom || config.autopilotLearnFrom) === 'forwarded';
+
   // A post in a linked channel (new or edited): Autopilot's own-content.
   const cp = update.channel_post || update.edited_channel_post;
   if (cp) {
+    if (forwardedOnly) return 'ignored';
     const profiles = cp.chat ? db.telegram.sharedProfilesForChat(cp.chat.id) : [];
     if (!profiles.length || !(cp.text || cp.caption)) return 'ignored';
     for (const profileId of profiles) {
@@ -288,7 +294,8 @@ async function handleUpdate(update, ctx) {
         const externalId = sameChat ? String(fwd.messageId) : `fwd:${fwd.chatId || 'user'}:${fwd.messageId || msg.message_id}`;
         db.ownContent.mergePosts(profileId, 'telegram', [contentRow({ ...msg, date: fwd.date }, externalId)], { source: 'forwarded' });
       }
-      await reply(ctx, user, 'learned', { count: db.ownContent.countByProfile(profiles[0]) });
+      const count = db.ownContent.countByProfile(profiles[0], forwardedOnly ? { source: 'forwarded' } : {});
+      await reply(ctx, user, 'learned', { count });
       return 'learned';
     }
 

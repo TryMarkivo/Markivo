@@ -19,6 +19,8 @@ process.env.AUTONOMOUS_ENABLED = 'true';
 // Room for the whole file: the budget tests below drive the limit down
 // deliberately, so the default must not run dry before they get there.
 process.env.AI_LIMIT_FREEMIUM_WRITING = '30';
+// Covers reading the owner's connected accounts, i.e. learning from every source.
+process.env.AUTOPILOT_LEARN_FROM = 'all';
 // Meta pinned to SANDBOX: defining the credentials as '' keeps dotenv from
 // backfilling real ones, so every connector publish below is simulated
 // (connectors/base.js simulatedPublish) and never touches the network.

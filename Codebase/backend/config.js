@@ -194,6 +194,13 @@ const config = {
   // SAFETY: Autopilot never runs paid ad campaigns — money spend always stays
   // behind the deterministic human approval gate.
   autonomousEnabled: process.env.AUTONOMOUS_ENABLED !== 'false',
+  // What Autopilot learns a business's voice, topics and best times from.
+  // 'forwarded' (the default for now): ONLY the posts the owner forwards to
+  // the shared bot. The linked channel's own posts — its public t.me/s page,
+  // posts the bot sees there, other connected accounts, and what Markivo
+  // published — are not read, saved or learned from. 'all' learns from every
+  // source, as before.
+  autopilotLearnFrom: process.env.AUTOPILOT_LEARN_FROM === 'all' ? 'all' : 'forwarded',
   // How often the background worker scans for due Autopilot profiles (minutes).
   autonomousTickMs: (parseInt(process.env.AUTONOMOUS_TICK_MIN, 10) || 10) * 60 * 1000,
 
