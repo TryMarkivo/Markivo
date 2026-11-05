@@ -103,39 +103,39 @@
     "hero": {
       "line1": "You run the business.",
       "line2": "Markivo runs the marketing.",
-      "lead": "Markivo writes your Instagram posts, makes the photos and short videos, and plans them across the week. Approve each one with a tap, or let it post on its own.",
+      "lead": "Markivo learns how you write, then plans and writes your posts for the week. Each one comes to your Telegram first: tap Post or Skip, or let it post on its own.",
       "cta": "Start free",
       "ctaScan": "I'm already online",
       "ctaDashboard": "Open my dashboard",
-      "note": "Free plan, no card needed."
+      "note": "Free plan, no card needed.",
+      "eyebrow": "Autopilot for Telegram and Instagram",
+      "proofLang": "Uzbek, Russian and English",
+      "proofAds": "Never spends on ads without asking"
     },
     "preview": {
-      "label": "Example: a week of posts for a cafe",
-      "title": "This week",
-      "business": "Noir Coffee · Instagram",
       "mon": "Mon",
       "wed": "Wed",
       "fri": "Fri",
-      "post1": "Warm pastries, a proper espresso and a quiet corner to work in. We open at 8.",
-      "post2": "Every Wednesday after 4 pm, the second coffee is on us.",
-      "post3": "New on the menu: pistachio croissant. Baked this morning, gone by lunch.",
-      "posted": "Posted",
-      "approved": "Approved",
-      "waiting": "Needs your OK",
-      "approve": "Approve",
-      "edit": "Edit"
+      "tue": "Tue",
+      "thu": "Thu",
+      "sat": "Sat",
+      "sun": "Sun"
     },
     "how": {
-      "title": "How it works",
-      "step1Title": "Tell Markivo about your business",
-      "step1Text": "What you sell, where you are and who your customers are. It takes a few minutes. Already online? Markivo finds your pages and reviews instead.",
-      "step2Title": "Get a week of posts",
-      "step2Text": "Text, photos and short videos in your customers' language, each set for a good time to post.",
-      "step3Title": "Approve, or let it post",
-      "step3Text": "Approve each post with one tap, or turn on Autopilot and Markivo publishes for you. It never spends money on ads without asking."
+      "title": "Marketing that runs while you work",
+      "step1Title": "Forward a few of your posts",
+      "step1Text": "Send five or more posts you like to the Markivo bot. Autopilot learns how you write, what you post about and when your customers read.",
+      "step2Title": "It plans your week",
+      "step2Text": "Pick the days and times, or let Autopilot choose the hours your posts do best. Each post is written in your voice, in your customers' language.",
+      "step3Title": "You tap Post or Skip",
+      "step3Text": "Every post comes to your Telegram first. Post it and it goes out on time; skip it and nothing is published. Or let Autopilot post on its own.",
+      "kicker": "How it works",
+      "lead": "Set it up once in a few minutes. After that, your part is a tap in Telegram.",
+      "fwdFrom": "Forwarded from Noir Coffee",
+      "fwdCount": "8 posts learned"
     },
     "features": {
-      "title": "What you get",
+      "title": "Everything a small business needs to post well",
       "brandTitle": "Logo and slogan",
       "brandText": "Starting from nothing? Pick a logo and slogan made for your business before your first post.",
       "languageTitle": "Uzbek, Russian, English",
@@ -146,8 +146,9 @@
       "calendarText": "Every planned post in one place. Move one to another day by dragging it.",
       "competitorsTitle": "Competitors",
       "competitorsText": "See what similar businesses post and how fast they grow, with a note on how to answer.",
-      "autopilotTitle": "Autopilot",
-      "autopilotText": "Let Markivo plan and write posts on its own. It can ask for your OK first, or post by itself."
+      "kicker": "Features",
+      "adsTitle": "Your money stays yours",
+      "adsText": "Markivo writes and posts for free. It never starts a paid ad without your OK."
     },
     "pricing": {
       "title": "Pricing",
@@ -174,14 +175,16 @@
         "name": "Ultimate",
         "for": "For posting every day",
         "cta": "Choose Ultimate"
-      }
+      },
+      "kicker": "Pricing"
     },
     "founder": {
       "text": "I once ran all the marketing for a local business on my own, on top of everything else. It was too much for one person, and the tools out there weren't made for owners here or in our languages. Markivo is what I wish I'd had.",
       "sign": "Elshod, founder"
     },
     "cta": {
-      "title": "See what Markivo writes for you."
+      "title": "See what Markivo writes for you.",
+      "text": "Set up takes a few minutes. Your first posts are ready the same day."
     },
     "footer": {
       "label": "Legal",
@@ -189,6 +192,26 @@
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
       "dataDeletion": "Data Deletion"
+    },
+    "chat": {
+      "label": "Example: Autopilot asks for your OK in Telegram",
+      "bot": "bot",
+      "intro": "Autopilot wrote a post for “Noir Coffee” — it goes out Thursday at 18:30:",
+      "post": "New on the menu: pistachio croissant. Baked this morning, usually gone by lunch. Come early ☕️",
+      "approve": "Post it",
+      "skip": "Skip",
+      "reply": "Approved. It goes out at the planned time."
+    },
+    "learned": {
+      "title": "Learned from your posts",
+      "voiceLabel": "Voice",
+      "voice": "Warm, short, talks to regulars",
+      "bestLabel": "Best time",
+      "best": "Thursday, 18:30",
+      "topicsLabel": "Topics",
+      "topic1": "New on the menu",
+      "topic2": "Offers",
+      "topic3": "Behind the counter"
     }
   },
   "onboarding": {

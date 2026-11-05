@@ -103,39 +103,39 @@
     "hero": {
       "line1": "Biznes — sizdan.",
       "line2": "Marketing — Markivo'dan.",
-      "lead": "Markivo Instagram uchun postlaringizni yozadi, rasm va qisqa videolarni tayyorlaydi hamda ularni hafta bo'yicha rejalashtiradi. Har birini bir bosishda tasdiqlang yoki Markivo'ning o'zi joylab borsin.",
+      "lead": "Markivo qanday yozishingizni o'rganadi, so'ng bir haftalik postlaringizni rejalab, o'zi yozadi. Har bir post avval Telegramingizga keladi: «Joylash» yoki «O'tkazib yuborish»ni bosing yoki Markivo'ning o'zi joylab borsin.",
       "cta": "Bepul boshlash",
       "ctaScan": "Mening sahifalarim bor",
       "ctaDashboard": "Dashbordimni ochish",
-      "note": "Bepul tarif, karta shart emas."
+      "note": "Bepul tarif, karta shart emas.",
+      "eyebrow": "Telegram va Instagram uchun Avtopilot",
+      "proofLang": "O'zbek, rus va ingliz tillarida",
+      "proofAds": "Reklamaga so'ramasdan pul sarflamaydi"
     },
     "preview": {
-      "label": "Namuna: kafe uchun bir haftalik postlar",
-      "title": "Shu hafta",
-      "business": "Noir Coffee · Instagram",
       "mon": "Du",
       "wed": "Chor",
       "fri": "Ju",
-      "post1": "Issiq pishiriqlar, haqiqiy espresso va bemalol ishlash uchun tinch burchak. Soat 8:00 da ochilamiz.",
-      "post2": "Har chorshanba soat 16:00 dan keyin ikkinchi kofe bizdan.",
-      "post3": "Menyuda yangilik: pistali kruassan. Ertalab pishdi, tushlikkacha tugaydi.",
-      "posted": "Joylandi",
-      "approved": "Tasdiqlandi",
-      "waiting": "Tasdig'ingiz kerak",
-      "approve": "Tasdiqlash",
-      "edit": "Tahrirlash"
+      "tue": "Se",
+      "thu": "Pa",
+      "sat": "Sha",
+      "sun": "Ya"
     },
     "how": {
-      "title": "Qanday ishlaydi",
-      "step1Title": "Biznesingiz haqida aytib bering",
-      "step1Text": "Nima sotasiz, qayerdasiz, mijozlaringiz kim. Bir necha daqiqa oladi. Allaqachon onlayn bo'lsangiz, Markivo sahifalaringiz va sharhlaringizni o'zi topadi.",
-      "step2Title": "Bir haftalik postlarni oling",
-      "step2Text": "Mijozlaringiz tilida matn, rasm va qisqa videolar. Har biri joylash uchun qulay vaqtga qo'yiladi.",
-      "step3Title": "Tasdiqlang yoki o'zi joylasin",
-      "step3Text": "Har bir postni bir bosishda tasdiqlang yoki Avtopilotni yoqing, Markivo o'zi joylaydi. Reklamaga esa sizdan so'ramay bir so'm ham sarflamaydi."
+      "title": "Siz ishlayotganingizda marketing o'zi yuradi",
+      "step1Title": "Bir nechta postingizni uzating",
+      "step1Text": "Yoqqan beshta yoki undan ko'p postingizni Markivo botiga uzating. Avtopilot qanday yozishingizni, nima haqida yozishingizni va mijozlaringiz qachon o'qishini o'rganadi.",
+      "step2Title": "Haftangizni rejalaydi",
+      "step2Text": "Kun va soatlarni o'zingiz tanlang yoki postlaringiz eng yaxshi ishlaydigan vaqtni Avtopilot tanlasin. Har bir post sizning uslubingizda, mijozlaringiz tilida yoziladi.",
+      "step3Title": "«Joylash» yoki «O'tkazib yuborish»ni bosasiz",
+      "step3Text": "Har bir post avval Telegramingizga keladi. Joylasangiz, o'z vaqtida chiqadi; o'tkazib yuborsangiz, hech narsa chiqmaydi. Yoki Avtopilot o'zi joylab borsin.",
+      "kicker": "Qanday ishlaydi",
+      "lead": "Bir marta, bir necha daqiqada sozlaysiz. Keyin sizdan faqat Telegramda bitta bosish kerak.",
+      "fwdFrom": "Noir Coffee kanalidan uzatildi",
+      "fwdCount": "8 ta postdan o'rgandi"
     },
     "features": {
-      "title": "Nimalarga ega bo'lasiz",
+      "title": "Kichik biznesga yaxshi post qilish uchun kerak bo'lgan hamma narsa",
       "brandTitle": "Logotip va slogan",
       "brandText": "Noldan boshlayapsizmi? Birinchi postdan oldin biznesingiz uchun yaratilgan logotip va sloganni tanlang.",
       "languageTitle": "O'zbek, rus, ingliz",
@@ -146,8 +146,9 @@
       "calendarText": "Rejalashtirilgan barcha postlar bir joyda. Postni boshqa kunga sudrab o'tkazish kifoya.",
       "competitorsTitle": "Raqobatchilar",
       "competitorsText": "O'xshash bizneslar nima joylayotgani va qanchalik tez o'sayotganini ko'ring, qanday javob berish bo'yicha maslahat bilan.",
-      "autopilotTitle": "Avtopilot",
-      "autopilotText": "Markivo postlarni o'zi rejalashtirib, o'zi yozsin. Avval tasdig'ingizni so'rashi yoki o'zi joylashi mumkin."
+      "kicker": "Imkoniyatlar",
+      "adsTitle": "Pulingiz o'zingizda qoladi",
+      "adsText": "Markivo bepul yozadi va joylaydi. Ruxsatingizsiz hech qachon pullik reklama boshlamaydi."
     },
     "pricing": {
       "title": "Tariflar",
@@ -174,14 +175,16 @@
         "name": "Ultimate",
         "for": "Har kuni joylash uchun",
         "cta": "Ultimate'ni tanlash"
-      }
+      },
+      "kicker": "Tariflar"
     },
     "founder": {
       "text": "Bir paytlar mahalliy bir biznesning butun marketingini boshqa ishlar qatorida yakka o'zim yuritganman. Bir kishi uchun bu juda og'ir edi, mavjud vositalar esa bu yerdagi biznes egalari uchun ham, bizning tillarimizda ham yaratilmagan edi. Markivo — o'shanda menga yetishmagan vosita.",
       "sign": "Elshod, asoschi"
     },
     "cta": {
-      "title": "Markivo siz uchun nima yozishini ko'ring."
+      "title": "Markivo siz uchun nima yozishini ko'ring.",
+      "text": "Sozlash bir necha daqiqa oladi. Birinchi postlaringiz o'sha kuniyoq tayyor bo'ladi."
     },
     "footer": {
       "label": "Huquqiy",
@@ -189,6 +192,26 @@
       "privacy": "Maxfiylik siyosati",
       "terms": "Foydalanish shartlari",
       "dataDeletion": "Ma'lumotlarni o'chirish"
+    },
+    "chat": {
+      "label": "Namuna: Avtopilot Telegramda tasdig'ingizni so'raydi",
+      "bot": "bot",
+      "intro": "Autopilot «Noir Coffee» uchun post yozdi — payshanba 18:30 da chiqadi:",
+      "post": "Menyuda yangilik: pistali kruassan. Ertalab pishdi, odatda tushlikkacha tugaydi. Ertaroq keling ☕️",
+      "approve": "Joylash",
+      "skip": "O'tkazib yuborish",
+      "reply": "Tasdiqlandi. Belgilangan vaqtda chiqadi."
+    },
+    "learned": {
+      "title": "Postlaringizdan o'rgandi",
+      "voiceLabel": "Uslub",
+      "voice": "Iliq, qisqa, doimiy mijozlar bilan gaplashadi",
+      "bestLabel": "Eng yaxshi vaqt",
+      "best": "Payshanba, 18:30",
+      "topicsLabel": "Mavzular",
+      "topic1": "Menyuda yangilik",
+      "topic2": "Aksiyalar",
+      "topic3": "Peshtaxta ortida"
     }
   },
   "onboarding": {
